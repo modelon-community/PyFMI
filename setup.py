@@ -76,8 +76,10 @@ elif sys.platform == 'darwin':
 else:
     suffix = '.so'
 
-path_log_src = "pyfmi"+O.path.sep+"util" + O.path.sep + "FMILogger.c"
-path_log_dest = "pyfmi"+O.path.sep+"util" + O.path.sep + "FMILogger" + suffix
+path_pyfmi = "src"+O.path.sep+"pyfmi"
+
+path_log_src = path_pyfmi+O.path.sep+"util" + O.path.sep + "FMILogger.c"
+path_log_dest = path_pyfmi+O.path.sep+"util" + O.path.sep + "FMILogger" + suffix
 
 O.system("gcc -fPIC "+path_log_src+" -shared -o "+path_log_dest)
 
@@ -100,7 +102,7 @@ setup(name=NAME,
       platforms=PLATFORMS,
       classifiers=CLASSIFIERS,
       #cmdclass={"build_clib":my_cbuild},
-      package_dir = {'pyfmi':'pyfmi','pyfmi.common':'common'},
+      package_dir = {'pyfmi':'src'+O.path.sep+'pyfmi','pyfmi.common':'src'+O.path.sep+'common'},
       packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting'],
       package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*','util'+O.path.sep+'*']},
       script_args=copy_args
