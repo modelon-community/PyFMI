@@ -15,6 +15,33 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+#==============================================
+# C headers
+#==============================================
+cdef extern from "stdlib.h":
+    ctypedef long unsigned int size_t
+    
+    void *malloc(size_t)
+    void free(void *ptr)
+    void *calloc(size_t, size_t)
+    void *realloc(void *, size_t)
+
+#SEE http://wiki.cython.org/FAQ#HowdoIusevariableargs.
+cdef extern from "stdarg.h":
+    ctypedef struct va_list:
+        pass
+    ctypedef struct fake_type:
+        pass
+    void va_start(va_list, void* arg)
+    #void* va_arg(va_list, fake_type)
+    void va_end(va_list)
+    int vsnprintf(char *str, size_t size, char *format, va_list ap)
+
+#cdef extern from 'FMI1/fmi1_functions.h':
+#    cdef struct fmi1_callback_functions_t:
+#        pass
+    
+
 cdef extern from 'FMI1/fmi1_import.h':
     
     #FMI VARIABLE TYPE DEFINITIONS
@@ -37,7 +64,7 @@ cdef extern from 'FMI1/fmi1_import.h':
         jm_log_level_fatal = 4
         jm_log_level_nothing = 5
     
-    cdef enum fmi1_status_t:
+    ctypedef enum fmi1_status_t:
         fmi1_status_ok = 0
         fmi1_status_warning = 1
         fmi1_status_discard = 2
@@ -107,9 +134,10 @@ cdef extern from 'FMI1/fmi1_import.h':
     ctypedef void(*jm_free_f)(jm_voidp)
     ctypedef void *(*fmi1_callback_allocate_memory_ft)(size_t, size_t)
     ctypedef void(*fmi1_callback_free_memory_ft)(void *)
+    ctypedef void(*fmi1_callback_logger_ft)(fmi1_component_t c, fmi1_string_t instanceName, fmi1_status_t status, fmi1_string_t category, fmi1_string_t message, ...)
     ctypedef void(*fmi1_step_finished_ft)(fmi1_component_t c, fmi1_status_t status)
-    ctypedef void (*jm_logger_f)(jm_callbacks* c, jm_string module, jm_log_level_enu_t log_level, jm_string message)
-
+    #ctypedef void (*jm_logger_f)(jm_callbacks* c, jm_string module, jm_log_level_enu_t log_level, jm_string message)
+    ctypedef void (*jm_logger_f)(jm_callbacks* c, jm_string module, int log_level, jm_string message)
     
     cdef struct jm_callbacks:
         jm_malloc_f malloc
@@ -121,8 +149,8 @@ cdef extern from 'FMI1/fmi1_import.h':
         jm_voidp context
         char * errMessageBuffer
     
-    cdef struct fmi1_callback_functions_t:
-        #fmi1_callback_logger_ft logger
+    ctypedef struct fmi1_callback_functions_t:
+        fmi1_callback_logger_ft logger
         fmi1_callback_allocate_memory_ft allocateMemory
         fmi1_callback_free_memory_ft freeMemory
         fmi1_step_finished_ft stepFinished
@@ -259,7 +287,7 @@ cdef extern from 'FMI1/fmi1_import.h':
     #FMI HELPER METHODS
     char * fmi1_import_get_version(fmi1_import_t *)
     int fmi1_import_create_dllfmu(fmi1_import_t *, fmi1_callback_functions_t)
-    int fmi_import_get_fmi_version(fmi_import_context_t *, char *, char *)
+    fmi_version_enu_t fmi_import_get_fmi_version(fmi_import_context_t *, char *, char *)
     char * fmi_import_get_dll_path(char *, char *, jm_callbacks *)
     char * fmi_import_get_model_description_path(char *, jm_callbacks *)
     void fmi1_import_destroy_dllfmu(fmi1_import_t *)

@@ -48,10 +48,18 @@ FMI_DERIVATIVES = 1
 FMI_OUTPUTS = 2
 
 #CALLBACKS
+#cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
 cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-    print "module = %s, log level = %d: %s\n"%(module, log_level, message)
+    print "module = %s, log level = %d: %s"%(module, log_level, message)
 
-
+cdef void fmilogger(FMIL.fmi1_component_t c, FMIL.fmi1_string_t instanceName, FMIL.fmi1_status_t status, FMIL.fmi1_string_t category, FMIL.fmi1_string_t message, ...):
+    print "FMI LOGGER TEST START"
+    cdef char buf[1000]
+    cdef FMIL.va_list args
+    FMIL.va_start(args, message)
+    FMIL.vsnprintf(buf, 1000, message, args)
+    FMIL.va_end(args)
+    print "FMI LOGGER TEST FINISHED"
 
 class FMUException(Exception):
     """
@@ -64,44 +72,72 @@ cdef class FMUModel:
     """
     An FMI Model loaded from a DLL.
     """
-    #cdef FMIL.fmi1_callback_functions_t callBackFunctions
-    cdef FMIL.jm_callbacks *callbacks
+    cdef FMIL.fmi1_callback_functions_t callBackFunctions
+    cdef FMIL.jm_callbacks callbacks
     cdef FMIL.fmi_import_context_t* context
     cdef FMIL.fmi1_import_t* fmu
-    
-    
-    def __dealloc__(self):
-        """
-        Deallocate memory allocated
-        """
-        FMIL.fmi1_import_destroy_dllfmu(self.fmu)
-        FMIL.fmi1_import_free(self.fmu)
-        FMIL.fmi_import_free_context(self.context)
-        
+
     def __init__(self, fmu, path='.', enable_logging=False):
         """
         Constructor.
         """
+        cdef int status
+        cdef int version
+        
         print "Constructor start"
-        fmu_full_path = os.path.join(path,fmu)
+        fmu_full_path = os.path.abspath(os.path.join(path,fmu))
         fmu_temp_dir  = create_temp_dir()
         
-        self.callbacks = FMIL.jm_get_default_callbacks()
-        print "Callbacks"
-        self.context = FMIL.fmi_import_allocate_context(self.callbacks);
-        print "Context"
-        
-        print fmu_full_path, fmu_temp_dir
-        version = FMIL.fmi_import_get_fmi_version(self.context, fmu_full_path, fmu_temp_dir)
-        print "Version"
-        print version
-        
-        pass
-        """
         # Check that the file referenced by fmu has the correct file-ending
-        ext = os.path.splitext(fmu)[1]
-        if ext != ".fmu":
+        if not fmu_full_path.endswith(".fmu"):
             raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
+        
+        #Specify the general callback functions
+        self.callbacks.malloc  = FMIL.malloc
+        self.callbacks.calloc  = FMIL.calloc
+        self.callbacks.realloc = FMIL.realloc
+        self.callbacks.free    = FMIL.free
+        self.callbacks.logger  = importlogger
+        self.callbacks.context = NULL;
+        
+        #Specify FMI related callbacks
+        self.callBackFunctions.logger = fmilogger;
+        self.callBackFunctions.allocateMemory = FMIL.calloc;
+        self.callBackFunctions.freeMemory = FMIL.free;
+        
+        print "Callbacks"
+        self.context = FMIL.fmi_import_allocate_context(&self.callbacks)
+        print "Context"
+        print fmu_full_path, fmu_temp_dir
+        
+        print "Getting version..."
+
+        FMIL.fmi_import_get_fmi_version(self.context, fmu_full_path, fmu_temp_dir)
+        
+        #self._version = version #Store version
+        #print "Version", version
+        
+        if version != 1:
+            raise FMUException("PyFMI currently only supports FMI 1.0.")
+        
+        print "Parsing XML"
+        self.fmu = FMIL.fmi1_import_parse_xml(self.context, fmu_temp_dir)
+        
+        print "Creating DLL"
+        status = FMIL.fmi1_import_create_dllfmu(self.fmu, self.callBackFunctions);
+        
+        
+        #Default values
+        self.__t = None
+        
+        #Internal values
+        self._file_open = False
+        self._npoints = 0
+        self._log = []
+        self._enable_logging = enable_logging
+        
+        """
+        
         
         # unzip unit and get files in archive
         self._fmufiles = unzip_fmu(archive=fmu, path=path)
@@ -125,29 +161,17 @@ cdef class FMUModel:
         dllname = self._tempdll.split(os.sep)[-1]
         dllname = dllname[:-len(suffix)]
         self._dll = load_DLL(dllname,self._fmufiles['binaries_dir'])
-        
-        #Load calloc and free
-        self._load_c()
 
-        #Set FMIModel Typedefs
-        self._set_fmimodel_typedefs()
-        
         #Load data from XML file
         self._load_xml()
-        
-        #Internal values
-        self._log = []
-        self._enable_logging = enable_logging
+
         
         #Instantiate
         self.instantiate_model(logging=enable_logging)
         
-        #Default values
-        self.__t = None
         
-        #Internal values
-        self._file_open = False
-        self._npoints = 0
+        
+        
 
         #Create a JMIModel if a JModelica generated FMU is loaded
         # This is convenient for debugging purposes
@@ -163,7 +187,16 @@ cdef class FMUModel:
 #            print "Could not create JMIModel"
 #            pass
         """
-
+    
+    def __dealloc__(self):
+        """
+        Deallocate memory allocated
+        """
+        raise Exception
+        FMIL.fmi1_import_destroy_dllfmu(self.fmu)
+        FMIL.fmi1_import_free(self.fmu)
+        FMIL.fmi_import_free_context(self.context)
+    
     
     def _load_c(self):
         """
@@ -646,7 +679,7 @@ cdef class FMUModel:
         
             model.version
         """
-        return self._version()
+        return self._version
         
     version = property(fget=_get_version)
     
@@ -1106,6 +1139,8 @@ cdef class FMUModel:
                         
         Calls the low-level FMI function: fmiInstantiateModel.
         """
+        raise Exception
+        """
         instance = self._fmiString(name)
         guid = self._fmiString(self._GUID)
         
@@ -1134,6 +1169,7 @@ cdef class FMUModel:
         #Just to be safe, some problems with Dymola (2012) FMUs not reacting
         #to logging when set to the instantiate method.    
         self.set_debug_logging(logging)
+        """
         
     def fmiCallbackLogger(self,c, instanceName, status, category, message):
         """
@@ -1438,6 +1474,8 @@ cdef class FMUModel:
         """
         Destructor.
         """
+        pass
+        """
         import os
         import sys
         
@@ -1460,3 +1498,4 @@ cdef class FMUModel:
             os.remove(self._tempdll)
         except:
             print 'Failed to remove temporary dll ('+ self._tempdll+').'
+        """

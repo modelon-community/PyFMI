@@ -17,6 +17,8 @@
 
 #from distutils.core import setup, Extension
 from distutils.ccompiler import new_compiler
+#from distutils.core import setup
+
 from distutils.command.build_clib import build_clib
 import distutils
 import os as O
@@ -67,15 +69,6 @@ simulation package Assimulo adds industrial grade simulation
 capabilities of FMUs to Python.
 """
 
-
-#class my_cbuild(build_clib):
-#    def build_a_library(self, build_info, lib_name, libraries):
-#        self.compiler.archiver = ["gcc", "-shared", "-Wl", "-o"]
-#        return build_clib.build_a_library(self, build_info, lib_name, libraries)
-
-#config = Configuration()
-#config.add_installed_library("FMILogger",sources=['pyfmi'+O.path.sep+'util'+O.path.sep+'FMILogger.c'],install_dir='pyfmi'+O.path.sep+'util')
-
 #Load the helper function
 if sys.platform == 'win32':
     suffix = '.dll'
@@ -96,7 +89,7 @@ copy_args=sys.argv[1:]
 incdirs = ""
 libdirs = ""
 static = False
-debug = False
+debug = True
 
 # Fix path sep
 for x in sys.argv[1:]:
@@ -128,9 +121,11 @@ def check_extensions():
 
     ext_list[-1].include_dirs = [N.get_include(), "src","src"+O.sep+"pyfmi", incdirs]
     ext_list[-1].library_dirs = [libdirs]
-    ext_list[-1].libraries = ["fmiimport","fmicapi", "fmizip",
-                              "fmixml", "jmutils", "minizip", "zlib",
-                              "expat"]
+    ext_list[-1].libraries = ["fmiimport","fmicapi", "fmizip","fmixml", "jmutils", "minizip", "zlib","expat"]
+    
+    #["fmiimport","expat","fmizip","fmicapi","fmixml","jmutils","zlib","minizip"]
+    
+    #["fmiimport","fmicapi", "fmizip","fmixml", "jmutils", "minizip", "zlib","expat"]
     
     
     if debug:
@@ -154,6 +149,7 @@ setup(name=NAME,
       platforms=PLATFORMS,
       classifiers=CLASSIFIERS,
       ext_modules = ext_list,
+      #cmdclass={"build_ext":build_ext},
       #cmdclass={"build_clib":my_cbuild},
       package_dir = {'pyfmi':'src'+O.path.sep+'pyfmi','pyfmi.common':'src'+O.path.sep+'common'},
       packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting'],
