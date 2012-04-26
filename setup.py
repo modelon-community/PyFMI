@@ -17,18 +17,16 @@
 
 #from distutils.core import setup, Extension
 from distutils.ccompiler import new_compiler
-#from distutils.core import setup
+from distutils.core import setup
 
-from distutils.command.build_clib import build_clib
 import distutils
 import os as O
 import numpy as N
 from numpy.distutils.misc_util import Configuration
-from numpy.distutils.core import setup
+#from numpy.distutils.core import setup
 from numpy.distutils.command.build_clib import build_clib
 import sys
 
-import ctypes.util
 try:
     from Cython.Distutils import build_ext
     from Cython.Build import cythonize
@@ -77,13 +75,6 @@ elif sys.platform == 'darwin':
 else:
     suffix = '.so'
 
-path_pyfmi = "src"+O.path.sep+"pyfmi"
-
-path_log_src = path_pyfmi+O.path.sep+"util" + O.path.sep + "FMILogger.c"
-path_log_dest = path_pyfmi+O.path.sep+"util" + O.path.sep + "FMILogger" + suffix
-
-O.system("gcc -fPIC "+path_log_src+" -shared -o "+path_log_dest)
-
 copy_args=sys.argv[1:]
 
 incdirs = ""
@@ -101,7 +92,7 @@ for x in sys.argv[1:]:
         copy_args.remove(x)
 
 def check_extensions():
-    
+
     delgenC = O.path.join("src","pyfmi","fmi.c")
     if O.path.exists(delgenC):
         try:
@@ -109,7 +100,7 @@ def check_extensions():
         except:
             print "fail"
             pass
-    
+
     if static:
         extra_link_flags = static_link_gcc
     else:
@@ -121,15 +112,15 @@ def check_extensions():
 
     ext_list[-1].include_dirs = [N.get_include(), "src","src"+O.sep+"pyfmi", incdirs]
     ext_list[-1].library_dirs = [libdirs]
+    ext_list[-1].language = "c"
     ext_list[-1].libraries = ["fmiimport","fmicapi", "fmizip","fmixml", "jmutils", "minizip", "zlib","expat"]
     
     #["fmiimport","expat","fmizip","fmicapi","fmixml","jmutils","zlib","minizip"]
-    
+    #["fmicapi","fmixml","fmizip","fmiimport","jmutils","fmicapi","fmixml","expat","fmizip","minizip","zlib","jmutils"]
     #["fmiimport","fmicapi", "fmizip","fmixml", "jmutils", "minizip", "zlib","expat"]
-    
-    
+
     if debug:
-        ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing"]
+        ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
     else:
         ext_list[-1].extra_compile_args = ["-O2", "-fno-strict-aliasing"]
 
@@ -149,8 +140,6 @@ setup(name=NAME,
       platforms=PLATFORMS,
       classifiers=CLASSIFIERS,
       ext_modules = ext_list,
-      #cmdclass={"build_ext":build_ext},
-      #cmdclass={"build_clib":my_cbuild},
       package_dir = {'pyfmi':'src'+O.path.sep+'pyfmi','pyfmi.common':'src'+O.path.sep+'common'},
       packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting'],
       package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*','util'+O.path.sep+'*']},

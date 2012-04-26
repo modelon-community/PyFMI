@@ -37,11 +37,6 @@ cdef extern from "stdarg.h":
     void va_end(va_list)
     int vsnprintf(char *str, size_t size, char *format, va_list ap)
 
-#cdef extern from 'FMI1/fmi1_functions.h':
-#    cdef struct fmi1_callback_functions_t:
-#        pass
-    
-
 cdef extern from 'FMI1/fmi1_import.h':
     
     #FMI VARIABLE TYPE DEFINITIONS
@@ -89,7 +84,7 @@ cdef extern from 'FMI1/fmi1_import.h':
         jm_status_success = 0
         jm_status_warning = 1
     
-    cdef enum fmi_version_enu_t:
+    ctypedef enum fmi_version_enu_t:
         fmi_version_unknown_enu = 0
         fmi_version_1_enu = 1
     
@@ -164,89 +159,92 @@ cdef extern from 'FMI1/fmi1_import.h':
         
     cdef struct fmi1_import_t:
         pass
+    ctypedef fmi1_import_t fmi1_import_t
         
     cdef struct fmi1_xml_vendor_t:
         pass
+    ctypedef fmi1_xml_vendor_t fmi1_import_vendor_t
         
     cdef struct fmi1_xml_capabilities_t:
         pass
+    ctypedef fmi1_xml_capabilities_t fmi1_import_capabilities_t
         
     cdef struct fmi_xml_context_t:
         pass
+    ctypedef fmi_xml_context_t fmi_xml_context_t
+    ctypedef fmi_xml_context_t fmi_import_context_t
     
     cdef struct fmi1_xml_variable_t:
         pass
+    ctypedef fmi1_xml_variable_t fmi1_import_variable_t
         
     cdef struct fmi1_xml_real_variable_t:
         pass
+    ctypedef fmi1_xml_real_variable_t fmi1_import_real_variable_t
 
     cdef struct fmi1_xml_display_unit_t:
         pass
+    ctypedef fmi1_xml_display_unit_t fmi1_import_display_unit_t
         
     cdef struct fmi1_xml_unit_definitions_t:
         pass
+    ctypedef fmi1_xml_unit_definitions_t fmi1_import_unit_definitions_t
     
     cdef struct fmi1_xml_vendor_list_t:
         pass
+    ctypedef fmi1_xml_vendor_list_t fmi1_import_vendor_list_t
         
     cdef struct fmi1_import_variable_list_t:
         pass
         
     cdef struct fmi1_xml_variable_typedef_t:
         pass
+    ctypedef fmi1_xml_variable_typedef_t fmi1_import_variable_typedef_t
     
     cdef struct fmi1_xml_integer_variable_t:
         pass
+    ctypedef fmi1_xml_integer_variable_t fmi1_import_integer_variable_t
         
     cdef struct fmi1_xml_real_typedef_t:
         pass
+    ctypedef fmi1_xml_real_typedef_t fmi1_import_real_typedef_t
         
     cdef struct fmi1_xml_enum_variable_t:
         pass
+    ctypedef fmi1_xml_enum_variable_t fmi1_import_enum_variable_t
         
     cdef struct fmi1_xml_type_definitions_t:
         pass
+    ctypedef fmi1_xml_type_definitions_t fmi1_import_type_definitions_t
         
     cdef struct fmi1_xml_enumeration_typedef_t:
         pass
+    ctypedef fmi1_xml_enumeration_typedef_t fmi1_import_enumeration_typedef_t
         
     cdef struct fmi1_xml_integer_typedef_t:
         pass
+    ctypedef fmi1_xml_integer_typedef_t fmi1_import_integer_typedef_t
         
     cdef struct fmi1_xml_annotation_t:
         pass
+    ctypedef fmi1_xml_annotation_t fmi1_import_annotation_t
         
     cdef struct fmi1_xml_unit_t:
         pass
+    ctypedef fmi1_xml_unit_t fmi1_import_unit_t
         
     cdef struct fmi1_xml_bool_variable_t:
         pass
+    ctypedef fmi1_xml_bool_variable_t fmi1_import_bool_variable_t
         
     cdef struct fmi1_xml_string_variable_t:
         pass
+    ctypedef fmi1_xml_string_variable_t fmi1_import_string_variable_t
         
     cdef struct __va_list_tag:
         pass
-    
-    ctypedef fmi_xml_context_t fmi_import_context_t
-    ctypedef fmi1_xml_variable_t fmi1_import_variable_t
-    ctypedef fmi1_xml_real_variable_t fmi1_import_real_variable_t
-    ctypedef fmi1_xml_unit_definitions_t fmi1_import_unit_definitions_t
-    ctypedef fmi1_xml_variable_typedef_t fmi1_import_variable_typedef_t
-    ctypedef fmi1_xml_capabilities_t fmi1_import_capabilities_t
-    ctypedef fmi1_xml_integer_variable_t fmi1_import_integer_variable_t
-    ctypedef fmi1_xml_real_typedef_t fmi1_import_real_typedef_t
-    ctypedef fmi1_xml_enumeration_typedef_t fmi1_import_enumeration_typedef_t
-    ctypedef fmi1_xml_type_definitions_t fmi1_import_type_definitions_t
-    ctypedef fmi1_xml_vendor_list_t fmi1_import_vendor_list_t
-    ctypedef fmi1_xml_unit_t fmi1_import_unit_t
-    ctypedef fmi1_xml_integer_typedef_t fmi1_import_integer_typedef_t
-    ctypedef fmi1_xml_bool_variable_t fmi1_import_bool_variable_t
-    ctypedef fmi1_xml_vendor_t fmi1_import_vendor_t
-    ctypedef fmi1_xml_annotation_t fmi1_import_annotation_t
-    ctypedef fmi1_xml_string_variable_t fmi1_import_string_variable_t
-    ctypedef fmi1_xml_enum_variable_t fmi1_import_enum_variable_t
-    ctypedef fmi1_xml_display_unit_t fmi1_import_display_unit_t
+
+
     
     #FMI SPECIFICATION METHODS
     unsigned int fmi1_import_get_number_of_event_indicators(fmi1_import_t *)
@@ -287,7 +285,6 @@ cdef extern from 'FMI1/fmi1_import.h':
     #FMI HELPER METHODS
     char * fmi1_import_get_version(fmi1_import_t *)
     int fmi1_import_create_dllfmu(fmi1_import_t *, fmi1_callback_functions_t)
-    fmi_version_enu_t fmi_import_get_fmi_version(fmi_import_context_t *, char *, char *)
     char * fmi_import_get_dll_path(char *, char *, jm_callbacks *)
     char * fmi_import_get_model_description_path(char *, jm_callbacks *)
     void fmi1_import_destroy_dllfmu(fmi1_import_t *)
@@ -304,6 +301,7 @@ cdef extern from 'FMI1/fmi1_import.h':
     char * fmi1_fmu_kind_to_string(fmi1_fmu_kind_enu_t)
     char * fmi1_get_platform()
     char * fmi1_status_to_string(int)
+    fmi_version_enu_t fmi_import_get_fmi_version(fmi_import_context_t*, char*, char*)
     
     
     #FMI XML METHODS
@@ -444,8 +442,3 @@ cdef extern from 'FMI1/fmi1_import.h':
     size_t strlen(char *)
     jm_callbacks * jm_get_default_callbacks()
     void jm_log_v(jm_callbacks *, char *, int, char *, __va_list_tag *)
-
-
-
-
-

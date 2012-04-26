@@ -59,6 +59,7 @@ cdef void fmilogger(FMIL.fmi1_component_t c, FMIL.fmi1_string_t instanceName, FM
     FMIL.va_start(args, message)
     FMIL.vsnprintf(buf, 1000, message, args)
     FMIL.va_end(args)
+    print "fmiStatus = %d;  %s (%s): %s\n"%(status, instanceName, category, buf)
     print "FMI LOGGER TEST FINISHED"
 
 class FMUException(Exception):
@@ -74,8 +75,18 @@ cdef class FMUModel:
     """
     cdef FMIL.fmi1_callback_functions_t callBackFunctions
     cdef FMIL.jm_callbacks callbacks
-    cdef FMIL.fmi_import_context_t* context
+    cdef FMIL.fmi_import_context_t* context 
+    cdef void* temp_test
     cdef FMIL.fmi1_import_t* fmu
+    
+    #Internal values
+    cdef public object __t
+    cdef public object _file_open
+    cdef public object npoints
+    cdef public object _log
+    cdef public object _enable_logging
+    cdef int _version
+    cdef object _allocated_dll, _allocated_context, _allocated_xml
 
     def __init__(self, fmu, path='.', enable_logging=False):
         """
@@ -84,7 +95,10 @@ cdef class FMUModel:
         cdef int status
         cdef int version
         
-        print "Constructor start"
+        self._allocated_context = False
+        self._allocated_dll = False
+        self._allocated_xml = False
+        
         fmu_full_path = os.path.abspath(os.path.join(path,fmu))
         fmu_temp_dir  = create_temp_dir()
         
@@ -105,26 +119,24 @@ cdef class FMUModel:
         self.callBackFunctions.allocateMemory = FMIL.calloc;
         self.callBackFunctions.freeMemory = FMIL.free;
         
-        print "Callbacks"
-        self.context = FMIL.fmi_import_allocate_context(&self.callbacks)
         print "Context"
-        print fmu_full_path, fmu_temp_dir
+        self.context = FMIL.fmi_import_allocate_context(&self.callbacks)
+        self._allocated_context = True
         
         print "Getting version..."
+        version = FMIL.fmi_import_get_fmi_version(self.context, fmu_full_path, fmu_temp_dir)
+        self._version = version #Store version
 
-        FMIL.fmi_import_get_fmi_version(self.context, fmu_full_path, fmu_temp_dir)
-        
-        #self._version = version #Store version
-        #print "Version", version
-        
         if version != 1:
             raise FMUException("PyFMI currently only supports FMI 1.0.")
         
         print "Parsing XML"
         self.fmu = FMIL.fmi1_import_parse_xml(self.context, fmu_temp_dir)
+        self._allocated_xml = True
         
         print "Creating DLL"
         status = FMIL.fmi1_import_create_dllfmu(self.fmu, self.callBackFunctions);
+        self._allocated_dll = True
         
         
         #Default values
@@ -192,10 +204,14 @@ cdef class FMUModel:
         """
         Deallocate memory allocated
         """
-        raise Exception
-        FMIL.fmi1_import_destroy_dllfmu(self.fmu)
-        FMIL.fmi1_import_free(self.fmu)
-        FMIL.fmi_import_free_context(self.context)
+        if self._allocated_dll:
+            FMIL.fmi1_import_destroy_dllfmu(self.fmu)
+            
+        if self._allocated_xml:  
+            FMIL.fmi1_import_free(self.fmu)
+        
+        if self._allocated_context:
+            FMIL.fmi_import_free_context(self.context)
     
     
     def _load_c(self):
