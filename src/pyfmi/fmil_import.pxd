@@ -114,7 +114,7 @@ cdef extern from 'FMI1/fmi1_import.h':
         fmi1_pending_status = 1
         fmi1_last_successful_time = 2
         
-    cdef struct fmi1_event_info_t:
+    ctypedef struct fmi1_event_info_t:
         fmi1_boolean_t iterationConverged
         fmi1_boolean_t stateValueReferencesChanged
         fmi1_boolean_t stateValuesChanged
@@ -305,16 +305,33 @@ cdef extern from 'FMI1/fmi1_import.h':
     
     
     #FMI XML METHODS
+    
+    ###Model information
+    double fmi1_import_get_default_experiment_tolerance(fmi1_import_t *)
+    double fmi1_import_get_default_experiment_stop(fmi1_import_t *)
+    double fmi1_import_get_default_experiment_start(fmi1_import_t *)
+    char * fmi1_import_get_author(fmi1_import_t *)
+    char * fmi1_import_get_description(fmi1_import_t *)
+    char * fmi1_import_get_types_platform(fmi1_import_t *)
+    char * fmi1_import_get_generation_tool(fmi1_import_t *)
+    char * fmi1_import_get_model_version(fmi1_import_t *)
+    char * fmi1_import_get_model_types_platform(fmi1_import_t *)
+    char * fmi1_import_get_model_name(fmi1_import_t *)
+    char * fmi1_import_get_model_identifier(fmi1_import_t *)
+    char * fmi1_import_get_vendor_name(fmi1_import_vendor_t *)
+    fmi1_import_vendor_list_t * fmi1_import_get_vendor_list(fmi1_import_t *)
+    char * fmi1_naming_convention_to_string(fmi1_variable_naming_convension_enu_t)
+    
+    
+    fmi1_import_variable_t* fmi1_import_get_variable_by_name(fmi1_import_t* fmu, char* name)
+    fmi1_value_reference_t fmi1_import_get_variable_vr(fmi1_import_variable_t *)
+    
     fmi1_variable_alias_kind_enu_t fmi1_import_get_variable_alias_kind(fmi1_import_variable_t *)
     fmi1_variability_enu_t fmi1_import_get_variability(fmi1_import_variable_t *)
     fmi1_causality_enu_t fmi1_import_get_causality(fmi1_import_variable_t *)
     unsigned int fmi1_import_get_unit_definitions_number(fmi1_import_unit_definitions_t *)
-    double fmi1_import_get_default_experiment_tolerance(fmi1_import_t *)
-    double fmi1_import_get_default_experiment_stop(fmi1_import_t *)
-    char * fmi1_import_get_model_types_platform(fmi1_import_t *)
     unsigned int fmi1_import_get_maxOutputDerivativeOrder(fmi1_import_capabilities_t *)
     double fmi1_import_get_real_type_nominal(fmi1_import_real_typedef_t *)
-    char * fmi1_import_get_author(fmi1_import_t *)
     fmi1_import_real_variable_t * fmi1_import_get_variable_as_real(fmi1_import_variable_t *)
     fmi1_import_unit_definitions_t * fmi1_import_get_unit_definitions(fmi1_import_t *)
     char * fmi1_import_get_type_description(fmi1_import_variable_typedef_t *)
@@ -328,25 +345,19 @@ cdef extern from 'FMI1/fmi1_import.h':
     size_t fmi1_import_get_variable_list_size(fmi1_import_variable_list_t *)
     fmi1_import_variable_list_t * fmi1_import_get_variable_aliases(fmi1_import_t *, fmi1_import_variable_t *)
     int fmi1_import_get_integer_type_min(fmi1_import_integer_typedef_t *)
-    fmi1_import_vendor_list_t * fmi1_import_get_vendor_list(fmi1_import_t *)
-    char * fmi1_import_get_description(fmi1_import_t *)
     int fmi1_import_get_integer_variable_start(fmi1_import_integer_variable_t *)
     void fmi1_import_free_variable_list(fmi1_import_variable_list_t *)
     fmi1_import_unit_t * fmi1_import_get_real_variable_unit(fmi1_import_real_variable_t *)
     fmi1_import_display_unit_t * fmi1_import_get_unit_display_unit(fmi1_import_unit_t *, size_t)
     char * fmi1_import_get_type_quantity(fmi1_import_variable_typedef_t *)
-    double fmi1_import_get_default_experiment_start(fmi1_import_t *)
     int fmi1_import_get_integer_status(fmi1_import_t *, int, fmi1_integer_t *)
     unsigned int fmi1_import_get_unit_display_unit_number(fmi1_import_unit_t *)
-    fmi1_value_reference_t fmi1_import_get_variable_vr(fmi1_import_variable_t *)
+    
     size_t fmi1_import_get_type_definition_number(fmi1_import_type_definitions_t *)
-    char * fmi1_import_get_types_platform(fmi1_import_t *)
     double fmi1_import_get_real_type_max(fmi1_import_real_typedef_t *)
     int fmi1_import_get_canRunAsynchronuously(fmi1_import_capabilities_t *)
-    char * fmi1_import_get_generation_tool(fmi1_import_t *)
     fmi1_base_type_enu_t fmi1_import_get_base_type(fmi1_import_variable_typedef_t *)
     unsigned int fmi1_import_get_number_of_vendors(fmi1_import_vendor_list_t *)
-    char * fmi1_import_get_model_version(fmi1_import_t *)
     char * fmi1_import_get_variable_description(fmi1_import_variable_t *)
     int fmi1_import_get_integer_variable_min(fmi1_import_integer_variable_t *)
     char * fmi1_import_get_enum_type_item_description(fmi1_import_enumeration_typedef_t *, unsigned int)
@@ -363,7 +374,6 @@ cdef extern from 'FMI1/fmi1_import.h':
     int fmi1_import_get_canRejectSteps(fmi1_import_capabilities_t *)
     fmi1_import_vendor_t * fmi1_import_get_vendor(fmi1_import_vendor_list_t *, unsigned int)
     int fmi1_import_get_canNotUseMemoryManagementFunctions(fmi1_import_capabilities_t *)
-    char * fmi1_import_get_model_name(fmi1_import_t *)
     int fmi1_import_get_real_output_derivatives(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_integer_t *, fmi1_real_t *)
     int fmi1_import_get_string_status(fmi1_import_t *, int, fmi1_string_t *)
     int fmi1_import_get_enum_variable_start(fmi1_import_enum_variable_t *)
@@ -392,7 +402,6 @@ cdef extern from 'FMI1/fmi1_import.h':
     fmi1_import_variable_t * fmi1_import_get_variable_alias_base(fmi1_import_t *, fmi1_import_variable_t *)
     int fmi1_import_get_canHandleVariableCommunicationStepSize(fmi1_import_capabilities_t *)
     fmi1_import_integer_typedef_t * fmi1_import_get_type_as_int(fmi1_import_variable_typedef_t *)
-    char * fmi1_naming_convention_to_string(fmi1_variable_naming_convension_enu_t)
     char * fmi1_import_get_enum_type_item_name(fmi1_import_enumeration_typedef_t *, unsigned int)
     fmi1_real_t fmi1_import_get_real_variable_min(fmi1_import_real_variable_t *)
     fmi1_variable_naming_convension_enu_t fmi1_import_get_naming_convention(fmi1_import_t *)
@@ -408,13 +417,11 @@ cdef extern from 'FMI1/fmi1_import.h':
     fmi1_import_variable_list_t * fmi1_import_clone_variable_list(fmi1_import_variable_list_t *)
     fmi1_import_string_variable_t * fmi1_import_get_variable_as_string(fmi1_import_variable_t *)
     fmi1_import_display_unit_t * fmi1_import_get_type_display_unit(fmi1_import_real_typedef_t *)
-    char * fmi1_import_get_model_identifier(fmi1_import_t *)
     int fmi1_import_get_manual_start(fmi1_import_t *)
     fmi1_import_unit_t * fmi1_import_get_real_type_unit(fmi1_import_real_typedef_t *)
     int fmi1_import_get_integer_type_max(fmi1_import_integer_typedef_t *)
     int fmi1_import_get_string(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_string_t *)
     fmi1_base_type_enu_t fmi1_import_get_variable_base_type(fmi1_import_variable_t *)
-    char * fmi1_import_get_vendor_name(fmi1_import_vendor_t *)
     char * fmi1_import_get_additional_model_name(fmi1_import_t *, size_t)
     fmi1_import_variable_list_t * fmi1_import_get_direct_dependency(fmi1_import_t *, fmi1_import_variable_t *)
     int fmi1_import_get_canInterpolateInputs(fmi1_import_capabilities_t *)
