@@ -324,7 +324,7 @@ cdef extern from 'FMI1/fmi1_import.h':
     
     
     fmi1_import_variable_t* fmi1_import_get_variable_by_name(fmi1_import_t* fmu, char* name)
-    fmi1_value_reference_t fmi1_import_get_variable_vr(fmi1_import_variable_t *)
+    fmi1_value_reference_t  fmi1_import_get_variable_vr(fmi1_import_variable_t *)
     
     fmi1_variable_alias_kind_enu_t fmi1_import_get_variable_alias_kind(fmi1_import_variable_t *)
     fmi1_variability_enu_t fmi1_import_get_variability(fmi1_import_variable_t *)

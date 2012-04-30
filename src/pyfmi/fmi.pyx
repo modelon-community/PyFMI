@@ -30,7 +30,7 @@ cimport fmil_import as FMIL
 
 from pyfmi.common.core import create_temp_dir
 
-from pyfmi.common.core import BaseModel, unzip_unit, get_platform_suffix, get_files_in_archive, rename_to_tmp, load_DLL
+from pyfmi.common.core import get_platform_suffix, get_files_in_archive, rename_to_tmp
 
 
 int = N.int32
@@ -48,7 +48,6 @@ FMI_DERIVATIVES = 1
 FMI_OUTPUTS = 2
 
 #CALLBACKS
-#cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
 cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
     print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
 
@@ -68,8 +67,142 @@ class FMUException(Exception):
 
 class PyEventInfo():
     pass
+    
 
-cdef class FMUModel:
+cdef class BaseModel:
+    """ 
+    Abstract Model class containing base functionality.
+    """
+
+    def set(self, variable_name, value):
+        """
+        Sets the given value(s) to the specified variable name(s) into the 
+        model. The method both accept a single variable and a list of variables.
+        
+        Parameters::
+            
+            variable_name -- 
+                The name of the variable(s) as string/list.
+                
+            value -- 
+                The value(s) to set.
+
+        Example::
+        
+            (FMU/JMU)Model.set('damper.d', 1.1)
+            (FMU/JMU)Model.set(['damper.d','gear.a'], [1.1, 10])
+        """
+        if isinstance(variable_name, basestring):
+            self._set(variable_name, value) #Scalar case
+        else:
+            for i in xrange(len(variable_name)): #A list of variables
+                self._set(variable_name[i], value[i])
+    
+    def get(self, variable_name):
+        """
+        Returns the value(s) of the specified variable(s). The method both 
+        accept a single variable and a list of variables.
+        
+        Parameters::
+        
+            variable_name -- 
+                The name of the variable(s) as string/list.
+                
+        Returns::
+        
+            The value(s).
+                
+        Example::
+            
+            # Returns the variable d
+            (FMU/JMU)Model.get('damper.d') 
+            # Returns a list of the variables
+            (FMU/JMU)Model.get(['damper.d','gear.a'])
+        """
+        if isinstance(variable_name, basestring):
+            return self._get(variable_name) #Scalar case
+        else:
+            ret = []
+            for i in xrange(len(variable_name)): #A list of variables
+                ret += [self._get(variable_name[i])]
+            return ret
+    
+    def _exec_algorithm(self, module, algorithm, options):
+        """ 
+        Helper function which performs all steps of an algorithm run which are 
+        common to all initialize and optimize algorithms.
+        
+        Raises:: 
+        
+            Exception if algorithm is not a subclass of 
+            common.algorithm_drivers.AlgorithmBase.
+        """
+        base_path = 'common.algorithm_drivers'
+        algdrive = __import__(base_path, globals(), locals(), [], -1)
+        AlgorithmBase = getattr(getattr(algdrive,"algorithm_drivers"), 'AlgorithmBase')
+        
+        if isinstance(algorithm, basestring):
+            module = __import__(module, globals(), locals(), [algorithm], -1)
+            algorithm = getattr(module, algorithm)
+        
+        if not issubclass(algorithm, AlgorithmBase):
+            raise Exception(str(algorithm)+
+            " must be a subclass of common.algorithm_drivers.AlgorithmBase")
+
+        # initialize algorithm
+        alg = algorithm(self, options)
+        # solve optimization problem/initialize
+        alg.solve()
+        # get and return result
+        return alg.get_result()
+
+    def _exec_simulate_algorithm(self,
+                                 start_time,
+                                 final_time,
+                                 input,
+                                 module, 
+                                 algorithm, 
+                                 options):
+        """ 
+        Helper function which performs all steps of an algorithm run which are 
+        common to all simulate algorithms.
+        
+        Raises:: 
+        
+            Exception if algorithm is not a subclass of 
+            common.algorithm_drivers.AlgorithmBase.
+        """
+        base_path = 'common.algorithm_drivers'
+        algdrive = __import__(base_path, globals(), locals(), [], -1)
+        AlgorithmBase = getattr(getattr(algdrive,"algorithm_drivers"), 'AlgorithmBase')
+        
+        if isinstance(algorithm, basestring):
+            module = __import__(module, globals(), locals(), [algorithm], -1)
+            algorithm = getattr(module, algorithm)
+        
+        if not issubclass(algorithm, AlgorithmBase):
+            raise Exception(str(algorithm)+
+            " must be a subclass of common.algorithm_drivers.AlgorithmBase")
+
+        # initialize algorithm
+        alg = algorithm(start_time, final_time, input, self, options)
+        # simulate
+        alg.solve()
+        # get and return result
+        return alg.get_result()
+
+        
+    def _default_options(self, module, algorithm):
+        """ 
+        Help method. Gets the options class for the algorithm specified in 
+        'algorithm'.
+        """
+        module = __import__(module, globals(), locals(), [algorithm], -1)
+        algorithm = getattr(module, algorithm)
+        
+        return algorithm.get_default_options()
+
+cdef class FMUModel(BaseModel):
     """
     An FMI Model loaded from a DLL.
     """
@@ -88,7 +221,7 @@ cdef class FMUModel:
     cdef public object _enable_logging
     cdef public object _pyEventInfo
     cdef int _version
-    cdef object _allocated_dll, _allocated_context, _allocated_xml
+    cdef object _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
     cdef char * _modelid
     cdef char * _modelname
     cdef unsigned int _nEventIndicators
@@ -104,6 +237,7 @@ cdef class FMUModel:
         self._allocated_context = False
         self._allocated_dll = False
         self._allocated_xml = False
+        self._allocated_fmu = False
         
         fmu_full_path = os.path.abspath(os.path.join(path,fmu))
         fmu_temp_dir  = create_temp_dir()
@@ -163,6 +297,7 @@ cdef class FMUModel:
         
         #Instantiates the model
         self.instantiate_model(logging = enable_logging)
+        self._allocated_fmu = True
         
         """
         #Create a JMIModel if a JModelica generated FMU is loaded
@@ -184,6 +319,9 @@ cdef class FMUModel:
         """
         Deallocate memory allocated
         """
+        if self._allocated_fmu:
+            FMIL.fmi1_import_terminate(self._fmu)
+        
         if self._allocated_dll:
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
             
@@ -342,12 +480,13 @@ cdef class FMUModel:
                                  len(self._save_cont_valueref[2])]
         """
     
-    def _get_time(self):
+    cpdef _get_time(self):
         return self.__t
     
-    def _set_time(self, FMIL.fmi1_real_t t):
+    cpdef _set_time(self, FMIL.fmi1_real_t t):
         cdef int status
         self.__t = t
+        
         status = FMIL.fmi1_import_set_time(self._fmu,t)
         
         if status != 0:
@@ -371,7 +510,7 @@ cdef class FMUModel:
         
     def _set_continuous_states(self, values):
         cdef int status
-        cdef N.ndarray[double, ndim=1,mode='c'] ndx = N.array(values,dtype=N.double,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = N.array(values,dtype=N.double,ndmin=1).flatten()
         
         if ndx.size != self._nContinuousStates:
             raise FMUException(
@@ -393,7 +532,7 @@ cdef class FMUModel:
     
     def _get_nominal_continuous_states(self):
         cdef int status
-        cdef N.ndarray[double, ndim=1,mode='c'] ndx = N.array([0.0]*self._nContinuousStates,dtype=N.double,ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = N.array([0.0]*self._nContinuousStates,dtype=N.double,ndmin=1)
         
         status = FMIL.fmi1_import_get_nominal_continuous_states(
                 self._fmu, <FMIL.fmi1_real_t*>ndx.data, self._nContinuousStates)
@@ -425,7 +564,7 @@ cdef class FMUModel:
         Calls the low-level FMI function: fmiGetDerivatives
         """
         cdef int status
-        cdef N.ndarray[double, ndim=1,mode='c'] values = N.array([0.0]*self._nContinuousStates,dtype=N.double,ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.array([0.0]*self._nContinuousStates,dtype=N.double,ndmin=1)
 
         status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
         
@@ -450,7 +589,7 @@ cdef class FMUModel:
         Calls the low-level FMI function: fmiGetEventIndicators
         """
         cdef int status
-        cdef N.ndarray[double, ndim=1,mode='c'] values = N.array([0.0]*self._nEventIndicators,dtype=N.double,ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.array([0.0]*self._nEventIndicators,dtype=N.double,ndmin=1)
         
         status = FMIL.fmi1_import_get_event_indicators(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nEventIndicators)
         
@@ -539,6 +678,7 @@ cdef class FMUModel:
         
             [r,i,b] = model.save_time_point()
         """
+        raise NotImplementedError
         sol_real=N.array([])
         sol_int=N.array([])
         sol_bool=N.array([])
@@ -608,7 +748,7 @@ cdef class FMUModel:
         Calls the low-level FMI function: fmiGetStateValueReferences
         """
         cdef int status
-        cdef N.ndarray[unsigned int, ndim=1,mode='c'] values = N.array([0]*self._nContinuousStates,dtype=N.uint32,ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] values = N.array([0]*self._nContinuousStates,dtype=N.uint32,ndmin=1)
 
         status = FMIL.fmi1_import_get_state_value_references(
             self._fmu, <FMIL.fmi1_value_reference_t*>values.data, self._nContinuousStates)
@@ -694,10 +834,10 @@ cdef class FMUModel:
         Calls the low-level FMI function: fmiGetReal/fmiSetReal
         """
         cdef int status
-        cdef long unsigned int nref
-        cdef N.ndarray[unsigned int, ndim=1,mode='c'] valueref_c = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef FMIL.size_t nref
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] valueref_c = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
         nref = len(valueref_c)
-        cdef N.ndarray[double, ndim=1,mode='c'] values = N.array([0.0]*nref,dtype=N.float, ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.array([0.0]*nref,dtype=N.float, ndmin=1)
         
         
         status = FMIL.fmi1_import_get_real(self._fmu, <FMIL.fmi1_value_reference_t*>valueref_c.data, nref, <FMIL.fmi1_real_t*>values.data)
@@ -726,9 +866,9 @@ cdef class FMUModel:
         Calls the low-level FMI function: fmiGetReal/fmiSetReal
         """
         cdef int status
-        cdef long unsigned int nref
-        cdef N.ndarray[unsigned int, ndim=1,mode='c'] valueref_c = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        cdef N.ndarray[double, ndim=1,mode='c'] values_c = N.array(values, dtype=N.float, ndmin=1).flatten()
+        cdef FMIL.size_t nref
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] valueref_c = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values_c = N.array(values, dtype=N.float, ndmin=1).flatten()
         nref = len(valueref_c)
         
         if valueref_c.size != values_c.size:
@@ -760,17 +900,19 @@ cdef class FMUModel:
                 
         Calls the low-level FMI function: fmiGetInteger/fmiSetInteger
         """
-        valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef int status
+        cdef FMIL.size_t nref
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
 
         nref = len(valueref)
-        values = N.array([0]*nref, dtype=int,ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = N.array([0]*nref, dtype=int,ndmin=1)
         
-        status = self._fmiGetInteger(self._model, valueref, nref, values)
+        status = FMIL.fmi1_import_get_integer(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_integer_t*>val.data)
         
         if status != 0:
             raise FMUException('Failed to get the Integer values.')
             
-        return values
+        return val
         
     def set_integer(self, valueref, values):
         """
@@ -790,16 +932,18 @@ cdef class FMUModel:
         
         Calls the low-level FMI function: fmiGetInteger/fmiSetInteger
         """
-        valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-
-        nref = valueref.size
-        values = N.array(values, dtype=int,ndmin=1).flatten()
+        cdef int status
+        cdef FMIL.size_t nref
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = N.array(values, dtype=int,ndmin=1).flatten()
         
-        if valueref.size != values.size:
+        nref = val_ref.size
+        
+        if val_ref.size != val.size:
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
         
-        status = self._fmiSetInteger(self._model,valueref, nref, values)
+        status = FMIL.fmi1_import_set_integer(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_integer_t*>val.data)
         
         if status != 0:
             raise FMUException('Failed to set the Integer values.')
@@ -825,23 +969,19 @@ cdef class FMUModel:
                 
         Calls the low-level FMI function: fmiGetBoolean/fmiSetBoolean
         """
-        valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef int status
+        cdef FMIL.size_t nref
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
 
-        nref = len(valueref)
-        values = N.array(['0']*nref, dtype=N.char.character,ndmin=1)
-        
-        status = self._fmiGetBoolean(self._model, valueref, nref, values)
-        
+        nref = val_ref.size
+        cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1)
+
+        status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val.data, nref, <FMIL.fmi1_boolean_t*>val.data)
+
         if status != 0:
             raise FMUException('Failed to get the Boolean values.')
-
-        #bol = []
-        # char to bol
-        #bol = map(lambda x: x == self._fmiTrue, values)
         
-        bol = N.array([x==self._fmiTrue for x in values])
-        
-        return bol
+        return val==1
         
     def set_boolean(self, valueref, values):
         """
@@ -861,19 +1001,28 @@ cdef class FMUModel:
         
         Calls the low-level FMI function: fmiGetBoolean/fmiSetBoolean
         """
-        valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        nref = valueref.size
+        cdef int status
+        cdef FMIL.size_t nref
         
-        # bool to char
-        char_values = map(lambda x: self._fmiTrue if x else self._fmiFalse, values)
-        char_values = N.array(char_values, dtype=N.char.character,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        nref = val_ref.size
         
-        if valueref.size != char_values.size:
+        cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1).flatten()
+        
+        
+        values = N.array(values,ndmin=1).flatten()
+        for i in range(nref):
+            if values[i]:
+                val[i]=1
+            else:
+                val[i]=0
+        
+        if val_ref.size != val.size:
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
         
-        status = self._fmiSetBoolean(self._model,valueref, nref, char_values)
-        
+        status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val.data, nref, <FMIL.fmi1_boolean_t*>val.data)
+
         if status != 0:
             raise FMUException('Failed to set the Boolean values.')
         
@@ -897,6 +1046,9 @@ cdef class FMUModel:
                 
         Calls the low-level FMI function: fmiGetString/fmiSetString
         """
+        raise NotImplementedError
+        cdef int status
+        cdef long unsigned int nref
         valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
 
         nref = len(valueref)
@@ -929,6 +1081,9 @@ cdef class FMUModel:
         
         Calls the low-level FMI function: fmiGetString/fmiSetString
         """
+        raise NotImplementedError
+        cdef int status
+        cdef long unsigned int nref
         valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
 
         nref = valueref.size
@@ -976,6 +1131,7 @@ cdef class FMUModel:
         """
         Returns the nominal value from valueref.
         """
+        raise NotImplementedError
         values = self._xmldoc._xpatheval(
             '//ScalarVariable/Real/@nominal[../../@valueReference=\''+\
             valueref+'\']')
@@ -1074,8 +1230,13 @@ cdef class FMUModel:
                     ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
         
         if status > 1:
-            raise FMUException('Failed to Initialize the model.')
-    
+            if self._enable_logging:
+                FMUException(
+                    'Initialize returned with a error.' \
+                    ' Check the log for information (FMUModel.get_log).')
+            else:
+                FMUException('Initialize returned with a error.' \
+                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
     
     def instantiate_model(self, name='Model', logging=False):
         """
@@ -1098,7 +1259,6 @@ cdef class FMUModel:
         cdef int status
         
         guid = FMIL.fmi1_import_get_GUID(self._fmu)
-        print "GUID", guid
         
         if logging:
             log = 1
@@ -1106,12 +1266,16 @@ cdef class FMUModel:
             log = 0
         
         status = FMIL.fmi1_import_instantiate_model(self._fmu, name, guid, log)
-        print "Status ", status
+        
+        if status != 0:
+            raise FMUException('Failed to instantiate the model.')
         
         #Just to be safe, some problems with Dymola (2012) FMUs not reacting
         #to logging when set to the instantiate method.
         status = FMIL.fmi1_import_set_debug_logging(self._fmu, log)
-        print "Status ", status
+        
+        if status != 0:
+            raise FMUException('Failed to set the debugging option.')
         
     def get_log(self):
         """
@@ -1225,39 +1389,45 @@ cdef class FMUModel:
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
     
-    def _set(self, variable_name, value):
+    def _set(self,char* variable_name, value):
         """
         Helper method to set, see docstring on set.
         """
+        cdef FMIL.fmi1_value_reference_t ref
+        cdef FMIL.fmi1_base_type_enu_t type
+        
         ref = self.get_valueref(variable_name)
         type = self.get_data_type(variable_name)
         
-        if type == 0:  #REAL
+        if type == FMIL.fmi1_base_type_real:  #REAL
             self.set_real([ref], [value])
-        elif type == 1: #INTEGER
+        elif type == FMIL.fmi1_base_type_integer: #INTEGER
             self.set_integer([ref], [value])
-        elif type == 2: #STRING
+        elif type == FMIL.fmi1_base_type_str: #STRING
             self.set_string([ref], [value])
-        elif type == 3: #BOOLEAN
+        elif type == FMIL.fmi1_base_type_bool: #BOOLEAN
             self.set_boolean([ref], [value])
         else:
             raise FMUException('Type not supported.')
         
     
-    def _get(self, variable_name):
+    def _get(self,char* variable_name):
         """
         Helper method to get, see docstring on get.
         """
+        cdef FMIL.fmi1_value_reference_t ref
+        cdef FMIL.fmi1_base_type_enu_t type
+        
         ref = self.get_valueref(variable_name)
         type = self.get_data_type(variable_name)
         
-        if type == 0:  #REAL
+        if type == FMIL.fmi1_base_type_real:  #REAL
             return self.get_real([ref])
-        elif type == 1: #INTEGER
+        elif type == FMIL.fmi1_base_type_integer: #INTEGER
             return self.get_integer([ref])
-        elif type == 2: #STRING
+        elif type == FMIL.fmi1_base_type_str: #STRING
             return self.get_string([ref])
-        elif type == 3: #BOOLEAN
+        elif type == FMIL.fmi1_base_type_bool: #BOOLEAN
             return self.get_boolean([ref])
         else:
             raise FMUException('Type not supported.')
@@ -1271,15 +1441,22 @@ cdef class FMUModel:
         
             Dict with ValueReference as key and description as value.
         """
+        raise NotImplementedError
         return self._md.get_variable_descriptions(include_alias)
         
-    def get_data_type(self, variablename):
+    cpdef FMIL.fmi1_base_type_enu_t get_data_type(self,char* variablename):
         """ 
         Get data type of variable. 
         """
-        return self._md.get_data_type(variablename)
+        cdef FMIL.fmi1_import_variable_t* variable
+        cdef FMIL.fmi1_base_type_enu_t type
         
-    def get_valueref(self, variablename=None, type=None):
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        
+        return type
+        
+    cpdef FMIL.fmi1_value_reference_t get_valueref(self, char* variablename):
         """
         Extract the ValueReference given a variable name.
         
@@ -1295,18 +1472,35 @@ cdef class FMUModel:
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_value_reference_t vr
         
-        if variablename != None:
-            variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
-            vr =  FMIL.fmi1_import_get_variable_vr(variable)
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        vr =  FMIL.fmi1_import_get_variable_vr(variable)
+        
+        return vr
+        
+    
+    def get_valuerefs(self, type=None):
+        """
+        Extract the ValueReferences given a variable type.
+        
+        Parameters::
+        
+            type -- 
+                The type of the variables.
             
-            return vr
-        else:
-            raise NotImplementedError
-            #valrefs = []
-            #allvariables = self._md.get_model_variables()
-            #for variable in allvariables:
-            #    if variable.get_variability() == type:
-            #        valrefs.append(variable.get_value_reference())
+        Returns::
+        
+            The ValueReferences for the variable type passed as argument.
+        """
+        raise NotImplementedError
+        cdef FMIL.fmi1_import_variable_t* variable
+        cdef FMIL.fmi1_value_reference_t vr
+
+        raise NotImplementedError
+        #valrefs = []
+        #allvariables = self._md.get_model_variables()
+        #for variable in allvariables:
+        #    if variable.get_variability() == type:
+        #        valrefs.append(variable.get_value_reference())
                     
         return N.array(valrefs,dtype=N.int)
     
@@ -1318,7 +1512,7 @@ cdef class FMUModel:
         
             Dict with variable name as key and value reference as value.
         """
-        raise Exception
+        raise NotImplementedError
         """
         if type != None:
             variables = self._md.get_model_variables()
@@ -1357,6 +1551,7 @@ cdef class FMUModel:
         
             XMLException if alias_variable is not in model.
         """
+        raise NotImplementedError
         return self._md.get_aliases_for_variable(aliased_variable)
     
     def get_variable_aliases(self):
@@ -1368,9 +1563,10 @@ cdef class FMUModel:
             A list of tuples containing value references and alias data 
             respectively.
         """
+        raise NotImplementedError
         return self._md.get_variable_aliases()
         
-    def get_variability(self, variablename):
+    cpdef FMIL.fmi1_variability_enu_t get_variability(self,char* variablename):
         """ 
         Get variability of variable. 
             
@@ -1382,10 +1578,16 @@ cdef class FMUModel:
                     
         Returns::
         
-            The variability of the variable, CONTINUOUS(0), CONSTANT(1), 
-            PARAMETER(2) or DISCRETE(3)
+            The variability of the variable, CONTINUOUS(3), CONSTANT(0), 
+            PARAMETER(1) or DISCRETE(2)
         """
-        return self._md.get_variability(variablename)
+        cdef FMIL.fmi1_import_variable_t* variable
+        cdef FMIL.fmi1_variability_enu_t variability
+        
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        variability = FMIL.fmi1_import_get_variability(variable)
+        
+        return variability
     
     def get_name(self):
         """ 
@@ -1399,33 +1601,4 @@ cdef class FMUModel:
         the C-function names of the model. 
         """
         return self._modelid
-    
-    def __del__(self):
-        """
-        Destructor.
-        """
-        pass
-        """
-        import os
-        import sys
         
-        #Deallocate the models allocation
-        self._fmiTerminate(self._model)
-        
-        #--ERROR
-        if sys.platform == 'win32':
-            try:
-                self._fmiFreeModelInstance(self._model)
-            except WindowsError:
-                print 'Failed to free model instance.'
-        else:
-            self._fmiFreeModelInstance(self._model)
-           
-        #Remove the temporary xml
-        os.remove(self._tempxml)
-        #Remove the temporary binary
-        try:
-            os.remove(self._tempdll)
-        except:
-            print 'Failed to remove temporary dll ('+ self._tempdll+').'
-        """
