@@ -67,14 +67,6 @@ simulation package Assimulo adds industrial grade simulation
 capabilities of FMUs to Python.
 """
 
-#Load the helper function
-if sys.platform == 'win32':
-    suffix = '.dll'
-elif sys.platform == 'darwin':
-    suffix = '.dylib'
-else:
-    suffix = '.so'
-
 copy_args=sys.argv[1:]
 
 incdirs = ""
@@ -98,7 +90,6 @@ def check_extensions():
         try:
             O.remove(delgenC)
         except:
-            print "fail"
             pass
 
     if static:
@@ -113,12 +104,13 @@ def check_extensions():
     ext_list[-1].include_dirs = [N.get_include(), "src","src"+O.sep+"pyfmi", incdirs]
     ext_list[-1].library_dirs = [libdirs]
     ext_list[-1].language = "c"
-    ext_list[-1].libraries = ["fmiimport","fmicapi", "fmizip","fmixml", "jmutils", "minizip", "z","expat"]
     
-    #["fmiimport","expat","fmizip","fmicapi","fmixml","jmutils","zlib","minizip"]
-    #["fmicapi","fmixml","fmizip","fmiimport","jmutils","fmicapi","fmixml","expat","fmizip","minizip","zlib","jmutils"]
-    #["fmiimport","fmicapi", "fmizip","fmixml", "jmutils", "minizip", "zlib","expat"]
-
+    #if sys.platform == 'win32':
+    #    ext_list[-1].libraries = ["fmiimport","fmicapi", "fmizip","fmixml", "jmutils", "minizip", "zlib","expat"]
+    #else:
+    #    ext_list[-1].libraries = ["fmiimport","fmicapi", "fmizip","fmixml", "jmutils", "minizip", "z","expat"]
+    ext_list[-1].libraries = ["fmilib"]
+    
     if debug:
         ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
     else:

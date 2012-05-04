@@ -209,7 +209,6 @@ cdef class FMUModel(BaseModel):
     cdef FMIL.fmi1_callback_functions_t callBackFunctions
     cdef FMIL.jm_callbacks callbacks
     cdef FMIL.fmi_import_context_t* context 
-    cdef void* temp_test
     cdef FMIL.fmi1_import_t* _fmu
     cdef FMIL.fmi1_event_info_t _eventInfo
     
@@ -336,6 +335,8 @@ cdef class FMUModel(BaseModel):
         """
         Loads the XML information.
         """
+        raise NotImplementedError
+        
         self._description = self._md.get_description()
         
         def_experiment = self._md.get_default_experiment()
@@ -439,8 +440,7 @@ cdef class FMUModel(BaseModel):
         cont_valueref = []
         disc_name_r = []
         disc_valueref_r = []
-        
-        raise Exception
+
         """
         for real in reals:
             if real.get_variability() == xmlparser.CONTINUOUS and \
@@ -500,7 +500,7 @@ cdef class FMUModel(BaseModel):
     
     def _get_continuous_states(self):
         cdef int status
-        cdef N.ndarray[double, ndim=1,mode='c'] ndx = N.array([0.0]*self._nContinuousStates, dtype=N.double,ndmin=1)
+        cdef N.ndarray[double, ndim=1,mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
         status = FMIL.fmi1_import_get_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data ,self._nContinuousStates)
         
         if status != 0:
@@ -508,9 +508,9 @@ cdef class FMUModel(BaseModel):
         
         return ndx
         
-    def _set_continuous_states(self, values):
+    def _set_continuous_states(self, N.ndarray[FMIL.fmi1_real_t] values):
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = N.array(values,dtype=N.double,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = values#N.array(values,dtype=N.double,ndmin=1).flatten()
         
         if ndx.size != self._nContinuousStates:
             raise FMUException(
@@ -532,7 +532,7 @@ cdef class FMUModel(BaseModel):
     
     def _get_nominal_continuous_states(self):
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = N.array([0.0]*self._nContinuousStates,dtype=N.double,ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = N.zeros(self._nContinuousStates,dtype=N.double)
         
         status = FMIL.fmi1_import_get_nominal_continuous_states(
                 self._fmu, <FMIL.fmi1_real_t*>ndx.data, self._nContinuousStates)
@@ -564,7 +564,7 @@ cdef class FMUModel(BaseModel):
         Calls the low-level FMI function: fmiGetDerivatives
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.array([0.0]*self._nContinuousStates,dtype=N.double,ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.zeros(self._nContinuousStates,dtype=N.double)
 
         status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
         
@@ -589,7 +589,7 @@ cdef class FMUModel(BaseModel):
         Calls the low-level FMI function: fmiGetEventIndicators
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.array([0.0]*self._nEventIndicators,dtype=N.double,ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.zeros(self._nEventIndicators,dtype=N.double)
         
         status = FMIL.fmi1_import_get_event_indicators(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nEventIndicators)
         
@@ -748,7 +748,7 @@ cdef class FMUModel(BaseModel):
         Calls the low-level FMI function: fmiGetStateValueReferences
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] values = N.array([0]*self._nContinuousStates,dtype=N.uint32,ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] values = N.zeros(self._nContinuousStates,dtype=N.uint32)
 
         status = FMIL.fmi1_import_get_state_value_references(
             self._fmu, <FMIL.fmi1_value_reference_t*>values.data, self._nContinuousStates)
@@ -867,15 +867,15 @@ cdef class FMUModel(BaseModel):
         """
         cdef int status
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] valueref_c = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values_c = N.array(values, dtype=N.float, ndmin=1).flatten()
-        nref = len(valueref_c)
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=N.float, ndmin=1).flatten()
+        nref = len(val_ref)
         
-        if valueref_c.size != values_c.size:
+        if val_ref.size != val.size:
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
         
-        status = FMIL.fmi1_import_set_real(self._fmu, <FMIL.fmi1_value_reference_t*>valueref_c.data, nref, <FMIL.fmi1_real_t*>values_c.data)
+        status = FMIL.fmi1_import_set_real(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_real_t*>val.data)
         
         if status != 0:
             raise FMUException('Failed to set the Real values.')
