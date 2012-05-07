@@ -29,8 +29,7 @@ N.import_array()
 cimport fmil_import as FMIL
 
 from pyfmi.common.core import create_temp_dir
-
-from pyfmi.common.core import get_platform_suffix, get_files_in_archive, rename_to_tmp
+#from pyfmi.common.core cimport BaseModel
 
 
 int = N.int32
@@ -58,16 +57,6 @@ cdef void fmilogger(FMIL.fmi1_component_t c, FMIL.fmi1_string_t instanceName, FM
     FMIL.vsnprintf(buf, 1000, message, args)
     FMIL.va_end(args)
     print "FMU: fmiStatus = %d;  %s (%s): %s\n"%(status, instanceName, category, buf)
-
-class FMUException(Exception):
-    """
-    An FMU exception.
-    """
-    pass
-
-class PyEventInfo():
-    pass
-    
 
 cdef class BaseModel:
     """ 
@@ -202,15 +191,26 @@ cdef class BaseModel:
         
         return algorithm.get_default_options()
 
+class FMUException(Exception):
+    """
+    An FMU exception.
+    """
+    pass
+
+class PyEventInfo():
+    pass
+
 cdef class FMUModel(BaseModel):
     """
     An FMI Model loaded from a DLL.
     """
+    #FMIL related variables
     cdef FMIL.fmi1_callback_functions_t callBackFunctions
     cdef FMIL.jm_callbacks callbacks
     cdef FMIL.fmi_import_context_t* context 
     cdef FMIL.fmi1_import_t* _fmu
     cdef FMIL.fmi1_event_info_t _eventInfo
+    cdef FMIL.fmi1_import_variable_list_t *variable_list
     
     #Internal values
     cdef public object __t
@@ -221,6 +221,7 @@ cdef class FMUModel(BaseModel):
     cdef public object _pyEventInfo
     cdef int _version
     cdef object _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
+    cdef object _allocated_list
     cdef char * _modelid
     cdef char * _modelname
     cdef unsigned int _nEventIndicators
@@ -233,10 +234,12 @@ cdef class FMUModel(BaseModel):
         cdef int status
         cdef int version
         
+        #Used for deallocation
         self._allocated_context = False
         self._allocated_dll = False
         self._allocated_xml = False
         self._allocated_fmu = False
+        self._allocated_list = False
         
         fmu_full_path = os.path.abspath(os.path.join(path,fmu))
         fmu_temp_dir  = create_temp_dir()
@@ -258,22 +261,21 @@ cdef class FMUModel(BaseModel):
         self.callBackFunctions.allocateMemory = FMIL.calloc;
         self.callBackFunctions.freeMemory = FMIL.free;
         
-        print "Context"
         self.context = FMIL.fmi_import_allocate_context(&self.callbacks)
         self._allocated_context = True
         
-        print "Getting version..."
+        #Get the FMI version of the provided model
         version = FMIL.fmi_import_get_fmi_version(self.context, fmu_full_path, fmu_temp_dir)
         self._version = version #Store version
 
         if version != 1:
             raise FMUException("PyFMI currently only supports FMI 1.0.")
         
-        print "Parsing XML"
+        #Parse the XML
         self._fmu = FMIL.fmi1_import_parse_xml(self.context, fmu_temp_dir)
         self._allocated_xml = True
         
-        print "Creating DLL"
+        #Connect the DLL 
         status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions);
         self._allocated_dll = True
         
@@ -293,10 +295,8 @@ cdef class FMUModel(BaseModel):
         self._nEventIndicators = FMIL.fmi1_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
         
-        
         #Instantiates the model
         self.instantiate_model(logging = enable_logging)
-        self._allocated_fmu = True
         
         """
         #Create a JMIModel if a JModelica generated FMU is loaded
@@ -329,156 +329,7 @@ cdef class FMUModel(BaseModel):
         
         if self._allocated_context:
             FMIL.fmi_import_free_context(self.context)
-    
-    
-    def _load_xml(self):
-        """
-        Loads the XML information.
-        """
-        raise NotImplementedError
-        
-        self._description = self._md.get_description()
-        
-        def_experiment = self._md.get_default_experiment()
-        if def_experiment != None:
-            self._XMLStartTime = self._md.get_default_experiment().get_start_time()
-            self._XMLStopTime = self._md.get_default_experiment().get_stop_time()
-            self._XMLTolerance = self._md.get_default_experiment().get_tolerance()
-            self._tolControlled = True
-            
-        else:
-            self._XMLStartTime = 0.0
-            self._XMLTolerance = 1.e-4
-            self._tolControlled = False
-        
-        reals = self._md.get_all_real_variables()
-        real_start_values = []
-        real_keys = []
-        real_names = []
-        for real in reals:
-            start= real.get_fundamental_type().get_start()
-            if start != None:
-                real_start_values.append(
-                    real.get_fundamental_type().get_start())
-                real_keys.append(real.get_value_reference())
-                real_names.append(real.get_name())
 
-        self._XMLStartRealValues = N.array(real_start_values,dtype=N.double)
-        self._XMLStartRealKeys =   N.array(real_keys,dtype=N.uint32)
-        self._XMLStartRealNames =  N.array(real_names)
-        
-        ints = self._md.get_all_integer_variables()
-        int_start_values = []
-        int_keys = []
-        int_names = []
-        for i in ints:
-            start = i.get_fundamental_type().get_start()
-            if start != None:
-                int_start_values.append(i.get_fundamental_type().get_start())
-                int_keys.append(i.get_value_reference())
-                int_names.append(i.get_name())
-
-        self._XMLStartIntegerValues = N.array(int_start_values,dtype=N.int32)
-        self._XMLStartIntegerKeys   = N.array(int_keys,dtype=N.uint32)
-        self._XMLStartIntegerNames  = N.array(int_names)
-        
-        bools = self._md.get_all_boolean_variables()
-        bool_start_values = []
-        bool_keys = []
-        bool_names = []
-        for b in bools:
-            start = b.get_fundamental_type().get_start()
-            if start != None:
-                bool_start_values.append(
-                    b.get_fundamental_type().get_start())
-                bool_keys.append(b.get_value_reference())
-                bool_names.append(b.get_name())
-
-        self._XMLStartBooleanValues = N.array(bool_start_values)
-        self._XMLStartBooleanKeys   = N.array(bool_keys,dtype=N.uint32)
-        self._XMLStartBooleanNames  = N.array(bool_names)
-        
-        strs = self._md.get_all_string_variables()
-        str_start_values = []
-        str_keys = []
-        str_names = []
-        for s in strs:
-            start = s.get_fundamental_type().get_start()
-            if start != '':
-                str_start_values.append(s.get_fundamental_type().get_start())
-                str_keys.append(s.get_value_reference())
-                str_names.append(s.get_name())
-
-        self._XMLStartStringValues = N.array(str_start_values)
-        self._XMLStartStringKeys   = N.array(str_keys,dtype=N.uint32)
-        self._XMLStartStringNames  = N.array(str_names)
-
-        for i in xrange(len(self._XMLStartBooleanValues)):
-            if self._XMLStartBooleanValues[i] == True:
-                if self._md.is_negated_alias(self._XMLStartBooleanNames[i]):
-                    self._XMLStartBooleanValues[i] = '0'
-                else:
-                    self._XMLStartBooleanValues[i] = '1'
-            else:
-                if self._md.is_negated_alias(self._XMLStartBooleanNames[i]):
-                    self._XMLStartBooleanValues[i] = '1'
-                else:
-                    self._XMLStartBooleanValues[i] = '0'
-                
-        for i in xrange(len(self._XMLStartRealValues)):
-            self._XMLStartRealValues[i] = -1*self._XMLStartRealValues[i] if \
-                self._md.is_negated_alias(self._XMLStartRealNames[i]) else \
-                self._XMLStartRealValues[i]
-        
-        for i in xrange(len(self._XMLStartIntegerValues)):
-            self._XMLStartIntegerValues[i] = -1*self._XMLStartIntegerValues[i] if \
-                self._md.is_negated_alias(self._XMLStartIntegerNames[i]) else \
-                self._XMLStartIntegerValues[i]
-        
-        
-        cont_name = []
-        cont_valueref = []
-        disc_name_r = []
-        disc_valueref_r = []
-
-        """
-        for real in reals:
-            if real.get_variability() == xmlparser.CONTINUOUS and \
-                real.get_alias() == xmlparser.NO_ALIAS:
-                    cont_name.append(real.get_name())
-                    cont_valueref.append(real.get_value_reference())
-                
-            elif real.get_variability() == xmlparser.DISCRETE and \
-                real.get_alias() == xmlparser.NO_ALIAS:
-                    disc_name_r.append(real.get_name())
-                    disc_valueref_r.append(real.get_value_reference())
-        
-        disc_name_i = []
-        disc_valueref_i = []
-        for i in ints:
-            if i.get_variability() == xmlparser.DISCRETE and \
-                i.get_alias() == xmlparser.NO_ALIAS:
-                    disc_name_i.append(i.get_name())
-                    disc_valueref_i.append(i.get_value_reference())
-                    
-        disc_name_b = []
-        disc_valueref_b =[]
-        for b in bools:
-            if b.get_variability() == xmlparser.DISCRETE and \
-                b.get_alias() == xmlparser.NO_ALIAS:
-                    disc_name_b.append(b.get_name())
-                    disc_valueref_b.append(b.get_value_reference())
-
-        self._save_cont_valueref = [
-            N.array(cont_valueref+disc_valueref_r,dtype=N.uint), 
-            disc_valueref_i, 
-            disc_valueref_b]
-        self._save_cont_name = [cont_name+disc_name_r, disc_name_i, disc_name_b]
-        self._save_nbr_points = 0
-        self._save_cont_length= [len(self._save_cont_valueref[0]),
-                                 len(self._save_cont_valueref[1]),
-                                 len(self._save_cont_valueref[2])]
-        """
     
     cpdef _get_time(self):
         return self.__t
@@ -548,7 +399,7 @@ cdef class FMUModel(BaseModel):
     the low-level FMI function: fmiGetNominalContinuousStates.
     """)
     
-    def get_derivatives(self):
+    cpdef get_derivatives(self):
         """
         Returns the derivative of the continuous states.
                 
@@ -656,40 +507,6 @@ cdef class FMUModel(BaseModel):
         
         if status != 0:
             raise FMUException('Failed to update the events.')
-    
-    def save_time_point(self):
-        """
-        Retrieves the data at the current time-point of the variables defined
-        to be continuous and the variables defined to be discrete. The 
-        information about the variables are retrieved from the XML-file.
-                
-        Returns::
-        
-            sol_real -- 
-                The Real-valued variables.
-                
-            sol_int -- 
-                The Integer-valued variables.
-                
-            sol_bool -- 
-                The Boolean-valued variables.
-                
-        Example::
-        
-            [r,i,b] = model.save_time_point()
-        """
-        raise NotImplementedError
-        sol_real=N.array([])
-        sol_int=N.array([])
-        sol_bool=N.array([])
-        if self._save_cont_length[0] > 0:
-            sol_real = self.get_real(self._save_cont_valueref[0])
-        if self._save_cont_length[1] > 0:
-            sol_int  = self.get_integer(self._save_cont_valueref[1])
-        if self._save_cont_length[2] > 0:  
-            sol_bool = self.get_boolean(self._save_cont_valueref[2])
-        
-        return sol_real, sol_int, sol_bool
     
     def get_event_info(self):
         """
@@ -835,17 +652,17 @@ cdef class FMUModel(BaseModel):
         """
         cdef int status
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] valueref_c = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        nref = len(valueref_c)
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.array([0.0]*nref,dtype=N.float, ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        nref = len(val_ref)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref,dtype=N.float, ndmin=1)
         
         
-        status = FMIL.fmi1_import_get_real(self._fmu, <FMIL.fmi1_value_reference_t*>valueref_c.data, nref, <FMIL.fmi1_real_t*>values.data)
+        status = FMIL.fmi1_import_get_real(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_real_t*>val.data)
         
         if status != 0:
             raise FMUException('Failed to get the Real values.')
             
-        return values
+        return val
         
     def set_real(self, valueref, values):
         """
@@ -1048,7 +865,7 @@ cdef class FMUModel(BaseModel):
         """
         raise NotImplementedError
         cdef int status
-        cdef long unsigned int nref
+        cdef FMIL.size_t nref
         valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
 
         nref = len(valueref)
@@ -1083,7 +900,8 @@ cdef class FMUModel(BaseModel):
         """
         raise NotImplementedError
         cdef int status
-        cdef long unsigned int nref
+        cdef FMIL.size_t nref
+        
         valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
 
         nref = valueref.size
@@ -1125,21 +943,7 @@ cdef class FMUModel(BaseModel):
             
         if status != 0:
             raise FMUException('Failed to set the debugging option.')
-        
-    
-    def get_nominal(self, valueref):
-        """
-        Returns the nominal value from valueref.
-        """
-        raise NotImplementedError
-        values = self._xmldoc._xpatheval(
-            '//ScalarVariable/Real/@nominal[../../@valueReference=\''+\
-            valueref+'\']')
-        
-        if len(values) == 0:
-            return 1.0
-        else:
-            return float(values[0])
+
     
     def completed_integrator_step(self):
         """
@@ -1237,6 +1041,8 @@ cdef class FMUModel(BaseModel):
             else:
                 FMUException('Initialize returned with a error.' \
                     ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+        
+        self._allocated_fmu = True
     
     def instantiate_model(self, name='Model', logging=False):
         """
@@ -1431,32 +1237,53 @@ cdef class FMUModel(BaseModel):
             return self.get_boolean([ref])
         else:
             raise FMUException('Type not supported.')
-    
-    #XML PART
-    def get_variable_descriptions(self, include_alias=True):
+        
+    cpdef get_variable_description(self, char* variablename):
         """
-        Extract the descriptions of the variables in a model.
-
+        Get the description of a given variable.
+        
+        Parameter::
+        
+            variablename --
+                The name of the variable
+                
         Returns::
         
-            Dict with ValueReference as key and description as value.
+            The description of the variable.
         """
-        raise NotImplementedError
-        return self._md.get_variable_descriptions(include_alias)
+        cdef FMIL.fmi1_import_variable_t* variable
         
-    cpdef FMIL.fmi1_base_type_enu_t get_data_type(self,char* variablename):
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+            
+        return FMIL.fmi1_import_get_variable_description(variable)
+        
+    cpdef FMIL.fmi1_base_type_enu_t get_variable_data_type(self,char* variablename) except *:
         """ 
         Get data type of variable. 
+        
+        Parameter::
+        
+            variablename --
+                The name of the variable.
+                
+        Returns::
+        
+            The type of the variable.
         """
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_base_type_enu_t type
         
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+        
         type = FMIL.fmi1_import_get_variable_base_type(variable)
         
         return type
         
-    cpdef FMIL.fmi1_value_reference_t get_valueref(self, char* variablename):
+    cpdef FMIL.fmi1_value_reference_t get_variable_valueref(self, char* variablename) except *:
         """
         Extract the ValueReference given a variable name.
         
@@ -1473,72 +1300,240 @@ cdef class FMUModel(BaseModel):
         cdef FMIL.fmi1_value_reference_t vr
         
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
         vr =  FMIL.fmi1_import_get_variable_vr(variable)
         
         return vr
         
-    
-    def get_valuerefs(self, type=None):
+    def get_variable_nominal(self, variablename=None, valueref=None):
         """
-        Extract the ValueReferences given a variable type.
+        Returns the nominal value from a real variable determined by
+        either its value reference or its variable name.
         
         Parameters::
-        
-            type -- 
-                The type of the variables.
+            
+            valueref --
+                The value reference of the variable.
+            variablename --
+                The name of the variable.
             
         Returns::
         
-            The ValueReferences for the variable type passed as argument.
+            The nominal value of the given variable.
         """
-        raise NotImplementedError
-        cdef FMIL.fmi1_import_variable_t* variable
-        cdef FMIL.fmi1_value_reference_t vr
+        cdef FMIL.fmi1_import_variable_t *variable
+        cdef FMIL.fmi1_import_real_variable_t *real_variable
 
-        raise NotImplementedError
-        #valrefs = []
-        #allvariables = self._md.get_model_variables()
-        #for variable in allvariables:
-        #    if variable.get_variability() == type:
-        #        valrefs.append(variable.get_value_reference())
-                    
-        return N.array(valrefs,dtype=N.int)
+        if valueref != None:
+            variable = FMIL.fmi1_import_get_variable_by_vr(self._fmu, FMIL.fmi1_base_type_real, <FMIL.fmi1_value_reference_t>valueref)
+            if variable == NULL:
+                raise FMUException("The variable with value reference: %s, could not be found."%str(valueref))
+        elif variablename != None:
+            variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+            if variable == NULL:
+                raise FMUException("The variable %s could not be found."%variablename)
+        else:
+            raise FMUException('Either provide value reference or variable name.')
+        
+        real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
+        if real_variable == NULL:
+            raise FMUException("The variable is not a real variable.")
+        
+        return  FMIL.fmi1_import_get_real_variable_nominal(real_variable)
+        
+    cpdef get_variable_start(self,char* variablename):
+        """
+        Returns the start value for the variable or else raises
+        FMUException.
+        
+        Parameters::
+            
+            variablename --
+                The name of the variable
+                
+        Returns::
+        
+            The start value.
+        """
+        cdef FMIL.fmi1_import_variable_t *variable
+        cdef FMIL.fmi1_import_integer_variable_t* int_variable
+        cdef FMIL.fmi1_import_real_variable_t* real_variable
+        cdef FMIL.fmi1_import_bool_variable_t* bool_variable
+        cdef FMIL.fmi1_import_enum_variable_t* enum_variable
+        cdef FMIL.fmi1_base_type_enu_t type
+        cdef int status
+        cdef FMIL.fmi1_boolean_t FMITRUE = 1
+        
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
     
-    def get_variable_names(self, type=None, include_alias=True):
+        status = FMIL.fmi1_import_get_variable_has_start(variable)
+        
+        if status == 0:
+            raise FMUException("The variable %s does not have a start value."%variablename)
+        
+        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        
+        if type == FMIL.fmi1_base_type_real:
+            real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
+            return FMIL.fmi1_import_get_real_variable_start(real_variable)
+            
+        elif type == FMIL.fmi1_base_type_int:
+            int_variable = FMIL.fmi1_import_get_variable_as_integer(variable)
+            return FMIL.fmi1_import_get_integer_variable_start(int_variable)
+            
+        elif type == FMIL.fmi1_base_type_bool:
+            bool_variable = FMIL.fmi1_import_get_variable_as_boolean(variable)
+            return FMIL.fmi1_import_get_boolean_variable_start(bool_variable) == FMITRUE
+            
+        elif type == FMIL.fmi1_base_type_enum:
+            enum_variable = FMIL.fmi1_import_get_variable_as_enum(variable)
+            return FMIL.fmi1_import_get_enum_variable_start(enum_variable)
+            
+        else:
+            raise FMUException("Unknown variable type.")
+    
+    cpdef get_variable_max(self,char* variablename):
+        """
+        Returns the maximum value for the given variable.
+        
+        Parameters::
+        
+            variablename --
+                The name of the variable.
+                
+        Returns::
+        
+            The maximum value for the variable.
+        """
+        cdef FMIL.fmi1_import_variable_t *variable
+        cdef FMIL.fmi1_import_integer_variable_t* int_variable
+        cdef FMIL.fmi1_import_real_variable_t* real_variable
+        cdef FMIL.fmi1_import_enum_variable_t* enum_variable
+        cdef FMIL.fmi1_base_type_enu_t type
+        
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+    
+        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        
+        if type == FMIL.fmi1_base_type_real:
+            real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
+            return FMIL.fmi1_import_get_real_variable_max(real_variable)
+            
+        elif type == FMIL.fmi1_base_type_int:
+            int_variable = FMIL.fmi1_import_get_variable_as_integer(variable)
+            return FMIL.fmi1_import_get_integer_variable_max(int_variable)
+            
+        elif type == FMIL.fmi1_base_type_enum:
+            enum_variable = FMIL.fmi1_import_get_variable_as_enum(variable)
+            return FMIL.fmi1_import_get_enum_variable_max(enum_variable)
+            
+        else:
+            raise FMUException("Unknown variable type.")
+    
+    cpdef get_variable_min(self,char* variablename):
+        """
+        Returns the minimum value for the given variable.
+        
+        Parameters::
+        
+            variablename --
+                The name of the variable.
+                
+        Returns::
+        
+            The minimum value for the variable.
+        """
+        cdef FMIL.fmi1_import_variable_t *variable
+        cdef FMIL.fmi1_import_integer_variable_t* int_variable
+        cdef FMIL.fmi1_import_real_variable_t* real_variable
+        cdef FMIL.fmi1_import_enum_variable_t* enum_variable
+        cdef FMIL.fmi1_base_type_enu_t type
+        
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+    
+        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        
+        if type == FMIL.fmi1_base_type_real:
+            real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
+            return FMIL.fmi1_import_get_real_variable_min(real_variable)
+            
+        elif type == FMIL.fmi1_base_type_int:
+            int_variable = FMIL.fmi1_import_get_variable_as_integer(variable)
+            return FMIL.fmi1_import_get_integer_variable_min(int_variable)
+            
+        elif type == FMIL.fmi1_base_type_enum:
+            enum_variable = FMIL.fmi1_import_get_variable_as_enum(variable)
+            return FMIL.fmi1_import_get_enum_variable_min(enum_variable)
+            
+        else:
+            raise FMUException("Unknown variable type.")
+    
+    
+    def get_variable_names(self,type=None, include_alias=True):
         """
         Extract the names of the variables in a model.
-
+        
+        Parameters::
+        
+            type --
+                The type of the variables. Default None (i.e all).
+            include_alias --
+                If alias should be included or not. Default True
+        
         Returns::
         
             Dict with variable name as key and value reference as value.
         """
-        raise NotImplementedError
-        """
-        if type != None:
-            variables = self._md.get_model_variables()
-            names = []
-            valuerefs = []
+        cdef FMIL.fmi1_import_variable_t *variable
+        cdef FMIL.fmi1_import_variable_list_t *variable_list
+        cdef FMIL.size_t variable_list_size
+        cdef FMIL.fmi1_value_reference_t value_ref
+        cdef FMIL.fmi1_base_type_enu_t data_type,target_type
+        cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
+        cdef dict variable_dict = {}
+        cdef int  selected_type = 0 #If a type has been selected
+        
+        variable_list = FMIL.fmi1_import_get_variable_list(self._fmu)
+        variable_list_size = FMIL.fmi1_import_get_variable_list_size(variable_list)
+        
+        if type!=None:
+            target_type = type
+            selected_type = 1
+        
+        for i in range(variable_list_size):
+        
+            variable = FMIL.fmi1_import_get_variable(variable_list, i)
+            
+            alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
+            data_type  = FMIL.fmi1_import_get_variable_base_type(variable)
+            name       = FMIL.fmi1_import_get_variable_name(variable)
+            value_ref  = FMIL.fmi1_import_get_variable_vr(variable)
+            
+            if selected_type == 1 and data_type != target_type:
+                continue
+            
             if include_alias:
-                for var in variables:
-                    if var.get_variability()==type:
-                        names.append(var.get_name())
-                        valuerefs.append(var.get_value_reference())
-                return zip(tuple(valuerefs), tuple(names))
-            else:
-                for var in variables: 
-                    if var.get_variability()==type and \
-                        var.get_alias() == xmlparser.NO_ALIAS:
-                            names.append(var.get_name())
-                            valuerefs.append(var.get_value_reference())
-                return zip(tuple(valuerefs), tuple(names))
-        else:
-            return self._md.get_variable_names(include_alias)
-        """
+                variable_dict[name] = value_ref
+            elif alias_kind ==FMIL.fmi1_variable_is_not_alias:
+                variable_dict[name] = value_ref
+        
+        #Free the variable list
+        FMIL.fmi1_import_free_variable_list(variable_list)
+        
+        return variable_dict
+
     
-    def get_alias_for_variable(self, aliased_variable, ignore_cache=False):
+    def get_variable_alias(self,char* variablename):
         """ 
-        Return list of all alias variables belonging to the aliased variable 
-        along with a list of booleans indicating whether the alias variable 
+        Return list of all alias variables belonging to the provided variable 
+        along with a list of booleans indicating whether the variable 
         should be negated or not.
 
         Returns::
@@ -1549,24 +1544,38 @@ cdef class FMUModel(BaseModel):
             
         Raises:: 
         
-            XMLException if alias_variable is not in model.
+            FMUException if the variable is not in the model.
         """
-        raise NotImplementedError
-        return self._md.get_aliases_for_variable(aliased_variable)
-    
-    def get_variable_aliases(self):
-        """
-        Extract the alias data for each variable in the model.
+        cdef FMIL.fmi1_import_variable_t *variable
+        cdef FMIL.fmi1_import_variable_list_t *alias_list
+        cdef FMIL.size_t alias_list_size
+        cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
+        cdef list ret_values = []
         
-        Returns::
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
         
-            A list of tuples containing value references and alias data 
-            respectively.
-        """
-        raise NotImplementedError
-        return self._md.get_variable_aliases()
+        alias_list = FMIL.fmi1_import_get_variable_aliases(self._fmu, variable)
         
-    cpdef FMIL.fmi1_variability_enu_t get_variability(self,char* variablename):
+        alias_list_size = FMIL.fmi1_import_get_variable_list_size(alias_list)
+        
+        #Loop over all the alias variables
+        for i in range(alias_list_size):
+                
+            variable = FMIL.fmi1_import_get_variable(alias_list, i)
+                
+            alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
+            alias_name = FMIL.fmi1_import_get_variable_name(variable)
+                
+            ret_values.append((alias_name,alias_kind))
+        
+        #FREE VARIABLE LIST
+        FMIL.fmi1_import_free_variable_list(alias_list)
+        
+        return ret_values
+        
+    cpdef FMIL.fmi1_variability_enu_t get_variable_variability(self,char* variablename) except *:
         """ 
         Get variability of variable. 
             
@@ -1585,9 +1594,36 @@ cdef class FMUModel(BaseModel):
         cdef FMIL.fmi1_variability_enu_t variability
         
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
         variability = FMIL.fmi1_import_get_variability(variable)
         
         return variability
+        
+    cpdef FMIL.fmi1_causality_enu_t get_variable_causality(self, char* variablename) except *:
+        """
+        Get the causality of the variable.
+        
+        Parameters::
+        
+            variablename --
+                The name of the variable.
+                
+        Returns::
+        
+            The variability of the variable, INPUT(0), OUTPUT(1),
+            INTERNAL(2), NONE(3)
+        """
+        cdef FMIL.fmi1_import_variable_t* variable
+        cdef FMIL.fmi1_causality_enu_t causality
+        
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+    
+        causality = FMIL.fmi1_import_get_causality(variable)
+        
+        return causality
     
     def get_name(self):
         """ 

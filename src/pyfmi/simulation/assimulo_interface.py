@@ -233,10 +233,11 @@ class FMIODE(Explicit_Problem):
         else:
             return None
     
+    """
     def handle_result(self, solver, t, y):
-        """
-        Post processing (stores the time points).
-        """
+        #
+        #Post processing (stores the time points).
+        #
         #Moving data to the model
         if t != self._model.time:
             #Moving data to the model
@@ -266,6 +267,7 @@ class FMIODE(Explicit_Problem):
             self._sol_int  += [i]
             self._sol_bool += b
             self._sol_time += [t]
+    """
         
     def handle_event(self, solver, event_info):
         """
