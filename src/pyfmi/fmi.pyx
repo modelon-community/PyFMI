@@ -1503,7 +1503,7 @@ cdef class FMUModel(BaseModel):
         variable_list = FMIL.fmi1_import_get_variable_list(self._fmu)
         variable_list_size = FMIL.fmi1_import_get_variable_list_size(variable_list)
         
-        if type!=None:
+        if type!=None: #A type have has been selected
             target_type = type
             selected_type = 1
         
@@ -1532,15 +1532,14 @@ cdef class FMUModel(BaseModel):
     
     def get_variable_alias(self,char* variablename):
         """ 
-        Return list of all alias variables belonging to the provided variable 
-        along with a list of booleans indicating whether the variable 
+        Return a dict of all alias variables belonging to the provided variable
+        where the key are the names and the value indicating whether the variable
         should be negated or not.
-
-        Returns::
         
-            A list consisting of the alias variable names and another list 
-            consisting of booleans indicating if the corresponding alias is 
-            negated.
+        Returns::
+            
+            A dict consisting of the alias variables along with no alias variable.
+            The values indicates wheter or not the variable should be negated or not.
             
         Raises:: 
         
@@ -1550,7 +1549,7 @@ cdef class FMUModel(BaseModel):
         cdef FMIL.fmi1_import_variable_list_t *alias_list
         cdef FMIL.size_t alias_list_size
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
-        cdef list ret_values = []
+        cdef dict ret_values = {}
         
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1567,8 +1566,8 @@ cdef class FMUModel(BaseModel):
                 
             alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
             alias_name = FMIL.fmi1_import_get_variable_name(variable)
-                
-            ret_values.append((alias_name,alias_kind))
+            
+            ret_values[alias_name] = alias_kind
         
         #FREE VARIABLE LIST
         FMIL.fmi1_import_free_variable_list(alias_list)
