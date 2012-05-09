@@ -1202,7 +1202,7 @@ cdef class FMUModel(BaseModel):
         cdef FMIL.fmi1_value_reference_t ref
         cdef FMIL.fmi1_base_type_enu_t type
         
-        ref = self.get_valueref(variable_name)
+        ref = self.get_variable_valueref(variable_name)
         type = self.get_data_type(variable_name)
         
         if type == FMIL.fmi1_base_type_real:  #REAL
@@ -1224,7 +1224,7 @@ cdef class FMUModel(BaseModel):
         cdef FMIL.fmi1_value_reference_t ref
         cdef FMIL.fmi1_base_type_enu_t type
         
-        ref = self.get_valueref(variable_name)
+        ref = self.get_variable_valueref(variable_name)
         type = self.get_data_type(variable_name)
         
         if type == FMIL.fmi1_base_type_real:  #REAL
@@ -1341,7 +1341,38 @@ cdef class FMUModel(BaseModel):
             raise FMUException("The variable is not a real variable.")
         
         return  FMIL.fmi1_import_get_real_variable_nominal(real_variable)
+    
+    cpdef get_variable_fixed(self, char* variablename):
+        """
+        Returns if the start value is fixed (True - The value is used as
+        an initial value) or not (False - The value is used as a guess
+        value).
         
+        Parameters::
+        
+            variablename --
+                The name of the variable
+                
+        Returns::
+        
+            If the start value is fixed or not.
+        """
+        cdef FMIL.fmi1_import_variable_t *variable
+        
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+    
+        status = FMIL.fmi1_import_get_variable_has_start(variable)
+        
+        if status == 0:
+            raise FMUException("The variable %s does not have a start value."%variablename)
+        
+        fixed = FMIL.fmi1_import_get_variable_is_fixed(variable)
+        
+        return fixed==1
+        
+    
     cpdef get_variable_start(self,char* variablename):
         """
         Returns the start value for the variable or else raises
@@ -1361,6 +1392,7 @@ cdef class FMUModel(BaseModel):
         cdef FMIL.fmi1_import_real_variable_t* real_variable
         cdef FMIL.fmi1_import_bool_variable_t* bool_variable
         cdef FMIL.fmi1_import_enum_variable_t* enum_variable
+        cdef FMIL.fmi1_import_string_variable_t*  str_variable
         cdef FMIL.fmi1_base_type_enu_t type
         cdef int status
         cdef FMIL.fmi1_boolean_t FMITRUE = 1
@@ -1391,7 +1423,11 @@ cdef class FMUModel(BaseModel):
         elif type == FMIL.fmi1_base_type_enum:
             enum_variable = FMIL.fmi1_import_get_variable_as_enum(variable)
             return FMIL.fmi1_import_get_enum_variable_start(enum_variable)
-            
+        
+        elif type == FMIL.fmi1_base_type_str:
+            str_variable = FMIL.fmi1_import_get_variable_as_string(variable)
+            return FMIL.fmi1_import_get_string_variable_start(str_variable)
+                
         else:
             raise FMUException("Unknown variable type.")
     
@@ -1433,7 +1469,7 @@ cdef class FMUModel(BaseModel):
             return FMIL.fmi1_import_get_enum_variable_max(enum_variable)
             
         else:
-            raise FMUException("Unknown variable type.")
+            raise FMUException("The variable type does not have a maximum value.")
     
     cpdef get_variable_min(self,char* variablename):
         """
@@ -1473,19 +1509,28 @@ cdef class FMUModel(BaseModel):
             return FMIL.fmi1_import_get_enum_variable_min(enum_variable)
             
         else:
-            raise FMUException("Unknown variable type.")
+            raise FMUException("The variable type does not have a minimum value.")
     
     
-    def get_variable_names(self,type=None, include_alias=True):
+    def get_model_variables(self,type=None, include_alias=True, 
+                            causality=None,   variability=None):
         """
         Extract the names of the variables in a model.
         
         Parameters::
         
             type --
-                The type of the variables. Default None (i.e all).
+                The type of the variables (Real==0, Int==1, Bool=2,
+                String==3, Enumeration==4). Default None (i.e all).
             include_alias --
                 If alias should be included or not. Default True
+            causality --
+                The causality of the variables (Input==0, Output==1,
+                Internal==2, None==3). Default None (i.e all).
+            variability --
+                The variability of the variables (Constant==0, 
+                Parameter==1, Discrete==2, Continuous==3). Default None 
+                (i.e. all)
         
         Returns::
         
@@ -1496,9 +1541,13 @@ cdef class FMUModel(BaseModel):
         cdef FMIL.size_t variable_list_size
         cdef FMIL.fmi1_value_reference_t value_ref
         cdef FMIL.fmi1_base_type_enu_t data_type,target_type
+        cdef FMIL.fmi1_variability_enu_t data_variability,target_variability
+        cdef FMIL.fmi1_causality_enu_t data_causality,target_causality
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
         cdef dict variable_dict = {}
         cdef int  selected_type = 0 #If a type has been selected
+        cdef int  selected_variability = 0 #If a variability has been selected
+        cdef int  selected_causality = 0 #If a causality has been selected
         
         variable_list = FMIL.fmi1_import_get_variable_list(self._fmu)
         variable_list_size = FMIL.fmi1_import_get_variable_list_size(variable_list)
@@ -1506,17 +1555,29 @@ cdef class FMUModel(BaseModel):
         if type!=None: #A type have has been selected
             target_type = type
             selected_type = 1
+        if causality!=None: #A causality has been selected
+            target_causality = causality
+            selected_causality = 1
+        if variability!=None: #A variability has been selected
+            target_variability = variability
+            selected_variability = 1
         
         for i in range(variable_list_size):
         
             variable = FMIL.fmi1_import_get_variable(variable_list, i)
             
             alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
-            data_type  = FMIL.fmi1_import_get_variable_base_type(variable)
             name       = FMIL.fmi1_import_get_variable_name(variable)
             value_ref  = FMIL.fmi1_import_get_variable_vr(variable)
+            data_type  = FMIL.fmi1_import_get_variable_base_type(variable)
+            data_variability = FMIL.fmi1_import_get_variability(variable)
+            data_causality   = FMIL.fmi1_import_get_causality(variable)
             
             if selected_type == 1 and data_type != target_type:
+                continue
+            if selected_causality == 1 and data_causality != target_causality:
+                continue
+            if selected_variability == 1 and data_variability != target_variability:
                 continue
             
             if include_alias:
@@ -1636,4 +1697,32 @@ cdef class FMUModel(BaseModel):
         the C-function names of the model. 
         """
         return self._modelid
+        
+    def get_author(self):
+        """
+        Return the name and organization of the model author.
+        """
+        author = FMIL.fmi1_import_get_author(self._fmu)
+        return author
+        
+    def get_description(self):
+        """
+        Return the model description.
+        """
+        desc = FMIL.fmi1_import_get_description(self._fmu)
+        return desc
+        
+    def get_generation_tool(self):
+        """
+        Return the model generation tool.
+        """
+        gen = FMIL.fmi1_import_get_generation_tool(self._fmu)
+        return gen
+        
+    def get_guid(self):
+        """
+        Return the model GUID.
+        """
+        guid = FMIL.fmi1_import_get_GUID(self._fmu)
+        return guid
         

@@ -328,12 +328,15 @@ cdef extern from 'FMI1/fmi1_import.h':
     fmi1_value_reference_t  fmi1_import_get_variable_vr(fmi1_import_variable_t *)
     char *                  fmi1_import_get_variable_description(fmi1_import_variable_t *)
     char *                  fmi1_import_get_variable_name(fmi1_import_variable_t *)
+    int                     fmi1_import_get_variable_has_start(fmi1_import_variable_t *)
+    int                     fmi1_import_get_variable_is_fixed(fmi1_import_variable_t *)
     
     #CONVERTER METHODS
     fmi1_import_integer_variable_t * fmi1_import_get_variable_as_integer(fmi1_import_variable_t *)
     fmi1_import_real_variable_t    * fmi1_import_get_variable_as_real(fmi1_import_variable_t *)
     fmi1_import_bool_variable_t    * fmi1_import_get_variable_as_boolean(fmi1_import_variable_t *)
     fmi1_import_enum_variable_t    * fmi1_import_get_variable_as_enum(fmi1_import_variable_t *)
+    fmi1_import_string_variable_t  * fmi1_import_get_variable_as_string(fmi1_import_variable_t *)
     
     
     #INTEGER 
@@ -366,6 +369,7 @@ cdef extern from 'FMI1/fmi1_import.h':
     
     #BOOLEAN
     fmi1_boolean_t fmi1_import_get_boolean_variable_start(fmi1_import_bool_variable_t *)
+    char *         fmi1_import_get_string_variable_start(fmi1_import_string_variable_t *)
     
     
     
@@ -387,7 +391,7 @@ cdef extern from 'FMI1/fmi1_import.h':
     
     
     fmi1_variable_alias_kind_enu_t fmi1_import_get_variable_alias_kind(fmi1_import_variable_t *)
-    int fmi1_import_get_variable_has_start(fmi1_import_variable_t *)
+    
     
     
     unsigned int fmi1_import_get_unit_definitions_number(fmi1_import_unit_definitions_t *)
@@ -421,13 +425,12 @@ cdef extern from 'FMI1/fmi1_import.h':
     int fmi1_import_get_canNotUseMemoryManagementFunctions(fmi1_import_capabilities_t *)
     int fmi1_import_get_real_output_derivatives(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_integer_t *, fmi1_real_t *)
     int fmi1_import_get_string_status(fmi1_import_t *, int, fmi1_string_t *)
-    int fmi1_import_get_variable_is_fixed(fmi1_import_variable_t *)
+    
     ctypedef int(*fmi1_import_variable_filter_function_ft)(fmi1_import_variable_t *, void *)
     fmi1_import_variable_list_t * fmi1_import_filter_variables(fmi1_import_variable_list_t *, fmi1_import_variable_filter_function_ft, void *)
     fmi1_import_variable_list_t * fmi1_import_get_sublist(fmi1_import_variable_list_t *, unsigned int, unsigned int)
     int fmi1_import_set_real_input_derivatives(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_integer_t *, fmi1_real_t *)
     char * fmi1_import_get_unit_name(fmi1_import_unit_t *)
-    char * fmi1_import_get_string_variable_start(fmi1_import_string_variable_t *)
     char * fmi1_import_get_display_unit_name(fmi1_import_display_unit_t *)
     fmi1_import_type_definitions_t * fmi1_import_get_type_definitions(fmi1_import_t *)
     fmi1_import_variable_typedef_t * fmi1_import_get_typedef(fmi1_import_type_definitions_t *, unsigned int)
@@ -448,7 +451,7 @@ cdef extern from 'FMI1/fmi1_import.h':
     fmi1_import_variable_list_t * fmi1_import_join_var_list(fmi1_import_variable_list_t *, fmi1_import_variable_list_t *)
     fmi1_import_real_typedef_t * fmi1_import_get_type_as_real(fmi1_import_variable_typedef_t *)
     fmi1_import_variable_list_t * fmi1_import_clone_variable_list(fmi1_import_variable_list_t *)
-    fmi1_import_string_variable_t * fmi1_import_get_variable_as_string(fmi1_import_variable_t *)
+    
     fmi1_import_display_unit_t * fmi1_import_get_type_display_unit(fmi1_import_real_typedef_t *)
     int fmi1_import_get_manual_start(fmi1_import_t *)
     fmi1_import_unit_t * fmi1_import_get_real_type_unit(fmi1_import_real_typedef_t *)
