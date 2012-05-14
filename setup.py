@@ -84,37 +84,52 @@ for x in sys.argv[1:]:
         copy_args.remove(x)
 
 def check_extensions():
-
+    ext_list = []
+    """
     delgenC = O.path.join("src","pyfmi","fmi.c")
     if O.path.exists(delgenC):
         try:
             O.remove(delgenC)
         except:
             pass
-
+    """
     if static:
         extra_link_flags = static_link_gcc
     else:
         extra_link_flags = [""]
 
-    ext_list = cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi.pyx"], 
+    #COMMON PYX
+    """
+    ext_list = cythonize(["src"+O.path.sep+"common"+O.path.sep+"core.pyx"], 
+                    include_path=[".","src","src"+O.sep+"common"],
+                    include_dirs=[N.get_include()],pyrex_gdb=debug)
+    
+    ext_list[-1].include_dirs = [N.get_include(), "src","src"+O.sep+"common", incdirs]
+        
+    if debug:
+        ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
+        ext_list[-1].extra_link_args = extra_link_flags
+    else:
+        ext_list[-1].extra_compile_args = ["-O2", "-fno-strict-aliasing"]
+        ext_list[-1].extra_link_args = extra_link_flags
+    """
+    
+    #FMI PYX
+    ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi.pyx"], 
                     include_path=[".","src","src"+O.sep+"pyfmi"],
                     include_dirs=[N.get_include()],pyrex_gdb=debug)
 
     ext_list[-1].include_dirs = [N.get_include(), "src","src"+O.sep+"pyfmi", incdirs]
     ext_list[-1].library_dirs = [libdirs]
     ext_list[-1].language = "c"
-    
-    #if sys.platform == 'win32':
-    #    ext_list[-1].libraries = ["fmiimport","fmicapi", "fmizip","fmixml", "jmutils", "minizip", "zlib","expat"]
-    #else:
-    #    ext_list[-1].libraries = ["fmiimport","fmicapi", "fmizip","fmixml", "jmutils", "minizip", "z","expat"]
     ext_list[-1].libraries = ["fmilib"]
     
     if debug:
         ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
+        ext_list[-1].extra_link_args = extra_link_flags
     else:
         ext_list[-1].extra_compile_args = ["-O2", "-fno-strict-aliasing"]
+        ext_list[-1].extra_link_args = extra_link_flags
 
     return ext_list
 

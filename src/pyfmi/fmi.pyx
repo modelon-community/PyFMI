@@ -35,8 +35,7 @@ from pyfmi.common.core import create_temp_dir
 int = N.int32
 N.int = N.int32
 
-"""Flags for evaluation of FMI Jacobians
-"""
+"""Flags for evaluation of FMI Jacobians"""
 """Evaluate Jacobian w.r.t. states."""
 FMI_STATES = 1
 """Evaluate Jacobian w.r.t. inputs."""
@@ -1513,7 +1512,8 @@ cdef class FMUModel(BaseModel):
     
     
     def get_model_variables(self,type=None, include_alias=True, 
-                            causality=None,   variability=None):
+                            causality=None,   variability=None,
+                            only_start=False,  only_fixed=False):
         """
         Extract the names of the variables in a model.
         
@@ -1531,6 +1531,12 @@ cdef class FMUModel(BaseModel):
                 The variability of the variables (Constant==0, 
                 Parameter==1, Discrete==2, Continuous==3). Default None 
                 (i.e. all)
+            only_start --
+                If only variables that has a start value should be
+                returned. Default False
+            only_fixed --
+                If only variables that has a start value that is fixed
+                should be returned. Default False
         
         Returns::
         
@@ -1548,6 +1554,7 @@ cdef class FMUModel(BaseModel):
         cdef int  selected_type = 0 #If a type has been selected
         cdef int  selected_variability = 0 #If a variability has been selected
         cdef int  selected_causality = 0 #If a causality has been selected
+        cdef int  has_start, is_fixed
         
         variable_list = FMIL.fmi1_import_get_variable_list(self._fmu)
         variable_list_size = FMIL.fmi1_import_get_variable_list_size(variable_list)
@@ -1570,8 +1577,21 @@ cdef class FMUModel(BaseModel):
             name       = FMIL.fmi1_import_get_variable_name(variable)
             value_ref  = FMIL.fmi1_import_get_variable_vr(variable)
             data_type  = FMIL.fmi1_import_get_variable_base_type(variable)
+            has_start  = FMIL.fmi1_import_get_variable_has_start(variable)
             data_variability = FMIL.fmi1_import_get_variability(variable)
             data_causality   = FMIL.fmi1_import_get_causality(variable)
+            
+            #If only variables with start are wanted, check if the variable has start
+            if only_start and has_start != 1:
+                continue
+            
+            if only_fixed:
+                if has_start!=1:
+                    continue
+                else:
+                    is_fixed = FMIL.fmi1_import_get_variable_is_fixed(variable)
+                    if is_fixed !=1:
+                        continue
             
             if selected_type == 1 and data_type != target_type:
                 continue

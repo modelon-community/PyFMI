@@ -262,21 +262,24 @@ cdef extern from 'FMI1/fmi1_import.h':
     int fmi1_import_reset_slave(fmi1_import_t *)
     int fmi1_import_eventUpdate(fmi1_import_t *, fmi1_boolean_t, fmi1_event_info_t *)
     int fmi1_import_get_canSignalEvents(fmi1_import_capabilities_t *)
-    int fmi1_import_set_string(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_string_t *)
-    int fmi1_import_set_real(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_real_t *)
-    int fmi1_import_get_real(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_real_t *)
+    int fmi1_import_initialize(fmi1_import_t *, fmi1_boolean_t, fmi1_real_t, fmi1_event_info_t *)
     int fmi1_import_terminate_slave(fmi1_import_t *)
     int fmi1_import_terminate(fmi1_import_t *)
     int fmi1_import_cancel_step(fmi1_import_t *)
-    int fmi1_import_get_boolean(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_boolean_t *)
     int fmi1_import_instantiate_slave(fmi1_import_t *, fmi1_string_t, fmi1_string_t, fmi1_string_t, fmi1_string_t, fmi1_real_t, fmi1_boolean_t, fmi1_boolean_t, fmi1_boolean_t)
-    int fmi1_import_set_boolean(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_boolean_t *)
     int fmi1_import_initialize_slave(fmi1_import_t *, fmi1_real_t, fmi1_boolean_t, fmi1_real_t)
     int fmi1_import_get_derivatives(fmi1_import_t *, fmi1_real_t *, size_t)
     int fmi1_import_do_step(fmi1_import_t *, fmi1_real_t, fmi1_real_t, fmi1_boolean_t)
+    
     int fmi1_import_set_integer(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_integer_t *)
     int fmi1_import_get_integer(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_integer_t *)
-    int fmi1_import_initialize(fmi1_import_t *, fmi1_boolean_t, fmi1_real_t, fmi1_event_info_t *)
+    int fmi1_import_get_string(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_string_t *)
+    int fmi1_import_set_string(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_string_t *)
+    int fmi1_import_set_real(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_real_t *)
+    int fmi1_import_get_real(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_real_t *)
+    int fmi1_import_set_boolean(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_boolean_t *)
+    int fmi1_import_get_boolean(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_boolean_t *)
+    
     char * fmi1_import_get_entry_point(fmi1_import_t *)
     char * fmi1_import_get_generation_date_and_time(fmi1_import_t *)
     char * fmi1_import_get_GUID(fmi1_import_t *)
@@ -376,7 +379,7 @@ cdef extern from 'FMI1/fmi1_import.h':
     #TYPES
     fmi1_variability_enu_t fmi1_import_get_variability(fmi1_import_variable_t *)
     fmi1_causality_enu_t   fmi1_import_get_causality(fmi1_import_variable_t *)
-    
+    fmi1_base_type_enu_t   fmi1_import_get_base_type(fmi1_import_variable_typedef_t *)
     
     
     fmi1_import_capabilities_t * fmi1_import_get_capabilities(fmi1_import_t *)
@@ -410,7 +413,7 @@ cdef extern from 'FMI1/fmi1_import.h':
     
     size_t fmi1_import_get_type_definition_number(fmi1_import_type_definitions_t *)
     int fmi1_import_get_canRunAsynchronuously(fmi1_import_capabilities_t *)
-    fmi1_base_type_enu_t fmi1_import_get_base_type(fmi1_import_variable_typedef_t *)
+    
     unsigned int fmi1_import_get_number_of_vendors(fmi1_import_vendor_list_t *)
     char * fmi1_import_get_enum_type_item_description(fmi1_import_enumeration_typedef_t *, unsigned int)
     int fmi1_import_get_real_type_is_relative_quantity(fmi1_import_real_typedef_t *)
@@ -455,7 +458,7 @@ cdef extern from 'FMI1/fmi1_import.h':
     fmi1_import_display_unit_t * fmi1_import_get_type_display_unit(fmi1_import_real_typedef_t *)
     int fmi1_import_get_manual_start(fmi1_import_t *)
     fmi1_import_unit_t * fmi1_import_get_real_type_unit(fmi1_import_real_typedef_t *)
-    int fmi1_import_get_string(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_string_t *)
+    
     fmi1_base_type_enu_t fmi1_import_get_variable_base_type(fmi1_import_variable_t *)
     char * fmi1_import_get_additional_model_name(fmi1_import_t *, size_t)
     fmi1_import_variable_list_t * fmi1_import_get_direct_dependency(fmi1_import_t *, fmi1_import_variable_t *)
