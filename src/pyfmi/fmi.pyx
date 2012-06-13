@@ -226,7 +226,7 @@ cdef class FMUModel(BaseModel):
     cdef unsigned int _nEventIndicators
     cdef unsigned int _nContinuousStates
 
-    def __init__(self, fmu, path='.', enable_logging=False):
+    def __init__(self, fmu, path='.', enable_logging=True):
         """
         Constructor.
         """
@@ -254,9 +254,10 @@ cdef class FMUModel(BaseModel):
         self.callbacks.free    = FMIL.free
         self.callbacks.logger  = importlogger
         self.callbacks.context = NULL;
+        self.callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
         
         #Specify FMI related callbacks
-        self.callBackFunctions.logger = fmilogger;
+        self.callBackFunctions.logger = FMIL.fmi1_log_forwarding;#fmilogger;
         self.callBackFunctions.allocateMemory = FMIL.calloc;
         self.callBackFunctions.freeMemory = FMIL.free;
         
@@ -275,7 +276,7 @@ cdef class FMUModel(BaseModel):
         self._allocated_xml = True
         
         #Connect the DLL 
-        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions);
+        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, 1);
         self._allocated_dll = True
         
         #Default values
@@ -1043,6 +1044,28 @@ cdef class FMUModel(BaseModel):
         
         self._allocated_fmu = True
     
+    def set_fmil_log_level(self, FMIL.jm_log_level_enu_t level):
+        """
+        Specifices the log level for FMI Library. Note that this is
+        different from the FMU logging which is specificed via
+        set_debug_logging.
+        
+        Parameters::
+		
+            level --
+                The log level. Available values:
+                    ALL = 0
+                    INFO = 1
+                    WARNING = 2
+                    ERROR = 3
+                    FATAL = 4
+                    NOTHING = 5
+        """
+        if level < 0 or level > 5:
+            FMUException("Invalid log level for FMI Library (0-5).")
+        self.callbacks.log_level = level
+		
+    
     def instantiate_model(self, name='Model', logging=False):
         """
         Instantiate the model.
@@ -1059,18 +1082,19 @@ cdef class FMUModel(BaseModel):
                         
         Calls the low-level FMI function: fmiInstantiateModel.
         """
-        cdef FMIL.fmi1_string_t guid
+        #cdef FMIL.fmi1_string_t guid
         cdef FMIL.fmi1_boolean_t log
         cdef int status
         
-        guid = FMIL.fmi1_import_get_GUID(self._fmu)
+        #guid = FMIL.fmi1_import_get_GUID(self._fmu)
         
         if logging:
             log = 1
         else:
             log = 0
         
-        status = FMIL.fmi1_import_instantiate_model(self._fmu, name, guid, log)
+        #status = FMIL.fmi1_import_instantiate_model(self._fmu, name, guid, log)
+        status = FMIL.fmi1_import_instantiate_model(self._fmu, name)
         
         if status != 0:
             raise FMUException('Failed to instantiate the model.')

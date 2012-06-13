@@ -51,7 +51,7 @@ cdef extern from 'FMI1/fmi1_import.h':
     ctypedef char * jm_string
     
     #STRUCTS
-    cdef enum jm_log_level_enu_t:
+    ctypedef enum jm_log_level_enu_t:
         jm_log_level_all = 0
         jm_log_level_info = 1
         jm_log_level_warning = 2
@@ -255,7 +255,8 @@ cdef extern from 'FMI1/fmi1_import.h':
     int fmi1_import_set_time(fmi1_import_t *, fmi1_real_t)
     int fmi1_import_set_debug_logging(fmi1_import_t *, fmi1_boolean_t)
     int fmi1_import_get_continuous_states(fmi1_import_t *, fmi1_real_t *, size_t)
-    int fmi1_import_instantiate_model(fmi1_import_t *, fmi1_string_t, fmi1_string_t, fmi1_boolean_t)
+    #int fmi1_import_instantiate_model(fmi1_import_t *, fmi1_string_t, fmi1_string_t, fmi1_boolean_t)
+    int fmi1_import_instantiate_model(fmi1_import_t *, fmi1_string_t)
     int fmi1_import_set_continuous_states(fmi1_import_t *, fmi1_real_t *, size_t)
     int fmi1_import_get_status(fmi1_import_t *, int, int *)
     int fmi1_import_completed_integrator_step(fmi1_import_t *, fmi1_boolean_t *)
@@ -287,7 +288,8 @@ cdef extern from 'FMI1/fmi1_import.h':
     
     #FMI HELPER METHODS
     char * fmi1_import_get_version(fmi1_import_t *)
-    int fmi1_import_create_dllfmu(fmi1_import_t *, fmi1_callback_functions_t)
+    int fmi1_import_create_dllfmu(fmi1_import_t *, fmi1_callback_functions_t, int)
+    void fmi1_log_forwarding(fmi1_component_t c, fmi1_string_t instanceName, fmi1_status_t status, fmi1_string_t category, fmi1_string_t message,...)
     char * fmi_import_get_dll_path(char *, char *, jm_callbacks *)
     char * fmi_import_get_model_description_path(char *, jm_callbacks *)
     void fmi1_import_destroy_dllfmu(fmi1_import_t *)
