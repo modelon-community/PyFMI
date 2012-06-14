@@ -52,12 +52,14 @@ cdef extern from 'FMI1/fmi1_import.h':
     
     #STRUCTS
     ctypedef enum jm_log_level_enu_t:
-        jm_log_level_all = 0
-        jm_log_level_info = 1
-        jm_log_level_warning = 2
-        jm_log_level_error = 3
-        jm_log_level_fatal = 4
-        jm_log_level_nothing = 5
+        jm_log_level_nothing = 0
+        jm_log_level_fatal = 1
+        jm_log_level_error = 2
+        jm_log_level_warning = 3
+        jm_log_level_info = 4
+        jm_log_level_verbose = 5 
+        jm_log_level_debug = 6
+        jm_log_level_all = 7
     
     ctypedef enum fmi1_status_t:
         fmi1_status_ok = 0

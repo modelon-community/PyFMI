@@ -1035,11 +1035,11 @@ cdef class FMUModel(BaseModel):
         
         if status > 1:
             if self._enable_logging:
-                FMUException(
+                raise FMUException(
                     'Initialize returned with a error.' \
                     ' Check the log for information (FMUModel.get_log).')
             else:
-                FMUException('Initialize returned with a error.' \
+                raise FMUException('Initialize returned with a error.' \
                     ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
         
         self._allocated_fmu = True
@@ -1054,15 +1054,17 @@ cdef class FMUModel(BaseModel):
 		
             level --
                 The log level. Available values:
-                    ALL = 0
-                    INFO = 1
-                    WARNING = 2
-                    ERROR = 3
-                    FATAL = 4
-                    NOTHING = 5
+                    NOTHING = 0
+                    FATAL = 1
+                    ERROR = 2
+                    WARNING = 3
+                    INFO = 4
+                    VERBOSE = 5 
+                    DEBUG = 6
+                    ALL = 7
         """
-        if level < 0 or level > 5:
-            FMUException("Invalid log level for FMI Library (0-5).")
+        if level < 0 or level > 7:
+            raise FMUException("Invalid log level for FMI Library (0-7).")
         self.callbacks.log_level = level
 		
     
