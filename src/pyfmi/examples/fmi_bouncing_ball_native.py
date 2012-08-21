@@ -61,7 +61,7 @@ def run_demo(with_plots=True):
     
     #Values for the solution
     #Retrieve the valureferences for the values 'h' and 'v'
-    vref  = [bouncing_fmu.get_valueref('h')] + [bouncing_fmu.get_valueref('v')] 
+    vref  = [bouncing_fmu.get_variable_valueref('h')] + [bouncing_fmu.get_variable_valueref('v')] 
 
     t_sol = [Tstart]
     sol = [bouncing_fmu.get_real(vref)]

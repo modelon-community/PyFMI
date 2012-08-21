@@ -17,13 +17,21 @@
 
 #from distutils.core import setup, Extension
 from distutils.ccompiler import new_compiler
-from distutils.command.build_clib import build_clib
+from distutils.core import setup
+
 import distutils
 import os as O
+import numpy as N
 from numpy.distutils.misc_util import Configuration
-from numpy.distutils.core import setup
+#from numpy.distutils.core import setup
 from numpy.distutils.command.build_clib import build_clib
 import sys
+
+try:
+    from Cython.Distutils import build_ext
+    from Cython.Build import cythonize
+except ImportError:
+    raise Exception("Please upgrade to a newer Cython version, >= 0.15.")
 
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
@@ -59,36 +67,73 @@ simulation package Assimulo adds industrial grade simulation
 capabilities of FMUs to Python.
 """
 
-
-#class my_cbuild(build_clib):
-#    def build_a_library(self, build_info, lib_name, libraries):
-#        self.compiler.archiver = ["gcc", "-shared", "-Wl", "-o"]
-#        return build_clib.build_a_library(self, build_info, lib_name, libraries)
-
-#config = Configuration()
-#config.add_installed_library("FMILogger",sources=['pyfmi'+O.path.sep+'util'+O.path.sep+'FMILogger.c'],install_dir='pyfmi'+O.path.sep+'util')
-
-#Load the helper function
-if sys.platform == 'win32':
-    suffix = '.dll'
-elif sys.platform == 'darwin':
-    suffix = '.dylib'
-else:
-    suffix = '.so'
-
-path_pyfmi = "src"+O.path.sep+"pyfmi"
-
-path_log_src = path_pyfmi+O.path.sep+"util" + O.path.sep + "FMILogger.c"
-path_log_dest = path_pyfmi+O.path.sep+"util" + O.path.sep + "FMILogger" + suffix
-
-O.system("gcc -fPIC "+path_log_src+" -shared -o "+path_log_dest)
-
 copy_args=sys.argv[1:]
+
+incdirs = ""
+libdirs = ""
+static = False
+debug = True
 
 # Fix path sep
 for x in sys.argv[1:]:
     if not x.find('--prefix'):
         copy_args[copy_args.index(x)] = x.replace('/',O.sep)
+    if not x.find('--fmil-home'):
+        incdirs = O.path.join(x[12:],'include')
+        libdirs = O.path.join(x[12:],'lib')
+        copy_args.remove(x)
+
+def check_extensions():
+    ext_list = []
+    """
+    delgenC = O.path.join("src","pyfmi","fmi.c")
+    if O.path.exists(delgenC):
+        try:
+            O.remove(delgenC)
+        except:
+            pass
+    """
+    if static:
+        extra_link_flags = static_link_gcc
+    else:
+        extra_link_flags = [""]
+
+    #COMMON PYX
+    """
+    ext_list = cythonize(["src"+O.path.sep+"common"+O.path.sep+"core.pyx"], 
+                    include_path=[".","src","src"+O.sep+"common"],
+                    include_dirs=[N.get_include()],pyrex_gdb=debug)
+    
+    ext_list[-1].include_dirs = [N.get_include(), "src","src"+O.sep+"common", incdirs]
+        
+    if debug:
+        ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
+        ext_list[-1].extra_link_args = extra_link_flags
+    else:
+        ext_list[-1].extra_compile_args = ["-O2", "-fno-strict-aliasing"]
+        ext_list[-1].extra_link_args = extra_link_flags
+    """
+    
+    #FMI PYX
+    ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi.pyx"], 
+                    include_path=[".","src","src"+O.sep+"pyfmi"],
+                    include_dirs=[N.get_include()],pyrex_gdb=debug)
+
+    ext_list[-1].include_dirs = [N.get_include(), "src","src"+O.sep+"pyfmi", incdirs]
+    ext_list[-1].library_dirs = [libdirs]
+    ext_list[-1].language = "c"
+    ext_list[-1].libraries = ["fmilib"]
+    
+    if debug:
+        ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
+        ext_list[-1].extra_link_args = extra_link_flags
+    else:
+        ext_list[-1].extra_compile_args = ["-O2", "-fno-strict-aliasing"]
+        ext_list[-1].extra_link_args = extra_link_flags
+
+    return ext_list
+
+ext_list = check_extensions()
 
 setup(name=NAME,
       version=VERSION,
@@ -101,7 +146,7 @@ setup(name=NAME,
       download_url=DOWNLOAD_URL,
       platforms=PLATFORMS,
       classifiers=CLASSIFIERS,
-      #cmdclass={"build_clib":my_cbuild},
+      ext_modules = ext_list,
       package_dir = {'pyfmi':'src'+O.path.sep+'pyfmi','pyfmi.common':'src'+O.path.sep+'common'},
       packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting'],
       package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*','util'+O.path.sep+'*']},

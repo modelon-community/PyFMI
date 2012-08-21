@@ -617,7 +617,98 @@ class TrajectoryLinearInterpolation(Trajectory):
         for i in range(N.size(y,1)):
             y[:,i] = N.interp(x,self.abscissa,self.ordinate[:,i])
         return y
+
+class TrajectoryLinearInterpolationExtrapolation(Trajectory):
+    
+    def eval(self, x):
+        """
+        Evaluate the trajectory at a specified abscissa. If the values
+        are inside the data range the values are interpolated and if
+        they are outside, extrapolated.
         
+        Parameters::
+        
+            x -- 
+                One dimensional numpy array, or scalar number, containing n 
+                abscissa value(s).
+
+        Returns::
+        
+            Two dimensional n x m matrix containing the ordinate values 
+            corresponding to the argument x.
+            
+        Note::
+        
+            See http://stackoverflow.com/questions/2745329/how-to-make-scipy-interpolate-give-a-an-extrapolated-result-beyond-the-input-ran
+            
+        """
+        y = N.zeros([N.size(x),N.size(self.ordinate,1)])
+        for i in range(N.size(y,1)):
+            y[:,i] = N.interp(x,self.abscissa,self.ordinate[:,i])
+            y[:,i] = N.where(x < self.abscissa[0], self.ordinate[0,i]+(x-self.abscissa[0])*(self.ordinate[0,i]-self.ordinate[1,i])/(self.abscissa[0]-self.abscissa[1]), y[:,i])
+            y[:,i] = N.where(x > self.abscissa[-1], self.ordinate[-1,i]+(x-self.abscissa[-1])*(self.ordinate[-1,i]-self.ordinate[-2,i])/(self.abscissa[-1]-self.abscissa[-2]), y[:,i])
+        return y
+
+class TrajectoryConstantInterpolationExtrapolation(Trajectory):
+    _mode = 1 #Default value
+    
+    def set_mode(self, mode):
+        """
+        Specifices whether or not forward or backward mode should be
+        used in the interpolation/extrapolation.
+        """
+        if mode.upper() == "FORWARD":
+            self._mode = 1
+        elif mode.upper() == "BACKWARD":
+            self._mode = 2
+        else:
+            raise Exception("Unknown input. Either 'FORWARD' or 'BACKWARD' is accepted.")
+    
+    def eval(self, x):
+        """
+        Evaluate the trajectory at a specified abscissa. If the values
+        are inside the data range the values are interpolated and if
+        they are outside, extrapolated.
+        
+        Parameters::
+        
+            x -- 
+                One dimensional numpy array, or scalar number, containing n 
+                abscissa value(s).
+
+        Returns::
+        
+            Two dimensional n x m matrix containing the ordinate values 
+            corresponding to the argument x.
+            
+        Note::
+        
+            See http://stackoverflow.com/questions/2745329/how-to-make-scipy-interpolate-give-a-an-extrapolated-result-beyond-the-input-ran
+            
+        """
+        y = N.zeros([N.size(x),N.size(self.ordinate,1)])
+        x = N.array([x]).flatten()
+        
+        if self._mode == 1:
+            for i in range(N.size(y,1)):
+                for j in range(N.size(x)):
+                    try:
+                        y[j,i] = self.ordinate[self.abscissa<=x[j],i][-1]
+                    except IndexError:
+                        pass
+                y[:,i] = N.where(x < self.abscissa[0], self.ordinate[0,i], y[:,i])
+                y[:,i] = N.where(x > self.abscissa[-1], self.ordinate[-1,i], y[:,i])
+        else:
+            for i in range(N.size(y,1)):
+                for j in range(N.size(x)):
+                    try:
+                        y[j,i] = self.ordinate[self.abscissa>=x[j],i][0]
+                    except IndexError:
+                        pass
+                y[:,i] = N.where(x < self.abscissa[0], self.ordinate[0,i], y[:,i])
+                y[:,i] = N.where(x > self.abscissa[-1], self.ordinate[-1,i], y[:,i])
+        return y
+
 class TrajectoryUserFunction(Trajectory):
     
     def __init__(self, func):
@@ -629,7 +720,6 @@ class TrajectoryUserFunction(Trajectory):
             func -- 
                 A function which calculates the ordinate values.
         """
-        
         self.traj = func
         
     def eval(self, x):

@@ -4986,15 +4986,14 @@ class Optimization:
             self._interval_final_time = Opt_IntervalTime(e_intervalfinalt)
             
         # time points
-        # bad xml schema construction - consider redoing
         self._time_points = []
         e_timepoints = element.find(ns+'TimePoints')
+        attr = {'index':'',
+                'value':''}
         if e_timepoints != None:
-            e_indexes = e_timepoints.findall(ns+"Index")
-            e_values = e_timepoints.findall(ns+"Value")
-            
-            for i, e_index in enumerate(e_indexes):
-                self._time_points.append(Opt_TimePoint(e_index, e_values[i]))
+            for e_timepoint in e_timepoints:
+                attr.update(e_timepoint.attrib)
+                self._time_points.append(Opt_TimePoint(attr['index'],attr['value']))
                 
     def get_static(self):
         """ 
@@ -5116,8 +5115,8 @@ class Opt_TimePoint:
         TimePoint element and creates an Opt_TimePoint object with time point 
         data.
         """
-        self._index = e_index.text
-        self._value = e_value.text
+        self._index = e_index
+        self._value = e_value
         
     def get_index(self):
         """ 
