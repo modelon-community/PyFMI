@@ -21,6 +21,7 @@ from distutils.core import setup
 
 import distutils
 import os as O
+import shutil
 import numpy as N
 from numpy.distutils.misc_util import Configuration
 #from numpy.distutils.core import setup
@@ -73,6 +74,7 @@ incdirs = ""
 libdirs = ""
 static = False
 debug = True
+fmilib_shared = ""
 
 # Fix path sep
 for x in sys.argv[1:]:
@@ -82,6 +84,16 @@ for x in sys.argv[1:]:
         incdirs = O.path.join(x[12:],'include')
         libdirs = O.path.join(x[12:],'lib')
         copy_args.remove(x)
+
+#Check to see if FMILIB_SHARED exists and if so copy it
+files = O.listdir(O.path.join(libdirs))
+for file in files:
+    if "fmilib_shared" in file and not file.endswith("a"):
+        shutil.copy2(O.path.join(libdirs,file),O.path.join(".","src","pyfmi"))
+        fmilib_shared = O.path.join(".","src","pyfmi",file)
+        break
+else:
+    raise Exception("Could not find FMILibrary at: %s"%libdirs)
 
 def check_extensions():
     ext_list = []
@@ -122,7 +134,7 @@ def check_extensions():
     ext_list[-1].include_dirs = [N.get_include(), "src","src"+O.sep+"pyfmi", incdirs]
     ext_list[-1].library_dirs = [libdirs]
     ext_list[-1].language = "c"
-    ext_list[-1].libraries = ["fmilib"]
+    ext_list[-1].libraries = ["fmilib_shared"]
     
     if debug:
         ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
@@ -149,6 +161,11 @@ setup(name=NAME,
       ext_modules = ext_list,
       package_dir = {'pyfmi':'src'+O.path.sep+'pyfmi','pyfmi.common':'src'+O.path.sep+'common'},
       packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting'],
-      package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*','util'+O.path.sep+'*']},
+      package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*','util'+O.path.sep+'*','*fmilib_shared*']},
       script_args=copy_args
       )
+
+
+#Dont forget to delete fmilib_shared
+if O.path.exists(fmilib_shared):
+    O.remove(fmilib_shared)

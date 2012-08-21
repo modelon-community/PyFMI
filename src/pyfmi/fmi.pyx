@@ -35,6 +35,27 @@ from pyfmi.common.core import create_temp_dir
 int = N.int32
 N.int = N.int32
 
+"""Basic flags related to FMI"""
+
+# Types
+FMI_REAL = FMIL.fmi1_base_type_real
+FMI_INTEGER  = FMIL.fmi1_base_type_int
+FMI_BOOLEAN = FMIL.fmi1_base_type_bool
+FMI_STRING = FMIL.fmi1_base_type_str
+FMI_ENUMERATION = FMIL.fmi1_base_type_enum
+
+# Alias data
+FMI_NO_ALIAS = FMIL.fmi1_variable_is_not_alias
+FMI_ALIAS = FMIL.fmi1_variable_is_alias
+FMI_NEGATED_ALIAS = FMIL.fmi1_variable_is_negated_alias
+
+# Variability
+FMI_CONTINUOUS = FMIL.fmi1_variability_enu_continuous
+FMI_CONSTANT = FMIL.fmi1_variability_enu_constant
+FMI_PARAMETER = FMIL.fmi1_variability_enu_parameter
+FMI_DISCRETE = FMIL.fmi1_variability_enu_discrete
+
+
 """Flags for evaluation of FMI Jacobians"""
 """Evaluate Jacobian w.r.t. states."""
 FMI_STATES = 1
@@ -203,20 +224,22 @@ cdef class ScalarVariable:
     """ 
     Class defining data structure based on the XML element ScalarVariable.
     """
-    cdef FMIL.fmi1_string_t _name
+    cdef object _name
     cdef FMIL.fmi1_value_reference_t _value_reference
-    cdef FMIL.fmi1_string_t _description
+    cdef object _description #A characater pointer but we need an own reference and this is sufficient
+    cdef FMIL.fmi1_base_type_enu_t _type
     cdef FMIL.fmi1_variability_enu_t _variability
     cdef FMIL.fmi1_causality_enu_t _causality
     cdef FMIL.fmi1_variable_alias_kind_enu_t _alias
     
-    def __init__(self, name, value_reference, description="", 
+    def __init__(self, name, value_reference, type, description="",
                        variability=FMIL.fmi1_variability_enu_continuous,
                        causality=FMIL.fmi1_causality_enu_internal, 
                        alias=FMIL.fmi1_variable_is_not_alias):
         
         self._name            = name
         self._value_reference = value_reference
+        self._type            = type
         self._description     = description
         self._variability     = variability
         self._causality       = causality
@@ -229,6 +252,10 @@ cdef class ScalarVariable:
     def _get_value_reference(self):
         return self._value_reference
     value_reference = property(_get_value_reference)
+    
+    def _get_type(self):
+        return self._type
+    type = property(_get_type)
     
     def _get_description(self):
         return self._description
@@ -273,6 +300,9 @@ cdef class FMUModel(BaseModel):
     cdef char * _modelname
     cdef unsigned int _nEventIndicators
     cdef unsigned int _nContinuousStates
+    cdef public list _save_real_variables_val
+    cdef public list _save_int_variables_val
+    cdef public list _save_bool_variables_val
 
     def __init__(self, fmu, path='.', enable_logging=True):
         """
@@ -1621,11 +1651,11 @@ cdef class FMUModel(BaseModel):
         sol_bool=N.array([])
         
         if self._save_real_variables_val:
-            sol_real = self.get_real(self._save_real_variables)
+            sol_real = self.get_real(self._save_real_variables_val)
         if self._save_int_variables_val:
-            sol_int  = self.get_integer(self._save_int_variables)
+            sol_int  = self.get_integer(self._save_int_variables_val)
         if self._save_bool_variables_val:  
-            sol_bool = self.get_boolean(self._save_bool_variables)
+            sol_bool = self.get_boolean(self._save_bool_variables_val)
         
         return sol_real, sol_int, sol_bool
         
@@ -1725,13 +1755,13 @@ cdef class FMUModel(BaseModel):
             if include_alias:
                 #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable(name, 
-                                       value_reference, desc,
+                                       value_ref, data_type, desc,
                                        data_variability, data_causality,
                                        alias_kind)
             elif alias_kind ==FMIL.fmi1_variable_is_not_alias:
                 #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable(name, 
-                                       value_reference, desc,
+                                       value_ref, data_type, desc,
                                        data_variability, data_causality,
                                        alias_kind)
         

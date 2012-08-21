@@ -37,7 +37,8 @@ cdef extern from "stdarg.h":
     void va_end(va_list)
     int vsnprintf(char *str, size_t size, char *format, va_list ap)
 
-cdef extern from 'FMI1/fmi1_import.h':
+#cdef extern from 'FMI1/fmi1_import.h':
+cdef extern from 'fmilib.h':
     
     #FMI VARIABLE TYPE DEFINITIONS
     ctypedef double fmi1_real_t

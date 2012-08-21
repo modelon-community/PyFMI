@@ -25,6 +25,7 @@ import numpy as N
 import scipy.io
 
 import xmlparser
+import pyfmi.fmi as fmi
 
 class Trajectory:
     """
@@ -604,9 +605,334 @@ class ResultWriter():
         The finalize method can be used to for instance close the file.
         """
         pass
-        
+
 
 class ResultWriterDymola(ResultWriter):
+    """ 
+    Export an optimization or simulation result to file in Dymola's result file 
+    format.
+    """
+    def __init__(self, model, format='txt'):
+        """
+        Export an optimization or simulation result to file in Dymolas result 
+        file format.
+
+        Parameters::
+        
+            model --
+                A FMIModel object.
+            
+            format --
+                A text string equal either to 'txt' for textual format or 'mat' 
+                for binary Matlab format.
+                Default: 'txt'
+
+        Limitations::
+        
+            Currently only textual format is supported.
+        """
+        self.model = model
+        
+        if format!='txt':
+            raise JIOError('The format is currently not supported.')
+        
+        #Internal values
+        self._file_open = False
+        self._npoints = 0
+        
+    
+    def write_header(self, file_name=''):
+        """
+        Opens the file and writes the header. This includes the information 
+        about the variables and a table determining the link between variables 
+        and data.
+        
+        Parameters::
+        
+            file_name --
+                If no file name is given, the name of the model (as defined by 
+                FMUModel.get_identifier()) concatenated with the string '_result' is 
+                used. A file suffix equal to the format argument is then 
+                appended to the file name.
+                Default: Empty string.
+        """
+        if file_name=='':
+            file_name=self.model.get_identifier() + '_result.txt'
+
+        # Open file
+        f = codecs.open(file_name,'w','utf-8')
+        self._file_open = True
+        
+        # Write header
+        f.write('#1\n')
+        f.write('char Aclass(3,11)\n')
+        f.write('Atrajectory\n')
+        f.write('1.1\n')
+        f.write('\n')
+        
+        # all lists that we need for later
+        vrefs_alias = []
+        vrefs_noalias = []
+        vrefs = []
+        names_alias = []
+        names_noalias = []
+        names = []
+        aliases_alias = []
+        aliases = []
+        descriptions_alias = []
+        descriptions = []
+        variabilities_alias = []
+        variabilities_noalias = []
+        variabilities = []
+        types_alias = []
+        types_noalias = []
+        types = []
+        
+        for var in self.model.get_model_variables().values():
+            if not var.type == fmi.FMI_STRING and not var.type == fmi.FMI_ENUMERATION:
+                    if var.alias == fmi.FMI_NO_ALIAS:
+                        vrefs_noalias.append(var.value_reference)
+                        names_noalias.append(var.name)
+                        aliases.append(var.alias)
+                        descriptions.append(var.description)
+                        variabilities_noalias.append(var.variability)
+                        types_noalias.append(var.type)
+                    else:
+                        vrefs_alias.append(var.value_reference)
+                        names_alias.append(var.name)
+                        aliases_alias.append(var.alias)
+                        descriptions_alias.append(var.description)
+                        variabilities_alias.append(var.variability)
+                        types_alias.append(var.type)
+                        
+        # need to save these no alias lists for later
+        vrefs = vrefs_noalias[:]
+        names = names_noalias[:]
+        types = types_noalias[:]
+        variabilities = variabilities_noalias[:]
+        
+        # merge lists
+        vrefs.extend(vrefs_alias)
+        names.extend(names_alias)
+        aliases.extend(aliases_alias)
+        descriptions.extend(descriptions_alias)
+        variabilities.extend(variabilities_alias)
+        types.extend(types_alias)
+        
+        # zip to list of tuples and sort - non alias variables are now
+        # guaranteed to be first in list
+        names_noalias = sorted(zip(
+            tuple(vrefs_noalias), 
+            tuple(names_noalias)), 
+            key=itemgetter(0))
+        variabilities_noalias = sorted(zip(
+            tuple(vrefs_noalias), 
+            tuple(variabilities_noalias)), 
+            key=itemgetter(0))
+        types_noalias = sorted(zip(
+            tuple(vrefs_noalias), 
+            tuple(types_noalias)), 
+            key=itemgetter(0))
+        names = sorted(zip(
+            tuple(vrefs), 
+            tuple(names)), 
+            key=itemgetter(0))
+        aliases = sorted(zip(
+            tuple(vrefs), 
+            tuple(aliases)), 
+            key=itemgetter(0))
+        descriptions = sorted(zip(
+            tuple(vrefs), 
+            tuple(descriptions)), 
+            key=itemgetter(0))
+        variabilities = sorted(zip(
+            tuple(vrefs), 
+            tuple(variabilities)), 
+            key=itemgetter(0))
+        types = sorted(zip(
+            tuple(vrefs), 
+            tuple(types)), 
+            key=itemgetter(0))
+        
+        num_vars = len(names)
+
+        # Find the maximum name and description length
+        max_name_length = len('Time')
+        max_desc_length = len('Time in [s]')
+        
+        for i in range(len(names)):
+            name = names[i][1]
+            desc = descriptions[i][1]
+            
+            if (len(name)>max_name_length):
+                max_name_length = len(name)
+                
+            if (len(desc)>max_desc_length):
+                max_desc_length = len(desc)
+
+        f.write('char name(%d,%d)\n' % (num_vars+1, max_name_length))
+        f.write('time\n')
+
+        for name in names:
+            f.write(name[1] +'\n')
+
+        f.write('\n')
+
+        # Write descriptions       
+        f.write('char description(%d,%d)\n' % (num_vars + 1, max_desc_length))
+        f.write('Time in [s]\n')
+
+        # Loop over all variables, not only those with a description
+        for desc in descriptions:
+            f.write(desc[1] +'\n')
+                
+        f.write('\n')
+
+        # Write data meta information
+        
+        f.write('int dataInfo(%d,%d)\n' % (num_vars + 1, 4))
+        f.write('0 1 0 -1 # time\n')
+        
+        list_of_continuous_states = N.append(self.model._save_real_variables_val, 
+            self.model._save_int_variables_val)
+        list_of_continuous_states = N.append(list_of_continuous_states, 
+            self.model._save_bool_variables_val).tolist()
+        list_of_continuous_states = dict(zip(list_of_continuous_states, 
+            xrange(len(list_of_continuous_states))))
+        valueref_of_continuous_states = []
+        
+        cnt_1 = 1
+        cnt_2 = 1
+        n_parameters = 0
+        datatable1 = False
+        for i, name in enumerate(names):
+            if aliases[i][1] == 0: # no alias
+                if variabilities[i][1] == fmi.FMI_PARAMETER or \
+                    variabilities[i][1] == fmi.FMI_CONSTANT:
+                    cnt_1 += 1
+                    n_parameters += 1
+                    f.write('1 %d 0 -1 # ' % cnt_1 + name[1]+'\n')
+                    datatable1 = True
+                else:
+                    cnt_2 += 1
+                    valueref_of_continuous_states.append(
+                        list_of_continuous_states[name[0]])
+                    f.write('2 %d 0 -1 # ' % cnt_2 + name[1] +'\n')
+                    datatable1 = False
+                
+            elif aliases[i][1] == 1: # alias
+                if datatable1:
+                    f.write('1 %d 0 -1 # ' % cnt_1 + name[1]+'\n')
+                else:
+                    f.write('2 %d 0 -1 # ' % cnt_2 + name[1] +'\n')
+            else:
+                if datatable1:
+                    f.write('1 -%d 0 -1 # ' % cnt_1 + name[1]+'\n')
+                else:
+                    f.write('2 -%d 0 -1 # ' % cnt_2 + name[1] +'\n')
+
+        f.write('\n')
+
+        # Write data
+        # Write data set 1
+        f.write('float data_1(%d,%d)\n' % (2, n_parameters + 1))
+        f.write("%.14E" % self.model.time)
+        str_text = ''
+        
+        # write constants and parameters
+        for i, name in enumerate(names_noalias):
+            if variabilities_noalias[i][1] == fmi.FMI_CONSTANT or \
+                variabilities_noalias[i][1] == fmi.FMI_PARAMETER:
+                    if types_noalias[i][1] == fmi.FMI_REAL:
+                        str_text = str_text + (
+                            " %.14E" % (self.model.get_real([name[0]])))
+                    elif types_noalias[i][1] == fmi.FMI_INTEGER:
+                        str_text = str_text + (
+                            " %.14E" % (self.model.get_integer([name[0]])))
+                    elif types_noalias[i][1] == fmi.FMI_BOOLEAN:
+                        str_text = str_text + (
+                            " %.14E" % (float(
+                                self.model.get_boolean([name[0]])[0])))
+                        
+        f.write(str_text)
+        f.write('\n')
+        self._point_last_t = f.tell()
+        f.write("%s" % ' '*28)
+        f.write(str_text)
+
+        f.write('\n\n')
+        
+        self._nvariables = len(valueref_of_continuous_states)+1
+        
+        
+        f.write('float data_2(')
+        self._point_npoints = f.tell()
+        f.write(' '*(14+4+14))
+        f.write('\n')
+        
+        #f.write('%s,%d)\n' % (' '*14, self._nvariables))
+        
+        self._file = f
+        self._data_order = valueref_of_continuous_states
+        
+    def write_point(self, data=None):
+        """ 
+        Writes the current status of the model to file. If the header has not 
+        been written previously it is written now. If data is specified it is 
+        written instead of the current status.
+        
+        Parameters::
+            
+                data --
+                    A one dimensional array of variable trajectory data. data 
+                    should consist of information about the status in the order 
+                    specified by FMUModel.save_time_point()
+                    Default: None
+        """
+        f = self._file
+        data_order = self._data_order
+
+        #If data is none, store the current point from the model
+        if data==None:
+            #Retrieves the time-point
+            [r,i,b] = self.model.save_time_point()
+            data = N.append(N.append(N.append(self.model.time,r),i),b)
+
+        #Write the point
+        str_text = (" %.14E" % data[0])
+        for j in xrange(self._nvariables-1):
+            str_text = str_text + (" %.14E" % (data[1+data_order[j]]))
+        f.write(str_text+'\n')
+        
+        #Update number of points
+        self._npoints+=1
+
+    def write_finalize(self):
+        """ 
+        Finalize the writing by filling in the blanks in the created file. The 
+        blanks consists of the number of points and the final time (in data set 
+        1). Also closes the file.
+        """
+        #If open, finalize and close
+        if self._file_open:
+            
+            f = self._file
+            
+            f.seek(self._point_last_t)
+            
+            f.write('%.14E'%self.model.time)
+            
+            f.seek(self._point_npoints)
+            f.write('%d,%d)' % (self._npoints, self._nvariables))
+            #f.write('%d'%self._npoints)
+            f.seek(-1,2)
+            #Close the file
+            f.write('\n')
+            f.close()
+            self._file_open = False
+          
+
+class ResultWriterDymola_deprecated(ResultWriter):
     """ 
     Export an optimization or simulation result to file in Dymola's result file 
     format.
