@@ -296,8 +296,8 @@ cdef class FMUModel(BaseModel):
     cdef int _version
     cdef object _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
     cdef object _allocated_list
-    cdef char * _modelid
-    cdef char * _modelname
+    cdef object _modelid
+    cdef object _modelname
     cdef unsigned int _nEventIndicators
     cdef unsigned int _nContinuousStates
     cdef public list _save_real_variables_val
@@ -1316,7 +1316,7 @@ cdef class FMUModel(BaseModel):
         cdef FMIL.fmi1_base_type_enu_t type
         
         ref = self.get_variable_valueref(variable_name)
-        type = self.get_data_type(variable_name)
+        type = self.get_variable_data_type(variable_name)
         
         if type == FMIL.fmi1_base_type_real:  #REAL
             self.set_real([ref], [value])
@@ -1338,7 +1338,7 @@ cdef class FMUModel(BaseModel):
         cdef FMIL.fmi1_base_type_enu_t type
         
         ref = self.get_variable_valueref(variable_name)
-        type = self.get_data_type(variable_name)
+        type = self.get_variable_data_type(variable_name)
         
         if type == FMIL.fmi1_base_type_real:  #REAL
             return self.get_real([ref])
@@ -1755,13 +1755,13 @@ cdef class FMUModel(BaseModel):
             if include_alias:
                 #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable(name, 
-                                       value_ref, data_type, desc,
+                                       value_ref, data_type, desc if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind)
             elif alias_kind ==FMIL.fmi1_variable_is_not_alias:
                 #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable(name, 
-                                       value_ref, data_type, desc,
+                                       value_ref, data_type, desc if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind)
         
