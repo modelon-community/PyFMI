@@ -199,6 +199,54 @@ class FMUException(Exception):
 class PyEventInfo():
     pass
 
+cdef class ScalarVariable:
+    """ 
+    Class defining data structure based on the XML element ScalarVariable.
+    """
+    cdef FMIL.fmi1_string_t _name
+    cdef FMIL.fmi1_value_reference_t _value_reference
+    cdef FMIL.fmi1_string_t _description
+    cdef FMIL.fmi1_variability_enu_t _variability
+    cdef FMIL.fmi1_causality_enu_t _causality
+    cdef FMIL.fmi1_variable_alias_kind_enu_t _alias
+    
+    def __init__(self, name, value_reference, description="", 
+                       variability=FMIL.fmi1_variability_enu_continuous,
+                       causality=FMIL.fmi1_causality_enu_internal, 
+                       alias=FMIL.fmi1_variable_is_not_alias):
+        
+        self._name            = name
+        self._value_reference = value_reference
+        self._description     = description
+        self._variability     = variability
+        self._causality       = causality
+        self._alias           = alias
+        
+    def _get_name(self):
+        return self._name
+    name = property(_get_name)
+    
+    def _get_value_reference(self):
+        return self._value_reference
+    value_reference = property(_get_value_reference)
+    
+    def _get_description(self):
+        return self._description
+    description = property(_get_description)
+    
+    def _get_variability(self):
+        return self._variability
+    variability = property(_get_variability)
+    
+    def _get_causality(self):
+        return self._causality
+    causality = property(_get_causality)
+    
+    def _get_alias(self):
+        return self._alias
+    alias = property(_get_alias)
+    
+
 cdef class FMUModel(BaseModel):
     """
     An FMI Model loaded from a DLL.
@@ -297,6 +345,16 @@ cdef class FMUModel(BaseModel):
         
         #Instantiates the model
         self.instantiate_model(logging = enable_logging)
+        
+        #Store the continuous and discrete variables for result writing
+        reals_continuous = self.get_model_variables(type=0, include_alias=False, variability=3)
+        reals_discrete = self.get_model_variables(type=0, include_alias=False, variability=2)
+        int_discrete = self.get_model_variables(type=1, include_alias=False, variability=2)
+        bool_discrete = self.get_model_variables(type=2, include_alias=False, variability=2)
+        
+        self._save_real_variables_val = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]
+        self._save_int_variables_val  = [var.value_reference for var in int_discrete.values()]
+        self._save_bool_variables_val = [var.value_reference for var in bool_discrete.values()]
         
         """
         #Create a JMIModel if a JModelica generated FMU is loaded
@@ -1537,6 +1595,41 @@ cdef class FMUModel(BaseModel):
             raise FMUException("The variable type does not have a minimum value.")
     
     
+    def save_time_point(self):
+        """
+        Retrieves the data at the current time-point of the variables defined
+        to be continuous and the variables defined to be discrete. The 
+        information about the variables are retrieved from the XML-file.
+                
+        Returns::
+        
+            sol_real -- 
+                The Real-valued variables.
+                
+            sol_int -- 
+                The Integer-valued variables.
+                
+            sol_bool -- 
+                The Boolean-valued variables.
+                
+        Example::
+        
+            [r,i,b] = model.save_time_point()
+        """
+        sol_real=N.array([])
+        sol_int=N.array([])
+        sol_bool=N.array([])
+        
+        if self._save_real_variables_val:
+            sol_real = self.get_real(self._save_real_variables)
+        if self._save_int_variables_val:
+            sol_int  = self.get_integer(self._save_int_variables)
+        if self._save_bool_variables_val:  
+            sol_bool = self.get_boolean(self._save_bool_variables)
+        
+        return sol_real, sol_int, sol_bool
+        
+    
     def get_model_variables(self,type=None, include_alias=True, 
                             causality=None,   variability=None,
                             only_start=False,  only_fixed=False):
@@ -1566,7 +1659,8 @@ cdef class FMUModel(BaseModel):
         
         Returns::
         
-            Dict with variable name as key and value reference as value.
+            Dict with variable name as key and a ScalarVariable class as
+            value.
         """
         cdef FMIL.fmi1_import_variable_t *variable
         cdef FMIL.fmi1_import_variable_list_t *variable_list
@@ -1576,6 +1670,7 @@ cdef class FMUModel(BaseModel):
         cdef FMIL.fmi1_variability_enu_t data_variability,target_variability
         cdef FMIL.fmi1_causality_enu_t data_causality,target_causality
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
+        cdef char* desc
         cdef dict variable_dict = {}
         cdef int  selected_type = 0 #If a type has been selected
         cdef int  selected_variability = 0 #If a variability has been selected
@@ -1606,6 +1701,7 @@ cdef class FMUModel(BaseModel):
             has_start  = FMIL.fmi1_import_get_variable_has_start(variable)
             data_variability = FMIL.fmi1_import_get_variability(variable)
             data_causality   = FMIL.fmi1_import_get_causality(variable)
+            desc       = FMIL.fmi1_import_get_variable_description(variable)
             
             #If only variables with start are wanted, check if the variable has start
             if only_start and has_start != 1:
@@ -1627,9 +1723,17 @@ cdef class FMUModel(BaseModel):
                 continue
             
             if include_alias:
-                variable_dict[name] = value_ref
+                #variable_dict[name] = value_ref
+                variable_dict[name] = ScalarVariable(name, 
+                                       value_reference, desc,
+                                       data_variability, data_causality,
+                                       alias_kind)
             elif alias_kind ==FMIL.fmi1_variable_is_not_alias:
-                variable_dict[name] = value_ref
+                #variable_dict[name] = value_ref
+                variable_dict[name] = ScalarVariable(name, 
+                                       value_reference, desc,
+                                       data_variability, data_causality,
+                                       alias_kind)
         
         #Free the variable list
         FMIL.fmi1_import_free_variable_list(variable_list)
