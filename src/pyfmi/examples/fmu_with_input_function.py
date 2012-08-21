@@ -46,14 +46,11 @@ def run_demo(with_plots=True):
     u_sim = res['u']
     time_sim = res['time']
     
-    assert N.abs(x1_sim[-1] - (-1.646485144)) < 1e-3, \
-            "Wrong value of x1_sim function in simulation_with_input.py"
+    assert N.abs(x1_sim[-1] - (-1.646485144)) < 1e-3
 
-    assert N.abs(x2_sim[-1]*1.e1 - (-7.30591626709)) < 1e-3, \
-            "Wrong value of x2_sim function in simulation_with_input.py"  
+    assert N.abs(x2_sim[-1]*1.e1 - (-7.30591626709)) < 1e-3  
 
-    assert N.abs(u_sim[-1]*1.e1 - (1.54251449888)) < 1e-3, \
-            "Wrong value of u_sim function in simulation_with_input.py"    
+    assert N.abs(u_sim[-1]*1.e1 - (1.54251449888)) < 1e-3    
 
     if with_plots:
         fig = p.figure()

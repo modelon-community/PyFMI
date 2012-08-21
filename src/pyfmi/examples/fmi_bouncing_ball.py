@@ -39,8 +39,7 @@ def run_demo(with_plots=True):
     v_res = res['v']
     t     = res['time']
 
-    assert N.abs(h_res[-1] - (0.0424044)) < 1e-4, \
-            "Wrong value of h_res in fmi_bouncing_ball.py"
+    assert N.abs(h_res[-1] - (0.0424044)) < 1e-4
     
     #Plot the solution
     if with_plots:

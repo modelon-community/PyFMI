@@ -30,12 +30,17 @@ import pyfmi.fmi as fmi
 from pyfmi.common.core import TrajectoryLinearInterpolation
 
 try:
+    import assimulo
+    assimulo_present = True
+except:
+    logging.warning(
+        'Could not load Assimulo module. Check pyfmi.check_packages()')
+    assimulo_present = False
+
+if assimulo_present:
     from assimulo.problem import Implicit_Problem
     from assimulo.problem import Explicit_Problem
     from assimulo.exception import *
-except ImportError:
-    logging.warning(
-        'Could not find Assimulo package. Check pyfmi.check_packages()')
     
 class FMIModel_Exception(Exception):
     """

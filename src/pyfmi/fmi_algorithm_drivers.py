@@ -31,14 +31,17 @@ from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
 try:
-    from pyfmi.simulation.assimulo_interface import FMIODE
-    from pyfmi.simulation.assimulo_interface import write_data
-    import assimulo.solvers as solvers
+    import assimulo
     assimulo_present = True
 except:
     logging.warning(
         'Could not load Assimulo module. Check pyfmi.check_packages()')
     assimulo_present = False
+
+if assimulo_present:
+    from pyfmi.simulation.assimulo_interface import FMIODE
+    from pyfmi.simulation.assimulo_interface import write_data
+    import assimulo.solvers as solvers
 
 default_int = int
 int = N.int32
