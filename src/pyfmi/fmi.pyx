@@ -1218,7 +1218,6 @@ cdef class FMUModel(BaseModel):
             #print "FMU not compiled with JModelica.org compliant debug functions"
             #print "Debug info from non-linear solver currently not accessible."
         
-        
         return self._log 
     
     def simulate(self,
@@ -1365,12 +1364,15 @@ cdef class FMUModel(BaseModel):
             The description of the variable.
         """
         cdef FMIL.fmi1_import_variable_t* variable
+        cdef char* desc
         
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
-            
-        return FMIL.fmi1_import_get_variable_description(variable)
+        
+        desc = FMIL.fmi1_import_get_variable_description(variable)
+        
+        return desc if desc != NULL else ""
         
     cpdef FMIL.fmi1_base_type_enu_t get_variable_data_type(self,char* variablename) except *:
         """ 
@@ -1882,22 +1884,25 @@ cdef class FMUModel(BaseModel):
         """
         Return the name and organization of the model author.
         """
+        cdef char* author
         author = FMIL.fmi1_import_get_author(self._fmu)
-        return author
+        return author if author != NULL else ""
         
     def get_description(self):
         """
         Return the model description.
         """
+        cdef char* desc
         desc = FMIL.fmi1_import_get_description(self._fmu)
-        return desc
+        return desc if desc != NULL else ""
         
     def get_generation_tool(self):
         """
         Return the model generation tool.
         """
+        cdef char* gen
         gen = FMIL.fmi1_import_get_generation_tool(self._fmu)
-        return gen
+        return gen if gen != NULL else ""
         
     def get_guid(self):
         """
