@@ -73,7 +73,7 @@ copy_args=sys.argv[1:]
 incdirs = ""
 libdirs = ""
 static = False
-debug = True
+debug_flag = True
 fmilib_shared = ""
 
 # Fix path sep
@@ -129,14 +129,17 @@ def check_extensions():
     #FMI PYX
     ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi.pyx"], 
                     include_path=[".","src","src"+O.sep+"pyfmi"],
-                    include_dirs=[N.get_include()],pyrex_gdb=debug)
+                    include_dirs=[N.get_include()],pyrex_gdb=debug_flag)
 
     ext_list[-1].include_dirs = [N.get_include(), "src","src"+O.sep+"pyfmi", incdirs]
     ext_list[-1].library_dirs = [libdirs]
     ext_list[-1].language = "c"
     ext_list[-1].libraries = ["fmilib_shared"]
     
-    if debug:
+    if not "win" in sys.platform:
+        ext_list[-1].runtime_library_dirs = [",'$ORIGIN'"]
+    
+    if debug_flag:
         ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
         ext_list[-1].extra_link_args = extra_link_flags
     else:
