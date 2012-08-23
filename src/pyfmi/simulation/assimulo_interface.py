@@ -25,8 +25,9 @@ import numpy as N
 import numpy.linalg as LIN
 import pylab as P
 
-from pyfmi.common.io import ResultWriterDymola
+from pyfmi.common.io import ResultWriterDymola, ResultWriterDymola_deprecated
 import pyfmi.fmi as fmi
+import pyfmi.fmi_deprecated as fmi_deprecated
 from pyfmi.common.core import TrajectoryLinearInterpolation
 
 try:
@@ -69,7 +70,8 @@ def write_data(simulator,write_scaled_result=False, result_file_name=''):
             -1,len(model._save_bool_variables_val))
         data = N.c_[data,b]
 
-    export = ResultWriterDymola(model)
+    #export = ResultWriterDymola(model)
+    export = ResultWriterDymola_deprecated(model) if (isinstance(model,fmi_deprecated.FMUModel) or isinstance(model,fmi_deprecated.FMUModel2)) else ResultWriterDymola(model)
     export.write_header(file_name=result_file_name)
     map(export.write_point,(row for row in data))
     export.write_finalize()
@@ -137,7 +139,7 @@ class FMIODE(Explicit_Problem):
             self.result_file_name = result_file_name
         
         #Default values
-        self.export = ResultWriterDymola(model)
+        self.export = ResultWriterDymola_deprecated(model) if (isinstance(model,fmi_deprecated.FMUModel) or isinstance(model,fmi_deprecated.FMUModel2)) else ResultWriterDymola(model)
         
         #Internal values
         self._sol_time = []

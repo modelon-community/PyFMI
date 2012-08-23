@@ -37,6 +37,9 @@ N.int = N.int32
 
 """Basic flags related to FMI"""
 
+FMI_TRUE = '\x01'
+FMI_FALSE = '\x00'
+
 # Types
 FMI_REAL = FMIL.fmi1_base_type_real
 FMI_INTEGER  = FMIL.fmi1_base_type_int
@@ -881,12 +884,12 @@ cdef class FMUModel(BaseModel):
         nref = val_ref.size
         cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1)
 
-        status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val.data, nref, <FMIL.fmi1_boolean_t*>val.data)
+        status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
 
         if status != 0:
             raise FMUException('Failed to get the Boolean values.')
         
-        return val==1
+        return val==FMI_TRUE
         
     def set_boolean(self, valueref, values):
         """
@@ -926,7 +929,7 @@ cdef class FMUModel(BaseModel):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
         
-        status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val.data, nref, <FMIL.fmi1_boolean_t*>val.data)
+        status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
 
         if status != 0:
             raise FMUException('Failed to set the Boolean values.')
@@ -1319,7 +1322,7 @@ cdef class FMUModel(BaseModel):
         
         if type == FMIL.fmi1_base_type_real:  #REAL
             self.set_real([ref], [value])
-        elif type == FMIL.fmi1_base_type_integer: #INTEGER
+        elif type == FMIL.fmi1_base_type_int: #INTEGER
             self.set_integer([ref], [value])
         elif type == FMIL.fmi1_base_type_str: #STRING
             self.set_string([ref], [value])
@@ -1341,7 +1344,7 @@ cdef class FMUModel(BaseModel):
         
         if type == FMIL.fmi1_base_type_real:  #REAL
             return self.get_real([ref])
-        elif type == FMIL.fmi1_base_type_integer: #INTEGER
+        elif type == FMIL.fmi1_base_type_int: #INTEGER
             return self.get_integer([ref])
         elif type == FMIL.fmi1_base_type_str: #STRING
             return self.get_string([ref])

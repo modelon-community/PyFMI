@@ -76,6 +76,23 @@ static = False
 debug_flag = True
 fmilib_shared = ""
 
+
+####NECESSECARY FOR THE DEPRECATED FMI LOGGER
+#Load the helper function
+if sys.platform == 'win32':
+    suffix = '.dll'
+elif sys.platform == 'darwin':
+    suffix = '.dylib'
+else:
+    suffix = '.so'
+
+path_log_src = "src"+O.path.sep+"pyfmi"+O.path.sep+"util" + O.path.sep + "FMILogger.c"
+path_log_dest = "src"+O.path.sep+"pyfmi"+O.path.sep+"util" + O.path.sep + "FMILogger" + suffix
+
+O.system("gcc -fPIC "+path_log_src+" -shared -o "+path_log_dest)
+########
+
+
 # Fix path sep
 for x in sys.argv[1:]:
     if not x.find('--prefix'):
