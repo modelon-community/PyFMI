@@ -62,12 +62,13 @@ def write_data(simulator,write_scaled_result=False, result_file_name=''):
     t = N.array(simulator.problem._sol_time)
     r = N.array(simulator.problem._sol_real)
     data = N.c_[t,r]
-    if len(simulator.problem._sol_int) > 0:
+    if len(simulator.problem._sol_int) > 0 and len(simulator.problem._sol_int[0]) > 0:
         i = N.array(simulator.problem._sol_int)
         data = N.c_[data,i]
-    if len(simulator.problem._sol_bool) > 0:
-        b = N.array(simulator.problem._sol_bool).reshape(
-            -1,len(model._save_bool_variables_val))
+    if len(simulator.problem._sol_bool) > 0 and len(simulator.problem._sol_bool[0]) > 0:
+        #b = N.array(simulator.problem._sol_bool).reshape(
+        #    -1,len(model._save_bool_variables_val))
+        b = N.array(simulator.problem._sol_bool)
         data = N.c_[data,b]
 
     #export = ResultWriterDymola(model)
@@ -272,7 +273,7 @@ class FMIODE(Explicit_Problem):
             #Save the time-point
             self._sol_real += [r]
             self._sol_int  += [i]
-            self._sol_bool += b
+            self._sol_bool += [b]
             self._sol_time += [t]
         
     def handle_event(self, solver, event_info):
