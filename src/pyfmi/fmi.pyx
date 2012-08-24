@@ -58,6 +58,12 @@ FMI_CONSTANT = FMIL.fmi1_variability_enu_constant
 FMI_PARAMETER = FMIL.fmi1_variability_enu_parameter
 FMI_DISCRETE = FMIL.fmi1_variability_enu_discrete
 
+# Causality
+FMI_INPUT = FMIL.fmi1_causality_enu_input
+FMI_OUTPUT = FMIL.fmi1_causality_enu_output
+FMI_INTERNAL = FMIL.fmi1_causality_enu_internal
+FMI_NONE = FMIL.fmi1_causality_enu_none
+
 
 """Flags for evaluation of FMI Jacobians"""
 """Evaluate Jacobian w.r.t. states."""
@@ -249,30 +255,84 @@ cdef class ScalarVariable:
         self._alias           = alias
         
     def _get_name(self):
+        """ 
+        Get the value of the name attribute.
+        
+        Returns::
+        
+            The name attribute value as string.
+        """
         return self._name
     name = property(_get_name)
     
     def _get_value_reference(self):
+        """ 
+        Get the value of the value reference attribute.
+        
+        Returns::
+        
+            The value reference as unsigned int.
+        """
         return self._value_reference
     value_reference = property(_get_value_reference)
     
     def _get_type(self):
+        """ 
+        Get the value of the data type attribute.
+        
+        Returns::
+        
+            The data type attribute value as enumeration: FMI_REAL, 
+            FMI_INTEGER, FMI_BOOLEAN, FMI_ENUMERATION or FMI_STRING.
+        """
         return self._type
     type = property(_get_type)
     
     def _get_description(self):
+        """ 
+        Get the value of the description attribute.
+        
+        Returns::
+        
+            The description attribute value as string (empty string if 
+            not set).
+        """
         return self._description
     description = property(_get_description)
     
     def _get_variability(self):
+        """ 
+        Get the value of the variability attribute.
+        
+        Returns::
+        
+            The variability attribute value as enumeration: 
+            FMI_CONTINUOUS, FMI_CONSTANT, FMI_PARAMETER or FMI_DISCRETE.
+        """
         return self._variability
     variability = property(_get_variability)
     
     def _get_causality(self):
+        """ 
+        Get the value of the causality attribute.
+        
+        Returns::
+        
+            The causality attribute value as enumeration: FMI_INTERNAL, 
+            FMI_INPUT, FMI_OUTPUT or FMI_NONE.
+        """
         return self._causality
     causality = property(_get_causality)
     
     def _get_alias(self):
+        """ 
+        Get the value of the alias attribute.
+        
+        Returns::
+        
+            The alias attribute value as enumeration: FMI_NO_ALIAS, 
+            FMI_ALIAS or FMI_NEGATED_ALIAS.
+        """
         return self._alias
     alias = property(_get_alias)
     
@@ -916,7 +976,6 @@ cdef class FMUModel(BaseModel):
         nref = val_ref.size
         
         cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1).flatten()
-        
         
         values = N.array(values,ndmin=1).flatten()
         for i in range(nref):
