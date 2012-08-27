@@ -64,6 +64,8 @@ FMI_OUTPUT = FMIL.fmi1_causality_enu_output
 FMI_INTERNAL = FMIL.fmi1_causality_enu_internal
 FMI_NONE = FMIL.fmi1_causality_enu_none
 
+FMI_REGISTER_GLOBALLY = 1
+
 
 """Flags for evaluation of FMI Jacobians"""
 """Evaluate Jacobian w.r.t. states."""
@@ -77,7 +79,8 @@ FMI_OUTPUTS = 2
 
 #CALLBACKS
 cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-    print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
+    #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
+    (<FMUModel>c.context)._logger(module,log_level,message)
 
 cdef void fmilogger(FMIL.fmi1_component_t c, FMIL.fmi1_string_t instanceName, FMIL.fmi1_status_t status, FMIL.fmi1_string_t category, FMIL.fmi1_string_t message, ...):
     cdef char buf[1000]
@@ -353,9 +356,9 @@ cdef class FMUModel(BaseModel):
     cdef public object __t
     cdef public object _file_open
     cdef public object _npoints
-    cdef public object _log
     cdef public object _enable_logging
     cdef public object _pyEventInfo
+    cdef list _log
     cdef int _version
     cdef object _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
     cdef object _allocated_list
@@ -373,6 +376,9 @@ cdef class FMUModel(BaseModel):
         """
         cdef int status
         cdef int version
+        
+        #Contains the log information
+        self._log = []
         
         #Used for deallocation
         self._allocated_context = False
@@ -394,7 +400,8 @@ cdef class FMUModel(BaseModel):
         self.callbacks.realloc = FMIL.realloc
         self.callbacks.free    = FMIL.free
         self.callbacks.logger  = importlogger
-        self.callbacks.context = NULL;
+        #self.callbacks.context = NULL;
+        self.callbacks.context = <void*>self #Class loggger
         self.callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
         
         #Specify FMI related callbacks
@@ -416,9 +423,11 @@ cdef class FMUModel(BaseModel):
         self._fmu = FMIL.fmi1_import_parse_xml(self.context, fmu_temp_dir)
         self._allocated_xml = True
         
-        #Connect the DLL 
-        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, 1);
+        #Connect the DLL
+        global FMI_REGISTER_GLOBALLY
+        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
         self._allocated_dll = True
+        FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
         
         #Default values
         self.__t = None
@@ -426,7 +435,6 @@ cdef class FMUModel(BaseModel):
         #Internal values
         self._file_open = False
         self._npoints = 0
-        self._log = []
         self._enable_logging = enable_logging
         self._pyEventInfo = PyEventInfo()
         
@@ -464,6 +472,24 @@ cdef class FMUModel(BaseModel):
             print "Could not create JMIModel"
             pass
         """
+    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
+        #print "FMIL (inside class): module = %s, log level = %d: %s"%(module, log_level, message)
+        self._log.append([module,log_level,message])
+        
+    def get_log(self):
+        """
+        Returns the log information as a list. To turn on the logging use the 
+        method, set_debug_logging(True) in the instantiation, 
+        FMUModel(..., enable_logging=True). The log is stored as a list of lists. 
+        For example log[0] are the first log message to the log and consists of, 
+        in the following order, the instance name, the status, the category and 
+        the message.
+        
+        Returns::
+        
+            log - A list of lists.
+        """
+        return self._log
     
     def __dealloc__(self):
         """
@@ -1257,30 +1283,6 @@ cdef class FMUModel(BaseModel):
         
         if status != 0:
             raise FMUException('Failed to set the debugging option.')
-        
-    def get_log(self):
-        """
-        Returns the log information as a list. To turn on the logging use the 
-        method, set_debug_logging(True). The log is stored as a list of lists. 
-        For example log[0] are the first log message to the log and consists of, 
-        in the following order, the instance name, the status, the category and 
-        the message.
-        
-        Returns::
-        
-            log - A list of lists.
-        """
-        
-        # Temporary fix to make the fmi write to logger - remove when 
-        # permanent solution is found!
-        if self._compiled_with_debug_fct:
-            self._fmiExtractDebugInfo(self._model)
-        else:
-            pass
-            #print "FMU not compiled with JModelica.org compliant debug functions"
-            #print "Debug info from non-linear solver currently not accessible."
-        
-        return self._log 
     
     def simulate(self,
                  start_time=0.0,
