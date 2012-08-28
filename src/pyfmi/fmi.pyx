@@ -490,6 +490,15 @@ cdef class FMUModel(BaseModel):
             log - A list of lists.
         """
         return self._log
+        
+    def print_log(self):
+        """
+        Prints the log information to the prompt.
+        """
+        cdef int N = len(self._log)
+        
+        for i in range(N):
+            print "FMIL: module = %s, log level = %d: %s"%(self._log[i][0], self._log[i][1], self._log[i][2])
     
     def __dealloc__(self):
         """
