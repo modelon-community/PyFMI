@@ -92,6 +92,7 @@ static = False
 debug_flag = True
 fmilib_shared = ""
 
+static_link_gcc = ["-static-libgcc"]
 
 ####NECESSECARY FOR THE DEPRECATED FMI LOGGER
 #Load the helper function
@@ -116,6 +117,13 @@ for x in sys.argv[1:]:
     if not x.find('--fmil-home'):
         incdirs = O.path.join(x[12:],'include')
         libdirs = O.path.join(x[12:],'lib')
+        copy_args.remove(x)
+    if not x.find('--static'):
+        static = x[9:]
+        if x[9:].upper() == "TRUE":
+            static = True
+        else:
+            static = False
         copy_args.remove(x)
 
 #Check to see if FMILIB_SHARED exists and if so copy it
@@ -169,8 +177,13 @@ def check_extensions():
     ext_list[-1].language = "c"
     ext_list[-1].libraries = ["fmilib_shared"]
     
-    if not "win" in sys.platform:
+    if "win" in sys.platform:
+        pass
+    elif "darwin" in sys.platform:
+        ext_list[-1].runtime_library_dirs = [",@loader_path/"]
+    else:
         ext_list[-1].runtime_library_dirs = [",'$ORIGIN'"]
+        
     
     if debug_flag:
         ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
