@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+{% set title = 'Overview' %}
+{% block body %}
+  <h1>Welcome</h1>
+    
+ 
+     <p>
+
+PyFMI is a package for loading and interacting with Functional Mock-Up Units (FMUs), which are compiled dynamic models compliant with the Functional Mock-Up Interface (FMI), see <a target="_parent" href="http://www.functional-mockup-interface.org/">here</a> for more information.</p>
+<p>
+FMI is a standard that enables tool independent exchange of dynamic models on binary format. Several industrial simulation platforms supports export of FMUs, including, Dymola, JModelica.org, OpenModelica and SimulationX, see <a target="_parent" href="http://www.functional-mockup-interface.org/tools.html">here</a> for a complete list. PyFMI offers a Python interface for interacting with FMUs and enables for example loading of FMU models, setting of model parameters and evaluation of model equations.
+</p><p>
+PyFMI is available as a stand-alone package or as part of the JModelica.org distribution. Using PyFMI together with the Python simulation package Assimulo adds industrial grade simulation capabilities of FMUs to Python.
+     </p>
+
+
+  <h2>Documentation</h2>
+
+  <table class="contentstable" style="margin-left: 30px"><tr>
+    <td width="25%" align="center" valign="top">
+        <p class="biglink"><a class="biglink" href="{{ pathto("tutorial") }}">Tutorial</a><br/>
+         <span class="linkdescr">getting started</span></p>
+    </td>
+    <td width="25%" align="center" valign="top">
+        <p class="biglink"><a class="biglink" href="{{ pathto("examples") }}">Examples</a><br/>
+         <span class="linkdescr">view a range of examples</span></p>
+    </td><td width="25%" align="center" valign="top">
+      <p class="biglink"><a class="biglink" href="{{ pathto("content") }}">Contents</a><br/>
+         <span class="linkdescr">overview of the documentation</span></p>
+    </td><td width="25%" align="center" valign="top">
+        <p class="biglink"><a class="biglink" href="{{ pathto("search") }}">Search page</a><br/>
+         <span class="linkdescr">search the documentation</span></p>
+    </td></tr>
+  </table>
+  
+  
+  <h2>Contact</h2>
+  <p>
+  Contact us preferably through the <a target="_parent" href="http://www.jmodelica.org/forum">forum</a>.
+  </p>
+
+
+{% endblock %}
