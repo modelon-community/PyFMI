@@ -177,7 +177,11 @@ def check_extensions():
     ext_list[-1].language = "c"
     ext_list[-1].libraries = ["fmilib_shared"]
     
-    if not "win" in sys.platform:
+    if "win" in sys.platform:
+        pass
+    elif "darwin" in sys.platform:
+        ext_list[-1].runtime_library_dirs = [",@loader_path/"]
+    else:
         ext_list[-1].runtime_library_dirs = [",'$ORIGIN'"]
     
     if debug_flag:
