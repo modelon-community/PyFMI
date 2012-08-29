@@ -37,10 +37,10 @@ except ImportError:
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "trunk"
+VERSION = "1.1b1"
 LICENSE = "GPL"
 URL = "http://www.jmodelica.org"
-DOWNLOAD_URL = "http://www.jmodelica.org/page/12"
+DOWNLOAD_URL = "http://pypi.python.org/pypi/PyFMI"
 DESCRIPTION = "A package for working with dynamic models compliant with the Functional Mock-Up Interface standard."
 PLATFORMS = ["Linux", "Windows", "MacOS X"]
 CLASSIFIERS = [ 'Programming Language :: Python',
