@@ -37,7 +37,7 @@ except ImportError:
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "1.0"
+VERSION = "trunk"
 LICENSE = "GPL"
 URL = "http://www.jmodelica.org"
 DOWNLOAD_URL = "http://www.jmodelica.org/page/12"
@@ -52,7 +52,8 @@ LONG_DESCRIPTION = """
 PyFMI is a package for loading and interacting with Functional Mock-Up 
 Units (FMUs), which are compiled dynamic models compliant with the 
 Functional Mock-Up Interface (FMI), see 
-http://www.functional-mockup-interface.org/ for more information.
+http://www.functional-mockup-interface.org/ for more information. PyFMI
+is based on FMI Library, see http://www.jmodelica.org/FMILibrary .
 
 FMI is a standard that enables tool independent exchange of dynamic 
 models on binary format. Several industrial simulation platforms 
@@ -64,8 +65,23 @@ model parameters and evaluation of model equations.
 
 PyFMI is available as a stand-alone package or as part of the 
 JModelica.org distribution. Using PyFMI together with the Python 
-simulation package Assimulo adds industrial grade simulation 
+simulation package `Assimulo <http://pypi.python.org/pypi/Assimulo>`_ adds industrial grade simulation 
 capabilities of FMUs to Python.
+
+For a forum discussing usage and development of PyFMI, see http://www.jmodelica.org/forum.
+
+Requirements:
+-------------
+- 'FMI Library <http://www.jmodelica.org/FMILibrary>'_
+- `Numpy <http://pypi.python.org/pypi/numpy>`_
+- `Scipy <http://pypi.python.org/pypi/scipy>`_
+- `lxml <http://pypi.python.org/pypi/lxml>`_
+- `Assimulo <http://pypi.python.org/pypi/Assimulo>`_
+
+Optional
+---------
+- `wxPython <http://pypi.python.org/pypi/wxPython>`_ For the Plot GUI.
+- `matplotlib <http://pypi.python.org/pypi/matplotlib>`_ For the Plot GUI.
 """
 
 copy_args=sys.argv[1:]

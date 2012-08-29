@@ -26,6 +26,14 @@ Module :mod:`fmi`
     :members:
     :undoc-members:
     :show-inheritance:
+    
+Module :mod:`fmi_deprecated` 
+-----------------------------
+
+.. automodule:: pyfmi.fmi_deprecated
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
 Module :mod:`fmi_algorithm_drivers` 
 -----------------------------------
