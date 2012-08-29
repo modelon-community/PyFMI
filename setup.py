@@ -72,7 +72,7 @@ For a forum discussing usage and development of PyFMI, see http://www.jmodelica.
 
 Requirements:
 -------------
-- 'FMI Library <http://www.jmodelica.org/FMILibrary>'_
+- `FMI Library <http://www.jmodelica.org/FMILibrary>`_
 - `Numpy <http://pypi.python.org/pypi/numpy>`_
 - `Scipy <http://pypi.python.org/pypi/scipy>`_
 - `lxml <http://pypi.python.org/pypi/lxml>`_
