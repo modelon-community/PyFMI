@@ -1,2 +1,5 @@
 include src/pyfmi/*.pyx
 include src/pyfmi/*.pxd
+exclude src/pyfmi/util/FMILogger.dll
+exclude src/pyfmi/util/FMILogger.so
+exclude src/pyfmi/*.dll
