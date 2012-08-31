@@ -12,7 +12,7 @@ Current version:
 
 Requirements:
 -------------
-- `FMI Library <http://www.jmodelica.org/FMILibrary>`_
+- `FMI Library (at least 1.0.1) <http://www.jmodelica.org/FMILibrary>`_
 - `Numpy <http://pypi.python.org/pypi/numpy>`_
 - `Scipy <http://pypi.python.org/pypi/scipy>`_
 - `lxml <http://pypi.python.org/pypi/lxml>`_
