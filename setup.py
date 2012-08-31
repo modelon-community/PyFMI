@@ -72,7 +72,7 @@ For a forum discussing usage and development of PyFMI, see http://www.jmodelica.
 
 Requirements:
 -------------
-- `FMI Library <http://www.jmodelica.org/FMILibrary>`_
+- `FMI Library (at least 1.0.1) <http://www.jmodelica.org/FMILibrary>`_
 - `Numpy <http://pypi.python.org/pypi/numpy>`_
 - `Scipy <http://pypi.python.org/pypi/scipy>`_
 - `lxml <http://pypi.python.org/pypi/lxml>`_
@@ -127,14 +127,15 @@ for x in sys.argv[1:]:
         copy_args.remove(x)
 
 #Check to see if FMILIB_SHARED exists and if so copy it
-files = O.listdir(O.path.join(libdirs))
-for file in files:
-    if "fmilib_shared" in file and not file.endswith("a"):
-        shutil.copy2(O.path.join(libdirs,file),O.path.join(".","src","pyfmi"))
-        fmilib_shared = O.path.join(".","src","pyfmi",file)
-        break
-else:
-    raise Exception("Could not find FMILibrary at: %s"%libdirs)
+if sys.platform.startswith("win"):
+    files = O.listdir(O.path.join(libdirs))
+    for file in files:
+        if "fmilib_shared" in file and not file.endswith("a"):
+            shutil.copy2(O.path.join(libdirs,file),O.path.join(".","src","pyfmi"))
+            fmilib_shared = O.path.join(".","src","pyfmi",file)
+            break
+    else:
+        raise Exception("Could not find FMILibrary at: %s"%libdirs)
 
 def check_extensions():
     ext_list = []
@@ -175,14 +176,14 @@ def check_extensions():
     ext_list[-1].include_dirs = [N.get_include(), "src","src"+O.sep+"pyfmi", incdirs]
     ext_list[-1].library_dirs = [libdirs]
     ext_list[-1].language = "c"
-    ext_list[-1].libraries = ["fmilib_shared"]
+    ext_list[-1].libraries = ["fmilib_shared"] if sys.platform.startswith("win") else ["fmilib"] #If windows shared, else static
     
-    if "win" in sys.platform:
-        pass
-    elif "darwin" in sys.platform:
-        ext_list[-1].runtime_library_dirs = [",@loader_path/"]
-    else:
-        ext_list[-1].runtime_library_dirs = [",'$ORIGIN'"]
+    #if "win" in sys.platform:
+    #    pass
+    #elif "darwin" in sys.platform:
+    #    ext_list[-1].runtime_library_dirs = [",@loader_path/"]
+    #else:
+    #    ext_list[-1].runtime_library_dirs = [",'$ORIGIN'"]
     
     if debug_flag:
         ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
@@ -209,11 +210,12 @@ setup(name=NAME,
       ext_modules = ext_list,
       package_dir = {'pyfmi':'src'+O.path.sep+'pyfmi','pyfmi.common':'src'+O.path.sep+'common'},
       packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting'],
-      package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*','util'+O.path.sep+'*','*fmilib_shared*']},
+      package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*','util'+O.path.sep+'*']+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])},
       script_args=copy_args
       )
 
 
 #Dont forget to delete fmilib_shared
-if O.path.exists(fmilib_shared):
-    O.remove(fmilib_shared)
+if sys.platform.startswith("win"):
+    if O.path.exists(fmilib_shared):
+        O.remove(fmilib_shared)
