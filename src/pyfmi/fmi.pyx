@@ -475,7 +475,35 @@ cdef class FMUModel(BaseModel):
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
         #print "FMIL (inside class): module = %s, log level = %d: %s"%(module, log_level, message)
         self._log.append([module,log_level,message])
+    
+    def reset(self):
+        """
+        This metod resets the FMU by first calling fmiTerminate and 
+        fmiFreeModelInstance and then reloades the DLL and finally
+        reinstantiates using fmiInstantiateModel.
+        """
+        if self._allocated_fmu:
+            FMIL.fmi1_import_terminate(self._fmu)
+            FMIL.fmi1_import_free_model_instance(self._fmu)
         
+        if self._allocated_dll:
+            FMIL.fmi1_import_destroy_dllfmu(self._fmu)
+        
+        global FMI_REGISTER_GLOBALLY
+        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
+        FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
+        
+        #Default values
+        self.__t = None
+        
+        #Internal values
+        self._file_open = False
+        self._npoints = 0
+        self._log = []
+        
+        #Instantiates the model
+        self.instantiate_model(logging = self._enable_logging)
+    
     def get_log(self):
         """
         Returns the log information as a list. To turn on the logging use the 
@@ -506,6 +534,7 @@ cdef class FMUModel(BaseModel):
         """
         if self._allocated_fmu:
             FMIL.fmi1_import_terminate(self._fmu)
+            FMIL.fmi1_import_free_model_instance(self._fmu)
         
         if self._allocated_dll:
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
@@ -601,7 +630,7 @@ cdef class FMUModel(BaseModel):
         Calls the low-level FMI function: fmiGetDerivatives
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.zeros(self._nContinuousStates,dtype=N.double)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nContinuousStates,dtype=N.double)
 
         status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
         
@@ -626,7 +655,7 @@ cdef class FMUModel(BaseModel):
         Calls the low-level FMI function: fmiGetEventIndicators
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.zeros(self._nEventIndicators,dtype=N.double)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nEventIndicators,dtype=N.double)
         
         status = FMIL.fmi1_import_get_event_indicators(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nEventIndicators)
         
@@ -1125,6 +1154,7 @@ cdef class FMUModel(BaseModel):
             log = 0
         
         status = FMIL.fmi1_import_set_debug_logging(self._fmu, log)
+        self._enable_logging = bool(log)
             
         if status != 0:
             raise FMUException('Failed to set the debugging option.')
@@ -1157,20 +1187,20 @@ cdef class FMUModel(BaseModel):
             return False
 
     
-    def reset(self):
-        """ 
-        Calling this function is equivalent to reopening the model.
-        """
-        #Instantiate
-        self.instantiate_model()
-        
-        #Default values
-        self.__t = None
-        
-        #Internal values
-        self._file_open = False
-        self._npoints = 0
-        self._log = []
+    #def reset(self):
+    #    """ 
+    #    Calling this function is equivalent to reopening the model.
+    #    """
+    #    #Instantiate
+    #    self.instantiate_model()
+    #    
+    #    #Default values
+    #    self.__t = None
+    #    
+    #    #Internal values
+    #    self._file_open = False
+    #    self._npoints = 0
+    #    self._log = []
     
     def initialize(self, tolControlled=True, relativeTolerance=None):
         """
