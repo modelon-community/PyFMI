@@ -64,7 +64,11 @@ FMI_OUTPUT = FMIL.fmi1_causality_enu_output
 FMI_INTERNAL = FMIL.fmi1_causality_enu_internal
 FMI_NONE = FMIL.fmi1_causality_enu_none
 
+# FMI types
+FMI_ME = FMIL.fmi1_fmu_kind_enu_me
+
 FMI_REGISTER_GLOBALLY = 1
+
 
 
 """Flags for evaluation of FMI Jacobians"""
@@ -351,6 +355,7 @@ cdef class FMUModel(BaseModel):
     cdef FMIL.fmi1_import_t* _fmu
     cdef FMIL.fmi1_event_info_t _eventInfo
     cdef FMIL.fmi1_import_variable_list_t *variable_list
+    cdef FMIL.fmi1_fmu_kind_enu_t fmu_kind
     
     #Internal values
     cdef public object __t
@@ -408,7 +413,8 @@ cdef class FMUModel(BaseModel):
         self.callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
         
         #Specify FMI related callbacks
-        self.callBackFunctions.logger = FMIL.fmi1_log_forwarding;#fmilogger;
+        self.callBackFunctions.logger = FMIL.fmi1_log_forwarding;
+        #self.callBackFunctions.logger = fmilogger;
         self.callBackFunctions.allocateMemory = FMIL.calloc;
         self.callBackFunctions.freeMemory = FMIL.free;
         
@@ -425,6 +431,11 @@ cdef class FMUModel(BaseModel):
         #Parse the XML
         self._fmu = FMIL.fmi1_import_parse_xml(self.context, fmu_temp_dir)
         self._allocated_xml = True
+        
+        #Check the FMU kind
+        fmu_kind = FMIL.fmi1_import_get_fmu_kind(self._fmu)
+        if fmu_kind != FMI_ME:
+            raise FMUException("PyFMI currently only supports FMI 1.0 for Model Exchange.")
         
         #Connect the DLL
         global FMI_REGISTER_GLOBALLY
