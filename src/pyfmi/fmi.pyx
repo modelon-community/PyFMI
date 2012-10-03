@@ -28,7 +28,7 @@ N.import_array()
 
 cimport fmil_import as FMIL
 
-from pyfmi.common.core import create_temp_dir
+from pyfmi.common.core import create_temp_dir, delete_temp_dir
 #from pyfmi.common.core cimport BaseModel
 
 
@@ -369,6 +369,7 @@ cdef class FMUModel(BaseModel):
     cdef public list _save_real_variables_val
     cdef public list _save_int_variables_val
     cdef public list _save_bool_variables_val
+    cdef public object _fmu_temp_dir
 
     def __init__(self, fmu, path='.', enable_logging=True):
         """
@@ -386,9 +387,11 @@ cdef class FMUModel(BaseModel):
         self._allocated_xml = False
         self._allocated_fmu = False
         self._allocated_list = False
+        self._fmu_temp_dir = None
         
         fmu_full_path = os.path.abspath(os.path.join(path,fmu))
         fmu_temp_dir  = create_temp_dir()
+        self._fmu_temp_dir = fmu_temp_dir
         
         # Check that the file referenced by fmu has the correct file-ending
         if not fmu_full_path.endswith(".fmu"):
@@ -544,7 +547,9 @@ cdef class FMUModel(BaseModel):
         
         if self._allocated_context:
             FMIL.fmi_import_free_context(self.context)
-
+        
+        if self._fmu_temp_dir:
+            delete_temp_dir(self._fmu_temp_dir)
     
     cpdef _get_time(self):
         return self.__t
