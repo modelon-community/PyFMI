@@ -510,6 +510,8 @@ cdef class FMUModel(BaseModel):
         
         global FMI_REGISTER_GLOBALLY
         status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
+        if status == FMIL.jm_status_error:
+            raise FMUException("The DLL could not be reloaded, check the log for more information.")
         FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
         
         #Default values
