@@ -82,7 +82,7 @@ cdef extern from 'fmilib.h':
         fmi1_base_type_str = 3
         fmi1_base_type_enum = 4
         
-    cdef enum jm_status_enu_t:
+    ctypedef enum jm_status_enu_t:
         jm_status_error = -1
         jm_status_success = 0
         jm_status_warning = 1

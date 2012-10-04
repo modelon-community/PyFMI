@@ -356,6 +356,7 @@ cdef class FMUModel(BaseModel):
     cdef FMIL.fmi1_event_info_t _eventInfo
     cdef FMIL.fmi1_import_variable_list_t *variable_list
     cdef FMIL.fmi1_fmu_kind_enu_t fmu_kind
+    cdef FMIL.jm_status_enu_t jm_status
     
     #Internal values
     cdef public object __t
@@ -424,7 +425,9 @@ cdef class FMUModel(BaseModel):
         #Get the FMI version of the provided model
         version = FMIL.fmi_import_get_fmi_version(self.context, fmu_full_path, fmu_temp_dir)
         self._version = version #Store version
-
+        
+        if version == FMIL.fmi_version_unknown_enu:
+            raise FMUException("The FMU version is unknown, check the log for more information.")
         if version != 1:
             raise FMUException("PyFMI currently only supports FMI 1.0.")
         
@@ -440,6 +443,8 @@ cdef class FMUModel(BaseModel):
         #Connect the DLL
         global FMI_REGISTER_GLOBALLY
         status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
+        if status == FMIL.jm_status_error:
+            raise FMUException("The DLL could not be loaded, check the log for more information.")
         self._allocated_dll = True
         FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
         
@@ -487,7 +492,7 @@ cdef class FMUModel(BaseModel):
             pass
         """
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-        #print "FMIL (inside class): module = %s, log level = %d: %s"%(module, log_level, message)
+        print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
         self._log.append([module,log_level,message])
     
     def reset(self):
