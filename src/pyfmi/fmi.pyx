@@ -40,6 +40,14 @@ N.int = N.int32
 FMI_TRUE = '\x01'
 FMI_FALSE = '\x00'
 
+# Status
+FMI_OK = FMIL.fmi1_status_ok
+FMI_WARNING = FMIL.fmi1_status_warning
+FMI_DISCARD = FMIL.fmi1_status_discard
+FMI_ERROR = FMIL.fmi1_status_error
+FMI_FATAL = FMIL.fmi1_status_fatal
+FMI_PENDING = FMIL.fmi1_status_pending
+
 # Types
 FMI_REAL = FMIL.fmi1_base_type_real
 FMI_INTEGER  = FMIL.fmi1_base_type_int
@@ -66,6 +74,9 @@ FMI_NONE = FMIL.fmi1_causality_enu_none
 
 # FMI types
 FMI_ME = FMIL.fmi1_fmu_kind_enu_me
+FMI_CS = FMIL.fmi1_fmu_kind_enu_cs_standalone
+
+FMI_MIME_CS_STANDALONE = "application/x-fmu-sharedlibrary"
 
 FMI_REGISTER_GLOBALLY = 1
 
@@ -427,7 +438,8 @@ cdef class FMUModel(BaseModel):
         self._version = version #Store version
         
         if version == FMIL.fmi_version_unknown_enu:
-            raise FMUException("The FMU version is unknown, check the log for more information.")
+            last_error = FMIL.jm_get_last_error(&self.callbacks)
+            raise FMUException("The FMU version could not be determined. "+last_error)
         if version != 1:
             raise FMUException("PyFMI currently only supports FMI 1.0.")
         
@@ -444,7 +456,9 @@ cdef class FMUModel(BaseModel):
         global FMI_REGISTER_GLOBALLY
         status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
         if status == FMIL.jm_status_error:
-            raise FMUException("The DLL could not be loaded, check the log for more information.")
+            last_error = FMIL.fmi1_import_get_last_error(self._fmu)
+            raise FMUException(last_error)
+            #raise FMUException("The DLL could not be loaded, reported error: "+ last_error)
         self._allocated_dll = True
         FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
         
@@ -492,7 +506,7 @@ cdef class FMUModel(BaseModel):
             pass
         """
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-        print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
+        #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
         self._log.append([module,log_level,message])
     
     def reset(self):
@@ -2037,3 +2051,261 @@ cdef class FMUModel(BaseModel):
         guid = FMIL.fmi1_import_get_GUID(self._fmu)
         return guid
         
+
+cdef class FMUModelCS(FMUModel):
+    #First step only support fmi1_fmu_kind_enu_cs_standalone
+    #stepFinished not supported
+    #fmiResetSlave not supported
+    
+    def __dealloc__(self):
+        
+        if self._allocated_fmu:
+            FMIL.fmi1_import_terminate_slave(self._fmu)
+            FMIL.fmi1_import_free_slave_instance(self._fmu)
+        
+    
+    def do_step(self, FMIL.fmi1_real_t current_t, FMIL.fmi1_real_t step_size, new_step=True):
+        """
+        Performs an integrator step.
+        
+        Parameters::
+        
+            current_t --
+                    The current communication point (current time) of 
+                    the master.
+            step_size --
+                    The length of the step to be taken.
+            new_step --
+                    True the last step was accepted by the master and 
+                    False if not.
+                    
+        Returns::
+        
+            status --
+                    The status of function which can be checked against
+                    FMI_OK, FMI_WARNING. FMI_DISCARD, FMI_PENDING...
+        
+        Calls the underlying low-level function fmiDoStep.
+        """
+        cdef int status
+        cdef FMIL.fmi1_boolean_t new_s
+        
+        if new_step:
+            new_s = FMI_TRUE
+        else:
+            new_s = FMI_FALSE
+        
+        status = FMIL.fmi1_import_do_step(self._fmu, current_t, step_size, new_s)
+        
+        return status
+        
+        
+    def cancel_step(self):
+        """
+        Cancel a current integrator step. Can only be called if the
+        status from do_step returns FMI_PENDING.
+        """
+        raise NotImplementedError
+        
+    def get_output_derivatives(self, variables, FMIL.fmi1_integer_t order):
+        """
+        Returns the output derivatives for the specified variables. The
+        order specifies the nth-derivative.
+        
+        Parameters::
+        
+                variables --
+                        The variables for which the output derivatives
+                        should be returned.
+                order --
+                        The derivative order.
+        """
+        cdef int status
+        cdef unsigned int max_output_derivative
+        cdef FMIL.size_t nref
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
+        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] orders
+        cdef FMIL.fmi1_import_capabilities_t *fmu_capabilities
+        
+        fmu_capabilities = FMIL.fmi1_import_get_capabilities(self._fmu)
+        max_output_derivative = FMIL.fmi1_import_get_maxOutputDerivativeOrder(fmu_capabilities)
+        
+        if order < 1 or order > max_output_derivative:
+            raise FMUException("The order must be greater than zero and below the maximum output derivative support of the FMU (%d)."%max_output_derivative)
+            
+        if isinstance(variables,str):
+            nref = 1
+            value_refs = N.array([0], dtype=N.uint32,ndmin=1).flatten()
+            orders = N.array(order, dtype=N.int32)
+            value_refs[0] = self.get_variable_valueref(variables)
+        elif isinstance(variables,list) and isinstance(variables[-1],str):
+            nref = len(variables)
+            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).flatten()
+            orders = N.array([0]*nref, dtype=N.int32)
+            for i in range(nref):
+                value_refs[i] = self.get_variable_valueref(variables[i])
+                orders[i] = order
+        else:
+            raise FMUException("The variables must either be a string or a list of strings")
+            
+        values = N.array([0.0]*nref,dtype=N.float, ndmin=1)
+            
+        status = FMIL.fmi1_import_get_real_output_derivatives(self._fmu, <FMIL.fmi1_value_reference_t*>value_refs.data, nref, <FMIL.fmi1_integer_t*>orders.data, <FMIL.fmi1_real_t*>values.data)
+
+        if status != 0:
+            raise FMUException('Failed to get the Real output derivatives.')
+        
+        return values
+        
+    def set_input_derivatives(self, variables, values, FMIL.fmi1_integer_t order):
+        """
+        Sets the input derivative order for the specified variables.
+        
+        Parameters::
+        
+                variables --
+                        The variables for which the input derivative 
+                        should be set.
+                values --
+                        The actual values.
+                order --
+                        The derivative order to set.
+        """
+        cdef int status
+        cdef int can_interpolate_inputs
+        cdef FMIL.size_t nref
+        cdef FMIL.fmi1_import_capabilities_t *fmu_capabilities
+        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] orders
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=N.float, ndmin=1).flatten()
+        
+        nref = len(val)
+        orders = N.array([0]*nref, dtype=N.int32)
+        
+        fmu_capabilities = FMIL.fmi1_import_get_capabilities(self._fmu)
+        can_interpolate_inputs = FMIL.fmi1_import_get_canInterpolateInputs(fmu_capabilities)
+        #NOTE IS THIS THE HIGHEST ORDER OF INTERPOLATION OR SIMPLY IF IT CAN OR NOT?
+        
+        if order < 1:
+            raise FMUException("The order must be greater than zero.")
+        if not can_interpolate_inputs:
+            raise FMUException("The FMU does not support input derivatives.")
+        
+        if isinstance(variables,str):
+            value_refs = N.array([0], dtype=N.uint32,ndmin=1).flatten()
+            value_refs[0] = self.get_variable_valueref(variables)
+        elif isinstance(variables,list) and isinstance(variables[-1],str):
+            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).flatten()
+            for i in range(nref):
+                value_refs[i] = self.get_variable_valueref(variables[i])
+                orders[i] = order
+        else:
+            raise FMUException("The variables must either be a string or a list of strings")
+        
+        status = FMIL.fmi1_import_set_real_input_derivatives(self._fmu, <FMIL.fmi1_value_reference_t*>value_refs.data, nref, <FMIL.fmi1_integer_t*>orders.data, <FMIL.fmi1_real_t*>val.data)
+        
+        if status != 0:
+            raise FMUException('Failed to set the Real input derivatives.')
+    
+    def initialize_slave(self, tStart, tStop, StopTimeDefined):
+        """
+        Initializes the slave.
+        
+        Parameters::
+        
+            tStart --
+            tSTop --
+            StopTimeDefined --
+            
+        Calls the low-level FMU function: fmiInstantiateSlave
+        """
+        cdef int status
+        cdef FMIL.fmi1_boolean_t stopDefined
+        
+        if StopTimeDefined:
+            stopDefined = FMI_TRUE
+        else:
+            stopDefined = FMI_FALSE
+        
+        status = FMIL.fmi1_import_initialize_slave(self._fmu, tStart, stopDefined, tStop)
+        
+        if status != FMIL.fmi1_status_ok:
+            raise FMUException("The slave failed to initialize.")
+    
+        self._allocated_fmu = True
+    
+    def instantiate_slave(self, name='Slave', logging=False):
+        """
+        Instantiate the slave.
+        
+        Parameters::
+        
+            name -- 
+                The name of the instance.
+                Default: 'Slave'
+                        
+            logging -- 
+                Defines if the logging should be turned on or off.
+                Default: False, no logging.
+                        
+        Calls the low-level FMI function: fmiInstantiateSlave.
+        """
+        cdef int status
+        cdef FMIL.fmi1_boolean_t log
+        cdef FMIL.fmi1_real_t timeout = 0.0
+        cdef FMIL.fmi1_boolean_t visible = FMI_FALSE
+        cdef FMIL.fmi1_boolean_t interactive = FMI_FALSE
+        cdef object location = ""
+        
+        if logging:
+            log = FMI_TRUE
+        else:
+            log = FMI_FALSE
+        
+        status = FMIL.fmi1_import_instantiate_slave(self._fmu, name, location, 
+                                        FMI_MIME_CS_STANDALONE, timeout, visible, 
+                                        interactive)
+        
+        if status != FMIL.jm_status_success:
+            raise FMUException('Failed to instantiate the slave.')
+
+        #Just to be safe, some problems with Dymola (2012) FMUs not reacting
+        #to logging when set to the instantiate method.
+        status = FMIL.fmi1_import_set_debug_logging(self._fmu, log)
+        
+        if status != 0:
+            raise FMUException('Failed to set the debugging option.')
+    
+    def get_capability_flags(self):
+        """
+        Returns a dictionary with the cability flags of the FMU.
+        
+        Capabilities::
+        
+            canHandleVariableCommunicationStepSize
+            canHandleEvents
+            canRejectSteps 
+            canInterpolateInputs 
+            maxOutputDerivativeOrder
+            canRunAsynchronuously
+            canSignalEvents
+            canBeinstantiatedOnlyOncePerProcess
+            canNotUseMemoryManagementFunctions
+        """
+        cdef dict capabilities = {}
+        cdef FMIL.fmi1_import_capabilities_t *cap
+        
+        cap = FMIL.fmi1_import_get_capabilities(self._fmu)
+        
+        capabilities["canHandleVariableCommunicationStepSize"] = FMIL.fmi1_import_get_canHandleVariableCommunicationStepSize(cap)
+        capabilities["canHandleEvents"] = FMIL.fmi1_import_get_canHandleEvents(cap)
+        capabilities["canRejectSteps"] = FMIL.fmi1_import_get_canRejectSteps(cap)
+        capabilities["canInterpolateInputs"] = FMIL.fmi1_import_get_canInterpolateInputs(cap)
+        capabilities["maxOutputDerivativeOrder"] = FMIL.fmi1_import_get_maxOutputDerivativeOrder(cap)
+        capabilities["canRunAsynchronuously"] = FMIL.fmi1_import_get_canRunAsynchronuously(cap)
+        capabilities["canSignalEvents"] = FMIL.fmi1_import_get_canSignalEvents(cap)
+        capabilities["canBeInstantiatedOnlyOncePerProcess"] = FMIL.fmi1_import_get_canBeInstantiatedOnlyOncePerProcess(cap)
+        capabilities["canNotUseMemoryManagementFunctions"] = FMIL.fmi1_import_get_canNotUseMemoryManagementFunctions(cap)
+        
+        return capabilities
