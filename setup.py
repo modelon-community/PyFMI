@@ -73,15 +73,23 @@ For a forum discussing usage and development of PyFMI, see http://www.jmodelica.
 Requirements:
 -------------
 - `FMI Library (at least 1.0.1) <http://www.jmodelica.org/FMILibrary>`_
-- `Numpy <http://pypi.python.org/pypi/numpy>`_
-- `Scipy <http://pypi.python.org/pypi/scipy>`_
-- `lxml <http://pypi.python.org/pypi/lxml>`_
-- `Assimulo <http://pypi.python.org/pypi/Assimulo>`_
+- `Numpy (recommended 1.6.2) <http://pypi.python.org/pypi/numpy>`_
+- `Scipy (recommended 0.10.1) <http://pypi.python.org/pypi/scipy>`_
+- `lxml (at least 2.3) <http://pypi.python.org/pypi/lxml>`_
+- `Assimulo (at least 2.2) <http://pypi.python.org/pypi/Assimulo>`_
+- `Cython (at least 0.15) <http://cython.org/>`_
+- Python-headers (usually included on Windows, python-dev on Ubuntu)
 
 Optional
 ---------
 - `wxPython <http://pypi.python.org/pypi/wxPython>`_ For the Plot GUI.
 - `matplotlib <http://pypi.python.org/pypi/matplotlib>`_ For the Plot GUI.
+
+Source Installation:
+----------------------
+
+python setup.py install --fmil-home=/path/to/FMI_Library/
+
 """
 
 copy_args=sys.argv[1:]
@@ -211,7 +219,10 @@ setup(name=NAME,
       ext_modules = ext_list,
       package_dir = {'pyfmi':'src'+O.path.sep+'pyfmi','pyfmi.common':'src'+O.path.sep+'common'},
       packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting'],
-      package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*','util'+O.path.sep+'*']+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])},
+      package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*.fmu',
+                               'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*.txt',
+                               'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS1.0'+O.path.sep+'*',
+                               'util'+O.path.sep+'*']+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])},
       script_args=copy_args
       )
 
