@@ -579,7 +579,8 @@ cdef class FMUModelBase(BaseModel):
         
             model.version
         """
-        return self._version
+        version = FMIL.fmi1_import_get_version(self._fmu)
+        return version
         
     version = property(fget=_get_version)
     
@@ -922,6 +923,8 @@ cdef class FMUModelBase(BaseModel):
         """
         cdef FMIL.fmi1_boolean_t log
         cdef int status
+        
+        self.callbacks.log_level = FMIL.jm_log_level_warning if flag else FMIL.jm_log_level_nothing
         
         if flag:
             log = 1
