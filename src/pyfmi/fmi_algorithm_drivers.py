@@ -25,8 +25,8 @@ import time
 import numpy as N
 
 import pyfmi
-from pyfmi.common.algorithm_drivers import AlgorithmBase, AssimuloSimResult, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException
-from pyfmi.common.io import ResultDymolaTextual
+from pyfmi.common.algorithm_drivers import AlgorithmBase, AssimuloSimResult, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
+from pyfmi.common.io import ResultDymolaTextual, ResultWriterDymola
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
@@ -347,3 +347,194 @@ class AssimuloFMIAlg(AlgorithmBase):
         prefilled with default values. (Class method.)
         """
         return AssimuloFMIAlgOptions()
+
+class FMICSResult(JMResultBase):
+    pass
+
+class FMICSAlgOptions(OptionBase):
+    """
+    Options for the solving the FMU using the Assimulo simulation package.
+    Currently, the only solver in the Assimulo package that fully supports
+    simulation of FMUs is the solver CVode.
+    
+    Options::
+    
+
+        ncp    --
+            Number of communication points.
+            Default: '500'
+            
+        initialize --
+            If set to True, the initializing algorithm defined in the FMU model
+            is invoked, otherwise it is assumed the user have manually invoked
+            model.initialize()
+            Default is True.
+
+        write_scaled_result --
+            Set this parameter to True to write the result to file without
+            taking scaling into account. If the value of scaled is False,
+            then the variable scaling factors of the model are used to
+            reproduced the unscaled variable values.
+            Default: False
+            
+        result_file_name --
+            Specifies the name of the file where the simulation result is 
+            written. Setting this option to an empty string results in a default 
+            file name that is based on the name of the model class.
+            Default: Empty string
+
+    """
+    def __init__(self, *args, **kw):
+        _defaults= {
+            'ncp':500,
+            'initialize':True,
+            'write_scaled_result':False,
+            'result_file_name':''
+            }
+        super(FMICSAlgOptions,self).__init__(_defaults)
+        # for those key-value-sets where the value is a dict, don't 
+        # overwrite the whole dict but instead update the default dict 
+        # with the new values
+        self._update_keep_dict_defaults(*args, **kw)
+
+class FMICSAlg(AlgorithmBase):
+    """
+    Simulation algortihm for FMUs (Co-simulation).
+    """
+    
+    def __init__(self,
+                 start_time,
+                 final_time,
+                 input,
+                 model,
+                 options):
+        """ 
+        Simulation algortihm for FMUs (Co-simulation).
+        
+        Parameters::
+        
+            model -- 
+                fmi.FMUModelCS1 object representation of the model.
+                
+            options -- 
+                The options that should be used in the algorithm. For details on 
+                the options, see:
+                
+                * model.simulate_options('FMICSAlgOptions')
+                
+                or look at the docstring with help:
+                
+                * help(pyfmi.fmi_algorithm_drivers.FMICSAlgOptions)
+                
+                Valid values are: 
+                - A dict that overrides some or all of the default values
+                  provided by FMICSAlgOptions. An empty dict will thus 
+                  give all options with default values.
+                - FMICSAlgOptions object.
+        """
+        self.model = model
+
+        # set start time, final time and input trajectory
+        self.start_time = start_time
+        self.final_time = final_time
+        self.input = input
+        
+        # handle options argument
+        if isinstance(options, dict) and not \
+            isinstance(options, FMICSAlgOptions):
+            # user has passed dict with options or empty dict = default
+            self.options = FMICSAlgOptions(options)
+        elif isinstance(options, FMICSAlgOptions):
+            # user has passed FMICSAlgOptions instance
+            self.options = options
+        else:
+            raise InvalidAlgorithmOptionException(options)
+    
+        # set options
+        self._set_options()
+
+        input_traj = None
+        if self.input:
+            if hasattr(self.input[1],"__call__"):
+                input_traj=(self.input[0],
+                        TrajectoryUserFunction(self.input[1]))
+            else:
+                input_traj=(self.input[0], 
+                        TrajectoryLinearInterpolation(self.input[1][:,0], 
+                                                      self.input[1][:,1:]))
+            #Sets the inputs, if any
+            self.model.set(input_traj[0], input_traj[1].eval(self.start_time)[0,:])
+
+        # Initialize?
+        if self.options['initialize']:
+            self.model.initialize(start_time, final_time, StopTimeDefined=True)
+    
+    def _set_options(self):
+        """
+        Helper function that sets options for FMICS algorithm.
+        """
+        # no of communication points
+        self.ncp = self.options['ncp']
+
+        self.write_scaled_result = self.options['write_scaled_result']
+
+        # result file name
+        if self.options['result_file_name'] == '':
+            self.result_file_name = self.model.get_identifier()+'_result.txt'
+        else:
+            self.result_file_name = self.options['result_file_name']
+    
+    def _set_solver_options(self):
+        """ 
+        Helper function that sets options for the solver.
+        """
+        pass #No solver options
+                
+    def solve(self):
+        """ 
+        Runs the simulation. 
+        """
+        h = (self.final_time-self.start_time)/self.ncp
+        grid = N.linspace(self.start_time,self.final_time,self.ncp+1)[:-1]
+        
+        status = 0
+        
+        #For result writing
+        result_write = ResultWriterDymola(self.model)
+        result_write.write_header()
+        
+        for t in grid:
+            status = self.model.do_step(t,h)
+            
+            if status != 0:
+                result_write.write_finalize()
+                raise Exception("The simulation failed. See the log for more information. Return flag %d"%status)
+                
+            result_write.write_point()
+            
+        result_write.write_finalize()
+ 
+    def get_result(self):
+        """ 
+        Write result to file, load result data and create an FMICSResult 
+        object.
+        
+        Returns::
+        
+            The FMICSResult object.
+        """
+        # load result file
+        res = ResultDymolaTextual(self.result_file_name)
+        # create and return result object
+        return FMICSResult(self.model, self.result_file_name, None,
+            res, self.options)
+        
+    @classmethod
+    def get_default_options(cls):
+        """ 
+        Get an instance of the options class for the FMICSAlg algorithm, 
+        prefilled with default values. (Class method.)
+        """
+        return FMICSAlgOptions()
+
+

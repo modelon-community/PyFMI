@@ -74,7 +74,7 @@ FMI_NONE = FMIL.fmi1_causality_enu_none
 
 # FMI types
 FMI_ME = FMIL.fmi1_fmu_kind_enu_me
-FMI_CS = FMIL.fmi1_fmu_kind_enu_cs_standalone
+FMI_CS_STANDALONE = FMIL.fmi1_fmu_kind_enu_cs_standalone
 
 FMI_MIME_CS_STANDALONE = "application/x-fmu-sharedlibrary"
 
@@ -95,7 +95,13 @@ FMI_OUTPUTS = 2
 #CALLBACKS
 cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
     #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
-    (<FMUModel>c.context)._logger(module,log_level,message)
+    (<FMUModelBase>c.context)._logger(module,log_level,message)
+
+#CALLBACKS
+cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
+    if log_level <= c.log_level:
+        print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
+    #(<FMUModelBase>c.context)._logger(module,log_level,message)
 
 cdef void fmilogger(FMIL.fmi1_component_t c, FMIL.fmi1_string_t instanceName, FMIL.fmi1_status_t status, FMIL.fmi1_string_t category, FMIL.fmi1_string_t message, ...):
     cdef char buf[1000]
@@ -355,7 +361,7 @@ cdef class ScalarVariable:
     alias = property(_get_alias)
     
 
-cdef class FMUModel(BaseModel):
+cdef class FMUModelBase(BaseModel):
     """
     An FMI Model loaded from a DLL.
     """
@@ -387,6 +393,7 @@ cdef class FMUModel(BaseModel):
     cdef public list _save_int_variables_val
     cdef public list _save_bool_variables_val
     cdef public object _fmu_temp_dir
+    cdef int _fmu_kind
 
     def __init__(self, fmu, path='.', enable_logging=True):
         """
@@ -449,8 +456,9 @@ cdef class FMUModel(BaseModel):
         
         #Check the FMU kind
         fmu_kind = FMIL.fmi1_import_get_fmu_kind(self._fmu)
-        if fmu_kind != FMI_ME:
+        if fmu_kind != FMI_ME and fmu_kind != FMI_CS_STANDALONE:
             raise FMUException("PyFMI currently only supports FMI 1.0 for Model Exchange.")
+        self._fmu_kind = fmu_kind
         
         #Connect the DLL
         global FMI_REGISTER_GLOBALLY
@@ -478,7 +486,12 @@ cdef class FMUModel(BaseModel):
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
         
         #Instantiates the model
-        self.instantiate_model(logging = enable_logging)
+        #if fmu_kind == FMI_ME:
+        #    self.instantiate_model(logging = enable_logging)
+        #elif fmu_kind == FMI_CS_STANDALONE:
+        #    self.instantiate_slave(logging = enable_logging)
+        #else:
+        #    raise FMUException("Unknown FMU kind.")
         
         #Store the continuous and discrete variables for result writing
         reals_continuous = self.get_model_variables(type=0, include_alias=False, variability=3)
@@ -509,36 +522,6 @@ cdef class FMUModel(BaseModel):
         #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
         self._log.append([module,log_level,message])
     
-    def reset(self):
-        """
-        This metod resets the FMU by first calling fmiTerminate and 
-        fmiFreeModelInstance and then reloades the DLL and finally
-        reinstantiates using fmiInstantiateModel.
-        """
-        if self._allocated_fmu:
-            FMIL.fmi1_import_terminate(self._fmu)
-            FMIL.fmi1_import_free_model_instance(self._fmu)
-        
-        if self._allocated_dll:
-            FMIL.fmi1_import_destroy_dllfmu(self._fmu)
-        
-        global FMI_REGISTER_GLOBALLY
-        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
-        if status == FMIL.jm_status_error:
-            raise FMUException("The DLL could not be reloaded, check the log for more information.")
-        FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
-        
-        #Default values
-        self.__t = None
-        
-        #Internal values
-        self._file_open = False
-        self._npoints = 0
-        self._log = []
-        
-        #Instantiates the model
-        self.instantiate_model(logging = self._enable_logging)
-    
     def get_log(self):
         """
         Returns the log information as a list. To turn on the logging use the 
@@ -563,271 +546,26 @@ cdef class FMUModel(BaseModel):
         for i in range(N):
             print "FMIL: module = %s, log level = %d: %s"%(self._log[i][0], self._log[i][1], self._log[i][2])
     
-    def __dealloc__(self):
-        """
-        Deallocate memory allocated
-        """
-        if self._allocated_fmu:
-            FMIL.fmi1_import_terminate(self._fmu)
-            FMIL.fmi1_import_free_model_instance(self._fmu)
-        
-        if self._allocated_dll:
-            FMIL.fmi1_import_destroy_dllfmu(self._fmu)
-            
-        if self._allocated_xml:  
-            FMIL.fmi1_import_free(self._fmu)
-        
-        if self._allocated_context:
-            FMIL.fmi_import_free_context(self.context)
-        
-        if self._fmu_temp_dir:
-            delete_temp_dir(self._fmu_temp_dir)
-    
-    cpdef _get_time(self):
-        return self.__t
-    
-    cpdef _set_time(self, FMIL.fmi1_real_t t):
-        cdef int status
-        self.__t = t
-        
-        status = FMIL.fmi1_import_set_time(self._fmu,t)
-        
-        if status != 0:
-            raise FMUException('Failed to set the time.')
-        
-    time = property(_get_time,_set_time, doc = 
-    """
-    Property for accessing the current time of the simulation. Calls the 
-    low-level FMI function: fmiSetTime.
-    """)
-    
-    def _get_continuous_states(self):
-        cdef int status
-        cdef N.ndarray[double, ndim=1,mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
-        status = FMIL.fmi1_import_get_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data ,self._nContinuousStates)
-        
-        if status != 0:
-            raise FMUException('Failed to retrieve the continuous states.')
-        
-        return ndx
-        
-    def _set_continuous_states(self, N.ndarray[FMIL.fmi1_real_t] values):
-        cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = values#N.array(values,dtype=N.double,ndmin=1).flatten()
-        
-        if ndx.size != self._nContinuousStates:
-            raise FMUException(
-                'Failed to set the new continuous states. ' \
-                'The number of values are not consistent with the number of '\
-                'continuous states.')
-        
-        status = FMIL.fmi1_import_set_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data ,self._nContinuousStates)
-        
-        if status >= 3:
-            raise FMUException('Failed to set the new continuous states.')
-    
-    continuous_states = property(_get_continuous_states, _set_continuous_states, 
-        doc=
-    """
-    Property for accessing the current values of the continuous states. Calls 
-    the low-level FMI function: fmiSetContinuousStates/fmiGetContinuousStates.
-    """)
-    
-    def _get_nominal_continuous_states(self):
-        cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = N.zeros(self._nContinuousStates,dtype=N.double)
-        
-        status = FMIL.fmi1_import_get_nominal_continuous_states(
-                self._fmu, <FMIL.fmi1_real_t*>ndx.data, self._nContinuousStates)
-        
-        if status != 0:
-            raise FMUException('Failed to get the nominal values.')
-            
-        return ndx
-    
-    nominal_continuous_states = property(_get_nominal_continuous_states, doc = 
-    """
-    Property for accessing the nominal values of the continuous states. Calls 
-    the low-level FMI function: fmiGetNominalContinuousStates.
-    """)
-    
-    cpdef get_derivatives(self):
-        """
-        Returns the derivative of the continuous states.
-                
-        Returns::
-        
-            dx -- 
-                The derivative as an array.
-                
-        Example::
-        
-            dx = model.get_derivatives()
-                
-        Calls the low-level FMI function: fmiGetDerivatives
-        """
-        cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nContinuousStates,dtype=N.double)
+    #def __dealloc__(self):
+    #    """
+    #    Deallocate memory allocated
+    #    """
+    #    if self._allocated_fmu:
+    #        FMIL.fmi1_import_terminate(self._fmu)
+    #        FMIL.fmi1_import_free_model_instance(self._fmu)
+    #    
+    #    if self._allocated_dll:
+    #        FMIL.fmi1_import_destroy_dllfmu(self._fmu)
+    #        
+    #    if self._allocated_xml:  
+    #        FMIL.fmi1_import_free(self._fmu)
+    #    
+    #    if self._allocated_context:
+    #        FMIL.fmi_import_free_context(self.context)
+    #    
+    #    if self._fmu_temp_dir:
+    #        delete_temp_dir(self._fmu_temp_dir)
 
-        status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
-        
-        if status != 0:
-            raise FMUException('Failed to get the derivative values.')
-            
-        return values
-        
-    def get_event_indicators(self):
-        """
-        Returns the event indicators at the current time-point.
-
-        Return::
-        
-            evInd -- 
-                The event indicators as an array.
-                
-        Example::
-        
-            evInd = model.get_event_indicators()
-                
-        Calls the low-level FMI function: fmiGetEventIndicators
-        """
-        cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nEventIndicators,dtype=N.double)
-        
-        status = FMIL.fmi1_import_get_event_indicators(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nEventIndicators)
-        
-        if status != 0:
-            raise FMUException('Failed to get the event indicators.')
-            
-        return values
-
-    
-    def get_tolerances(self):
-        """
-        Returns the relative and absolute tolerances. If the relative tolerance
-        is defined in the XML-file it is used, otherwise a default of 1.e-4 is 
-        used. The absolute tolerance is calculated and returned according to
-        the FMI specification, atol = 0.01*rtol*(nominal values of the 
-        continuous states).
-                
-        Returns::
-        
-            rtol -- 
-                The relative tolerance.
-                
-            atol -- 
-                The absolute tolerance.
-                
-        Example::
-            
-            [rtol, atol] = model.get_tolerances()
-        """
-        rtol = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
-        atol = 0.01*rtol*self.nominal_continuous_states
-        
-        return [rtol, atol]
-    
-    def event_update(self, intermediateResult=False):
-        """
-        Updates the event information at the current time-point. If 
-        intermediateResult is set to True the update_event will stop at each 
-        event iteration which would require to loop until 
-        event_info.iterationConverged == fmiTrue.
-        
-        Parameters::
-        
-            intermediateResult -- 
-                If set to True, the update_event will stop at each event 
-                iteration.
-                Default: False.
-                
-        Example::
-        
-            model.event_update()
-        
-        Calls the low-level FMI function: fmiEventUpdate
-        """
-        cdef int status
-        cdef FMIL.fmi1_boolean_t intermediate_result
-        
-        if intermediateResult:
-            intermediate_result = 1
-            status = FMIL.fmi1_import_eventUpdate(self._fmu, intermediate_result, &self._eventInfo)
-        else:
-            intermediate_result = 0
-            status = FMIL.fmi1_import_eventUpdate(self._fmu, intermediate_result, &self._eventInfo)
-        
-        if status != 0:
-            raise FMUException('Failed to update the events.')
-    
-    def get_event_info(self):
-        """
-        Returns the event information from the FMU. 
-        
-        Returns::
-        
-            The event information, a struct which contains:
-        
-            iterationConverged -- 
-                Event iteration converged (if True).
-                
-            stateValueReferencesChanged -- 
-                ValueReferences of states x changed (if True).
-                
-            stateValuesChanged -- 
-                Values of states x have changed (if True).
-                
-            terminateSimulation -- 
-                Error, terminate simulation (if True).
-                
-            upcomingTimeEvent - 
-                If True, nextEventTime is the next time event.
-                
-            nextEventTime -- 
-                The next time event.
-                
-        Example::
-            
-            event_info    = model.event_info
-            nextEventTime = model.event_info.nextEventTime
-        """
-        
-        self._pyEventInfo.iterationConverged          = self._eventInfo.iterationConverged == 1
-        self._pyEventInfo.stateValueReferencesChanged = self._eventInfo.stateValueReferencesChanged == 1
-        self._pyEventInfo.stateValuesChanged          = self._eventInfo.stateValuesChanged == 1
-        self._pyEventInfo.terminateSimulation         = self._eventInfo.terminateSimulation == 1
-        self._pyEventInfo.upcomingTimeEvent           = self._eventInfo.upcomingTimeEvent == 1
-        self._pyEventInfo.nextEventTime               = self._eventInfo.nextEventTime
-
-        return self._pyEventInfo
-    
-    def get_state_value_references(self):
-        """
-        Returns the continuous states valuereferences.
-                
-        Returns::
-            
-            val -- 
-                The references to the continuous states.
-                
-        Example::
-        
-            val = model.get_continuous_value_reference()
-            
-        Calls the low-level FMI function: fmiGetStateValueReferences
-        """
-        cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] values = N.zeros(self._nContinuousStates,dtype=N.uint32)
-
-        status = FMIL.fmi1_import_get_state_value_references(
-            self._fmu, <FMIL.fmi1_value_reference_t*>values.data, self._nContinuousStates)
-        
-        if status != 0:
-            raise FMUException(
-                'Failed to get the continuous state reference values.')
-            
-        return values
-    
     def _get_version(self):
         """
         Returns the FMI version of the Model which it was generated according.
@@ -1197,33 +935,6 @@ cdef class FMUModel(BaseModel):
             raise FMUException('Failed to set the debugging option.')
 
     
-    def completed_integrator_step(self):
-        """
-        This method must be called by the environment after every completed step 
-        of the integrator. If the return is True, then the environment must call 
-        event_update() otherwise, no action is needed.
-        
-        Returns::
-        
-            True -> Call event_update().
-            False -> Do nothing.
-                
-        Calls the low-level FMI function: fmiCompletedIntegratorStep.
-        """
-        cdef int status
-        cdef FMIL.fmi1_boolean_t callEventUpdate
-        
-        status = FMIL.fmi1_import_completed_integrator_step(self._fmu, &callEventUpdate)
-        
-        if status != 0:
-            raise FMUException('Failed to call FMI Completed Step.')
-            
-        if callEventUpdate == 1:
-            return True
-        else:
-            return False
-
-    
     #def reset(self):
     #    """ 
     #    Calling this function is equivalent to reopening the model.
@@ -1238,63 +949,6 @@ cdef class FMUModel(BaseModel):
     #    self._file_open = False
     #    self._npoints = 0
     #    self._log = []
-    
-    def initialize(self, tolControlled=True, relativeTolerance=None):
-        """
-        Initializes the model and computes initial values for all variables, 
-        including setting the start values of variables defined with a the start 
-        attribute in the XML-file. 
-            
-        Parameters::
-        
-            tolControlled -- 
-                If the model are going to be called by numerical solver using
-                step-size control. Boolean flag.
-            relativeTolerance --
-                If the model are controlled by a numerical solver using
-                step-size control, the same tolerance should be provided here.
-                Else the default tolerance from the XML-file are used.
-            
-        Calls the low-level FMI function: fmiInitialize.
-        """
-        cdef char tolerance_controlled
-        cdef FMIL.fmi1_real_t tolerance
-        
-        #Trying to set the initial time from the xml file, else 0.0
-        if self.time == None:
-            self.time = FMIL.fmi1_import_get_default_experiment_start(self._fmu)
-            
-        if tolControlled:
-            tolerance_controlled = 1
-            if relativeTolerance == None:
-                tolerance = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
-            else:
-                tolerance = relativeTolerance
-        else:
-            tolerance_controlled = 0
-            tolerance = 0.0
-        
-        status = FMIL.fmi1_import_initialize(self._fmu, tolerance_controlled, tolerance, &self._eventInfo)
-        
-        if status == 1:
-            if self._enable_logging:
-                logging.warning(
-                    'Initialize returned with a warning.' \
-                    ' Check the log for information (FMUModel.get_log).')
-            else:
-                logging.warning('Initialize returned with a warning.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
-        
-        if status > 1:
-            if self._enable_logging:
-                raise FMUException(
-                    'Initialize returned with a error.' \
-                    ' Check the log for information (FMUModel.get_log).')
-            else:
-                raise FMUException('Initialize returned with a error.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
-        
-        self._allocated_fmu = True
     
     def set_fmil_log_level(self, FMIL.jm_log_level_enu_t level):
         """
@@ -1318,134 +972,7 @@ cdef class FMUModel(BaseModel):
         if level < 0 or level > 7:
             raise FMUException("Invalid log level for FMI Library (0-7).")
         self.callbacks.log_level = level
-		
-    
-    def instantiate_model(self, name='Model', logging=False):
-        """
-        Instantiate the model.
-        
-        Parameters::
-        
-            name -- 
-                The name of the instance.
-                Default: 'Model'
-                        
-            logging -- 
-                Defines if the logging should be turned on or off.
-                Default: False, no logging.
-                        
-        Calls the low-level FMI function: fmiInstantiateModel.
-        """
-        #cdef FMIL.fmi1_string_t guid
-        cdef FMIL.fmi1_boolean_t log
-        cdef int status
-        
-        #guid = FMIL.fmi1_import_get_GUID(self._fmu)
-        
-        if logging:
-            log = 1
-        else:
-            log = 0
-        
-        #status = FMIL.fmi1_import_instantiate_model(self._fmu, name, guid, log)
-        status = FMIL.fmi1_import_instantiate_model(self._fmu, name)
-        
-        if status != 0:
-            raise FMUException('Failed to instantiate the model.')
-        
-        #Just to be safe, some problems with Dymola (2012) FMUs not reacting
-        #to logging when set to the instantiate method.
-        status = FMIL.fmi1_import_set_debug_logging(self._fmu, log)
-        
-        if status != 0:
-            raise FMUException('Failed to set the debugging option.')
-    
-    def simulate(self,
-                 start_time=0.0,
-                 final_time=1.0,
-                 input=(),
-                 algorithm='AssimuloFMIAlg', 
-                 options={}):
-        """ 
-        Compact function for model simulation.
-        
-        The simulation method depends on which algorithm is used, this can be 
-        set with the function argument 'algorithm'. Options for the algorithm 
-        are passed as option classes or as pure dicts. See 
-        FMUModel.simulate_options for more details.
-        
-        The default algorithm for this function is AssimuloFMIAlg. 
-        
-        Parameters::
-        
-            start_time --
-                Start time for the simulation.
-                Default: 0.0
-                
-            final_time --
-                Final time for the simulation.
-                Default: 1.0
-                
-            input --
-                Input signal for the simulation. The input should be a 2-tuple 
-                consisting of first the names of the input variable(s) and then 
-                the data matrix.
-                Default: Empty tuple.
-                
-            algorithm --
-                The algorithm which will be used for the simulation is specified 
-                by passing the algorithm class as string or class object in this 
-                argument. 'algorithm' can be any class which implements the 
-                abstract class AlgorithmBase (found in algorithm_drivers.py). In 
-                this way it is possible to write own algorithms and use them 
-                with this function.
-                Default: 'AssimuloFMIAlg'
-                
-            options -- 
-                The options that should be used in the algorithm. For details on 
-                the options do:
-                
-                    >> myModel = FMUModel(...)
-                    >> opts = myModel.simulate_options()
-                    >> opts?
 
-                Valid values are: 
-                    - A dict which gives AssimuloFMIAlgOptions with 
-                      default values on all options except the ones 
-                      listed in the dict. Empty dict will thus give all 
-                      options with default values.
-                    - An options object.
-                Default: Empty dict
-        
-        Returns::
-        
-            Result object, subclass of common.algorithm_drivers.ResultBase.
-        """
-        return self._exec_simulate_algorithm(start_time, 
-                                             final_time, 
-                                             input,
-                                             'pyfmi.fmi_algorithm_drivers', 
-                                             algorithm,
-                                             options)
-                               
-    def simulate_options(self, algorithm='AssimuloFMIAlg'):
-        """ 
-        Get an instance of the simulate options class, prefilled with default 
-        values. If called without argument then the options class for the 
-        default simulation algorithm will be returned.
-        
-        Parameters::
-        
-            algorithm --
-                The algorithm for which the options class should be fetched. 
-                Possible values are: 'AssimuloFMIAlg'.
-                Default: 'AssimuloFMIAlg'
-                
-        Returns::
-        
-            Options class for the algorithm specified with default values.
-        """
-        return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
     
     def _set(self,char* variable_name, value):
         """
@@ -2052,17 +1579,51 @@ cdef class FMUModel(BaseModel):
         return guid
         
 
-cdef class FMUModelCS(FMUModel):
+cdef class FMUModelCS1(FMUModelBase):
     #First step only support fmi1_fmu_kind_enu_cs_standalone
     #stepFinished not supported
     #fmiResetSlave not supported
     
-    def __dealloc__(self):
+    def __init__(self, fmu, path='.', enable_logging=True):
+        #Call super
+        FMUModelBase.__init__(self,fmu,path,enable_logging)
         
+        if self._fmu_kind != FMI_CS_STANDALONE:
+            raise FMUException("This class only supports FMI 1.0 for Co-simulation.")
+            
+        self.instantiate_slave(logging = self._enable_logging)
+    
+    cpdef _get_time(self):
+        return self.__t
+    
+    cpdef _set_time(self, FMIL.fmi1_real_t t):
+        self.__t = t
+    
+    time = property(_get_time,_set_time, doc = 
+    """
+    Property for accessing the current time of the simulation. Calls the 
+    low-level FMI function: fmiSetTime.
+    """)
+    
+    def __dealloc__(self):
+        """
+        Deallocate memory allocated
+        """
         if self._allocated_fmu:
             FMIL.fmi1_import_terminate_slave(self._fmu)
             FMIL.fmi1_import_free_slave_instance(self._fmu)
         
+        if self._allocated_dll:
+            FMIL.fmi1_import_destroy_dllfmu(self._fmu)
+            
+        if self._allocated_xml:  
+            FMIL.fmi1_import_free(self._fmu)
+        
+        if self._allocated_context:
+            FMIL.fmi_import_free_context(self.context)
+        
+        if self._fmu_temp_dir:
+            delete_temp_dir(self._fmu_temp_dir)
     
     def do_step(self, FMIL.fmi1_real_t current_t, FMIL.fmi1_real_t step_size, new_step=True):
         """
@@ -2083,7 +1644,8 @@ cdef class FMUModelCS(FMUModel):
         
             status --
                     The status of function which can be checked against
-                    FMI_OK, FMI_WARNING. FMI_DISCARD, FMI_PENDING...
+                    FMI_OK, FMI_WARNING. FMI_DISCARD, FMI_ERROR, 
+                    FMI_FATAL,FMI_PENDING...
         
         Calls the underlying low-level function fmiDoStep.
         """
@@ -2091,9 +1653,13 @@ cdef class FMUModelCS(FMUModel):
         cdef FMIL.fmi1_boolean_t new_s
         
         if new_step:
-            new_s = FMI_TRUE
+            #new_s = FMI_TRUE
+            new_s = 1
         else:
-            new_s = FMI_FALSE
+            #new_s = FMI_FALSE
+            new_s = 0
+        
+        self.time = current_t+step_size
         
         status = FMIL.fmi1_import_do_step(self._fmu, current_t, step_size, new_s)
         
@@ -2208,13 +1774,100 @@ cdef class FMUModelCS(FMUModel):
         if status != 0:
             raise FMUException('Failed to set the Real input derivatives.')
     
-    def initialize_slave(self, tStart, tStop, StopTimeDefined):
+    def simulate(self,
+                 start_time=0.0,
+                 final_time=1.0,
+                 input=(),
+                 algorithm='FMICSAlg', 
+                 options={}):
+        """ 
+        Compact function for model simulation.
+        
+        The simulation method depends on which algorithm is used, this can be 
+        set with the function argument 'algorithm'. Options for the algorithm 
+        are passed as option classes or as pure dicts. See 
+        FMUModel.simulate_options for more details.
+        
+        The default algorithm for this function is FMICSAlg. 
+        
+        Parameters::
+        
+            start_time --
+                Start time for the simulation.
+                Default: 0.0
+                
+            final_time --
+                Final time for the simulation.
+                Default: 1.0
+                
+            input --
+                Input signal for the simulation. The input should be a 2-tuple 
+                consisting of first the names of the input variable(s) and then 
+                the data matrix.
+                Default: Empty tuple.
+                
+            algorithm --
+                The algorithm which will be used for the simulation is specified 
+                by passing the algorithm class as string or class object in this 
+                argument. 'algorithm' can be any class which implements the 
+                abstract class AlgorithmBase (found in algorithm_drivers.py). In 
+                this way it is possible to write own algorithms and use them 
+                with this function.
+                Default: 'FMICSAlg'
+                
+            options -- 
+                The options that should be used in the algorithm. For details on 
+                the options do:
+                
+                    >> myModel = FMUModel(...)
+                    >> opts = myModel.simulate_options()
+                    >> opts?
+
+                Valid values are: 
+                    - A dict which gives AssimuloFMIAlgOptions with 
+                      default values on all options except the ones 
+                      listed in the dict. Empty dict will thus give all 
+                      options with default values.
+                    - An options object.
+                Default: Empty dict
+        
+        Returns::
+        
+            Result object, subclass of common.algorithm_drivers.ResultBase.
+        """
+        return self._exec_simulate_algorithm(start_time, 
+                                             final_time, 
+                                             input,
+                                             'pyfmi.fmi_algorithm_drivers', 
+                                             algorithm,
+                                             options)
+    
+    def simulate_options(self, algorithm='FMICSAlg'):
+        """ 
+        Get an instance of the simulate options class, prefilled with default 
+        values. If called without argument then the options class for the 
+        default simulation algorithm will be returned.
+        
+        Parameters::
+        
+            algorithm --
+                The algorithm for which the options class should be fetched. 
+                Possible values are: 'FMICSAlg'.
+                Default: 'FMICSAlg'
+                
+        Returns::
+        
+            Options class for the algorithm specified with default values.
+        """
+        return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
+    
+    def initialize(self, tStart=0.0, tStop=1.0, StopTimeDefined=False):
         """
         Initializes the slave.
         
         Parameters::
         
-            tStart --
+            tStart -
             tSTop --
             StopTimeDefined --
             
@@ -2224,9 +1877,13 @@ cdef class FMUModelCS(FMUModel):
         cdef FMIL.fmi1_boolean_t stopDefined
         
         if StopTimeDefined:
-            stopDefined = FMI_TRUE
+            #stopDefined = FMI_TRUE
+            stopDefined = 1
         else:
-            stopDefined = FMI_FALSE
+            #stopDefined = FMI_FALSE
+            stopDefined = 0
+        
+        self.time = tStart
         
         status = FMIL.fmi1_import_initialize_slave(self._fmu, tStart, stopDefined, tStop)
         
@@ -2254,14 +1911,18 @@ cdef class FMUModelCS(FMUModel):
         cdef int status
         cdef FMIL.fmi1_boolean_t log
         cdef FMIL.fmi1_real_t timeout = 0.0
-        cdef FMIL.fmi1_boolean_t visible = FMI_FALSE
-        cdef FMIL.fmi1_boolean_t interactive = FMI_FALSE
+        #cdef FMIL.fmi1_boolean_t visible = FMI_FALSE
+        cdef FMIL.fmi1_boolean_t visible = 0
+        #cdef FMIL.fmi1_boolean_t interactive = FMI_FALSE
+        cdef FMIL.fmi1_boolean_t interactive = 0
         cdef object location = ""
         
         if logging:
-            log = FMI_TRUE
+            #log = FMI_TRUE
+            log = 1
         else:
-            log = FMI_FALSE
+            #log = FMI_FALSE
+            log = 0
         
         status = FMIL.fmi1_import_instantiate_slave(self._fmu, name, location, 
                                         FMI_MIME_CS_STANDALONE, timeout, visible, 
@@ -2309,3 +1970,628 @@ cdef class FMUModelCS(FMUModel):
         capabilities["canNotUseMemoryManagementFunctions"] = FMIL.fmi1_import_get_canNotUseMemoryManagementFunctions(cap)
         
         return capabilities
+
+cdef class FMUModelME1(FMUModelBase):
+    """
+    An FMI Model loaded from a DLL.
+    """
+    
+    def __init__(self, fmu, path='.', enable_logging=True):
+        #Call super
+        FMUModelBase.__init__(self,fmu,path,enable_logging)
+        
+        if self._fmu_kind != FMI_ME:
+            raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
+            
+        self.instantiate_model(logging = self._enable_logging)
+    
+    def reset(self):
+        """
+        This metod resets the FMU by first calling fmiTerminate and 
+        fmiFreeModelInstance and then reloades the DLL and finally
+        reinstantiates using fmiInstantiateModel.
+        """
+        if self._allocated_fmu:
+            FMIL.fmi1_import_terminate(self._fmu)
+            FMIL.fmi1_import_free_model_instance(self._fmu)
+        
+        if self._allocated_dll:
+            FMIL.fmi1_import_destroy_dllfmu(self._fmu)
+        
+        global FMI_REGISTER_GLOBALLY
+        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
+        if status == FMIL.jm_status_error:
+            raise FMUException("The DLL could not be reloaded, check the log for more information.")
+        FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
+        
+        #Default values
+        self.__t = None
+        
+        #Internal values
+        self._file_open = False
+        self._npoints = 0
+        self._log = []
+        
+        #Instantiates the model
+        self.instantiate_model(logging = self._enable_logging)
+
+    
+    def __dealloc__(self):
+        """
+        Deallocate memory allocated
+        """
+        if self._allocated_fmu:
+            FMIL.fmi1_import_terminate(self._fmu)
+            FMIL.fmi1_import_free_model_instance(self._fmu)
+        
+        if self._allocated_dll:
+            FMIL.fmi1_import_destroy_dllfmu(self._fmu)
+            
+        if self._allocated_xml:  
+            FMIL.fmi1_import_free(self._fmu)
+        
+        if self._allocated_context:
+            FMIL.fmi_import_free_context(self.context)
+        
+        if self._fmu_temp_dir:
+            delete_temp_dir(self._fmu_temp_dir)
+    
+    cpdef _get_time(self):
+        return self.__t
+    
+    cpdef _set_time(self, FMIL.fmi1_real_t t):
+        cdef int status
+        self.__t = t
+        
+        status = FMIL.fmi1_import_set_time(self._fmu,t)
+        
+        if status != 0:
+            raise FMUException('Failed to set the time.')
+        
+    time = property(_get_time,_set_time, doc = 
+    """
+    Property for accessing the current time of the simulation. Calls the 
+    low-level FMI function: fmiSetTime.
+    """)
+    
+    def _get_continuous_states(self):
+        cdef int status
+        cdef N.ndarray[double, ndim=1,mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
+        status = FMIL.fmi1_import_get_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data ,self._nContinuousStates)
+        
+        if status != 0:
+            raise FMUException('Failed to retrieve the continuous states.')
+        
+        return ndx
+        
+    def _set_continuous_states(self, N.ndarray[FMIL.fmi1_real_t] values):
+        cdef int status
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = values#N.array(values,dtype=N.double,ndmin=1).flatten()
+        
+        if ndx.size != self._nContinuousStates:
+            raise FMUException(
+                'Failed to set the new continuous states. ' \
+                'The number of values are not consistent with the number of '\
+                'continuous states.')
+        
+        status = FMIL.fmi1_import_set_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data ,self._nContinuousStates)
+        
+        if status >= 3:
+            raise FMUException('Failed to set the new continuous states.')
+    
+    continuous_states = property(_get_continuous_states, _set_continuous_states, 
+        doc=
+    """
+    Property for accessing the current values of the continuous states. Calls 
+    the low-level FMI function: fmiSetContinuousStates/fmiGetContinuousStates.
+    """)
+    
+    def _get_nominal_continuous_states(self):
+        cdef int status
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = N.zeros(self._nContinuousStates,dtype=N.double)
+        
+        status = FMIL.fmi1_import_get_nominal_continuous_states(
+                self._fmu, <FMIL.fmi1_real_t*>ndx.data, self._nContinuousStates)
+        
+        if status != 0:
+            raise FMUException('Failed to get the nominal values.')
+            
+        return ndx
+    
+    nominal_continuous_states = property(_get_nominal_continuous_states, doc = 
+    """
+    Property for accessing the nominal values of the continuous states. Calls 
+    the low-level FMI function: fmiGetNominalContinuousStates.
+    """)
+    
+    cpdef get_derivatives(self):
+        """
+        Returns the derivative of the continuous states.
+                
+        Returns::
+        
+            dx -- 
+                The derivative as an array.
+                
+        Example::
+        
+            dx = model.get_derivatives()
+                
+        Calls the low-level FMI function: fmiGetDerivatives
+        """
+        cdef int status
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nContinuousStates,dtype=N.double)
+
+        status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
+        
+        if status != 0:
+            raise FMUException('Failed to get the derivative values.')
+            
+        return values
+        
+    def get_event_indicators(self):
+        """
+        Returns the event indicators at the current time-point.
+
+        Return::
+        
+            evInd -- 
+                The event indicators as an array.
+                
+        Example::
+        
+            evInd = model.get_event_indicators()
+                
+        Calls the low-level FMI function: fmiGetEventIndicators
+        """
+        cdef int status
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nEventIndicators,dtype=N.double)
+        
+        status = FMIL.fmi1_import_get_event_indicators(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nEventIndicators)
+        
+        if status != 0:
+            raise FMUException('Failed to get the event indicators.')
+            
+        return values
+
+    
+    def get_tolerances(self):
+        """
+        Returns the relative and absolute tolerances. If the relative tolerance
+        is defined in the XML-file it is used, otherwise a default of 1.e-4 is 
+        used. The absolute tolerance is calculated and returned according to
+        the FMI specification, atol = 0.01*rtol*(nominal values of the 
+        continuous states).
+                
+        Returns::
+        
+            rtol -- 
+                The relative tolerance.
+                
+            atol -- 
+                The absolute tolerance.
+                
+        Example::
+            
+            [rtol, atol] = model.get_tolerances()
+        """
+        rtol = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
+        atol = 0.01*rtol*self.nominal_continuous_states
+        
+        return [rtol, atol]
+    
+    def event_update(self, intermediateResult=False):
+        """
+        Updates the event information at the current time-point. If 
+        intermediateResult is set to True the update_event will stop at each 
+        event iteration which would require to loop until 
+        event_info.iterationConverged == fmiTrue.
+        
+        Parameters::
+        
+            intermediateResult -- 
+                If set to True, the update_event will stop at each event 
+                iteration.
+                Default: False.
+                
+        Example::
+        
+            model.event_update()
+        
+        Calls the low-level FMI function: fmiEventUpdate
+        """
+        cdef int status
+        cdef FMIL.fmi1_boolean_t intermediate_result
+        
+        if intermediateResult:
+            intermediate_result = 1
+            status = FMIL.fmi1_import_eventUpdate(self._fmu, intermediate_result, &self._eventInfo)
+        else:
+            intermediate_result = 0
+            status = FMIL.fmi1_import_eventUpdate(self._fmu, intermediate_result, &self._eventInfo)
+        
+        if status != 0:
+            raise FMUException('Failed to update the events.')
+    
+    def get_event_info(self):
+        """
+        Returns the event information from the FMU. 
+        
+        Returns::
+        
+            The event information, a struct which contains:
+        
+            iterationConverged -- 
+                Event iteration converged (if True).
+                
+            stateValueReferencesChanged -- 
+                ValueReferences of states x changed (if True).
+                
+            stateValuesChanged -- 
+                Values of states x have changed (if True).
+                
+            terminateSimulation -- 
+                Error, terminate simulation (if True).
+                
+            upcomingTimeEvent - 
+                If True, nextEventTime is the next time event.
+                
+            nextEventTime -- 
+                The next time event.
+                
+        Example::
+            
+            event_info    = model.event_info
+            nextEventTime = model.event_info.nextEventTime
+        """
+        
+        self._pyEventInfo.iterationConverged          = self._eventInfo.iterationConverged == 1
+        self._pyEventInfo.stateValueReferencesChanged = self._eventInfo.stateValueReferencesChanged == 1
+        self._pyEventInfo.stateValuesChanged          = self._eventInfo.stateValuesChanged == 1
+        self._pyEventInfo.terminateSimulation         = self._eventInfo.terminateSimulation == 1
+        self._pyEventInfo.upcomingTimeEvent           = self._eventInfo.upcomingTimeEvent == 1
+        self._pyEventInfo.nextEventTime               = self._eventInfo.nextEventTime
+
+        return self._pyEventInfo
+    
+    def get_state_value_references(self):
+        """
+        Returns the continuous states valuereferences.
+                
+        Returns::
+            
+            val -- 
+                The references to the continuous states.
+                
+        Example::
+        
+            val = model.get_continuous_value_reference()
+            
+        Calls the low-level FMI function: fmiGetStateValueReferences
+        """
+        cdef int status
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] values = N.zeros(self._nContinuousStates,dtype=N.uint32)
+
+        status = FMIL.fmi1_import_get_state_value_references(
+            self._fmu, <FMIL.fmi1_value_reference_t*>values.data, self._nContinuousStates)
+        
+        if status != 0:
+            raise FMUException(
+                'Failed to get the continuous state reference values.')
+            
+        return values
+    
+    def completed_integrator_step(self):
+        """
+        This method must be called by the environment after every completed step 
+        of the integrator. If the return is True, then the environment must call 
+        event_update() otherwise, no action is needed.
+        
+        Returns::
+        
+            True -> Call event_update().
+            False -> Do nothing.
+                
+        Calls the low-level FMI function: fmiCompletedIntegratorStep.
+        """
+        cdef int status
+        cdef FMIL.fmi1_boolean_t callEventUpdate
+        
+        status = FMIL.fmi1_import_completed_integrator_step(self._fmu, &callEventUpdate)
+        
+        if status != 0:
+            raise FMUException('Failed to call FMI Completed Step.')
+            
+        if callEventUpdate == 1:
+            return True
+        else:
+            return False
+
+    
+    def initialize(self, tolControlled=True, relativeTolerance=None):
+        """
+        Initializes the model and computes initial values for all variables, 
+        including setting the start values of variables defined with a the start 
+        attribute in the XML-file. 
+            
+        Parameters::
+        
+            tolControlled -- 
+                If the model are going to be called by numerical solver using
+                step-size control. Boolean flag.
+            relativeTolerance --
+                If the model are controlled by a numerical solver using
+                step-size control, the same tolerance should be provided here.
+                Else the default tolerance from the XML-file are used.
+            
+        Calls the low-level FMI function: fmiInitialize.
+        """
+        cdef char tolerance_controlled
+        cdef FMIL.fmi1_real_t tolerance
+        
+        #Trying to set the initial time from the xml file, else 0.0
+        if self.time == None:
+            self.time = FMIL.fmi1_import_get_default_experiment_start(self._fmu)
+            
+        if tolControlled:
+            tolerance_controlled = 1
+            if relativeTolerance == None:
+                tolerance = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
+            else:
+                tolerance = relativeTolerance
+        else:
+            tolerance_controlled = 0
+            tolerance = 0.0
+        
+        status = FMIL.fmi1_import_initialize(self._fmu, tolerance_controlled, tolerance, &self._eventInfo)
+        
+        if status == 1:
+            if self._enable_logging:
+                logging.warning(
+                    'Initialize returned with a warning.' \
+                    ' Check the log for information (FMUModel.get_log).')
+            else:
+                logging.warning('Initialize returned with a warning.' \
+                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+        
+        if status > 1:
+            if self._enable_logging:
+                raise FMUException(
+                    'Initialize returned with a error.' \
+                    ' Check the log for information (FMUModel.get_log).')
+            else:
+                raise FMUException('Initialize returned with a error.' \
+                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+        
+        self._allocated_fmu = True
+		
+    
+    def instantiate_model(self, name='Model', logging=False):
+        """
+        Instantiate the model.
+        
+        Parameters::
+        
+            name -- 
+                The name of the instance.
+                Default: 'Model'
+                        
+            logging -- 
+                Defines if the logging should be turned on or off.
+                Default: False, no logging.
+                        
+        Calls the low-level FMI function: fmiInstantiateModel.
+        """
+        #cdef FMIL.fmi1_string_t guid
+        cdef FMIL.fmi1_boolean_t log
+        cdef int status
+        
+        #guid = FMIL.fmi1_import_get_GUID(self._fmu)
+        
+        if logging:
+            log = 1
+        else:
+            log = 0
+        
+        #status = FMIL.fmi1_import_instantiate_model(self._fmu, name, guid, log)
+        status = FMIL.fmi1_import_instantiate_model(self._fmu, name)
+        
+        if status != 0:
+            raise FMUException('Failed to instantiate the model.')
+        
+        #Just to be safe, some problems with Dymola (2012) FMUs not reacting
+        #to logging when set to the instantiate method.
+        status = FMIL.fmi1_import_set_debug_logging(self._fmu, log)
+        
+        if status != 0:
+            raise FMUException('Failed to set the debugging option.')
+    
+    def simulate(self,
+                 start_time=0.0,
+                 final_time=1.0,
+                 input=(),
+                 algorithm='AssimuloFMIAlg', 
+                 options={}):
+        """ 
+        Compact function for model simulation.
+        
+        The simulation method depends on which algorithm is used, this can be 
+        set with the function argument 'algorithm'. Options for the algorithm 
+        are passed as option classes or as pure dicts. See 
+        FMUModel.simulate_options for more details.
+        
+        The default algorithm for this function is AssimuloFMIAlg. 
+        
+        Parameters::
+        
+            start_time --
+                Start time for the simulation.
+                Default: 0.0
+                
+            final_time --
+                Final time for the simulation.
+                Default: 1.0
+                
+            input --
+                Input signal for the simulation. The input should be a 2-tuple 
+                consisting of first the names of the input variable(s) and then 
+                the data matrix.
+                Default: Empty tuple.
+                
+            algorithm --
+                The algorithm which will be used for the simulation is specified 
+                by passing the algorithm class as string or class object in this 
+                argument. 'algorithm' can be any class which implements the 
+                abstract class AlgorithmBase (found in algorithm_drivers.py). In 
+                this way it is possible to write own algorithms and use them 
+                with this function.
+                Default: 'AssimuloFMIAlg'
+                
+            options -- 
+                The options that should be used in the algorithm. For details on 
+                the options do:
+                
+                    >> myModel = FMUModel(...)
+                    >> opts = myModel.simulate_options()
+                    >> opts?
+
+                Valid values are: 
+                    - A dict which gives AssimuloFMIAlgOptions with 
+                      default values on all options except the ones 
+                      listed in the dict. Empty dict will thus give all 
+                      options with default values.
+                    - An options object.
+                Default: Empty dict
+        
+        Returns::
+        
+            Result object, subclass of common.algorithm_drivers.ResultBase.
+        """
+        return self._exec_simulate_algorithm(start_time, 
+                                             final_time, 
+                                             input,
+                                             'pyfmi.fmi_algorithm_drivers', 
+                                             algorithm,
+                                             options)
+                               
+    def simulate_options(self, algorithm='AssimuloFMIAlg'):
+        """ 
+        Get an instance of the simulate options class, prefilled with default 
+        values. If called without argument then the options class for the 
+        default simulation algorithm will be returned.
+        
+        Parameters::
+        
+            algorithm --
+                The algorithm for which the options class should be fetched. 
+                Possible values are: 'AssimuloFMIAlg'.
+                Default: 'AssimuloFMIAlg'
+                
+        Returns::
+        
+            Options class for the algorithm specified with default values.
+        """
+        return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
+    
+
+#Temporary should be removed! (after a period)
+cdef class FMUModel(FMUModelME1):
+    def __init__(self, fmu, path='.', enable_logging=True):
+        print "WARNING: This class is deprecated and has been superseded with FMUModelME1. The recommended entry-point for loading an FMU is now the function load_fmu."
+        FMUModelME1.__init__(self,fmu,path,enable_logging)
+
+def load_fmu(fmu, path='.', enable_logging=True):
+    """
+    Helper function for loading FMUs of different kinds.
+    """
+    #NOTE: This method can be made more efficient by providing
+    #the unzipped part and the already read XML object to the different
+    #FMU classes.
+    
+    #FMIL related variables
+    cdef FMIL.fmi1_callback_functions_t callBackFunctions
+    cdef FMIL.jm_callbacks callbacks
+    cdef FMIL.fmi_import_context_t* context 
+    cdef FMIL.fmi1_import_t* _fmu
+    cdef FMIL.jm_string last_error
+    
+    #Used for deallocation
+    allocated_context = False
+    allocated_xml = False
+    fmu_temp_dir = None
+    
+    fmu_full_path = os.path.abspath(os.path.join(path,fmu))
+    fmu_temp_dir  = create_temp_dir()
+
+    # Check that the file referenced by fmu has the correct file-ending
+    if not fmu_full_path.endswith(".fmu"):
+        raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
+    
+    #Specify the general callback functions
+    callbacks.malloc  = FMIL.malloc
+    callbacks.calloc  = FMIL.calloc
+    callbacks.realloc = FMIL.realloc
+    callbacks.free    = FMIL.free
+    callbacks.logger  = importlogger_load_fmu
+    callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
+    #callbacks.errMessageBuffer = NULL
+        
+    #Specify FMI related callbacks
+    callBackFunctions.logger = FMIL.fmi1_log_forwarding;
+    callBackFunctions.allocateMemory = FMIL.calloc;
+    callBackFunctions.freeMemory = FMIL.free;
+        
+    context = FMIL.fmi_import_allocate_context(&callbacks)
+    allocated_context = True
+        
+    #Get the FMI version of the provided model
+    version = FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
+        
+    if version == FMIL.fmi_version_unknown_enu:
+        last_error = FMIL.jm_get_last_error(&callbacks)
+
+        #Delete the context
+        if allocated_context:
+            FMIL.fmi_import_free_context(context)
+        
+        raise FMUException("The FMU version could not be determined. "+last_error)
+    if version != 1:
+        #Delete the context
+        if allocated_context:
+            FMIL.fmi_import_free_context(context)
+            
+        raise FMUException("PyFMI currently only supports FMI 1.0.")
+        
+    #Parse the XML
+    _fmu = FMIL.fmi1_import_parse_xml(context, fmu_temp_dir)
+    allocated_xml = True
+        
+    #Check the FMU kind
+    fmu_kind = FMIL.fmi1_import_get_fmu_kind(_fmu)
+    if fmu_kind == FMI_ME:
+        model = FMUModelME1(fmu, path, enable_logging)
+    elif fmu_kind == FMI_CS_STANDALONE:
+        model = FMUModelCS1(fmu, path, enable_logging)
+    else:
+        #Delete the XML
+        if allocated_xml:  
+            FMIL.fmi1_import_free(_fmu)
+            
+        #Delete the context
+        if allocated_context:
+            FMIL.fmi_import_free_context(context)
+        
+        raise FMUException("PyFMI currently only supports FMI 1.0 for Model Exchange.")    
+        
+    #Delete the XML
+    if allocated_xml:  
+        FMIL.fmi1_import_free(_fmu)
+        
+    #Delete the context
+    if allocated_context:
+        FMIL.fmi_import_free_context(context)
+
+    #Delete the created directory
+    delete_temp_dir(fmu_temp_dir)
+
+    return model
