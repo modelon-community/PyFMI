@@ -25,6 +25,7 @@ import time
 import numpy as N
 
 import pyfmi
+import pyfmi.fmi as fmi
 from pyfmi.common.algorithm_drivers import AlgorithmBase, AssimuloSimResult, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
 from pyfmi.common.io import ResultDymolaTextual, ResultWriterDymola
 from pyfmi.common.core import TrajectoryLinearInterpolation
@@ -47,6 +48,32 @@ default_int = int
 int = N.int32
 N.int = N.int32
 
+
+class FMIResult(JMResultBase):
+    
+    def __getitem__(self, key):
+        val = self.result_data.get_variable_data(key)
+
+        if self.is_variable(key):
+            return val.x
+        else:
+            #When there is a sensitivity variable (dx/dp) in the result
+            #the variable does not exists in the XML file, so cache the
+            #error and set variability to 0. If the variable does not
+            #exists in the result file, an error is raised prior to this.
+            try:
+                variability = self.model.get_variable_variability(key)
+            except FMUException:
+                variability = fmi.FMI_CONTINUOUS
+            
+            if variability == fmi.FMI_CONSTANT or variability == fmi.FMI_PARAMETER:
+            #Variable is a parameter or constant
+                return val.x[0]
+            else:
+                time = self.result_data.get_variable_data('time')
+                return N.array([val.x[0]]*N.size(time.t))
+                
+        #return self.result_data.get_variable_data(key)
 
 class AssimuloFMIAlgOptions(OptionBase):
     """
@@ -337,7 +364,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         # load result file
         res = ResultDymolaTextual(self.result_file_name)
         # create and return result object
-        return AssimuloSimResult(self.model, self.result_file_name, self.simulator, 
+        return FMIResult(self.model, self.result_file_name, self.simulator, 
             res, self.options)
         
     @classmethod
@@ -348,8 +375,6 @@ class AssimuloFMIAlg(AlgorithmBase):
         """
         return AssimuloFMIAlgOptions()
 
-class FMICSResult(JMResultBase):
-    pass
 
 class FMICSAlgOptions(OptionBase):
     """
@@ -526,7 +551,7 @@ class FMICSAlg(AlgorithmBase):
         # load result file
         res = ResultDymolaTextual(self.result_file_name)
         # create and return result object
-        return FMICSResult(self.model, self.result_file_name, None,
+        return FMIResult(self.model, self.result_file_name, None,
             res, self.options)
         
     @classmethod
