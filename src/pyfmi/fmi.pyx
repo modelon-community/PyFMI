@@ -782,14 +782,28 @@ cdef class FMUModelBase(BaseModel):
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
 
         nref = val_ref.size
-        cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1)
+        #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1)
+        cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
+        
 
-        status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
+        #status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
+        status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val)
+        
+        return_values = []
+        for i in range(nref):
+            return_values.append((<FMIL.fmi1_boolean_t*>val)[i]==1)
+            #print (<FMIL.fmi1_boolean_t*>val)[i], (<FMIL.fmi1_boolean_t*>val)[i]==1
+        
+        #print return_values
+        
+        #Dealloc
+        FMIL.free(val)
 
         if status != 0:
             raise FMUException('Failed to get the Boolean values.')
         
-        return val==FMI_TRUE
+        return N.array(return_values)
+        #return val==FMI_TRUE
         
     def set_boolean(self, valueref, values):
         """
@@ -815,21 +829,27 @@ cdef class FMUModelBase(BaseModel):
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
         nref = val_ref.size
         
-        cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1).flatten()
+        #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1).flatten()
+        cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
         
         values = N.array(values,ndmin=1).flatten()
         for i in range(nref):
             if values[i]:
-                val[i]=1
+                #val[i]=1
+                (<FMIL.fmi1_boolean_t*>val)[i] = 1
             else:
-                val[i]=0
+                #val[i]=0
+                (<FMIL.fmi1_boolean_t*>val)[i] = 0
         
-        if val_ref.size != val.size:
+        if val_ref.size != values.size:
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
         
-        status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
-
+        #status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
+        status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val)
+        
+        FMIL.free(val)
+        
         if status != 0:
             raise FMUException('Failed to set the Boolean values.')
         
