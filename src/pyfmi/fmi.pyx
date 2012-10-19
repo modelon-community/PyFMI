@@ -436,6 +436,7 @@ cdef class FMUModelBase(BaseModel):
         #self.callBackFunctions.logger = fmilogger;
         self.callBackFunctions.allocateMemory = FMIL.calloc;
         self.callBackFunctions.freeMemory = FMIL.free;
+        self.callBackFunctions.stepFinished = NULL;
         
         self.context = FMIL.fmi_import_allocate_context(&self.callbacks)
         self._allocated_context = True
@@ -583,24 +584,6 @@ cdef class FMUModelBase(BaseModel):
         return version
         
     version = property(fget=_get_version)
-    
-    def _get_model_types_platform(self):
-        """
-        Returns the set of valid compatible platforms for the Model, extracted
-        from the XML.
-        
-        Returns::
-            
-            model_types_platform -- 
-                The valid platforms.
-                
-        Example::
-        
-            model.model_types_platform
-        """
-        return FMIL.fmi1_import_get_model_types_platform(self._fmu)
-        
-    model_types_platform = property(fget=_get_model_types_platform)
     
     def get_ode_sizes(self):
         """
@@ -1746,7 +1729,25 @@ cdef class FMUModelCS1(FMUModelBase):
             raise FMUException('Failed to get the Real output derivatives.')
         
         return values
+    
+    def _get_types_platform(self):
+        """
+        Returns the set of valid compatible platforms for the Model, extracted
+        from the XML.
         
+        Returns::
+            
+            types_platform -- 
+                The valid platforms.
+                
+        Example::
+        
+            model.types_platform
+        """
+        return FMIL.fmi1_import_get_types_platform(self._fmu)
+        
+    types_platform = property(fget=_get_types_platform)
+    
     def set_input_derivatives(self, variables, values, FMIL.fmi1_integer_t order):
         """
         Sets the input derivative order for the specified variables.
@@ -2007,6 +2008,24 @@ cdef class FMUModelME1(FMUModelBase):
             raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
             
         self.instantiate_model(logging = self._enable_logging)
+    
+    def _get_model_types_platform(self):
+        """
+        Returns the set of valid compatible platforms for the Model, extracted
+        from the XML.
+        
+        Returns::
+            
+            model_types_platform -- 
+                The valid platforms.
+                
+        Example::
+        
+            model.model_types_platform
+        """
+        return FMIL.fmi1_import_get_model_types_platform(self._fmu)
+        
+    model_types_platform = property(fget=_get_model_types_platform)
     
     def reset(self):
         """
