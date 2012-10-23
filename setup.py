@@ -135,15 +135,16 @@ for x in sys.argv[1:]:
         copy_args.remove(x)
 
 #Check to see if FMILIB_SHARED exists and if so copy it
-if sys.platform.startswith("win"):
-    files = O.listdir(O.path.join(libdirs))
-    for file in files:
-        if "fmilib_shared" in file and not file.endswith("a"):
-            shutil.copy2(O.path.join(libdirs,file),O.path.join(".","src","pyfmi"))
-            fmilib_shared = O.path.join(".","src","pyfmi",file)
-            break
-    else:
-        raise Exception("Could not find FMILibrary at: %s"%libdirs)
+if not sys.argv[0].find("clean"): #Dont check if we are cleaning!
+    if sys.platform.startswith("win"):
+        files = O.listdir(O.path.join(libdirs))
+        for file in files:
+            if "fmilib_shared" in file and not file.endswith("a"):
+                shutil.copy2(O.path.join(libdirs,file),O.path.join(".","src","pyfmi"))
+                fmilib_shared = O.path.join(".","src","pyfmi",file)
+                break
+        else:
+            raise Exception("Could not find FMILibrary at: %s"%libdirs)
 
 def check_extensions():
     ext_list = []
@@ -228,6 +229,7 @@ setup(name=NAME,
 
 
 #Dont forget to delete fmilib_shared
-if sys.platform.startswith("win"):
-    if O.path.exists(fmilib_shared):
-        O.remove(fmilib_shared)
+if not sys.argv[0].find("clean"): #Dont check if we are cleaning!
+    if sys.platform.startswith("win"):
+        if O.path.exists(fmilib_shared):
+            O.remove(fmilib_shared)
