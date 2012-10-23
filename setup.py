@@ -135,7 +135,7 @@ for x in sys.argv[1:]:
         copy_args.remove(x)
 
 #Check to see if FMILIB_SHARED exists and if so copy it
-if not sys.argv[0].find("clean"): #Dont check if we are cleaning!
+if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
     if sys.platform.startswith("win"):
         files = O.listdir(O.path.join(libdirs))
         for file in files:
@@ -229,7 +229,7 @@ setup(name=NAME,
 
 
 #Dont forget to delete fmilib_shared
-if not sys.argv[0].find("clean"): #Dont check if we are cleaning!
+if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
     if sys.platform.startswith("win"):
         if O.path.exists(fmilib_shared):
             O.remove(fmilib_shared)
