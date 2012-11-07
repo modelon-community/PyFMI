@@ -378,9 +378,7 @@ class AssimuloFMIAlg(AlgorithmBase):
 
 class FMICSAlgOptions(OptionBase):
     """
-    Options for the solving the FMU using the Assimulo simulation package.
-    Currently, the only solver in the Assimulo package that fully supports
-    simulation of FMUs is the solver CVode.
+    Options for the solving the CS FMU.
     
     Options::
     
