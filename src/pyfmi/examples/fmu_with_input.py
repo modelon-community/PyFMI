@@ -19,7 +19,7 @@ import os as O
 import numpy as N
 import pylab as p
 
-from pyfmi import FMUModel
+from pyfmi import load_fmu
 
 curr_dir = O.path.dirname(O.path.abspath(__file__));
 path_to_fmus = O.path.join(curr_dir, 'files', 'FMUs')
@@ -41,7 +41,7 @@ def run_demo(with_plots=True):
     input_object = ('u', u_traj)
 
     # Load the dynamic library and XML data
-    model=FMUModel(fmu_name)
+    model=load_fmu(fmu_name)
     
     # Set the first input value to the model
     model.set('u',u[0])

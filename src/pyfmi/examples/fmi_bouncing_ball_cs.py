@@ -22,11 +22,12 @@ import numpy as N
 from pyfmi import load_fmu
 
 curr_dir = O.path.dirname(O.path.abspath(__file__));
-path_to_fmus = O.path.join(curr_dir, 'files', 'FMUs')
+path_to_fmus = O.path.join(curr_dir, 'files', 'FMUs', 'CS1.0')
 
 def run_demo(with_plots=True):
     """
-    Demonstrates how to use JModelica.org for simulation of FMUs.
+    Demonstrates how to use PyFMI for simulation of 
+    Co-Simulation FMUs (version 1.0).
     """
 
     fmu_name = O.path.join(path_to_fmus,'bouncingBall.fmu')
@@ -39,7 +40,7 @@ def run_demo(with_plots=True):
     v_res = res['v']
     t     = res['time']
 
-    assert N.abs(h_res[-1] - (0.0424044)) < 1e-4
+    assert N.abs(h_res[-1] - (0.0424044)) < 1e-2
     
     #Plot the solution
     if with_plots:
