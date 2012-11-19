@@ -1629,6 +1629,8 @@ cdef class FMUModelCS1(FMUModelBase):
             FMIL.fmi_import_free_context(self.context)
         
         if self._fmu_temp_dir:
+            import os
+            import shutil
             delete_temp_dir(self._fmu_temp_dir)
     
     def do_step(self, FMIL.fmi1_real_t current_t, FMIL.fmi1_real_t step_size, new_step=True):
@@ -2076,6 +2078,8 @@ cdef class FMUModelME1(FMUModelBase):
             FMIL.fmi_import_free_context(self.context)
         
         if self._fmu_temp_dir:
+            import os
+            import shutil
             delete_temp_dir(self._fmu_temp_dir)
     
     cpdef _get_time(self):
