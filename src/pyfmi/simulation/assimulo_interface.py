@@ -371,3 +371,77 @@ class FMIODE(Explicit_Problem):
     subclass of the class Trajectory.
     """)
         
+
+class FMIODESENS(FMIODE):
+    """
+    FMIODE extended with sensitivity simulation capabilities
+    """
+    def __init__(self, model, input=None, result_file_name='',
+                 with_jacobian=False, start_time=0.0, parameters=None):
+                     
+        #Call FMIODE init method
+        FMIODE.__init__(self, model, input, result_file_name, with_jacobian,
+                start_time)
+                
+        #Store the parameters
+        if parameters != None:
+            if not isinstance(parameters,list):
+                raise FMIModel_Exception("Parameters must be a list of names.")
+            self.p0 = N.array(model.get(parameters)).flatten()
+            self.pbar = N.array([N.abs(x) if N.abs(x) > 0 else 1.0 for x in self.p0])
+        self.parameters = parameters
+
+    
+    def rhs(self, t, y, p=None, sw=None):
+        #Sets the parameters, if any
+        if self.parameters != None:
+            self._model.set(self.parameters, p)
+        
+        return FMIODE.rhs(self,t,y,sw)
+    
+    
+    def j(self, t, y, p=None, sw=None):
+        
+        #Sets the parameters, if any
+        if self.parameters != None:
+            self._model.set(self.parameters, p)
+        
+        return FMIODE.j(self,t,y,sw)
+
+    def handle_result(self, solver, t, y):
+        #
+        #Post processing (stores the time points).
+        #
+        #Moving data to the model
+        if t != self._model.time:
+            #Moving data to the model
+            self._model.time = t
+            #Check if there are any states
+            if self._f_nbr != 0:
+                self._model.continuous_states = y
+            
+            #Sets the inputs, if any
+            if self.input!=None:
+                self._model.set(self.input[0], self.input[1].eval(t)[0,:])
+            
+            #Evaluating the rhs (Have to evaluate the values in the model)
+            rhs = self._model.get_derivatives()
+        
+        #Sets the parameters, if any
+        if self.parameters != None:
+            p_data = N.array(solver.interpolate_sensitivity(t, 0)).flatten()
+        
+        if solver.continuous_output:
+            if self._write_header:
+                self._write_header = False
+                self.export.write_header(file_name=self.result_file_name, parameters=self.parameters)
+            self.export.write_point(parameter_data=p_data)
+        else:
+            #Retrieves the time-point
+            [r,i,b] = self._model.save_time_point()
+
+            #Save the time-point
+            self._sol_real += [r]
+            self._sol_int  += [i]
+            self._sol_bool += [b]
+            self._sol_time += [t]

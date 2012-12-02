@@ -40,7 +40,7 @@ except:
     assimulo_present = False
 
 if assimulo_present:
-    from pyfmi.simulation.assimulo_interface import FMIODE
+    from pyfmi.simulation.assimulo_interface import FMIODE, FMIODESENS
     from pyfmi.simulation.assimulo_interface import write_data
     import assimulo.solvers as solvers
 
@@ -154,6 +154,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'solver': 'CVode', 
             'ncp':0,
             'initialize':True,
+            'sensitivities':None,
             'write_scaled_result':False,
             'result_file_name':'',
             'with_jacobian':False,
@@ -249,10 +250,23 @@ class AssimuloFMIAlg(AlgorithmBase):
                 rtol, atol = self.model.get_tolerances()
                 self.model.initialize(relativeTolerance=rtol)
                 
+        # Sensitivities?
+        if self.options["sensitivities"]:
+            if self.options["solver"] != "CVode":
+                raise Exception("Sensitivity simulations currently only supported using the solver CVode.")
+        
+        
         if not self.input:
-            self.probl = FMIODE(self.model, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time)
+            if self.options["sensitivities"]:
+                self.probl = FMIODESENS(self.model, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,parameters=self.options["sensitivities"])
+            else:
+                self.probl = FMIODE(self.model, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time)
         else:
-            self.probl = FMIODE(
+            if self.options["sensitivities"]:
+                self.probl = FMIODESENS(
+                self.model, input_traj, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,parameters=self.options["sensitivities"])
+            else:
+                self.probl = FMIODE(
                 self.model, input_traj, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time)
         
         # instantiate solver and set options

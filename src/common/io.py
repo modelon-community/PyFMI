@@ -641,7 +641,7 @@ class ResultWriterDymola(ResultWriter):
         self._npoints = 0
         
     
-    def write_header(self, file_name=''):
+    def write_header(self, file_name='', parameters=None):
         """
         Opens the file and writes the header. This includes the information 
         about the variables and a table determining the link between variables 
@@ -755,6 +755,23 @@ class ResultWriterDymola(ResultWriter):
             key=itemgetter(0))
         
         num_vars = len(names)
+        
+        names_sens = []
+        descs_sens = []
+        cont_vars = []
+        
+        if parameters != None:
+            vars = self.model.get_model_variables(type=0,include_alias=False,variability=3)
+            for i in self.model.get_state_value_references():
+                for j in vars.keys():
+                    if i == vars[j].value_reference:
+                        cont_vars.append(vars[j].name)
+        
+        if parameters != None:
+            for j in range(len(parameters)):
+                for i in range(len(self.model.continuous_states)):
+                    names_sens += ['d'+cont_vars[i]+'/d'+parameters[j]]
+                    descs_sens  += ['Sensitivity of '+cont_vars[i]+' with respect to '+parameters[j]+'.']
 
         # Find the maximum name and description length
         max_name_length = len('Time')
@@ -769,28 +786,42 @@ class ResultWriterDymola(ResultWriter):
                 
             if (len(desc)>max_desc_length):
                 max_desc_length = len(desc)
+        
+        for i in range(len(names_sens)):
+            name = names_sens[i]
+            desc = descs_sens[i]
+            
+            if (len(name)>max_name_length):
+                max_name_length = len(name)
+                
+            if (len(desc)>max_desc_length):
+                max_desc_length = len(desc)
 
-        f.write('char name(%d,%d)\n' % (num_vars+1, max_name_length))
+        f.write('char name(%d,%d)\n' % (num_vars+len(names_sens)+1, max_name_length))
         f.write('time\n')
 
         for name in names:
             f.write(name[1] +'\n')
+        for name in names_sens:
+            f.write(name + '\n')
 
         f.write('\n')
 
         # Write descriptions       
-        f.write('char description(%d,%d)\n' % (num_vars + 1, max_desc_length))
+        f.write('char description(%d,%d)\n' % (num_vars+len(names_sens) + 1, max_desc_length))
         f.write('Time in [s]\n')
 
         # Loop over all variables, not only those with a description
         for desc in descriptions:
             f.write(desc[1] +'\n')
+        for desc in descs_sens:
+            f.write(desc + '\n')
                 
         f.write('\n')
 
         # Write data meta information
         
-        f.write('int dataInfo(%d,%d)\n' % (num_vars + 1, 4))
+        f.write('int dataInfo(%d,%d)\n' % (num_vars+len(names_sens) + 1, 4))
         f.write('0 1 0 -1 # time\n')
         
         list_of_continuous_states = N.append(self.model._save_real_variables_val, 
@@ -830,7 +861,11 @@ class ResultWriterDymola(ResultWriter):
                     f.write('1 -%d 0 -1 # ' % cnt_1 + name[1]+'\n')
                 else:
                     f.write('2 -%d 0 -1 # ' % cnt_2 + name[1] +'\n')
-
+        for i, name in enumerate(names_sens):
+            cnt_2 += 1
+            f.write('2 %d 0 -1 # ' % cnt_2 + name +'\n')
+        
+        
         f.write('\n')
 
         # Write data
@@ -863,6 +898,7 @@ class ResultWriterDymola(ResultWriter):
         f.write('\n\n')
         
         self._nvariables = len(valueref_of_continuous_states)+1
+        self._nvariables_sens = len(names_sens)
         
         
         f.write('float data_2(')
@@ -875,7 +911,7 @@ class ResultWriterDymola(ResultWriter):
         self._file = f
         self._data_order = valueref_of_continuous_states
         
-    def write_point(self, data=None):
+    def write_point(self, data=None, parameter_data=[]):
         """ 
         Writes the current status of the model to file. If the header has not 
         been written previously it is written now. If data is specified it is 
@@ -902,6 +938,8 @@ class ResultWriterDymola(ResultWriter):
         str_text = (" %.14E" % data[0])
         for j in xrange(self._nvariables-1):
             str_text = str_text + (" %.14E" % (data[1+data_order[j]]))
+        for j in xrange(len(parameter_data)):
+            str_text = str_text + (" %.14E" % (parameter_data[j]))
         f.write(str_text+'\n')
         
         #Update number of points
@@ -923,7 +961,7 @@ class ResultWriterDymola(ResultWriter):
             f.write('%.14E'%self.model.time)
             
             f.seek(self._point_npoints)
-            f.write('%d,%d)' % (self._npoints, self._nvariables))
+            f.write('%d,%d)' % (self._npoints, self._nvariables+self._nvariables_sens))
             #f.write('%d'%self._npoints)
             f.seek(-1,2)
             #Close the file
