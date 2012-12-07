@@ -254,6 +254,10 @@ class AssimuloFMIAlg(AlgorithmBase):
         if self.options["sensitivities"]:
             if self.options["solver"] != "CVode":
                 raise Exception("Sensitivity simulations currently only supported using the solver CVode.")
+                
+                #Checks to see if all the sensitivities are inside the model
+                #else there will be an exception
+                self.model.get(self.options["sensitivities"])
         
         
         if not self.input:
