@@ -2481,7 +2481,11 @@ cdef class FMUModelME1(FMUModelBase):
             input --
                 Input signal for the simulation. The input should be a 2-tuple 
                 consisting of first the names of the input variable(s) and then 
-                the data matrix.
+                the data matrix or a function. If a data matrix, the first 
+                column should be a time vector and then the variable vectors as
+                columns. If instead a function, the argument should correspond
+                to time and the output the variable data. See the users-guide 
+                for examples.
                 Default: Empty tuple.
                 
             algorithm --
