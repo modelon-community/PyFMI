@@ -209,7 +209,7 @@ ext_list = check_extensions()
 try:
     from subprocess import Popen, PIPE
     _p = Popen(["svnversion", "."], stdout=PIPE)
-    revision = _p.communicate()[0][:-2] #Remove the last M
+    revision = _p.communicate()[0]
 except:
     revision = "unknown"
 version_txt = 'src'+O.path.sep+'pyfmi'+O.path.sep+'version.txt'
