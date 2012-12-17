@@ -9,21 +9,22 @@ For a more detailed description on how to use PyFMI, see the user's documentatio
 Loading an FMU into Python
 ============================
 
-Loading of an FMU is performed by simply importing the necessary object (*FMUModel*) from PyFMI. The object takes care of unzipping the model, loading the XML description and connecting the binary for use from Python.
+Loading of an FMU is performed by simply importing the necessary object (*load_fmu*) from PyFMI. The object takes care of unzipping the model, loading the XML description and connecting the binary for use from Python.
 
 .. code-block:: python
 
-    # Import the model object (FMUModel)
-    from pyfmi import FMUModel
+    # Import the load function (load_fmu)
+    from pyfmi import load_fmu
     
     #Load the FMU
-    model = FMUModel('myFMU.fmu')
+    model = load_fmu('myFMU.fmu')
 
+Note that this will either return an instance of a class consistent with the FMI for Model Exchange definition or for the Co-Simulation definition.
 
 Simulating an FMU
 ========================
 
-Simulation of an FMU requires that the additional package `Assimulo <http://www.jmodelica.org/assimulo>`_ is available and is performed simply by using the *simulate* method:
+Simulation of an FMU exported as Model Exchange requires that the additional package `Assimulo <http://www.jmodelica.org/assimulo>`_ is available. For Co-Simulation FMUs, no additional package is required as the solver is contained inside the FMU. A simulation is performed simply by using the *simulate* method:
 
 .. code-block:: python
 
@@ -40,8 +41,8 @@ Information about the arguments to *simulate* is best viewed interactively from 
     model.simulate?
 
 
-Options
-------------
+Options (for Model Exchange)
+------------------------------
 
 The options for an algorithm, which in our case is Assimulo, can be retrieved by calling the method *simulate_options*:  
 
@@ -74,6 +75,10 @@ To use the options in an simulation, pass them in the call to the *simulate* met
 
 Currently the only solver that supports fully the `FMI <http://www.modelisar.com>`_ specification is *CVode*.
 
+Options (for Co-Simulation)
+-----------------------------
+
+The simulation options for a Co-Simulation FMU is retrieved and set consistent as for a Model Exchange FMU. The only difference is the actual options.
 
 
 Result Object
