@@ -23,9 +23,18 @@ __all__ = ['fmi_algorithm_drivers', 'examples', 'fmi', 'common']
 #Import the model class allowing for users to type: from pyfmi import FMUModel
 from fmi import FMUModel, load_fmu
 import numpy as N
+import os.path
 
 int = N.int32
 N.int = N.int32
+
+try:
+    curr_dir = os.path.dirname(os.path.abspath(__file__));
+    _fpath=os.path.join(curr_dir,'version.txt')
+    with open(_fpath, 'r') as f:
+        __version__=f.readline().strip()
+except:
+    __version__ = "unknown"
 
 
 def check_packages():
@@ -38,18 +47,24 @@ def check_packages():
     sys.stdout.write("\n\n")
     sys.stdout.flush()
     time.sleep(0.25)
-
+    
+    # print pyfmi version
+    sys.stdout.write(
+        "%s %s" %("PyFMI revision ".ljust(le,'.'),(__version__).ljust(le)+"\n\n"))
+    sys.stdout.flush()
+    time.sleep(0.25)
+    
     # check os
     platform = sys.platform
     sys.stdout.write(
-        "%s %s" %("Platform".ljust(le,'.'),(str(platform)).ljust(le)+"\n\n"))
+        "%s %s" %("Platform ".ljust(le,'.'),(str(platform)).ljust(le)+"\n\n"))
     sys.stdout.flush()
     time.sleep(0.25)
     
     #check python version
     pyversion = sys.version.partition(" ")[0]
     sys.stdout.write(
-        "%s %s" % ("Python version:".ljust(le,'.'),pyversion.ljust(le)))
+        "%s %s" % ("Python version ".ljust(le,'.'),pyversion.ljust(le)))
     sys.stdout.write("\n\n")
     sys.stdout.flush()
     time.sleep(0.25)

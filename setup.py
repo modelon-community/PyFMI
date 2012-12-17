@@ -206,6 +206,23 @@ def check_extensions():
 
 ext_list = check_extensions()
 
+try:
+    from subprocess import Popen, PIPE
+    _p = Popen(["svnversion", "."], stdout=PIPE)
+    revision = _p.communicate()[0][:-2] #Remove the last M
+except:
+    revision = "unknown"
+version_txt = 'src'+O.path.sep+'pyfmi'+O.path.sep+'version.txt'
+
+#If a revision is found, always write it!
+if revision != "unknown" and revision!="":
+    with open(version_txt, 'w') as f:
+        f.write("r"+revision)
+else:# If it does not, check if the file exists and if not, create the file!
+    if not O.path.isfile(version_txt):
+        with open(version_txt, 'w') as f:
+            f.write("unknown")
+
 setup(name=NAME,
       version=VERSION,
       license=LICENSE,
@@ -223,6 +240,7 @@ setup(name=NAME,
       package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*.fmu',
                                'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'*.txt',
                                'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS1.0'+O.path.sep+'*',
+                               'version.txt',
                                'util'+O.path.sep+'*']+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])},
       script_args=copy_args
       )
