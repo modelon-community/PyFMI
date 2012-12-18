@@ -463,7 +463,8 @@ cdef class FMUModelBase(BaseModel):
         
         #Connect the DLL
         global FMI_REGISTER_GLOBALLY
-        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
+        #status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
+        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, 0);
         if status == FMIL.jm_status_error:
             last_error = FMIL.fmi1_import_get_last_error(self._fmu)
             raise FMUException(last_error)
