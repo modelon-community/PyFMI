@@ -95,7 +95,8 @@ FMI_OUTPUTS = 2
 #CALLBACKS
 cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
     #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
-    (<FMUModelBase>c.context)._logger(module,log_level,message)
+    if c.context!=NULL:
+        (<FMUModelBase>c.context)._logger(module,log_level,message)
 
 #CALLBACKS
 cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
@@ -463,8 +464,8 @@ cdef class FMUModelBase(BaseModel):
         
         #Connect the DLL
         global FMI_REGISTER_GLOBALLY
-        #status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
-        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, 0);
+        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
+        #status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, 0);
         if status == FMIL.jm_status_error:
             last_error = FMIL.fmi1_import_get_last_error(self._fmu)
             raise FMUException(last_error)
