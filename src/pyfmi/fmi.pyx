@@ -2545,6 +2545,13 @@ cdef class FMUModelME1(FMUModelBase):
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
     
+    def terminate(self):
+        """
+        Calls the FMI function fmiTerminate() on the FMU. 
+        After this call, any call to a function changing the state of the FMU will fail.
+        """
+        FMIL.fmi1_import_terminate(self._fmu)
+    
 
 #Temporary should be removed! (after a period)
 cdef class FMUModel(FMUModelME1):
