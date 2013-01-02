@@ -54,7 +54,7 @@ class CVodeDebugInformation(DebugInformation):
                 elif row_data.startswith("State variables:"):
                     self.state_variables = row_data.replace(",","").split(" ")[2:-1]
                 elif row_data.startswith("Detected"):
-                    self.events.append(row_data.split(" ")[-2])
+                    self.events.append(float(row_data.split(" ")[-2]))
                 if not row_data:
                     break
     
@@ -65,6 +65,11 @@ class CVodeDebugInformation(DebugInformation):
         P.xlabel("Time [s]")
         P.ylabel("Order")
         P.title("Order evolution")
+        
+        self._plot_events()
+        
+        P.legend(("Order","Events"))
+        
         P.show()
         
     def plot_error(self):
@@ -77,10 +82,14 @@ class CVodeDebugInformation(DebugInformation):
         P.show()
         
     def plot_time_distribution(self):
-        total_time = self.real_time[-1]
-        P.plot(self.simulated_time,N.diff([0.0]+self.real_time)/total_time)
+        total_time = N.sum(self.real_time)
+        P.plot(self.simulated_time,self.real_time/total_time)
         P.xlabel("Time [s]")
         P.ylabel("Real Time (scaled)")
+        
+        self._plot_events()
+        P.legend(("Time","Events"))
+        
         P.grid()
         P.show()
     
@@ -91,3 +100,7 @@ class CVodeDebugInformation(DebugInformation):
         P.title("Step-size history")
         P.grid()
         P.show()
+        
+    def _plot_events(self):
+        for ev in self.events:
+            P.axvline(x=ev,color='r')

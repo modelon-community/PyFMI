@@ -283,7 +283,6 @@ class FMIODE(Explicit_Problem):
         """
         This method is called when Assimulo finds an event.
         """
-        event_time_elapsed = time.clock() #Dont count event time
         
         if self._logging:
             with open (self.debug_file_name, 'a') as f: 
@@ -336,9 +335,6 @@ class FMIODE(Explicit_Problem):
                 if solver.__class__.__name__=="CVode": #Only available for CVode
                     header += "Order | Error (Weighted)"
                 f.write(header+"\n")
-        
-        #Account for event time
-        self._timer -= (time.clock()-event_time_elapsed)
 
     def step_events(self, solver):
         """
@@ -346,7 +342,7 @@ class FMIODE(Explicit_Problem):
         """
         if self._logging:
             with open (self.debug_file_name, 'a') as f:
-                data_line = "%.14E"%solver.t+" | %.14E"%(time.clock()-self._timer)
+                data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
                 #f.write(" Successful step at t = %.14E"%solver.t)
                 #f.write(" Elapsed (real) time: %.14E"%(time.clock()-self._timer))
                 
@@ -419,7 +415,6 @@ class FMIODE(Explicit_Problem):
                 if solver.__class__.__name__=="CVode": #Only available for CVode
                     header += "Order | Error (Weighted)"
                 f.write(header+"\n")
-        self._timer = time.clock()
     
     def finalize(self, solver):
         if solver.continuous_output:
