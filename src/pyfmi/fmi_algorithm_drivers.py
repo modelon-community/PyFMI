@@ -121,6 +121,11 @@ class AssimuloFMIAlgOptions(OptionBase):
             Specifies if the result should be written to file at each result
             point. This is necessary in the FMI case.
             Default: True
+            
+        logging --
+            If True, creates a logfile from the solver in the current
+            directory.
+            Default: False
 
                  
     The different solvers provided by the Assimulo simulation package provides
@@ -159,6 +164,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'result_file_name':'',
             'with_jacobian':False,
             'continuous_output':True,
+            'logging':False,
             'CVode_options':{'discr':'BDF','iter':'Newton',
                              'atol':"Default",'rtol':"Default",},
             'Radau5_options':{'atol':"Default",'rtol':"Default"}
@@ -262,16 +268,16 @@ class AssimuloFMIAlg(AlgorithmBase):
         
         if not self.input:
             if self.options["sensitivities"]:
-                self.probl = FMIODESENS(self.model, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,parameters=self.options["sensitivities"])
+                self.probl = FMIODESENS(self.model, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"])
             else:
-                self.probl = FMIODE(self.model, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time)
+                self.probl = FMIODE(self.model, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,logging=self.options["logging"])
         else:
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS(
-                self.model, input_traj, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,parameters=self.options["sensitivities"])
+                self.model, input_traj, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"])
             else:
                 self.probl = FMIODE(
-                self.model, input_traj, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time)
+                self.model, input_traj, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,logging=self.options["logging"])
         
         # instantiate solver and set options
         self.simulator = self.solver(self.probl)
