@@ -448,7 +448,10 @@ cdef class FMUModelBase(BaseModel):
         
         if version == FMIL.fmi_version_unknown_enu:
             last_error = FMIL.jm_get_last_error(&self.callbacks)
-            raise FMUException("The FMU version could not be determined. "+last_error)
+            if enable_logging:
+                raise FMUException("The FMU version could not be determined. "+last_error)
+            else:
+                raise FMUException("The FMU version could not be determined. Enable logging for possibly more information.")
         if version != 1:
             raise FMUException("PyFMI currently only supports FMI 1.0.")
         
@@ -1651,8 +1654,8 @@ cdef class FMUModelCS1(FMUModelBase):
         if self._allocated_xml:  
             FMIL.fmi1_import_free(self._fmu)
         
-        if self._fmu_temp_dir:
-            FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+        #if self._fmu_temp_dir:
+        #    FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
         
         if self._allocated_context:
             FMIL.fmi_import_free_context(self.context)
@@ -2098,8 +2101,8 @@ cdef class FMUModelME1(FMUModelBase):
         if self._allocated_xml:  
             FMIL.fmi1_import_free(self._fmu)
         
-        if self._fmu_temp_dir:
-            FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+        #if self._fmu_temp_dir:
+        #    FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
         
         if self._allocated_context:
             FMIL.fmi_import_free_context(self.context)
@@ -2617,7 +2620,7 @@ def load_fmu(fmu, path='.', enable_logging=True):
         
     #Specify FMI related callbacks
     callBackFunctions.logger = FMIL.fmi1_log_forwarding;
-    callBackFunctions.allocateMemory = FMIL.calloc;
+    callBackFunctions.allocateMemory = FMIL.calloc; 
     callBackFunctions.freeMemory = FMIL.free;
         
     context = FMIL.fmi_import_allocate_context(&callbacks)
@@ -2633,7 +2636,10 @@ def load_fmu(fmu, path='.', enable_logging=True):
         if allocated_context:
             FMIL.fmi_import_free_context(context)
         
-        raise FMUException("The FMU version could not be determined. "+last_error)
+        if enable_logging:
+            raise FMUException("The FMU version could not be determined. "+last_error)
+        else:
+            raise FMUException("The FMU version could not be determined. Enable logging for possibly more information.")
     if version != 1:
         #Delete the context
         if allocated_context:
