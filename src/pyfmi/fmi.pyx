@@ -414,14 +414,6 @@ cdef class FMUModelBase(BaseModel):
         self._allocated_list = False
         self._fmu_temp_dir = None
         
-        fmu_full_path = os.path.abspath(os.path.join(path,fmu))
-        fmu_temp_dir  = create_temp_dir()
-        self._fmu_temp_dir = fmu_temp_dir
-        
-        # Check that the file referenced by fmu has the correct file-ending
-        if not fmu_full_path.endswith(".fmu"):
-            raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
-        
         #Specify the general callback functions
         self.callbacks.malloc  = FMIL.malloc
         self.callbacks.calloc  = FMIL.calloc
@@ -431,6 +423,14 @@ cdef class FMUModelBase(BaseModel):
         #self.callbacks.context = NULL;
         self.callbacks.context = <void*>self #Class loggger
         self.callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
+        
+        fmu_full_path = os.path.abspath(os.path.join(path,fmu))
+        fmu_temp_dir  = create_temp_dir()
+        self._fmu_temp_dir = fmu_temp_dir
+        
+        # Check that the file referenced by fmu has the correct file-ending
+        if not fmu_full_path.endswith(".fmu"):
+            raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
         
         #Specify FMI related callbacks
         self.callBackFunctions.logger = FMIL.fmi1_log_forwarding;
@@ -1657,8 +1657,8 @@ cdef class FMUModelCS1(FMUModelBase):
         if self._allocated_xml:  
             FMIL.fmi1_import_free(self._fmu)
         
-        #if self._fmu_temp_dir:
-        #    FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+        if self._fmu_temp_dir:
+            FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
         
         if self._allocated_context:
             FMIL.fmi_import_free_context(self.context)
@@ -2104,8 +2104,8 @@ cdef class FMUModelME1(FMUModelBase):
         if self._allocated_xml:  
             FMIL.fmi1_import_free(self._fmu)
         
-        #if self._fmu_temp_dir:
-        #    FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+        if self._fmu_temp_dir:
+            FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
         
         if self._allocated_context:
             FMIL.fmi_import_free_context(self.context)
