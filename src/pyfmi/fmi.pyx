@@ -471,7 +471,10 @@ cdef class FMUModelBase(BaseModel):
         #status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, 0);
         if status == FMIL.jm_status_error:
             last_error = FMIL.fmi1_import_get_last_error(self._fmu)
-            raise FMUException(last_error)
+            if enable_logging:
+                raise FMUException(last_error)
+            else:
+                raise FMUException("Error loading the binary. Enable logging for possibly more information.")
             #raise FMUException("The DLL could not be loaded, reported error: "+ last_error)
         self._allocated_dll = True
         FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
