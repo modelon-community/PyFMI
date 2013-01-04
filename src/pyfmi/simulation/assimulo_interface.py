@@ -282,15 +282,7 @@ class FMIODE(Explicit_Problem):
     def handle_event(self, solver, event_info):
         """
         This method is called when Assimulo finds an event.
-        """
-        
-        if self._logging:
-            with open (self.debug_file_name, 'a') as f: 
-                f.write("\nDetected event at t = %.14E \n"%solver.t)
-                f.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
-                f.write(" Time  event info:  "+str(event_info[1])+ "\n\n")
-                
-        
+        """                
         #Moving data to the model
         if solver.t!= self._model.time:
             self._model.time = solver.t
@@ -305,7 +297,23 @@ class FMIODE(Explicit_Problem):
             
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
-            
+        
+        if self._logging:
+            with open (self.debug_file_name, 'a') as f: 
+                f.write("\nDetected event at t = %.14E \n"%solver.t)
+                f.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
+                f.write(" Time  event info:  "+str(event_info[1])+ "\n")
+                
+                str_ind = ""
+                for i in self._model.get_event_indicators():
+                    str_ind += " %.14E"%i
+                str_states = ""
+                for i in solver.y:
+                    str_states += " %.14E"%i
+                str_der = ""
+                for i in self._model.get_derivatives():
+                    str_der += " %.14E"%i
+        
         eInfo = self._model.get_event_info()
         eInfo.iterationConverged = False
 
@@ -330,7 +338,24 @@ class FMIODE(Explicit_Problem):
             raise TerminateSimulation #Exception from Assimulo
             
         if self._logging:
-            with open (self.debug_file_name, 'a') as f: 
+            with open (self.debug_file_name, 'a') as f:
+                str_ind2 = ""
+                for i in self._model.get_event_indicators():
+                    str_ind2 += " %.14E"%i
+                str_states2 = ""
+                for i in solver.y:
+                    str_states2 += " %.14E"%i
+                str_der2 = ""
+                for i in self._model.get_derivatives():
+                    str_der2 += " %.14E"%i
+                
+                f.write(" Indicators (pre) : "+str_ind + "\n")
+                f.write(" Indicators (post): "+str_ind2+"\n")
+                f.write(" States (pre) : "+str_states + "\n")
+                f.write(" States (post): "+str_states2 + "\n")
+                f.write(" Derivatives (pre) : "+str_der + "\n")
+                f.write(" Derivatives (post): "+str_der2 + "\n\n")
+                
                 header = "Time (simulated) | Time (real) | "
                 if solver.__class__.__name__=="CVode": #Only available for CVode
                     header += "Order | Error (Weighted)"
