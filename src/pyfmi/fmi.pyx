@@ -1522,7 +1522,31 @@ cdef class FMUModelBase(BaseModel):
         variability = FMIL.fmi1_import_get_variability(variable)
         
         return variability
+    
+    def get_variable_by_valueref(self, FMIL.fmi1_value_reference_t valueref, type=0):
+        """
+        Get the name of a variable given a value reference. Note that it 
+        returns the no-aliased variable.
         
+        Parameters::
+        
+            valueref --
+                The value reference of the variable
+            
+            type --
+                The type of the variables (Real==0, Int==1, Bool=2,
+                String==3, Enumeration==4). Default 0 (i.e Real).
+        """
+        cdef FMIL.fmi1_import_variable_t* variable
+        
+        variable = FMIL.fmi1_import_get_variable_by_vr(self._fmu, type, valueref)
+        if variable==NULL:
+            raise FMUException("The variable with the valuref %i could not be found."%valueref)
+            
+        name = FMIL.fmi1_import_get_variable_name(variable)
+        
+        return name
+    
     cpdef FMIL.fmi1_causality_enu_t get_variable_causality(self, char* variablename) except *:
         """
         Get the causality of the variable.
