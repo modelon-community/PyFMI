@@ -24,6 +24,7 @@ import logging
 import numpy as N
 import numpy.linalg as LIN
 import pylab as P
+import time
 
 from pyfmi.common.io import ResultWriterDymola, ResultWriterDymola_deprecated
 import pyfmi.fmi as fmi
@@ -104,7 +105,7 @@ class FMIODE(Explicit_Problem):
     An Assimulo Explicit Model extended to FMI interface.
     """
     def __init__(self, model, input=None, result_file_name='',
-                 with_jacobian=False, start_time=0.0):
+                 with_jacobian=False, start_time=0.0, logging=False):
         """
         Initialize the problem.
         """
@@ -138,6 +139,7 @@ class FMIODE(Explicit_Problem):
             self.result_file_name = model.get_name()+'_result.txt'
         else:
             self.result_file_name = result_file_name
+        self.debug_file_name = model.get_name().replace(".","_")+'_debug.txt'
         
         #Default values
         self.export = ResultWriterDymola_deprecated(model) if (isinstance(model,fmi_deprecated.FMUModel) or isinstance(model,fmi_deprecated.FMUModel2)) else ResultWriterDymola(model)
@@ -149,6 +151,7 @@ class FMIODE(Explicit_Problem):
         self._sol_bool = []
         self._logg_step_event = []
         self._write_header = True
+        self._logging = logging
         
         #Stores the first time point
         #[r,i,b] = self._model.save_time_point()
@@ -279,7 +282,7 @@ class FMIODE(Explicit_Problem):
     def handle_event(self, solver, event_info):
         """
         This method is called when Assimulo finds an event.
-        """
+        """                
         #Moving data to the model
         if solver.t!= self._model.time:
             self._model.time = solver.t
@@ -294,7 +297,23 @@ class FMIODE(Explicit_Problem):
             
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
-            
+        
+        if self._logging:
+            with open (self.debug_file_name, 'a') as f: 
+                f.write("\nDetected event at t = %.14E \n"%solver.t)
+                f.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
+                f.write(" Time  event info:  "+str(event_info[1])+ "\n")
+                
+                str_ind = ""
+                for i in self._model.get_event_indicators():
+                    str_ind += " %.14E"%i
+                str_states = ""
+                for i in solver.y:
+                    str_states += " %.14E"%i
+                str_der = ""
+                for i in self._model.get_derivatives():
+                    str_der += " %.14E"%i
+        
         eInfo = self._model.get_event_info()
         eInfo.iterationConverged = False
 
@@ -317,11 +336,54 @@ class FMIODE(Explicit_Problem):
         #Check if the simulation should be terminated
         if eInfo.terminateSimulation:
             raise TerminateSimulation #Exception from Assimulo
-        
+            
+        if self._logging:
+            with open (self.debug_file_name, 'a') as f:
+                str_ind2 = ""
+                for i in self._model.get_event_indicators():
+                    str_ind2 += " %.14E"%i
+                str_states2 = ""
+                for i in solver.y:
+                    str_states2 += " %.14E"%i
+                str_der2 = ""
+                for i in self._model.get_derivatives():
+                    str_der2 += " %.14E"%i
+                
+                f.write(" Indicators (pre) : "+str_ind + "\n")
+                f.write(" Indicators (post): "+str_ind2+"\n")
+                f.write(" States (pre) : "+str_states + "\n")
+                f.write(" States (post): "+str_states2 + "\n")
+                f.write(" Derivatives (pre) : "+str_der + "\n")
+                f.write(" Derivatives (post): "+str_der2 + "\n\n")
+                
+                header = "Time (simulated) | Time (real) | "
+                if solver.__class__.__name__=="CVode": #Only available for CVode
+                    header += "Order | Error (Weighted)"
+                f.write(header+"\n")
+
     def step_events(self, solver):
         """
         Method which is called at each successful step.
         """
+        if self._logging:
+            with open (self.debug_file_name, 'a') as f:
+                data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
+                #f.write(" Successful step at t = %.14E"%solver.t)
+                #f.write(" Elapsed (real) time: %.14E"%(time.clock()-self._timer))
+                
+                if solver.__class__.__name__=="CVode": #Only available for CVode
+                    #f.write(" Current order: "+str(solver.get_last_order()))
+                    ele = solver.get_local_errors()
+                    eweight = solver.get_error_weights()
+                    err = ele*eweight
+                    str_err = " |"
+                    for i in err:
+                        str_err += " %.14E"%i
+                    #f.write(" Local (weighted) error vector:"+ str_err)
+                    #f.write("\n")
+                    data_line += " | %d"%solver.get_last_order()+str_err
+                f.write(data_line+"\n")
+        
         #Moving data to the model
         if solver.t != self._model.time:
             self._model.time = solver.t
@@ -354,6 +416,31 @@ class FMIODE(Explicit_Problem):
             print 'Event at time: %e'%self._logg_step_event[i]
         print '\nNumber of events: ',len(self._logg_step_event)
     
+    def initialize(self, solver):
+        if self._logging:
+            with open (self.debug_file_name, 'w') as f: 
+                model_valref = self._model.get_state_value_references()
+                names = ""
+                for i in model_valref:
+                    names += self._model.get_variable_by_valueref(i) + ", "
+            
+                f.write("Solver: %s \n"%solver.__class__.__name__)
+                f.write("State variables: "+names+ "\n")
+                
+                str_y = ""
+                for i in solver.y:
+                    str_y += " %.14E"%i
+                
+                f.write("Initial values: t = %.14E \n"%solver.t)
+                f.write("Initial values: y ="+str_y+"\n\n")
+                
+                
+                
+                header = "Time (simulated) | Time (real) | "
+                if solver.__class__.__name__=="CVode": #Only available for CVode
+                    header += "Order | Error (Weighted)"
+                f.write(header+"\n")
+    
     def finalize(self, solver):
         if solver.continuous_output:
             self.export.write_finalize()
@@ -377,11 +464,11 @@ class FMIODESENS(FMIODE):
     FMIODE extended with sensitivity simulation capabilities
     """
     def __init__(self, model, input=None, result_file_name='',
-                 with_jacobian=False, start_time=0.0, parameters=None):
+                 with_jacobian=False, start_time=0.0, parameters=None, logging=False):
                      
         #Call FMIODE init method
         FMIODE.__init__(self, model, input, result_file_name, with_jacobian,
-                start_time)
+                start_time,logging)
                 
         #Store the parameters
         if parameters != None:
