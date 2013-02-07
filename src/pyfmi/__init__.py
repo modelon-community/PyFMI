@@ -18,7 +18,7 @@
 The JModelica.org Python package for working with FMI <http:/www.jmodelica.org/>
 """
 
-__all__ = ['fmi_algorithm_drivers', 'examples', 'fmi', 'common']
+__all__ = ['fmi_algorithm_drivers', 'examples', 'fmi', 'common', 'logger_util']
 
 #Import the model class allowing for users to type: from pyfmi import FMUModel
 from fmi import FMUModel, load_fmu
