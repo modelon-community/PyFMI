@@ -457,6 +457,12 @@ cdef class FMUModelBase(BaseModel):
         
         #Parse the XML
         self._fmu = FMIL.fmi1_import_parse_xml(self.context, fmu_temp_dir)
+        if self._fmu == NULL:
+            last_error = FMIL.jm_get_last_error(&self.callbacks)
+            if enable_logging:
+                raise FMUException("The XML file could not be parsed. "+last_error)
+            else:
+                raise FMUException("The XML file could not be parsed. Enable logging for possibly more information.")
         self._allocated_xml = True
         
         #Check the FMU kind
@@ -2666,6 +2672,12 @@ def load_fmu(fmu, path='.', enable_logging=True):
         
     #Parse the XML
     _fmu = FMIL.fmi1_import_parse_xml(context, fmu_temp_dir)
+    if _fmu == NULL:
+        last_error = FMIL.jm_get_last_error(&callbacks)
+        if enable_logging:
+            raise FMUException("The XML file could not be parsed. "+last_error)
+        else:
+            raise FMUException("The XML file could not be parsed. Enable logging for possibly more information.")
     allocated_xml = True
         
     #Check the FMU kind
