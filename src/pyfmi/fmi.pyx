@@ -1592,7 +1592,21 @@ cdef class FMUModelBase(BaseModel):
         cdef char* author
         author = FMIL.fmi1_import_get_author(self._fmu)
         return author if author != NULL else ""
-        
+    
+    def get_default_experiment_start_time(self):
+        """
+        Returns the default experiment start time as defined the XML
+        description.
+        """
+        return FMIL.fmi1_import_get_default_experiment_start(self._fmu)
+    
+    def get_default_experiment_stop_time(self):
+        """
+        Returns the default experiment stop time as defined the XML
+        description.
+        """
+        return FMIL.fmi1_import_get_default_experiment_stop(self._fmu)
+    
     def get_description(self):
         """
         Return the model description.
