@@ -1612,6 +1612,13 @@ cdef class FMUModelBase(BaseModel):
         description.
         """
         return FMIL.fmi1_import_get_default_experiment_stop(self._fmu)
+        
+    def get_default_experiment_tolerance(self):
+        """
+        Returns the default experiment tolerance as defined in the XML
+        description.
+        """
+        return FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
     
     def get_description(self):
         """
@@ -2269,7 +2276,8 @@ cdef class FMUModelME1(FMUModelBase):
             
             [rtol, atol] = model.get_tolerances()
         """
-        rtol = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
+        #rtol = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
+        rtol = self.get_default_experiment_tolerance()
         atol = 0.01*rtol*self.nominal_continuous_states
         
         return [rtol, atol]
