@@ -2727,7 +2727,7 @@ def load_fmu(fmu, path='.', enable_logging=True,log_file_name=""):
         if allocated_context:
             FMIL.fmi_import_free_context(context)
         
-        raise FMUException("PyFMI currently only supports FMI 1.0 for Model Exchange.")    
+        raise FMUException("PyFMI currently only supports FMI 1.0.")    
         
     #Delete the XML
     if allocated_xml:  
