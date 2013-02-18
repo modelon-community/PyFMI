@@ -120,6 +120,8 @@ cdef extern from 'fmilib.h':
     ctypedef enum fmi_version_enu_t:
         fmi_version_unknown_enu = 0
         fmi_version_1_enu = 1
+        fmi_version_2_0_enu = 2
+        fmi_version_unsupported_enu = 3
     
     cdef enum fmi1_causality_enu_t:
         fmi1_causality_enu_input = 0
@@ -276,7 +278,7 @@ cdef extern from 'fmilib.h':
     ctypedef void *(*fmi1_callback_allocate_memory_ft)(size_t, size_t)
     ctypedef void(*fmi1_callback_free_memory_ft)(void *)
     ctypedef void(*fmi1_callback_logger_ft)(fmi1_component_t c, fmi1_string_t instanceName, fmi1_status_t status, fmi1_string_t category, fmi1_string_t message, ...)
-    ctypedef void(*fmi2_callback_logger_ft)(fmi2_component_environment_t env,fmi2_string_t instanceName, fmi2_status_t status, fmi2_string_t category,fmi2_string_t message,...)
+    ctypedef void(*fmi2_callback_logger_ft)(fmi2_component_t c,fmi2_string_t instanceName, fmi2_status_t status, fmi2_string_t category,fmi2_string_t message,...)
     ctypedef void(*fmi1_step_finished_ft)(fmi1_component_t c, fmi1_status_t status)
     ctypedef void(*fmi2_step_finished_ft)(fmi2_component_environment_t env, fmi2_status_t status)
     #ctypedef void (*jm_logger_f)(jm_callbacks* c, jm_string module, jm_log_level_enu_t log_level, jm_string message)
@@ -925,7 +927,7 @@ cdef extern from 'fmilib.h':
     void fmi2_import_get_dependencies_outputs_on_states(fmi2_import_t *, size_t * *, size_t * *, char * *)
     void fmi2_import_free_variable_list(fmi2_import_variable_list_t *)
     char * fmi2_base_type_to_string(fmi2_base_type_enu_t)
-    void fmi2_log_forwarding(fmi2_component_t, fmi2_string_t, int, fmi2_string_t, fmi2_string_t)
+    void fmi2_log_forwarding(fmi2_component_t, fmi2_string_t, fmi2_status_t, fmi2_string_t, fmi2_string_t,...)
     
     
     fmi2_import_t * fmi2_import_parse_xml(fmi_import_context_t *, char *, fmi2_xml_callbacks_t *)

@@ -1616,7 +1616,6 @@ cdef class FMUModelBase(BaseModel):
         guid = FMIL.fmi1_import_get_GUID(self._fmu)
         return guid
         
-
 cdef class FMUModelCS1(FMUModelBase):
     #First step only support fmi1_fmu_kind_enu_cs_standalone
     #stepFinished not supported
@@ -2579,11 +2578,37 @@ cdef class FMUModelME1(FMUModelBase):
         FMIL.fmi1_import_terminate(self._fmu)
     
 
+cdef class FMUModelBase2(BaseModel):
+    """
+    An appropriate docstring
+    """
+    def say_hi(self):
+        print('Hi, Im your loaded FMU 2.0, please simulate me in May')
+
+cdef class FMUModelCS2(FMUModelBase2):
+    """
+    An appropriate docstring
+    """
+    def say_hi(self):
+        print('Hi, ive been instantiated as a CS2 model')
+
+cdef class FMUModelME2(FMUModelBase2):
+    """
+    An appropriate docstring
+    """
+    def say_hi(self):
+        print('Hi, ive been instantiated as a ME2 model')
+
+
+
+
+
 #Temporary should be removed! (after a period)
 cdef class FMUModel(FMUModelME1):
     def __init__(self, fmu, path='.', enable_logging=True):
         print "WARNING: This class is deprecated and has been superseded with FMUModelME1. The recommended entry-point for loading an FMU is now the function load_fmu."
         FMUModelME1.__init__(self,fmu,path,enable_logging)
+
 
 def load_fmu(fmu, path='.', enable_logging=True):
     """
@@ -2613,11 +2638,11 @@ def load_fmu(fmu, path='.', enable_logging=True):
         raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
     
     #Specify the general callback functions
-    callbacks.malloc  = FMIL.malloc
-    callbacks.calloc  = FMIL.calloc
-    callbacks.realloc = FMIL.realloc
-    callbacks.free    = FMIL.free
-    callbacks.logger  = importlogger_load_fmu
+    callbacks.malloc    = FMIL.malloc
+    callbacks.calloc    = FMIL.calloc
+    callbacks.realloc   = FMIL.realloc
+    callbacks.free      = FMIL.free
+    callbacks.logger    = importlogger_load_fmu
     callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
     #callbacks.errMessageBuffer = NULL
         
@@ -2672,7 +2697,7 @@ def load_fmu(fmu, path='.', enable_logging=True):
         raise FMUException("PyFMI currently only supports FMI 1.0 for Model Exchange.")    
         
     #Delete the XML
-    if allocated_xml:  
+    if allocated_xml:     
         FMIL.fmi1_import_free(_fmu)
         
     #Delete the context
@@ -2683,3 +2708,174 @@ def load_fmu(fmu, path='.', enable_logging=True):
     delete_temp_dir(fmu_temp_dir)
 
     return model
+     
+
+def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
+    """
+    Load-function for FMU 2.0 with the following arguments:
+    1) fmu-filename given as string
+    2) path to the fmu-directory. Default: '.' (working directory)
+    3) enable_logging as Boolean for acesss to logging-messages. Default: True
+    4) kind is 'ME' , 'CS' or 'auto' . Specifies type to be instanciated if both availible,
+       only works for FMU 2.0. Auto priors ME before CS. Default: auto
+    """
+    
+    #FMIL related variables
+    cdef FMIL.fmi_import_context_t*     context
+    cdef FMIL.jm_callbacks              callbacks
+    #cdef FMIL.fmi2_xml_callbacks_t      xml_callbacks
+    cdef FMIL.fmi1_callback_functions_t callBackFunctions_1
+    cdef FMIL.fmi2_callback_functions_t callBackFunctions_2
+    cdef FMIL.jm_string                 last_error
+    cdef FMIL.fmi_version_enu_t         version  
+    cdef FMIL.fmi1_import_t*            fmu_1
+    cdef FMIL.fmi2_import_t*            fmu_2
+    cdef FMIL.fmi1_fmu_kind_enu_t       fmu_1_kind
+    cdef FMIL.fmi2_fmu_kind_enu_t       fmu_2_kind
+    
+    #Variables for deallocation																		
+    fmu_temp_dir = None
+    
+    
+    # Check that the file referenced by fmu has the correct file-ending
+    fmu_full_path = os.path.abspath(os.path.join(path,fmu))
+    if not fmu_full_path.endswith('.fmu'):
+        raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
+    
+    #Check that kind-argument is well-defined
+    if not kind.lower() == 'auto':
+        if not kind.upper() == 'ME' or kind.upper() == 'CS':
+            raise FMUException('Requested model-type can only be "ME" , "CS" or "auto" (default).')
+
+    
+    #Specify FMI related callbacks
+    callbacks.malloc    = FMIL.malloc
+    callbacks.calloc    = FMIL.calloc
+    callbacks.realloc   = FMIL.realloc
+    callbacks.free      = FMIL.free
+    callbacks.logger    = importlogger_load_fmu
+    callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
+    
+    
+    #Specify the xml_callbacks for FMU2
+    #xml_callbacks.startHandle = None
+    #xml_callbacks.dataHandle  = None
+    #xml_callbacks.endHandle   = None
+    #xml_callbacks.context     = None
+    
+    #Specify the general FMU1 callback functions
+    callBackFunctions_1.logger         = FMIL.fmi1_log_forwarding
+    callBackFunctions_1.allocateMemory = FMIL.calloc
+    callBackFunctions_1.freeMemory     = FMIL.free
+    
+    #Specify the general FMU2 callback functions
+    callBackFunctions_2.logger               = FMIL.fmi2_log_forwarding
+    callBackFunctions_2.allocateMemory       = FMIL.calloc
+    callBackFunctions_2.freeMemory           = FMIL.free
+    
+    
+    # Create a struct for allocation
+    context = FMIL.fmi_import_allocate_context(&callbacks)
+        
+    #Get the FMI version of the provided model
+    fmu_temp_dir = create_temp_dir()
+    version = FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
+    
+
+    #Check the version
+    if version == FMIL.fmi_version_unknown_enu: 
+        #Delete context
+        last_error = FMIL.jm_get_last_error(&callbacks)
+        FMIL.fmi_import_free_context(context)
+        FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+        if enable_logging:
+            raise FMUException("The FMU version could not be determined. "+last_error)
+        else:
+            raise FMUException("The FMU version could not be determined. Enable logging for possibly more information.")
+    
+    if version > 2: 
+        #Delete the context
+        last_error = FMIL.jm_get_last_error(&callbacks)
+        FMIL.fmi_import_free_context(context)
+        FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+        if enable_logging:
+            raise FMUException("The FMU version is unsupported. "+last_error)
+        else:
+            raise FMUException("The FMU version is unsupported. Enable logging for possibly more information.")
+
+    
+    #Parse the xml
+    if version == 1:
+	    #Check the fmu-kind
+        fmu_1 = FMIL.fmi1_import_parse_xml(context,fmu_temp_dir)
+        fmu_1_kind = FMIL.fmi1_import_get_fmu_kind(fmu_1)
+    
+        #Compare fmu_kind with input-specified kind
+        if fmu_1_kind == FMI_ME and kind.upper() != 'CS':
+            model=FMUModelME1(fmu, path, enable_logging)
+        elif fmu_1_kind == FMI_CS_STANDALONE and kind.upper() != 'ME':
+            model=FMUModelCS1(fmu, path, enable_logging)
+        elif fmu_1_kind == FMIL.fmi1_fmu_kind_enu_cs_tool: 																					
+            FMIL.fmi1_import_free(fmu_1)
+            FMIL.fmi_import_free_context(context)
+            FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+            raise FMUException("PyFMI does not support co-simulation tool")   
+        else: 
+            FMIL.fmi1_import_free(fmu_1)
+            FMIL.fmi_import_free_context(context)
+            FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+            raise FMUException("FMU type does not coinside with argument specified type")
+    
+    elif version == 2:																						
+        #Check fmu-kind and compare with input-specified kind
+        fmu_2 = FMIL.fmi2_import_parse_xml(context,fmu_temp_dir, NULL) 
+        fmu_2_kind = FMIL.fmi2_import_get_fmu_kind(fmu_2)
+		
+        #FMU kind is unknown
+        if fmu_2_kind == FMIL.fmi2_fmu_kind_unknown:
+            last_error = FMIL.jm_get_last_error(&callbacks)
+            FMIL.fmi2_import_free(fmu_2)
+            FMIL.fmi_import_free_context(context)
+            FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+            if enable_logging:
+                raise FMUException("The FMU kind could not be determined. "+last_error)
+            else:
+                raise FMUException("The FMU kind could not be determined. Enable logging for possibly more information.")
+        
+        #FMU kind is known
+        if kind.lower() == 'auto':
+            if fmu_2_kind == FMIL.fmi2_fmu_kind_cs: 
+                model = FMUModelCS2()
+            elif fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
+                model = FMUModelME2()        
+        elif kind.upper() == 'CS':
+            if fmu_2_kind == FMIL.fmi2_fmu_kind_cs or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs: 
+                model = FMUModelCS2()
+        elif kind.upper() == 'ME':
+            if fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
+                model = FMUModelME2()
+        else:
+            FMIL.fmi2_import_free(fmu_2)
+            FMIL.fmi_import_free_context(context)
+            FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+            raise FMUException('FMU is a ' + FMIL.fmi2_fmu_kind_to_string(fmu_2_kind) + ' and not a ' + kind)
+        
+        
+    #Delete
+    if version == FMIL.fmi_version_1_enu:
+        FMIL.fmi1_import_free(fmu_1)
+        FMIL.fmi_import_free_context(context)
+        FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)   		
+      
+    # VERSION 2.0
+    # Clean it up somehow...or pass it ??
+    # pass context, version, fmu_2, fmu_full_path, fmu_temp_dir
+    # pass allocated_context and allocated_xml
+    
+    return model
+
+
+
+
+
+
