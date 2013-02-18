@@ -112,7 +112,7 @@ cdef void fmilogger(FMIL.fmi1_component_t c, FMIL.fmi1_string_t instanceName, FM
     FMIL.va_end(args)
     print "FMU: fmiStatus = %d;  %s (%s): %s\n"%(status, instanceName, category, buf)
 
-cdef class BaseModel:
+cdef class ModelBase:
     """ 
     Abstract Model class containing base functionality.
     """
@@ -362,7 +362,7 @@ cdef class ScalarVariable:
     alias = property(_get_alias)
     
 
-cdef class FMUModelBase(BaseModel):
+cdef class FMUModelBase(ModelBase):
     """
     An FMI Model loaded from a DLL.
     """
@@ -2578,7 +2578,7 @@ cdef class FMUModelME1(FMUModelBase):
         FMIL.fmi1_import_terminate(self._fmu)
     
 
-cdef class FMUModelBase2(BaseModel):
+cdef class FMUModelBase2(ModelBase):
     """
     An appropriate docstring
     """
