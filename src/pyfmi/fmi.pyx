@@ -94,9 +94,15 @@ FMI_OUTPUTS = 2
 
 #CALLBACKS
 cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-    #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
-    if c.context!=NULL:
+    print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
+    if c.context != NULL:
         (<FMUModelBase>c.context)._logger(module,log_level,message)
+
+#CALLBACKS        
+cdef void importlogger2(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
+    print "FMIL: module = %s, log lovel = %d: %s" %(module, log_level, message)
+    if c.context != NULL:
+        (<FMUModelBase2>c.context)._logger(module, log_level, message)
 
 #CALLBACKS
 cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
@@ -104,6 +110,7 @@ cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, int
         print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
     #(<FMUModelBase>c.context)._logger(module,log_level,message)
 
+#Old, use FMIL.fmi#_log_forwarding instead
 cdef void fmilogger(FMIL.fmi1_component_t c, FMIL.fmi1_string_t instanceName, FMIL.fmi1_status_t status, FMIL.fmi1_string_t category, FMIL.fmi1_string_t message, ...):
     cdef char buf[1000]
     cdef FMIL.va_list args
@@ -465,6 +472,7 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException("PyFMI currently only supports FMI 1.0 for Model Exchange.")
         self._fmu_kind = fmu_kind
         
+  
         #Connect the DLL
         global FMI_REGISTER_GLOBALLY
         status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
@@ -527,6 +535,7 @@ cdef class FMUModelBase(ModelBase):
             print "Could not create JMIModel"
             pass
         """
+    
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
         #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
         self._log.append([module,log_level,message])
@@ -2580,25 +2589,677 @@ cdef class FMUModelME1(FMUModelBase):
 
 cdef class FMUModelBase2(ModelBase):
     """
-    An appropriate docstring
+    FMI Model loaded from a dll.
     """
-    def say_hi(self):
-        print('Hi, Im your loaded FMU 2.0, please simulate me in May')
+    #FMIL related variables
+    cdef FMIL.jm_callbacks              callbacks
+    cdef FMIL.fmi_import_context_t*     _context
+    cdef FMIL.fmi2_callback_functions_t callBackFunctions
+    #cdef FMIL.fmi2_xml_callbacks_t      xmlCallbacks
+    cdef FMIL.fmi2_import_t*            _fmu
+    cdef FMIL.fmi2_fmu_kind_enu_t       _fmu_kind
+    cdef FMIL.fmi_version_enu_t         _version
+    cdef FMIL.jm_string                 last_error
+    cdef FMIL.size_t                    _nEventIndicators
+    cdef FMIL.size_t                    _nContinuousStates
+
+
+    #Internal values
+    cdef list           _log
+    cdef object         _fmu_temp_dir
+    cdef object         _fmu_full_path
+    cdef public object  _enable_logging
+    cdef object         _allocated_context
+    cdef object         _allocated_xml
+    cdef object         _allocated_dll
+    cdef char*          _modelId
+    cdef object         _modelName
+    
+    
+    
+    def __init__(self, fmu, path = '.', enable_logging = True):
+        """
+        Constructor with following input arguments:
+        1)fmu = name of the fmu as a string
+        2)path = path to the fmu-directory. default = '.' (working directory)
+        3)enable_logging = Boolean for acesss to logging-messages. Default = True
+        """
+        
+        cdef int status
+        
+        #Contains the log information
+        self._log = []
+        self._enable_logging    = enable_logging
+        
+        #Used for deallocation       
+        self._allocated_context = False
+        self._allocated_xml     = False
+        self._allocated_dll     = False
+        
+        
+        #Specify the general callback functions
+        self.callbacks.malloc           = FMIL.malloc
+        self.callbacks.calloc           = FMIL.calloc
+        self.callbacks.realloc          = FMIL.realloc
+        self.callbacks.free             = FMIL.free
+        self.callbacks.logger           = importlogger2  #Check this !!!!!!!!! Rewrite another one !?!?!
+        self.callbacks.log_level        = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
+        self.callbacks.context          = <void*> self
+        
+        #Specify FMI2 related callbacks
+        self.callBackFunctions.logger               = FMIL.fmi2_log_forwarding
+        self.callBackFunctions.allocateMemory       = FMIL.calloc
+        self.callBackFunctions.freeMemory           = FMIL.free
+        #self.callBackFunctions.stepFinished         = NULL # ?????
+        #self.callBackFunctions.componentEnvironment = NULL # ?????
+        
+        """#Specify xml_callbacks
+        self.xmlCallbacks.startHandle = 
+        self.xmlCallbacks.dataHandle  = 
+        self.xmlCallbacks.endHandle   = 
+        self.xmlCallbacks.context     = 
+        """
+        
+        #Do the same job as load_fmu
+        
+        # Check that the file referenced by fmu has the correct file-ending
+        self._fmu_full_path = os.path.abspath(os.path.join(path,fmu))
+        if not self._fmu_full_path.endswith('.fmu'):
+            raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
+        
+        #Check that the file exists
+        if not os.path.isfile(self._fmu_full_path): 
+            raise FMUException('Could not locate the FMU in the specified directory.')
+    
+        # Create a struct for allocation
+        self._context = FMIL.fmi_import_allocate_context(&self.callbacks)
+        self._allocated_context = True
+        
+        #Get the FMI version of the provided model
+        self._fmu_temp_dir = create_temp_dir()
+        self._version = FMIL.fmi_import_get_fmi_version(self._context, self._fmu_full_path, self._fmu_temp_dir)
+        
+        #Check the version
+        if self._version == FMIL.fmi_version_unknown_enu: 
+            #Delete context
+            last_error = FMIL.jm_get_last_error(&self.callbacks)
+            FMIL.fmi_import_free_context(self._context)
+            FMIL.fmi_import_rmdir(&self.callbacks,self._fmu_temp_dir)
+            if enable_logging:
+                raise FMUException("The FMU version could not be determined. "+last_error)
+            else:
+                raise FMUException("The FMU version could not be determined. Enable logging for possibly more information.")
+    
+        if self._version != FMIL.fmi_version_2_0_enu: 
+            #Delete the context
+            last_error = FMIL.jm_get_last_error(&self.callbacks)
+            FMIL.fmi_import_free_context(self._context)
+            FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+            if enable_logging:
+                raise FMUException("The FMU version is not supported by this class. "+last_error)
+            else:
+                raise FMUException("The FMU version is not supported by this class. Enable logging for possibly more information.")
+        
+        #Parse xml and check fmu-kind
+        self._fmu = FMIL.fmi2_import_parse_xml(self._context, self._fmu_temp_dir, NULL) 
+        self._fmu_kind = FMIL.fmi2_import_get_fmu_kind(self._fmu)
+        self._allocated_xml =True
+        
+        #FMU kind is unknown
+        if self._fmu_kind == FMIL.fmi2_fmu_kind_unknown:
+            last_error = FMIL.jm_get_last_error(&self.callbacks)
+            FMIL.fmi2_import_free(self._fmu)
+            FMIL.fmi_import_free_context(self._context)
+            FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+            if enable_logging:
+                raise FMUException("The FMU kind could not be determined. "+last_error)
+            else:
+                raise FMUException("The FMU kind could not be determined. Enable logging for possibly more information.")
+     
+        
+        # --- load_fmu's job has been done ----
+        
+        
+        
+        #Connect the DLL
+        status = FMIL.fmi2_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
+        if status == FMIL.jm_status_error:
+            last_error = FMIL.fmi2_import_get_last_error(self._fmu)
+            if enable_logging:
+                raise FMUException(last_error)
+            else:
+                raise FMUException("Error loading the binary. Enable logging for possibly more information.")
+        self._allocated_dll = True
+        
+        #Load information from model
+        self._modelName         = FMIL.fmi2_import_get_model_name(self._fmu) 
+        self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu) ## check this
+        self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
+        
+        #Store the continuous and discrete variables for result writing
+        
+        # --Do this a little bit later when get-functions has been implemented--
+        
+        
+        
+    #Get and set functions
+    
+    def get_real(self, valueref):
+        """
+        Returns the real-values from the valuereference(s).
+        
+        Parameters::
+        
+            valueref -- 
+                A list of valuereferences.
+                
+        Returns::
+        
+            values -- 
+                The values retrieved from the FMU.
+                
+        Example::
+        
+            val = model.get_real([232])
+                
+        Calls the low-level FMI function: fmiGetReal/fmiSetReal
+        """
+        
+        cdef int         status
+        cdef FMIL.size_t nref
+        
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        nref = len(input_valueref)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            output_value   = N.array([0.0]*nref,dtype=N.float, ndmin=1)
+        
+        
+        
+        status = FMIL.fmi2_import_get_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_real_t*> output_value.data)
+        
+        if status != 0:
+            raise FMUException('Failed to get the Real values.')
+            
+        return output_value
+        
+    def set_real(self, valueref, values):
+        """
+        Sets the real-values in the FMU as defined by the valuereference(s).
+        
+        Parameters::
+        
+            valueref -- 
+                A list of valuereferences.
+                
+            values -- 
+                Values to be set.
+        
+        Example::
+        
+            model.set_real([234,235],[2.34,10.4])
+        
+        Calls the low-level FMI function: fmiGetReal/fmiSetReal
+        """
+        cdef int status
+        cdef FMIL.size_t nref
+        
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = N.array(values, dtype=N.float, ndmin=1).flatten()
+        
+        nref = len(input_valueref)
+        
+        if len(input_valueref) != len(set_value):
+            raise FMUException('The length of valueref and values are inconsistent.')
+        
+        status = FMIL.fmi2_import_set_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_real_t*> set_value.data)
+        
+        if status != 0:
+            raise FMUException('Failed to set the Real values.')
+           
+    def get_integer(self, valueref):
+        """
+        Returns the integer-values from the valuereference(s).
+        
+        Parameters::
+        
+            valueref -- 
+                A list of valuereferences.
+                
+        Return::
+            
+            values -- 
+                The values retrieved from the FMU.
+                
+        Example::
+        
+            val = model.get_integer([232])
+                
+        Calls the low-level FMI function: fmiGetInteger/fmiSetInteger
+        """
+        cdef int         status
+        cdef FMIL.size_t nref
+        
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        nref = len(input_valueref)
+        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         output_value   = N.array([0]*nref, dtype=int,ndmin=1)
+        
+        
+        status = FMIL.fmi2_import_get_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> output_value.data)
+        
+        if status != 0:
+            raise FMUException('Failed to get the Integer values.')
+            
+        return output_value
+        
+    def set_integer(self, valueref, values):
+        """
+        Sets the integer-values in the FMU as defined by the valuereference(s).
+        
+        Parameters::
+        
+            valueref -- 
+                A list of valuereferences.
+                
+            values -- 
+                Values to be set.
+        
+        Example::
+        
+            model.set_integer([234,235],[12,-3])
+        
+        Calls the low-level FMI function: fmiGetInteger/fmiSetInteger
+        """
+        cdef int status
+        cdef FMIL.size_t nref
+        
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         set_value      = N.array(values, dtype=int,ndmin=1).flatten()
+        
+        nref = len(input_valueref)
+        
+        if len(input_valueref) != len(set_value):
+            raise FMUException('The length of valueref and values are inconsistent.')
+        
+        status = FMIL.fmi2_import_set_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> set_value.data)
+        
+        if status != 0:
+            raise FMUException('Failed to set the Integer values.')
+     
+    def get_boolean(self, valueref):
+        """
+        Returns the boolean-values from the valuereference(s).
+        
+        Parameters::
+        
+            valueref -- 
+                A list of valuereferences.
+                
+        Returns::
+        
+            values -- 
+                The values retrieved from the FMU.
+                
+        Example::
+        
+            val = model.get_boolean([232])
+                
+        Calls the low-level FMI function: fmiGetBoolean/fmiSetBoolean
+        """
+        cdef int         status
+        cdef FMIL.size_t nref
+        
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).flatten()
+        nref = len(input_valueref)
+        
+        #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1)
+        cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
+        
+
+        #status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
+        status = FMIL.fmi2_import_get_boolean(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_boolean_t*> output_value)
+        
+        return_values = []
+        for i in range(nref):
+            return_values.append((<FMIL.fmi2_boolean_t*> output_value)[i]==1)
+            #print (<FMIL.fmi1_boolean_t*>val)[i], (<FMIL.fmi1_boolean_t*>val)[i]==1
+        
+        #print return_values
+        
+        #Dealloc
+        FMIL.free(output_value)
+
+        if status != 0:
+            raise FMUException('Failed to get the Boolean values.')
+        
+        #return val==FMI_TRUE
+        return N.array(return_values)
+        
+    def set_boolean(self, valueref, values):
+        """
+        Sets the boolean-values in the FMU as defined by the valuereference(s).
+        
+        Parameters::
+        
+            valueref -- 
+                A list of valuereferences.
+                
+            values -- 
+                Values to be set.
+
+        Example::
+        
+            model.set_boolean([234,235],[True,False])
+        
+        Calls the low-level FMI function: fmiGetBoolean/fmiSetBoolean
+        """
+        cdef int         status
+        cdef FMIL.size_t nref
+        
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        nref = len(input_valueref)
+        
+        #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1).flatten()
+        cdef void* set_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
+        
+        values = N.array(values,ndmin=1).flatten()
+        for i in range(nref):
+            if values[i]:
+                #val[i]=1
+                (<FMIL.fmi2_boolean_t*> set_value)[i] = 1
+            else:
+                #val[i]=0
+                (<FMIL.fmi2_boolean_t*> set_value)[i] = 0
+        
+        if len(input_valueref) != len(values):
+            raise FMUException('The length of valueref and values are inconsistent.')
+        
+        #status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
+        status = FMIL.fmi2_import_set_boolean(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_boolean_t*> set_value)
+        
+        FMIL.free(set_value)
+        
+        if status != 0:
+            raise FMUException('Failed to set the Boolean values.')
+        
+    
+    def get_string(self, valueref):
+        """
+        Returns the string-values from the valuereference(s).
+        
+        Parameters::
+        
+            valueref -- 
+                A list of valuereferences.
+                
+        Returns::
+        
+            values -- 
+                The values retrieved from the FMU.
+                
+        Example::
+        
+            val = model.get_string([232])
+                
+        Calls the low-level FMI function: fmiGetString/fmiSetString
+        """
+        
+        raise NotImplementedError
+        cdef int         status
+        cdef FMIL.size_t nref
+        
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).flatten()
+        nref = len(input_valueref)
+        cdef N.ndarray[FMIL.fmi2_string_t, ndim=1, mode='c']         output_value   = N.array([''] * nref, dtype=N.char, ndmin=1)
+        
+        
+        status = FMIL.fmi2_import_get_string(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_string_t*> output_value.data)
+
+        if status != 0:
+            raise FMUException('Failed to get the String values.')
+        
+        return output_value
+            
+    def set_string(self, valueref, values):
+        """
+        Sets the string-values in the FMU as defined by the valuereference(s).
+        
+        Parameters::
+        
+            valueref -- 
+                A list of valuereferences.
+                
+            values -- 
+                Values to be set.
+        
+        Example::
+        
+            model.set_string([234,235],['text','text'])
+        
+        Calls the low-level FMI function: fmiGetString/fmiSetString
+        """
+        raise NotImplementedError
+        cdef int         status
+        cdef FMIL.size_t nref
+        
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi2_string_t, ndim=1, mode='c']         set_values     = N.array(values, dtype=N.char, ndmin=1).flatten()
+        
+        nref = input_valueref.size
+        
+        
+        #temp = (self._fmiString*nref)()
+        #for i in range(nref):
+        #    temp[i] = values[i]
+        
+        if input_valueref.size != set_values.size:
+            raise FMUException('The length of valueref and values are inconsistent.')
+
+        status = FMIL.fmi2_import_set_string(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_string_t*> set_values.data)
+        
+        if status != 0:
+            raise FMUException('Failed to set the String values.')
+    
+    
+    
+    
+    
+    #Logger functions
+    
+    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
+        self._log.append([module,log_level,message])
+    
+    def get_log(self):
+        """
+        Returns the log information as a list. To turn on the logging use the 
+        method, set_debug_logging(True) in the instantiation, 
+        FMUModel(..., enable_logging=True). The log is stored as a list of lists. 
+        For example log[0] are the first log message to the log and consists of, 
+        in the following order, the instance name, the status, the category and 
+        the message.
+        
+        Returns::
+        
+            log - A list of lists.
+        """
+        return self._log
+        
+    def print_log(self):
+        """
+        Prints the log information to the prompt.
+        """
+        cdef int N = len(self._log)
+        
+        for i in range(N):
+            print "FMIL: module = %s, log level = %d: %s"%(self._log[i][0], self._log[i][1], self._log[i][2])
+     
+    def set_fmil_log_level(self, level):
+        """
+        Specifices the log level for FMI Library. Note that this is
+        different from the FMU logging which is specificed via
+        set_debug_logging.
+        
+        Parameters::
+		
+            level --
+                The log level. Available values:
+                    NOTHING = 0
+                    FATAL = 1
+                    ERROR = 2
+                    WARNING = 3
+                    INFO = 4
+                    VERBOSE = 5 
+                    DEBUG = 6
+                    ALL = 7
+        """
+        if level < 0 or level > 7:
+            raise FMUException("Invalid log level for FMI Library (0-7).")
+        self.callbacks.log_level = <FMIL.jm_log_level_enu_t> level
+
+    
+    #def set_debug_logging(self,logging_on, categories): ## Be careful, check this ..more inputs here...have to check n of logging categories!!! 
+        """
+        Specifies if the debugging should be turned on or off.
+        
+        Parameters::
+        
+            flag -- 
+                Boolean value.
+                
+        Calls the low-level FMI function: fmiSetDebuggLogging
+        """
+        """
+        cdef FMIL.fmi1_boolean_t  log
+        cdef FMIL.fmi2_status_t   status
+        
+        self.callbacks.log_level = FMIL.jm_log_level_warning if flag else FMIL.jm_log_level_nothing
+        
+        if flag:
+            log = 1
+        else:
+            log = 0
+        
+        status = FMIL.fmi2_import_set_debug_logging(self._fmu, log)  ## Check this p205!!!
+        self._enable_logging = bool(log)
+            
+        if status != 0:
+            raise FMUException('Failed to set the debugging option.')
+    """
+    
+    #Strange functions
+    
+    
+    
+    
+    #Other functions
+    
+    def get_ode_sizes(self):
+        """
+        Returns the number of continuous states and the number of event 
+        indicators.
+                
+        Returns::
+        
+            nbr_cont -- 
+                The number of continuous states.
+                
+            nbr_ind -- 
+                The number of event indicators.
+                
+        Example::
+        
+            [nCont, nEvent] = model.get_ode_sizes()
+        """
+        return self._nContinuousStates, self._nEventIndicators    
+    
+    
+    #Property-functions
+    
+    def get_name(self):
+        """ 
+        Return the model name as used in the modeling environment.
+        """
+        return self._modelName
+       
+    def get_author(self):
+        """
+        Return the name and organization of the model author.
+        """
+        cdef char* author
+        author = FMIL.fmi2_import_get_author(self._fmu)
+        return author if author != NULL else ""
+        
+    def get_description(self):
+        """
+        Return the model description.
+        """
+        cdef char* desc
+        desc = FMIL.fmi2_import_get_description(self._fmu)
+        return desc if desc != NULL else ""
+        
+    def get_generation_tool(self):
+        """
+        Return the model generation tool.
+        """
+        cdef char* gen
+        gen = FMIL.fmi2_import_get_generation_tool(self._fmu)
+        return gen if gen != NULL else ""
+        
+    def get_guid(self):
+        """
+        Return the model GUID.
+        """
+        guid = FMIL.fmi2_import_get_GUID(self._fmu)
+        return guid
+     
+    def get_identifier(self):
+        """ 
+        Return the model identifier, name of binary model file and prefix in 
+        the C-function names of the model. 
+        """
+        return self._modelId    
+    
+    
+    
+    
+    
+
+
 
 cdef class FMUModelCS2(FMUModelBase2):
     """
     An appropriate docstring
     """
+    
+    def __init__(self, fmu, path = '.', enable_logging = True): 
+        #Call super
+        FMUModelBase2.__init__(self, fmu, path, enable_logging)
+        
+        self._modelId = FMIL.fmi2_import_get_model_identifier_CS(self._fmu)
+    
+
+    
+   
+   
     def say_hi(self):
         print('Hi, ive been instantiated as a CS2 model')
+        print ('Modelnamnet är ' + self._modelName)
 
 cdef class FMUModelME2(FMUModelBase2):
     """
     An appropriate docstring
     """
+    
+    def __init__(self, fmu, path = '.', enable_logging = True): 
+        #Call super
+        FMUModelBase2.__init__(self, fmu, path, enable_logging)
+        
+        self._modelId = FMIL.fmi2_import_get_model_identifier_ME(self._fmu)
+        
+    
+   
+   
     def say_hi(self):
         print('Hi, ive been instantiated as a ME2 model')
-
+        print ('Modelnamnet är ' + self._modelName)
 
 
 
@@ -2713,10 +3374,10 @@ def load_fmu(fmu, path='.', enable_logging=True):
 def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
     """
     Load-function for FMU 2.0 with the following arguments:
-    1) fmu-filename given as string
-    2) path to the fmu-directory. Default: '.' (working directory)
-    3) enable_logging as Boolean for acesss to logging-messages. Default: True
-    4) kind is 'ME' , 'CS' or 'auto' . Specifies type to be instanciated if both availible,
+    1) fmu = filename given as string
+    2) path = path to the fmu-directory. Default: '.' (working directory)
+    3) enable_logging = Boolean for acesss to logging-messages. Default: True
+    4) kind = 'ME' , 'CS' or 'auto' . Specifies type to be instanciated if both availible,
        only works for FMU 2.0. Auto priors ME before CS. Default: auto
     """
     
@@ -2735,17 +3396,21 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
     
     #Variables for deallocation																		
     fmu_temp_dir = None
-    
+    model        = None
     
     # Check that the file referenced by fmu has the correct file-ending
     fmu_full_path = os.path.abspath(os.path.join(path,fmu))
     if not fmu_full_path.endswith('.fmu'):
         raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
+        
+    #Check that the file exists
+    if not os.path.isfile(fmu_full_path): 
+        raise FMUException('Could not locate the FMU in the specified directory.')
     
     #Check that kind-argument is well-defined
     if not kind.lower() == 'auto':
-        if not kind.upper() == 'ME' or kind.upper() == 'CS':
-            raise FMUException('Requested model-type can only be "ME" , "CS" or "auto" (default).')
+        if (kind.upper() != 'ME' and kind.upper() != 'CS'):
+            raise FMUException('Input-argument "kind" can only be "ME", "CS" or "auto" (default) and not: ' + kind)
 
     
     #Specify FMI related callbacks
@@ -2787,7 +3452,7 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
         #Delete context
         last_error = FMIL.jm_get_last_error(&callbacks)
         FMIL.fmi_import_free_context(context)
-        FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+        FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if enable_logging:
             raise FMUException("The FMU version could not be determined. "+last_error)
         else:
@@ -2797,7 +3462,7 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
         #Delete the context
         last_error = FMIL.jm_get_last_error(&callbacks)
         FMIL.fmi_import_free_context(context)
-        FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+        FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if enable_logging:
             raise FMUException("The FMU version is unsupported. "+last_error)
         else:
@@ -2805,9 +3470,9 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
 
     
     #Parse the xml
-    if version == 1:
+    if version == FMIL.fmi_version_1_enu:
 	    #Check the fmu-kind
-        fmu_1 = FMIL.fmi1_import_parse_xml(context,fmu_temp_dir)
+        fmu_1 = FMIL.fmi1_import_parse_xml(context, fmu_temp_dir)
         fmu_1_kind = FMIL.fmi1_import_get_fmu_kind(fmu_1)
     
         #Compare fmu_kind with input-specified kind
@@ -2818,17 +3483,17 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
         elif fmu_1_kind == FMIL.fmi1_fmu_kind_enu_cs_tool: 																					
             FMIL.fmi1_import_free(fmu_1)
             FMIL.fmi_import_free_context(context)
-            FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             raise FMUException("PyFMI does not support co-simulation tool")   
         else: 
             FMIL.fmi1_import_free(fmu_1)
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
-            raise FMUException("FMU type does not coinside with argument specified type")
+            raise FMUException('FMU is a ' + FMIL.fmi1_fmu_kind_to_string(fmu_1_kind) + ' and not a ' + kind.upper())
     
-    elif version == 2:																						
+    elif version == FMIL.fmi_version_2_0_enu:																						
         #Check fmu-kind and compare with input-specified kind
-        fmu_2 = FMIL.fmi2_import_parse_xml(context,fmu_temp_dir, NULL) 
+        fmu_2 = FMIL.fmi2_import_parse_xml(context, fmu_temp_dir, NULL) 
         fmu_2_kind = FMIL.fmi2_import_get_fmu_kind(fmu_2)
 		
         #FMU kind is unknown
@@ -2836,7 +3501,7 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
             last_error = FMIL.jm_get_last_error(&callbacks)
             FMIL.fmi2_import_free(fmu_2)
             FMIL.fmi_import_free_context(context)
-            FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if enable_logging:
                 raise FMUException("The FMU kind could not be determined. "+last_error)
             else:
@@ -2845,20 +3510,22 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
         #FMU kind is known
         if kind.lower() == 'auto':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs: 
-                model = FMUModelCS2()
+                model = FMUModelCS2(fmu, path, enable_logging)
             elif fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2()        
+                model = FMUModelME2(fmu, path, enable_logging)        
         elif kind.upper() == 'CS':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs: 
-                model = FMUModelCS2()
+                model = FMUModelCS2(fmu, path, enable_logging)
         elif kind.upper() == 'ME':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2()
-        else:
+                model = FMUModelME2(fmu, path, enable_logging)
+        
+        #Could not match FMU kind with input-specified kind
+        if model is None:
             FMIL.fmi2_import_free(fmu_2)
             FMIL.fmi_import_free_context(context)
-            FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
-            raise FMUException('FMU is a ' + FMIL.fmi2_fmu_kind_to_string(fmu_2_kind) + ' and not a ' + kind)
+            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            raise FMUException('FMU is a ' + FMIL.fmi2_fmu_kind_to_string(fmu_2_kind) + ' and not a ' + kind.upper())
         
         
     #Delete
@@ -2867,11 +3534,12 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
         FMIL.fmi_import_free_context(context)
         FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)   		
       
-    # VERSION 2.0
-    # Clean it up somehow...or pass it ??
-    # pass context, version, fmu_2, fmu_full_path, fmu_temp_dir
-    # pass allocated_context and allocated_xml
+    if version == FMIL.fmi_version_2_0_enu: #If information passed to the classes, this should be deleted
+        FMIL.fmi2_import_free(fmu_2)
+        FMIL.fmi_import_free_context(context)
+        FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
     
+      
     return model
 
 
