@@ -402,8 +402,9 @@ cdef class FMUModelBase(ModelBase):
     cdef public list _save_bool_variables_val
     cdef public object _fmu_temp_dir
     cdef int _fmu_kind
+    cdef public object _fmu_log_name
 
-    def __init__(self, fmu, path='.', enable_logging=True):
+    def __init__(self, fmu, path='.', enable_logging=True, log_file_name=""):
         """
         Constructor.
         """
@@ -420,6 +421,7 @@ cdef class FMUModelBase(ModelBase):
         self._allocated_fmu = False
         self._allocated_list = False
         self._fmu_temp_dir = None
+        self._fmu_log_name = ""
         
         #Specify the general callback functions
         self.callbacks.malloc  = FMIL.malloc
@@ -464,6 +466,12 @@ cdef class FMUModelBase(ModelBase):
         
         #Parse the XML
         self._fmu = FMIL.fmi1_import_parse_xml(self.context, fmu_temp_dir)
+        if self._fmu == NULL:
+            last_error = FMIL.jm_get_last_error(&self.callbacks)
+            if enable_logging:
+                raise FMUException("The XML file could not be parsed. "+last_error)
+            else:
+                raise FMUException("The XML file could not be parsed. Enable logging for possibly more information.")
         self._allocated_xml = True
         
         #Check the FMU kind
@@ -501,6 +509,13 @@ cdef class FMUModelBase(ModelBase):
         self._modelname = FMIL.fmi1_import_get_model_name(self._fmu)
         self._nEventIndicators = FMIL.fmi1_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
+        self._fmu_log_name = (self._modelid + "_log.txt") if log_file_name=="" else log_file_name
+        
+        #Create the log file
+        with open(self._fmu_log_name,'w') as file:
+            for i in range(len(self._log)):
+                file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+            self._log = []
         
         #Instantiates the model
         #if fmu_kind == FMI_ME:
@@ -538,7 +553,11 @@ cdef class FMUModelBase(ModelBase):
     
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
         #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
-        self._log.append([module,log_level,message])
+        if self._fmu_log_name != "":
+            with open(self._fmu_log_name,'a') as file:
+                file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+        else:
+            self._log.append([module,log_level,message])
     
     def get_log(self):
         """
@@ -553,16 +572,27 @@ cdef class FMUModelBase(ModelBase):
         
             log - A list of lists.
         """
-        return self._log
+        log = []
+        if self._fmu_log_name != "":
+            with open(self._fmu_log_name,'r') as file:
+                while True:
+                    line = file.readline()
+                    if line == "":
+                        break
+                    log.append(line.strip("\n"))
+        return log
         
     def print_log(self):
         """
         Prints the log information to the prompt.
         """
-        cdef int N = len(self._log)
+        cdef int N
+        log = self.get_log()
+        N = len(log)
         
         for i in range(N):
-            print "FMIL: module = %s, log level = %d: %s"%(self._log[i][0], self._log[i][1], self._log[i][2])
+            print log[i]
+            #print "FMIL: module = %s, log level = %d: %s"%(log[i][0], log[i][1], log[i][2])
     
     #def __dealloc__(self):
     #    """
@@ -1601,7 +1631,28 @@ cdef class FMUModelBase(ModelBase):
         cdef char* author
         author = FMIL.fmi1_import_get_author(self._fmu)
         return author if author != NULL else ""
+    
+    def get_default_experiment_start_time(self):
+        """
+        Returns the default experiment start time as defined the XML
+        description.
+        """
+        return FMIL.fmi1_import_get_default_experiment_start(self._fmu)
+    
+    def get_default_experiment_stop_time(self):
+        """
+        Returns the default experiment stop time as defined the XML
+        description.
+        """
+        return FMIL.fmi1_import_get_default_experiment_stop(self._fmu)
         
+    def get_default_experiment_tolerance(self):
+        """
+        Returns the default experiment tolerance as defined in the XML
+        description.
+        """
+        return FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
+    
     def get_description(self):
         """
         Return the model description.
@@ -1630,9 +1681,9 @@ cdef class FMUModelCS1(FMUModelBase):
     #stepFinished not supported
     #fmiResetSlave not supported
     
-    def __init__(self, fmu, path='.', enable_logging=True):
+    def __init__(self, fmu, path='.', enable_logging=True,log_file_name=""):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging)
+        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name)
         
         if self._fmu_kind != FMI_CS_STANDALONE:
             raise FMUException("This class only supports FMI 1.0 for Co-simulation.")
@@ -2040,9 +2091,9 @@ cdef class FMUModelME1(FMUModelBase):
     An FMI Model loaded from a DLL.
     """
     
-    def __init__(self, fmu, path='.', enable_logging=True):
+    def __init__(self, fmu, path='.', enable_logging=True, log_file_name=""):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging)
+        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name)
         
         if self._fmu_kind != FMI_ME:
             raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
@@ -2257,7 +2308,8 @@ cdef class FMUModelME1(FMUModelBase):
             
             [rtol, atol] = model.get_tolerances()
         """
-        rtol = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
+        #rtol = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
+        rtol = self.get_default_experiment_tolerance()
         atol = 0.01*rtol*self.nominal_continuous_states
         
         return [rtol, atol]
@@ -3241,7 +3293,7 @@ cdef class FMUModelCS2(FMUModelBase2):
    
     def say_hi(self):
         print('Hi, ive been instantiated as a CS2 model')
-        print ('Modelnamnet är ' + self._modelName)
+        print('Modelnamnet is ' + self._modelName)
 
 cdef class FMUModelME2(FMUModelBase2):
     """
@@ -3259,7 +3311,7 @@ cdef class FMUModelME2(FMUModelBase2):
    
     def say_hi(self):
         print('Hi, ive been instantiated as a ME2 model')
-        print ('Modelnamnet är ' + self._modelName)
+        print ('Modelnamnet is ' + self._modelName)
 
 
 
@@ -3270,11 +3322,10 @@ cdef class FMUModel(FMUModelME1):
         print "WARNING: This class is deprecated and has been superseded with FMUModelME1. The recommended entry-point for loading an FMU is now the function load_fmu."
         FMUModelME1.__init__(self,fmu,path,enable_logging)
 
-
-def load_fmu(fmu, path='.', enable_logging=True):
+def load_fmu(fmu, path='.', enable_logging=True,log_file_name=""):
     """
     Helper function for loading FMUs of different kinds.
-    """
+    """ 
     #NOTE: This method can be made more efficient by providing
     #the unzipped part and the already read XML object to the different
     #FMU classes.
@@ -3338,14 +3389,20 @@ def load_fmu(fmu, path='.', enable_logging=True):
         
     #Parse the XML
     _fmu = FMIL.fmi1_import_parse_xml(context, fmu_temp_dir)
+    if _fmu == NULL:
+        last_error = FMIL.jm_get_last_error(&callbacks)
+        if enable_logging:
+            raise FMUException("The XML file could not be parsed. "+last_error)
+        else:
+            raise FMUException("The XML file could not be parsed. Enable logging for possibly more information.")
     allocated_xml = True
         
     #Check the FMU kind
     fmu_kind = FMIL.fmi1_import_get_fmu_kind(_fmu)
     if fmu_kind == FMI_ME:
-        model = FMUModelME1(fmu, path, enable_logging)
+        model = FMUModelME1(fmu, path, enable_logging, log_file_name)
     elif fmu_kind == FMI_CS_STANDALONE:
-        model = FMUModelCS1(fmu, path, enable_logging)
+        model = FMUModelCS1(fmu, path, enable_logging, log_file_name)
     else:
         #Delete the XML
         if allocated_xml:  
@@ -3355,7 +3412,7 @@ def load_fmu(fmu, path='.', enable_logging=True):
         if allocated_context:
             FMIL.fmi_import_free_context(context)
         
-        raise FMUException("PyFMI currently only supports FMI 1.0 for Model Exchange.")    
+        raise FMUException("PyFMI currently only supports FMI 1.0.")    
         
     #Delete the XML
     if allocated_xml:     
