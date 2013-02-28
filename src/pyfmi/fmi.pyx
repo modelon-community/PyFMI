@@ -2666,15 +2666,16 @@ cdef class FMUModelBase2(ModelBase):
     cdef object         _allocated_dll
     cdef char*          _modelId
     cdef object         _modelName
+    cdef public object  _fmu_log_name
     
     
-    
-    def __init__(self, fmu, path = '.', enable_logging = True):
+    def __init__(self, fmu, path = '.', enable_logging = True, log_file_name = ""):
         """
         Constructor with following input arguments:
         1)fmu = name of the fmu as a string
         2)path = path to the fmu-directory. default = '.' (working directory)
         3)enable_logging = Boolean for acesss to logging-messages. Default = True
+        4) log_file_name = filename for file used to save logmessages. Default = "" (Generates automatically)
         """
         
         cdef int status
@@ -2682,12 +2683,12 @@ cdef class FMUModelBase2(ModelBase):
         #Contains the log information
         self._log = []
         self._enable_logging    = enable_logging
+        self._fmu_log_name      = ""
         
         #Used for deallocation       
         self._allocated_context = False
         self._allocated_xml     = False
         self._allocated_dll     = False
-        
         
         #Specify the general callback functions
         self.callbacks.malloc           = FMIL.malloc
@@ -2724,12 +2725,12 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('Could not locate the FMU in the specified directory.')
     
         # Create a struct for allocation
-        self._context = FMIL.fmi_import_allocate_context(&self.callbacks)
+        self._context           = FMIL.fmi_import_allocate_context(&self.callbacks)
         self._allocated_context = True
         
         #Get the FMI version of the provided model
         self._fmu_temp_dir = create_temp_dir()
-        self._version = FMIL.fmi_import_get_fmi_version(self._context, self._fmu_full_path, self._fmu_temp_dir)
+        self._version      = FMIL.fmi_import_get_fmi_version(self._context, self._fmu_full_path, self._fmu_temp_dir)
         
         #Check the version
         if self._version == FMIL.fmi_version_unknown_enu: 
@@ -2753,8 +2754,8 @@ cdef class FMUModelBase2(ModelBase):
                 raise FMUException("The FMU version is not supported by this class. Enable logging for possibly more information.")
         
         #Parse xml and check fmu-kind
-        self._fmu = FMIL.fmi2_import_parse_xml(self._context, self._fmu_temp_dir, NULL) 
-        self._fmu_kind = FMIL.fmi2_import_get_fmu_kind(self._fmu)
+        self._fmu           = FMIL.fmi2_import_parse_xml(self._context, self._fmu_temp_dir, NULL) 
+        self._fmu_kind      = FMIL.fmi2_import_get_fmu_kind(self._fmu)
         self._allocated_xml =True
         
         #FMU kind is unknown
@@ -2787,6 +2788,14 @@ cdef class FMUModelBase2(ModelBase):
         self._modelName         = FMIL.fmi2_import_get_model_name(self._fmu) 
         self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu) ## check this
         self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
+        self._fmu_log_name      = (self._modelName + "_log.txt") if log_file_name=="" else log_file_name
+        
+        #Create the log file
+        with open(self._fmu_log_name,'w') as file:
+            for i in range(len(self._log)):
+                file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+            self._log = []        
+        
         
         #Store the continuous and discrete variables for result writing
         
@@ -3030,8 +3039,7 @@ cdef class FMUModelBase2(ModelBase):
         FMIL.free(set_value)
         
         if status != 0:
-            raise FMUException('Failed to set the Boolean values.')
-        
+            raise FMUException('Failed to set the Boolean values.')   
     
     def get_string(self, valueref):
         """
@@ -3117,9 +3125,14 @@ cdef class FMUModelBase2(ModelBase):
     #Logger functions
     
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-        self._log.append([module,log_level,message])
+        #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
+        if self._fmu_log_name != "":
+            with open(self._fmu_log_name,'a') as file:
+                file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+        else:
+            self._log.append([module,log_level,message])
     
-    def get_log(self):
+    def get_log(self): #Can this be False !?!?!?!?!?!!?!!?
         """
         Returns the log information as a list. To turn on the logging use the 
         method, set_debug_logging(True) in the instantiation, 
@@ -3132,16 +3145,29 @@ cdef class FMUModelBase2(ModelBase):
         
             log - A list of lists.
         """
-        return self._log
+        log = []
+        if self._fmu_log_name != "":   
+            with open(self._fmu_log_name,'r') as file:
+                while True:
+                    line = file.readline()
+                    if line == "":
+                        break
+                    log.append(line.strip("\n"))
+            return log
+        else:
+            return self._log
         
     def print_log(self):
         """
         Prints the log information to the prompt.
         """
-        cdef int N = len(self._log)
+        cdef int N
+        log = self.get_log()
+        N = len(log)
         
         for i in range(N):
-            print "FMIL: module = %s, log level = %d: %s"%(self._log[i][0], self._log[i][1], self._log[i][2])
+            print log[i]
+            #print "FMIL: module = %s, log level = %d: %s"%(log[i][0], log[i][1], log[i][2])
      
     def set_fmil_log_level(self, level):
         """
@@ -3269,11 +3295,6 @@ cdef class FMUModelBase2(ModelBase):
         """
         return self._modelId    
     
-    
-    
-    
-    
-
 
 
 cdef class FMUModelCS2(FMUModelBase2):
@@ -3281,9 +3302,9 @@ cdef class FMUModelCS2(FMUModelBase2):
     An appropriate docstring
     """
     
-    def __init__(self, fmu, path = '.', enable_logging = True): 
+    def __init__(self, fmu, path = '.', enable_logging = True, log_file_name = ""): 
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging)
+        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name)
         
         self._modelId = FMIL.fmi2_import_get_model_identifier_CS(self._fmu)
     
@@ -3300,9 +3321,9 @@ cdef class FMUModelME2(FMUModelBase2):
     An appropriate docstring
     """
     
-    def __init__(self, fmu, path = '.', enable_logging = True): 
+    def __init__(self, fmu, path = '.', enable_logging = True, log_file_name = ""): 
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging)
+        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name)
         
         self._modelId = FMIL.fmi2_import_get_model_identifier_ME(self._fmu)
         
@@ -3322,7 +3343,7 @@ cdef class FMUModel(FMUModelME1):
         print "WARNING: This class is deprecated and has been superseded with FMUModelME1. The recommended entry-point for loading an FMU is now the function load_fmu."
         FMUModelME1.__init__(self,fmu,path,enable_logging)
 
-def load_fmu(fmu, path='.', enable_logging=True,log_file_name=""):
+def load_fmu(fmu, path='.', enable_logging=True, log_file_name=""):
     """
     Helper function for loading FMUs of different kinds.
     """ 
@@ -3428,14 +3449,15 @@ def load_fmu(fmu, path='.', enable_logging=True,log_file_name=""):
     return model
      
 
-def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
+def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto', log_file_name = ""):
     """
     Load-function for FMU 2.0 with the following arguments:
     1) fmu = filename given as string
     2) path = path to the fmu-directory. Default: '.' (working directory)
     3) enable_logging = Boolean for acesss to logging-messages. Default: True
     4) kind = 'ME' , 'CS' or 'auto' . Specifies type to be instanciated if both availible,
-       only works for FMU 2.0. Auto priors ME before CS. Default: auto
+       only works for FMU 2.0. Auto priors ME before CS. Default: 'auto'
+    5) log_file_name = filename for file used to save logmessages. Default: "" (Generates automatically)  
     """
     
     #FMIL related variables
@@ -3534,9 +3556,9 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
     
         #Compare fmu_kind with input-specified kind
         if fmu_1_kind == FMI_ME and kind.upper() != 'CS':
-            model=FMUModelME1(fmu, path, enable_logging)
+            model=FMUModelME1(fmu, path, enable_logging, log_file_name)
         elif fmu_1_kind == FMI_CS_STANDALONE and kind.upper() != 'ME':
-            model=FMUModelCS1(fmu, path, enable_logging)
+            model=FMUModelCS1(fmu, path, enable_logging, log_file_name)
         elif fmu_1_kind == FMIL.fmi1_fmu_kind_enu_cs_tool: 																					
             FMIL.fmi1_import_free(fmu_1)
             FMIL.fmi_import_free_context(context)
@@ -3567,15 +3589,15 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto'):
         #FMU kind is known
         if kind.lower() == 'auto':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs: 
-                model = FMUModelCS2(fmu, path, enable_logging)
+                model = FMUModelCS2(fmu, path, enable_logging, log_file_name)
             elif fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2(fmu, path, enable_logging)        
+                model = FMUModelME2(fmu, path, enable_logging, log_file_name)        
         elif kind.upper() == 'CS':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs: 
-                model = FMUModelCS2(fmu, path, enable_logging)
+                model = FMUModelCS2(fmu, path, enable_logging, log_file_name)
         elif kind.upper() == 'ME':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2(fmu, path, enable_logging)
+                model = FMUModelME2(fmu, path, enable_logging, log_file_name)
         
         #Could not match FMU kind with input-specified kind
         if model is None:
