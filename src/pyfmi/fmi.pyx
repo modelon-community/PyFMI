@@ -1468,13 +1468,13 @@ cdef class FMUModelBase(BaseModel):
             if include_alias:
                 #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable(name, 
-                                       value_ref, data_type, desc if desc!=NULL else "",
+                                       value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind)
             elif alias_kind ==FMIL.fmi1_variable_is_not_alias:
                 #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable(name, 
-                                       value_ref, data_type, desc if desc!=NULL else "",
+                                       value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind)
         
