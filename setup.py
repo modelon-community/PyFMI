@@ -52,13 +52,13 @@ LONG_DESCRIPTION = """
 PyFMI is a package for loading and interacting with Functional Mock-Up 
 Units (FMUs), which are compiled dynamic models compliant with the 
 Functional Mock-Up Interface (FMI), see 
-http://www.functional-mockup-interface.org/ for more information. PyFMI
+https://www.fmi-standard.org/ for more information. PyFMI
 is based on FMI Library, see http://www.jmodelica.org/FMILibrary .
 
 FMI is a standard that enables tool independent exchange of dynamic 
 models on binary format. Several industrial simulation platforms 
 supports export of FMUs, including, Dymola, JModelica.org, OpenModelica 
-and SimulationX, see http://www.functional-mockup-interface.org/tools 
+and SimulationX, see https://www.fmi-standard.org/tools 
 for a complete list. PyFMI offers a Python interface for interacting 
 with FMUs and enables for example loading of FMU models, setting of 
 model parameters and evaluation of model equations.
