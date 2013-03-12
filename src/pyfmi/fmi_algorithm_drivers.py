@@ -549,6 +549,7 @@ class FMICSAlg(AlgorithmBase):
         #For result writing
         result_write = ResultWriterDymola(self.model)
         result_write.write_header()
+        result_write.write_point()
         
         for t in grid:
             status = self.model.do_step(t,h)
