@@ -545,10 +545,10 @@ class FMICSAlg(AlgorithmBase):
         grid = N.linspace(self.start_time,self.final_time,self.ncp+1)[:-1]
         
         status = 0
-        
+
         #For result writing
         result_write = ResultWriterDymola(self.model)
-        result_write.write_header()
+        result_write.write_header(self.result_file_name)
         result_write.write_point()
         
         for t in grid:
