@@ -94,8 +94,13 @@ python setup.py install --fmil-home=/path/to/FMI_Library/
 
 copy_args=sys.argv[1:]
 
-incdirs = ""
-libdirs = ""
+if O.getenv("FMIL_HOME"): #Check for if there exists and environment variable that specifies FMIL
+    incdirs = O.path.join(O.getenv("FMIL_HOME"),'include')
+    libdirs = O.path.join(O.getenv("FMIL_HOME"),'lib')
+else:
+    incdirs = ""
+    libdirs = ""
+    
 static = False
 debug_flag = True
 fmilib_shared = ""
@@ -134,10 +139,16 @@ for x in sys.argv[1:]:
             static = False
         copy_args.remove(x)
 
+if not incdirs:
+    raise Exception("FMI Library cannot be found. Please specify its location, either using the flag to the setup script '--fmil-home' or specify it using the environment variable FMIL_HOME.")
+
 #Check to see if FMILIB_SHARED exists and if so copy it
 if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
     if sys.platform.startswith("win"):
-        files = O.listdir(O.path.join(libdirs))
+        try:
+            files = O.listdir(O.path.join(libdirs))
+        except:
+            raise Exception("The FMI Library binary cannot be found at path: "+str(O.path.join(libdirs)))
         for file in files:
             if "fmilib_shared" in file and not file.endswith("a"):
                 shutil.copy2(O.path.join(libdirs,file),O.path.join(".","src","pyfmi"))
@@ -148,14 +159,7 @@ if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
 
 def check_extensions():
     ext_list = []
-    """
-    delgenC = O.path.join("src","pyfmi","fmi.c")
-    if O.path.exists(delgenC):
-        try:
-            O.remove(delgenC)
-        except:
-            pass
-    """
+
     if static:
         extra_link_flags = static_link_gcc
     else:
@@ -187,13 +191,6 @@ def check_extensions():
     ext_list[-1].language = "c"
     ext_list[-1].libraries = ["fmilib_shared"] if sys.platform.startswith("win") else ["fmilib"] #If windows shared, else static
     
-    #if "win" in sys.platform:
-    #    pass
-    #elif "darwin" in sys.platform:
-    #    ext_list[-1].runtime_library_dirs = [",@loader_path/"]
-    #else:
-    #    ext_list[-1].runtime_library_dirs = [",'$ORIGIN'"]
-        
     
     if debug_flag:
         ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
