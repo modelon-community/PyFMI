@@ -44,18 +44,18 @@ cdef extern from 'fmilib.h':
     ctypedef double fmi1_real_t
     ctypedef double fmi2_real_t
     ctypedef unsigned int fmi1_value_reference_t
-    ctypedef char fmi1_boolean_t
-    ctypedef int fmi2_boolean_t
+    ctypedef char   fmi1_boolean_t
+    ctypedef int    fmi2_boolean_t
     ctypedef void * fmi1_component_t
     ctypedef void * fmi2_component_t
     ctypedef char * fmi1_string_t
     ctypedef char * fmi2_string_t
-    ctypedef int fmi1_integer_t
-    ctypedef int fmi2_integer_t
+    ctypedef int    fmi1_integer_t
+    ctypedef int    fmi2_integer_t
     ctypedef long unsigned int size_t
     ctypedef void * jm_voidp
     ctypedef char * jm_string
-    ctypedef char fmi2_byte_t
+    ctypedef char   fmi2_byte_t
     ctypedef void * fmi2_FMU_state_t
     ctypedef void * fmi2_component_environment_t
     ctypedef size_t fmi2_value_reference_t
@@ -475,7 +475,7 @@ cdef extern from 'fmilib.h':
     int fmi2_import_set_real(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_real_t *)
     int fmi2_import_get_boolean(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_boolean_t *)
     int fmi2_import_get_state_value_references(fmi2_import_t *, fmi2_value_reference_t *, size_t)
-    int fmi2_import_set_debug_logging(fmi2_import_t *, fmi2_boolean_t, size_t, fmi2_string_t *)
+    int fmi2_import_set_debug_logging(fmi2_import_t *, fmi2_boolean_t, size_t, fmi2_string_t*)
     int fmi2_import_eventUpdate(fmi2_import_t *, fmi2_boolean_t, fmi2_event_info_t *)
     int fmi2_import_set_time(fmi2_import_t *, fmi2_real_t)
     int fmi2_import_cancel_step(fmi2_import_t *)
