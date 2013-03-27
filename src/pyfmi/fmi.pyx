@@ -1999,6 +1999,25 @@ cdef class FMUModelCS1(FMUModelBase):
     
         self._allocated_fmu = True
     
+    def reset(self):
+        """
+        This metod resets the FMU according to the reset method defined
+        in the FMI1 specification.
+        """
+
+        status = FMIL.fmi1_import_reset_slave(self._fmu)
+        if status != FMIL.fmi1_status_ok:
+            raise FMUException("Failed to reset the FMU.")
+        
+        #Default values
+        self.__t = None
+        
+        #Internal values
+        self._file_open = False
+        self._npoints = 0
+        self._log = []
+        
+    
     def instantiate_slave(self, name='Slave', logging=False):
         """
         Instantiate the slave.
