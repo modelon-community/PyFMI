@@ -166,29 +166,47 @@ class JMResultBase(ResultBase):
         return self.result_data.name
     
     def __getitem__(self, key):
-        val = self.result_data.get_variable_data(key)
+        """
+        Returns vector with result trajectory for a variable, parameter 
+        or constant that has the same length as the time vector.
+        
+        Parameters::
+        
+            key --
+                Name of the variable/parameter/constant.
+        """
+        val_x = self.result_data.get_variable_data(key).x
+        
+        if self.result_data.is_variable(key):
+            return val_x
+            
+        time = self.result_data.get_variable_data('time')
+        return val_x[0].repeat(len(time.t))
+        
+    def final(self, key):
+        """
+        Returns the final value of a variable result trajectory.
 
-        if self.is_variable(key):
-            return val.x
-        else:
-            #When there is a sensitivity variable (dx/dp) in the result
-            #the variable does not exists in the XML file, so cache the
-            #error and set variability to 0. If the variable does not
-            #exists in the result file, an error is raised prior to this.
-            try:
-                variability = self.model.get_variability(key)
-            except XMLException:
-                variability = 0
-                
-            if variability == 1 or variability == 2: 
-            #Variable is a parameter or constant
-                return val.x[0]
-            else:
-                time = self.result_data.get_variable_data('time')
-                return N.array([val.x[0]]*N.size(time.t))
-                
-        #return self.result_data.get_variable_data(key)
+        Parameters::
+        
+            key --
+                Name of the variable/parameter/constant.
+        """
+        val_x = self.result_data.get_variable_data(key).x
+        return val_x[-1]
+        
+    def initial(self, key):
+        """
+        Returns the initial value of a variable result trajectory.
 
+        Parameters::
+        
+            key --
+                Name of the variable/parameter/constant.
+        """
+        val_x = self.result_data.get_variable_data(key).x
+        return val_x[0]
+        
     def is_variable(self, name):
         """
         Returns True if the given name corresponds to a time-varying variable.

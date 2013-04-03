@@ -29,29 +29,28 @@ def run_demo(with_plots=True):
     Demonstrates how to use PyFMI for simulation of 
     Co-Simulation FMUs (version 1.0).
     """
-
     fmu_name = O.path.join(path_to_fmus,'bouncingBall.fmu')
     model = load_fmu(fmu_name)
     
     res = model.simulate(final_time=2.)
     
-    #Retrieve the result for the variables
+    # Retrieve the result for the variables
     h_res = res['h']
     v_res = res['v']
     t     = res['time']
 
-    assert N.abs(h_res[-1] - (0.0424044)) < 1e-2
+    assert N.abs(res.final('h') - (0.0424044)) < 1e-2
     
-    #Plot the solution
+    # Plot the solution
     if with_plots:
-        #Plot the height
+        # Plot the height
         fig = P.figure()
         P.clf()
         P.subplot(2,1,1)
         P.plot(t, h_res)
         P.ylabel('Height (m)')
         P.xlabel('Time (s)')
-        #Plot the velocity
+        # Plot the velocity
         P.subplot(2,1,2)
         P.plot(t, v_res)
         P.ylabel('Velocity (m/s)')

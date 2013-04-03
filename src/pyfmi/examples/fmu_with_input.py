@@ -43,24 +43,22 @@ def run_demo(with_plots=True):
     input_object = ('u', u_traj)
 
     # Load the dynamic library and XML data
-    model=load_fmu(fmu_name)
+    model = load_fmu(fmu_name)
     
     # Set the first input value to the model
     model.set('u',u[0])
     
     # Simulate
     res = model.simulate(final_time=30, input=input_object, options={'ncp':3000})
-    
+
     x1_sim = res['x1']
     x2_sim = res['x2']
     u_sim = res['u']
     time_sim = res['time']
-    
-    assert N.abs(x1_sim[-1]*1.e1 - (-8.3999640)) < 1e-3
-
-    assert N.abs(x2_sim[-1]*1.e1 - (-5.0691179)) < 1e-3  
-
-    assert N.abs(u_sim[-1]*1.e1 - (-8.3907153)) < 1e-3 
+        
+    assert N.abs(res.final('x1')*1.e1 - (-8.3999640)) < 1e-3
+    assert N.abs(res.final('x2')*1.e1 - (-5.0691179)) < 1e-3  
+    assert N.abs(res.final('u')*1.e1 - (-8.3907153)) < 1e-3 
 
     if with_plots:
         fig = p.figure()

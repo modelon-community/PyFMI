@@ -38,21 +38,19 @@ def run_demo(with_plots=True):
     input_object = ('u', N.cos)
 
     # Load the dynamic library and XML data
-    model=load_fmu(fmu_name)
+    model = load_fmu(fmu_name)
 
     # Simulate
     res = model.simulate(final_time=30, input=input_object, options={'ncp':3000})
-    
+
     x1_sim = res['x1']
     x2_sim = res['x2']
     u_sim = res['u']
     time_sim = res['time']
-    
-    assert N.abs(x1_sim[-1] - (-1.646485144)) < 1e-3
-
-    assert N.abs(x2_sim[-1]*1.e1 - (-7.30591626709)) < 1e-3  
-
-    assert N.abs(u_sim[-1]*1.e1 - (1.54251449888)) < 1e-3    
+        
+    assert N.abs(res.final('x1') - (-1.646485144)) < 1e-3
+    assert N.abs(res.final('x2')*1.e1 - (-7.30591626709)) < 1e-3  
+    assert N.abs(res.final('u')*1.e1 - (1.54251449888)) < 1e-3    
 
     if with_plots:
         fig = p.figure()
