@@ -424,7 +424,7 @@ cdef class FMUModelBase(BaseModel):
         self.callbacks.logger  = importlogger
         #self.callbacks.context = NULL;
         self.callbacks.context = <void*>self #Class loggger
-        self.callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
+        self.callbacks.log_level = FMIL.jm_log_level_debug if enable_logging else FMIL.jm_log_level_nothing
         
         fmu_full_path = os.path.abspath(os.path.join(path,fmu))
         fmu_temp_dir  = create_temp_dir()
@@ -1024,17 +1024,30 @@ cdef class FMUModelBase(BaseModel):
         """
         cdef FMIL.fmi1_value_reference_t ref
         cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_import_variable_t* variable
+        cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
         
-        ref = self.get_variable_valueref(variable_name)
-        type = self.get_variable_data_type(variable_name)
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variable_name)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variable_name)
+            
+        ref =  FMIL.fmi1_import_get_variable_vr(variable)
+        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
         
         if type == FMIL.fmi1_base_type_real:  #REAL
+            if alias_kind == FMI_NEGATED_ALIAS:
+                value = -value
             self.set_real([ref], [value])
         elif type == FMIL.fmi1_base_type_int: #INTEGER
+            if alias_kind == FMI_NEGATED_ALIAS:
+                value = -value
             self.set_integer([ref], [value])
         elif type == FMIL.fmi1_base_type_str: #STRING
             self.set_string([ref], [value])
         elif type == FMIL.fmi1_base_type_bool: #BOOLEAN
+            if alias_kind == FMI_NEGATED_ALIAS:
+                value = not value
             self.set_boolean([ref], [value])
         else:
             raise FMUException('Type not supported.')
@@ -1046,18 +1059,28 @@ cdef class FMUModelBase(BaseModel):
         """
         cdef FMIL.fmi1_value_reference_t ref
         cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_import_variable_t* variable
+        cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
         
-        ref = self.get_variable_valueref(variable_name)
-        type = self.get_variable_data_type(variable_name)
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variable_name)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variable_name)
+            
+        ref =  FMIL.fmi1_import_get_variable_vr(variable)
+        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
         
         if type == FMIL.fmi1_base_type_real:  #REAL
-            return self.get_real([ref])
+            value = self.get_real([ref])
+            return -1*value if alias_kind == FMI_NEGATED_ALIAS else value
         elif type == FMIL.fmi1_base_type_int: #INTEGER
-            return self.get_integer([ref])
+            value = self.get_integer([ref])
+            return -1*value if alias_kind == FMI_NEGATED_ALIAS else value
         elif type == FMIL.fmi1_base_type_str: #STRING
             return self.get_string([ref])
         elif type == FMIL.fmi1_base_type_bool: #BOOLEAN
-            return self.get_boolean([ref])
+            value = self.get_boolean([ref])
+            return not value if alias_kind == FMI_NEGATED_ALIAS else value
         else:
             raise FMUException('Type not supported.')
         
