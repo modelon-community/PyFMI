@@ -4032,6 +4032,209 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException("The variable type does not have a minimum value.")
 
 
+
+    #FMU-State-functions
+
+    def get_fmu_state(self):   #Change docstring, function cant return a pointer, how to solve? with an array?
+        """
+        Creates a copy of the recent FMU-state and returns
+        a pointer to this state which later can be used to
+        set the FMU to this state.
+
+        Returns::
+                    A pointer to a copy of the recent FMU state
+
+        Example::
+                    FMU_state = Model.get_fmu_state()
+        """
+        raise NotImplementedError
+        cdef int status
+        cdef object cap1, cap2
+        cdef N.ndarray[FMIL.fmi2_FMU_state_t, ndim=1, mode='c'] state = N.empty(dtype = N.double)
+
+
+        cap1 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
+        cap2 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canGetAndSetFMUstate)
+        if not cap1 and not cap2:
+            raise FMUException('This FMU dos not support get and set FMU-state')
+
+        status = FMIL.fmi2_import_get_fmu_state(self._fmu, <FMIL.fmi2_FMU_state_t*> state.data)
+
+        if status != 0:
+            raise FMUException('An error occured while trying to get the FMU-state, see the log for possible more information')
+
+        return state
+
+    cpdef set_fmu_state(self, state):
+        """
+        Set the FMU to a previous saved state.
+
+        Paramter::
+            state-- A pointer to a FMU-state
+
+        Example::
+            FMU_state = Model.get_fmu_state()
+            Model.set_fmu_state(FMU_state)
+
+        """
+
+        cdef int status
+        cdef object cap1, cap2
+
+        cap1 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
+        cap2 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canGetAndSetFMUstate)
+        if not cap1 and not cap2:
+            raise FMUException('This FMU dos not support get and set FMU-state')
+
+        status = FMIL.fmi2_import_set_fmu_state(self._fmu, <FMIL.fmi2_FMU_state_t> state)
+
+        if status != 0:
+            raise FMUException('An error occured while trying to set the FMU-state, see the log for possible more information')
+
+        return None
+
+    cpdef free_fmu_state(self, state):
+        """
+        Free a previously saved FMU-state from the memory
+
+        Parameters::
+            state-- A pointer to the FMU-state to be set free
+
+        Example::
+            FMU_state = Model.get_fmu_state
+            Model.free_fmu_state(FMU_state)
+
+        """
+        raise NotImplementedError
+        cdef int status
+
+        status = FMIL.fmi2_import_free_fmu_state(self._fmu, <FMIL.fmi2_FMU_state_t*> state)
+
+        if status != 0:
+            raise FMUException('An error occured while trying to free the FMU-state, see the log for possible more information')
+
+        return None
+
+    cpdef serialize_fmu_state(self, state, n_bytes):
+        """
+        Serialize the data referenced by the input argumemt: state
+
+        Returns::
+                    A vector with the serialized FMU-state
+
+        Example::
+                    FMU_state = Model.get_fmu_state()
+                    serialized_fmu = Model.serialize_fmu_state(FMU_state)
+        """
+
+        cdef int status
+        cdef object cap1, cap2
+        #cdef FMIL.size_t n_bytes
+        cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] serialized_fmu
+
+
+        cap1 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canSerializeFMUstate)
+        cap2 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSerializeFMUstate)
+        if not cap1 and not cap2:
+            raise FMUException('This FMU dos not support serialisation of FMU-state')
+
+
+
+        #n_bytes = self.serialized_fmu_state_size(state)
+        serialized_fmu = N.empty(dtype=N.char)
+
+        status = FMIL.fmi2_import_serialize_fmu_state(self._fmu, <FMIL.fmi2_FMU_state_t> state, <FMIL.fmi2_byte_t*> serialized_fmu.data, <FMIL.size_t> n_bytes)
+
+        if status != 0:
+            raise FMUException('An error occured while serializing the FMU-state, see the log for possible more information')
+
+        return serialized_fmu
+
+    cpdef deserialize_fmu_state(self, serialized_fmu):
+        """
+        Deserialize the provided byte_vector and returns the corresponding FMU-state.
+
+        Example::
+
+            FMU_state = Model.get_fmu_state()
+            serialized_fmu = Model.serialize_fmu_state(FMU_state)
+            FMU_state = Model.deserialize_fmu_state(serialized_fmu)
+        """
+        raise NotImplementedError
+        cdef int status
+        cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu
+        cdef FMIL.fmi2_FMU_state_t* state
+        cdef FMIL.size_t n_byte = len(ser_fmu)
+
+        status = FMIL.fmi2_import_de_serialize_fmu_state(self._fmu, <FMIL.fmi2_byte_t *> ser_fmu.data, n_byte, <FMIL.fmi2_FMU_state_t> state)
+
+        if status != 0:
+            raise FMUException('An error occured while deserializing the FMU-state, see the log for possible more information')
+
+        return state
+
+    cpdef serialized_fmu_state_size(self, state):
+        """
+        Returns the required size of a vector needed to serialize the specified FMU-state
+        """
+
+        cdef int status
+        cdef FMIL.size_t n_bytes
+
+        status = FMIL.fmi2_import_serialized_fmu_state_size(self._fmu, <FMIL.fmi2_FMU_state_t> state, &n_bytes)
+
+        if status != 0:
+            raise FMUException('An error occured while computing the FMU-state size, see the log for possible more information')
+
+        return n_bytes
+
+
+    #Derivatives
+
+    def get_partial_derivatives(self): #This doesn't exists in FMIL !!!
+        """
+        """
+        raise NotImplementedError
+        return None
+
+    def get_directional_derivative(self, v_ref, z_ref):
+        """
+        v_ref list of value-references, to differentiate w.r.t
+        dv list with points to differentiate in. Who provides this?? Or is this the present value of the variables??
+
+        """
+
+
+        cdef int status
+        cdef FMIL.size_t nv, nz
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dv = N.zeros(len(v_ref), dtype = N.double)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dz = N.zeros(len(z_ref), dtype = N.double)
+
+        if not FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives):
+            raise FMUException('This FMU does not provide directional derivatives')
+
+        if not len(v_ref)==len(z_ref):
+            raise FMUException('Length of input lists are not equal')
+
+
+
+        nv = len(v_ref)
+        nz = len(z_ref)
+
+        status = FMIL.fmi2_import_get_directional_derivative(self._fmu, v_ref, nv, z_ref, nz, dv, dz)
+
+        if status != 0:
+            raise FMUException('An error occured while getting the directional derivative, see the log for possible more information')
+
+
+
+        return dz
+
+
+
+
+
+
     #Other functions
 
     def get_ode_sizes(self):
@@ -4126,7 +4329,9 @@ cdef class FMUModelBase2(ModelBase):
 
         return capabilities
 
-    #Property-functions
+
+
+    #Model-functions
 
     def get_version(self):
         """
@@ -4325,6 +4530,20 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         self._allocated_fmu = True
 
+    def reset_slave(self):
+        """
+        Function called by the master after a simulation before
+        starting a new one. Note that the envoronment has to initialize
+        the FMU again after this functioncall.
+        """
+
+        cdef int status
+
+        status = FMIL.fmi2_import_reset_slave(self._fmu)
+        if status != 0:
+            raise FMUException('An error occured when reseting the slave, see the log for possible more information')
+
+
 
     #time
     cpdef _get_time(self):
@@ -4384,8 +4603,20 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         Cancel a current integrator step. Can only be called if the
         status from do_step returns FMI_PENDING.
+        After this function has been called, only calls to the low-level
+        functions:
+            -fmiTerminateSlave
+            -fmiResetSlave
+            -fmiFreeSlaveInstance
+        are allowed
         """
-        raise NotImplementedError
+
+        cdef int status
+
+        status = FMIL.fmi2_import_cancel_step(self._fmu)
+        if status != 0:
+            raise FMUException('An error occured while canceling the step')
+
 
     def set_input_derivatives(self, variables, values, FMIL.fmi2_integer_t order):  #Check size of lists ??
         """
@@ -4488,6 +4719,139 @@ cdef class FMUModelCS2(FMUModelBase2):
             raise FMUException('Failed to get the Real output derivatives.')
 
         return values
+
+
+    #Variable status
+
+    def get_status(self, status_kind): #Is return value really always an integer as spec in FMIL ??
+        """
+        Retrieves the fmi-status for the the specified fmi-staus-kind:
+            fmiDoStepStatus       = 0
+            fmiPendingStatus      = 1
+            fmiLastSuccessfulTime = 2
+            fmiTerminated         = 3
+
+        Returns::
+            status_ok      = 0
+            status_warning = 1
+            status_discard = 2
+            status_error   = 3
+            status_fatal   = 4
+            status_pending = 5
+        """
+
+        cdef int status
+        cdef int fmi_status_kind
+        cdef int status_value
+
+        if status_kind >= 0 and status_kind <= 3:
+            fmi_status_kind = status_kind
+        else:
+            raise FMUException('Status kind has to be between 0 and 3')
+
+        status = FMIL.fmi2_import_get_status(self._fmu, fmi_status_kind, &status_value)
+        if status != 0:
+            raise FMUException('An error occured while retriving the status')
+
+        return status_value
+
+    def get_real_status(self, status_kind):
+        """
+        Retrieves the status, represented as a real-value,
+        for the specified fmi-status-kind.
+        See docstring for function get_status() for more
+        information about fmi-status-kind.
+        """
+
+        cdef int status
+        cdef int fmi_status_kind
+        cdef FMIL.fmi2_real_t output
+
+        if status_kind >= 0 and status_kind <= 3:
+            fmi_status_kind = status_kind
+        else:
+            raise FMUException('Status kind has to be between 0 and 3')
+
+
+        status = FMIL.fmi2_import_get_real_status(self._fmu, fmi_status_kind, &output)
+        if status != 0:
+            raise FMUException('An error occured while retriving the status')
+
+        return output
+
+    def get_integer_status(self, status_kind):
+        """
+        Retrieves the status, represented as a integer-value,
+        for the specified fmi-status-kind.
+        See docstring for function get_status() for more
+        information about fmi-status-kind.
+        """
+
+        cdef int status
+        cdef int fmi_status_kind
+        cdef FMIL.fmi2_integer_t output
+
+        if status_kind >= 0 and status_kind <= 3:
+            fmi_status_kind = status_kind
+        else:
+            raise FMUException('Status kind has to be between 0 and 3')
+
+
+        status = FMIL.fmi2_import_get_integer_status(self._fmu, fmi_status_kind, &output)
+        if status != 0:
+            raise FMUException('An error occured while retriving the status')
+
+        return output
+
+    def get_boolean_status(self, status_kind):
+        """
+        Retrieves the status, represented as a boolean-value,
+        for the specified fmi-status-kind.
+        See docstring for function get_status() for more
+        information about fmi-status-kind.
+        """
+
+        cdef int status
+        cdef int fmi_status_kind
+        cdef FMIL.fmi2_boolean_t output
+
+        if status_kind >= 0 and status_kind <= 3:
+            fmi_status_kind = status_kind
+        else:
+            raise FMUException('Status kind has to be between 0 and 3')
+
+
+        status = FMIL.fmi2_import_get_boolean_status(self._fmu, fmi_status_kind, &output)
+        if status != 0:
+            raise FMUException('An error occured while retriving the status')
+
+        return output
+
+    def get_string_status(self, status_kind):
+        """
+        Retrieves the status, represented as a string-value,
+        for the specified fmi-status-kind.
+        See docstring for function get_status() for more
+        information about fmi-status-kind.
+        """
+
+        cdef int status
+        cdef int fmi_status_kind
+        cdef FMIL.fmi2_string_t output
+
+        if status_kind >= 0 and status_kind <= 3:
+            fmi_status_kind = status_kind
+        else:
+            raise FMUException('Status kind has to be between 0 and 3')
+
+
+        status = FMIL.fmi2_import_get_string_status(self._fmu, fmi_status_kind, &output)
+        if status != 0:
+            raise FMUException('An error occured while retriving the status')
+
+        return output
+
+
 
     #simulate
     def simulate(self,
@@ -4905,6 +5269,21 @@ cdef class FMUModelME2(FMUModelBase2):
         atol = 0.01*rtol*self.nominal_continuous_states
 
         return [rtol, atol]
+
+    cpdef completed_event_iteration(self):
+        """
+        This function has to be called by the solver when the global
+        event iteration has converged.
+        """
+
+        cdef int status
+
+        status = FMIL.fmi2_import_completed_event_iteration(self._fmu)
+
+        if status != 0:
+            raise FMUException('An error occured when updating FMU after global event iteration has converged ')
+
+        return status
 
 
 
