@@ -93,13 +93,13 @@ FMI_OUTPUTS = 2
 
 #CALLBACKS
 cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-    print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
+    #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
     if c.context != NULL:
         (<FMUModelBase>c.context)._logger(module,log_level,message)
 
 #CALLBACKS
 cdef void importlogger2(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-    print "FMIL: module = %s, log lovel = %d: %s" %(module, log_level, message)
+    #print "FMIL: module = %s, log lovel = %d: %s" %(module, log_level, message)
     if c.context != NULL:
         (<FMUModelBase2>c.context)._logger(module, log_level, message)
 
@@ -368,7 +368,7 @@ cdef class ScalarVariable:
         return self._alias
     alias = property(_get_alias)
 
-cdef class ScalarVariable2: #Attribute initial !?!?!
+cdef class ScalarVariable2:
     """
     Class defining data structure based on the XML element ScalarVariable.
     """
@@ -475,6 +475,16 @@ cdef class ScalarVariable2: #Attribute initial !?!?!
         """
         return self._alias
     alias = property(_get_alias)
+
+cdef class FMUState2:
+    """
+    Class containing a pointer to a FMU-state.
+    """
+
+    cdef FMIL.fmi2_FMU_state_t* fmu_state
+
+    def __init__(self):
+        self.fmu_state = NULL
 
 
 
@@ -2928,10 +2938,11 @@ cdef class FMUModelBase2(ModelBase):
         #Store the continuous and discrete variables for result writing
         reals_continuous = self.get_model_variables(type=0, include_alias=False, variability=4)
         reals_discrete   = self.get_model_variables(type=0, include_alias=False, variability=3)
+        reals_tunable    = self.get_model_variables(type=0, include_alias=False, variability=2)
         int_discrete     = self.get_model_variables(type=1, include_alias=False, variability=3)
         bool_discrete    = self.get_model_variables(type=2, include_alias=False, variability=3)
 
-        self._save_real_variables_val = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]
+        self._save_real_variables_val = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]+[var.value_reference for var in reals_tunable.values()]
         self._save_int_variables_val  = [var.value_reference for var in int_discrete.values()]
         self._save_bool_variables_val = [var.value_reference for var in bool_discrete.values()]
 
@@ -3176,7 +3187,7 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to set the Boolean values.')
 
-    def get_string(self, valueref):                 #NOT OK
+    def get_string(self, valueref):
         """
         Returns the string-values from the valuereference(s).
 
@@ -3213,7 +3224,7 @@ cdef class FMUModelBase2(ModelBase):
 
         return output_value
 
-    def set_string(self, valueref, values):         #NOT OK
+    def set_string(self, valueref, values):
         """
         Sets the string-values in the FMU as defined by the valuereference(s).
 
@@ -3366,7 +3377,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException("Invalid log level for FMI Library (0-7).")
         self.callbacks.log_level = <FMIL.jm_log_level_enu_t> level
 
-    def get_fmil_log_level(self): # Is this ok ?
+    def get_fmil_log_level(self):
         """
         Returns the current fmil log-level
         """
@@ -3379,7 +3390,7 @@ cdef class FMUModelBase2(ModelBase):
         else:
             raise FMUException('Logging is not enabled')
 
-    def set_debug_logging(self, logging_on, categories = []):   #NOT OK
+    def set_debug_logging(self, logging_on, categories = []):
         """
         Specifies if the debugging should be turned on or off.
 
@@ -3508,7 +3519,7 @@ cdef class FMUModelBase2(ModelBase):
 
         return name
 
-    def get_variable_alias(self, char* variablename):                 #Argument kind and docstring
+    def get_variable_alias(self, char* variablename):
         """
         Return a dict of all alias variables belonging to the provided variable
         where the key are the names and the value indicating whether the variable
@@ -3811,7 +3822,7 @@ cdef class FMUModelBase2(ModelBase):
 
         return desc if desc != NULL else ""
 
-    cpdef get_variable_fixed(self, char* variablename):         #Where do we use this and not the one bellow ?
+    cpdef get_variable_fixed(self, char* variablename):
         """
         Returns if the start value is fixed (True - The value is used as
         an initial value) or not (False - The value is used as a guess
@@ -4035,7 +4046,7 @@ cdef class FMUModelBase2(ModelBase):
 
     #FMU-State-functions
 
-    def get_fmu_state(self):   #Change docstring, function cant return a pointer, how to solve? with an array?
+    def get_fmu_state(self):
         """
         Creates a copy of the recent FMU-state and returns
         a pointer to this state which later can be used to
@@ -4047,10 +4058,10 @@ cdef class FMUModelBase2(ModelBase):
         Example::
                     FMU_state = Model.get_fmu_state()
         """
-        raise NotImplementedError
+
         cdef int status
         cdef object cap1, cap2
-        cdef N.ndarray[FMIL.fmi2_FMU_state_t, ndim=1, mode='c'] state = N.empty(dtype = N.double)
+        cdef FMUState2 state = FMUState2()
 
 
         cap1 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
@@ -4058,14 +4069,14 @@ cdef class FMUModelBase2(ModelBase):
         if not cap1 and not cap2:
             raise FMUException('This FMU dos not support get and set FMU-state')
 
-        status = FMIL.fmi2_import_get_fmu_state(self._fmu, <FMIL.fmi2_FMU_state_t*> state.data)
+        status = FMIL.fmi2_import_get_fmu_state(self._fmu, state.fmu_state)
 
         if status != 0:
             raise FMUException('An error occured while trying to get the FMU-state, see the log for possible more information')
 
         return state
 
-    cpdef set_fmu_state(self, state):
+    def set_fmu_state(self, state):
         """
         Set the FMU to a previous saved state.
 
@@ -4080,20 +4091,21 @@ cdef class FMUModelBase2(ModelBase):
 
         cdef int status
         cdef object cap1, cap2
+        cdef FMUState2 internal_state = state
 
         cap1 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
         cap2 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canGetAndSetFMUstate)
         if not cap1 and not cap2:
             raise FMUException('This FMU dos not support get and set FMU-state')
 
-        status = FMIL.fmi2_import_set_fmu_state(self._fmu, <FMIL.fmi2_FMU_state_t> state)
+        status = FMIL.fmi2_import_set_fmu_state(self._fmu, internal_state.fmu_state)
 
         if status != 0:
             raise FMUException('An error occured while trying to set the FMU-state, see the log for possible more information')
 
         return None
 
-    cpdef free_fmu_state(self, state):
+    def free_fmu_state(self, state):
         """
         Free a previously saved FMU-state from the memory
 
@@ -4105,17 +4117,18 @@ cdef class FMUModelBase2(ModelBase):
             Model.free_fmu_state(FMU_state)
 
         """
-        raise NotImplementedError
-        cdef int status
 
-        status = FMIL.fmi2_import_free_fmu_state(self._fmu, <FMIL.fmi2_FMU_state_t*> state)
+        cdef int status
+        cdef FMUState2 internal_state = state
+
+        status = FMIL.fmi2_import_free_fmu_state(self._fmu, internal_state.fmu_state)
 
         if status != 0:
             raise FMUException('An error occured while trying to free the FMU-state, see the log for possible more information')
 
         return None
 
-    cpdef serialize_fmu_state(self, state, n_bytes):
+    cpdef serialize_fmu_state(self, state):
         """
         Serialize the data referenced by the input argumemt: state
 
@@ -4129,21 +4142,20 @@ cdef class FMUModelBase2(ModelBase):
 
         cdef int status
         cdef object cap1, cap2
-        #cdef FMIL.size_t n_bytes
-        cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] serialized_fmu
+        cdef FMUState2 internal_state = state
 
+        cdef FMIL.size_t n_bytes
+        cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] serialized_fmu
 
         cap1 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canSerializeFMUstate)
         cap2 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSerializeFMUstate)
         if not cap1 and not cap2:
             raise FMUException('This FMU dos not support serialisation of FMU-state')
 
+        n_bytes = self.serialized_fmu_state_size(state)
+        serialized_fmu = N.empty(n_bytes, dtype=N.char)
 
-
-        #n_bytes = self.serialized_fmu_state_size(state)
-        serialized_fmu = N.empty(dtype=N.char)
-
-        status = FMIL.fmi2_import_serialize_fmu_state(self._fmu, <FMIL.fmi2_FMU_state_t> state, <FMIL.fmi2_byte_t*> serialized_fmu.data, <FMIL.size_t> n_bytes)
+        status = FMIL.fmi2_import_serialize_fmu_state(self._fmu, internal_state.fmu_state, <FMIL.fmi2_byte_t*> serialized_fmu.data, n_bytes)
 
         if status != 0:
             raise FMUException('An error occured while serializing the FMU-state, see the log for possible more information')
@@ -4160,13 +4172,13 @@ cdef class FMUModelBase2(ModelBase):
             serialized_fmu = Model.serialize_fmu_state(FMU_state)
             FMU_state = Model.deserialize_fmu_state(serialized_fmu)
         """
-        raise NotImplementedError
+
         cdef int status
         cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu
-        cdef FMIL.fmi2_FMU_state_t* state
+        cdef FMUState2 state = FMUState2()
         cdef FMIL.size_t n_byte = len(ser_fmu)
 
-        status = FMIL.fmi2_import_de_serialize_fmu_state(self._fmu, <FMIL.fmi2_byte_t *> ser_fmu.data, n_byte, <FMIL.fmi2_FMU_state_t> state)
+        status = FMIL.fmi2_import_de_serialize_fmu_state(self._fmu, <FMIL.fmi2_byte_t *> ser_fmu.data, n_byte, state.fmu_state)
 
         if status != 0:
             raise FMUException('An error occured while deserializing the FMU-state, see the log for possible more information')
@@ -4179,9 +4191,10 @@ cdef class FMUModelBase2(ModelBase):
         """
 
         cdef int status
+        cdef FMUState2 internal_state = state
         cdef FMIL.size_t n_bytes
 
-        status = FMIL.fmi2_import_serialized_fmu_state_size(self._fmu, <FMIL.fmi2_FMU_state_t> state, &n_bytes)
+        status = FMIL.fmi2_import_serialized_fmu_state_size(self._fmu, internal_state.fmu_state, &n_bytes)
 
         if status != 0:
             raise FMUException('An error occured while computing the FMU-state size, see the log for possible more information')
@@ -4191,48 +4204,74 @@ cdef class FMUModelBase2(ModelBase):
 
     #Derivatives
 
-    def get_partial_derivatives(self): #This doesn't exists in FMIL !!!
+    def get_directional_derivative(self, var_ref, func_ref, v):
         """
-        """
-        raise NotImplementedError
-        return None
+        Returns the directional derivatives of the functions with respect
+        to the given variables and in the given direction.
+        In other words, it returns linear combinations of the partial derivatives
+        of the given functions with respect to the selected variables.
+        The point of eveluation is the current time-point.
 
-    def get_directional_derivative(self, v_ref, z_ref):
-        """
-        v_ref list of value-references, to differentiate w.r.t
-        dv list with points to differentiate in. Who provides this?? Or is this the present value of the variables??
+        Parameters::
+
+            var_ref --
+                A list of variable references that the partial derivatives
+                will be calculated with respect to
+
+            func_ref --
+                A list of function references for which the partial derivatives will be calculated
+            v --
+                A list of numbers specifing the linear combination of the partial derivatives
+
+        Returns::
+
+            value --
+                A vector with the directional derivatives (linear combination of
+                partial derivatives) evaluated in the current time point.
+
+        Example::
+
+            Model.get_directional_derivative(var_ref = [0,1], func_ref = [2,3], v = [1,2])
+            This returns a vector with two values where:
+
+            values[0] = (df2/dv0) * 1 + (df2/dv1) * 2
+            values[1] = (df3/dv0) * 1 + (df3/dv1) * 2
+
+            and right hand side is evaluated in the current time point.
 
         """
-
 
         cdef int status
         cdef FMIL.size_t nv, nz
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dv = N.zeros(len(v_ref), dtype = N.double)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dz = N.zeros(len(z_ref), dtype = N.double)
+
+        #input arrays
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v_ref = N.zeros(len(var_ref),  dtype = N.double)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] z_ref = N.zeros(len(func_ref), dtype = N.double)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dv    = N.zeros(len(v),        dtype = N.double)
+        #output array
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dz    = N.zeros(len(func_ref), dtype = N.double)
 
         if not FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives):
             raise FMUException('This FMU does not provide directional derivatives')
 
-        if not len(v_ref)==len(z_ref):
-            raise FMUException('Length of input lists are not equal')
+        if len(var_ref) != len(v):
+            raise FMUException('The length of the list with variables (var_ref) and the seed vector (V) are not equal')
 
-
+        for i in range(len(var_ref)):
+            v_ref[i] = var_ref[i]
+            dv[i] = v[i]
+        for j in range(len(func_ref)):
+            z_ref[j] = func_ref[j]
 
         nv = len(v_ref)
         nz = len(z_ref)
 
-        status = FMIL.fmi2_import_get_directional_derivative(self._fmu, v_ref, nv, z_ref, nz, dv, dz)
+        status = FMIL.fmi2_import_get_directional_derivative(self._fmu, <FMIL.fmi2_value_reference_t*> v_ref.data, nv, <FMIL.fmi2_value_reference_t*> z_ref.data, nz, <FMIL.fmi2_real_t*> dv.data, <FMIL.fmi2_real_t*> dz.data)
 
         if status != 0:
             raise FMUException('An error occured while getting the directional derivative, see the log for possible more information')
 
-
-
         return dz
-
-
-
-
 
 
     #Other functions
@@ -4305,29 +4344,43 @@ cdef class FMUModelBase2(ModelBase):
             capabilities_Num
         """
         cdef dict capabilities = {}
+        cdef dict cap          = {}
 
-        capabilities['me_needsExecutionTool']                     = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_needsExecutionTool)
-        capabilities['me_completedIntegratorStepNotNeeded']       = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_completedIntegratorStepNotNeeded)
-        capabilities['me_canBeInstantiatedOnlyOncePerProcess']    = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canBeInstantiatedOnlyOncePerProcess)
-        capabilities['me_canNotUseMemoryManagementFunctions']     = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canNotUseMemoryManagementFunctions)
-        capabilities['me_canGetAndSetFMUstate']                   = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
-        capabilities['me_canSerializeFMUstate']                   = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canSerializeFMUstate)
-        capabilities['me_providesDirectionalDerivatives']         = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives)
-        capabilities['me_completedEventIterationIsProvided']      = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_completedEventIterationIsProvided)
-        capabilities['cs_needsExecutionTool']                     = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_needsExecutionTool)
-        capabilities['cs_canHandleVariableCommunicationStepSize'] = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canHandleVariableCommunicationStepSize)
-        capabilities['cs_canHandleEvents']                        = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canHandleEvents)
-        capabilities['cs_canInterpolateInputs']                   = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canInterpolateInputs)
+        capabilities['me_needsExecutionTool']                     = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_needsExecutionTool))
+        capabilities['me_completedIntegratorStepNotNeeded']       = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_completedIntegratorStepNotNeeded))
+        capabilities['me_canBeInstantiatedOnlyOncePerProcess']    = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canBeInstantiatedOnlyOncePerProcess))
+        capabilities['me_canNotUseMemoryManagementFunctions']     = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canNotUseMemoryManagementFunctions))
+        capabilities['me_canGetAndSetFMUstate']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate))
+        capabilities['me_canSerializeFMUstate']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canSerializeFMUstate))
+        capabilities['me_providesDirectionalDerivatives']         = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives))
+        capabilities['me_completedEventIterationIsProvided']      = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_completedEventIterationIsProvided))
+        capabilities['cs_needsExecutionTool']                     = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_needsExecutionTool))
+        capabilities['cs_canHandleVariableCommunicationStepSize'] = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canHandleVariableCommunicationStepSize))
+        capabilities['cs_canHandleEvents']                        = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canHandleEvents))
+        capabilities['cs_canInterpolateInputs']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canInterpolateInputs))
         capabilities['cs_maxOutputDerivativeOrder']               = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_maxOutputDerivativeOrder)
-        capabilities['cs_canRunAsynchronuously']                  = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canRunAsynchronuously)
-        capabilities['cs_canSignalEvents']                        = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSignalEvents)
-        capabilities['cs_canBeInstantiatedOnlyOncePerProcess']    = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canBeInstantiatedOnlyOncePerProcess)
-        capabilities['cs_canNotUseMemoryManagementFunctions']     = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canNotUseMemoryManagementFunctions)
-        capabilities['cs_canGetAndSetFMUstate']                   = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canGetAndSetFMUstate)
-        capabilities['cs_canSerializeFMUstate']                   = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSerializeFMUstate)
+        capabilities['cs_canRunAsynchronuously']                  = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canRunAsynchronuously))
+        capabilities['cs_canSignalEvents']                        = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSignalEvents))
+        capabilities['cs_canBeInstantiatedOnlyOncePerProcess']    = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canBeInstantiatedOnlyOncePerProcess))
+        capabilities['cs_canNotUseMemoryManagementFunctions']     = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canNotUseMemoryManagementFunctions))
+        capabilities['cs_canGetAndSetFMUstate']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canGetAndSetFMUstate))
+        capabilities['cs_canSerializeFMUstate']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSerializeFMUstate))
         capabilities['capabilities_Num']                          = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_capabilities_Num)
 
-        return capabilities
+        if self._fmu_kind == FMIL.fmi2_fmu_kind_me:
+            for key in sorted(capabilities.keys())[12:20]:
+                cap[key] = capabilities[key]
+            key = sorted(capabilities.keys())[0]
+            cap[key] = capabilities[key]
+            return cap
+
+        elif self._fmu_kind == FMIL.fmi2_fmu_kind_cs:
+            for key in sorted(capabilities.keys())[0:12]:
+                cap[key] = capabilities[key]
+            return cap
+
+        else:
+            return capabilities
 
 
 
@@ -4412,10 +4465,10 @@ cdef class FMUModelBase2(ModelBase):
 
 cdef class FMUModelCS2(FMUModelBase2):
     """
-    An appropriate docstring
+    Co-simulation model loaded from a dll
     """
 
-    #Init/dealloc/instantiate and so on
+    #Init/dealloc/instantiate
     def __init__(self, fmu, path = '.', enable_logging = True, log_file_name = ""):
         #Call super
         FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name)
@@ -4496,7 +4549,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         #if status != 0:
         #    raise FMUException('Failed to set the debugging option.')
 
-    def initialize(self, relTol=None, tStart=0.0, tStop=1.0, StopTimeDefined=False): #check tolerance and FMIL types on start/stop
+    def initialize(self, relTol=None, tStart=0.0, tStop=1.0, StopTimeDefined=False):
         """
         Initializes the slave.
 
@@ -4618,7 +4671,7 @@ cdef class FMUModelCS2(FMUModelBase2):
             raise FMUException('An error occured while canceling the step')
 
 
-    def set_input_derivatives(self, variables, values, FMIL.fmi2_integer_t order):  #Check size of lists ??
+    def set_input_derivatives(self, variables, values, FMIL.fmi2_integer_t order):
         """
         Sets the input derivative order for the specified variables.
 
@@ -4723,7 +4776,7 @@ cdef class FMUModelCS2(FMUModelBase2):
 
     #Variable status
 
-    def get_status(self, status_kind): #Is return value really always an integer as spec in FMIL ??
+    def get_status(self, status_kind):
         """
         Retrieves the fmi-status for the the specified fmi-staus-kind:
             fmiDoStepStatus       = 0
@@ -4941,14 +4994,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
-
-
-    def say_hi(self):
-        print('Hi, ive been instantiated as a CS2 model')
-
 cdef class FMUModelME2(FMUModelBase2):
     """
-    An appropriate docstring
+    Model-exchange model loaded from a dll
     """
 
     def __init__(self, fmu, path = '.', enable_logging = True, log_file_name = ""):
@@ -4988,8 +5036,8 @@ cdef class FMUModelME2(FMUModelBase2):
             FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
 
 
-    # Istantiate/initialize/reset/terminate and so on
-    def instantiate_model(self, name= 'Model', visible = False): # Be careful with resource location and debug_logging
+    # Istantiate/initialize/reset/terminate
+    def instantiate_model(self, name= 'Model', visible = False):
         """
         Instantiate the model.
 
@@ -5298,7 +5346,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         return ndx
 
-    def _set_continuous_states(self, N.ndarray[FMIL.fmi2_real_t] values):   #Why >3 ???
+    def _set_continuous_states(self, N.ndarray[FMIL.fmi2_real_t] values):
         cdef int status
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c'] ndx = values  #N.array(values,dtype=N.double,ndmin=1).flatten()
 
@@ -5508,11 +5556,6 @@ cdef class FMUModelME2(FMUModelBase2):
             Options class for the algorithm specified with default values.
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
-
-
-    # Remove later
-    def say_hi(self):
-        print('Hi, ive been instantiated as a ME2 model')
 
 
 

@@ -896,7 +896,7 @@ cdef extern from 'fmilib.h':
     unsigned int fmi2_import_get_enum_type_min(fmi2_import_enumeration_typedef_t *)
 
 
-    int fmi2_import_get_directional_derivative(fmi2_import_t *, fmi2_value_reference_t, size_t, fmi2_value_reference_t, size_t, fmi2_real_t, fmi2_real_t)
+    int fmi2_import_get_directional_derivative(fmi2_import_t *, fmi2_value_reference_t*, size_t, fmi2_value_reference_t*, size_t, fmi2_real_t*, fmi2_real_t*)
     char * fmi2_import_get_last_error(fmi2_import_t *)
     char * fmi2_import_get_enum_type_item_description(fmi2_import_enumeration_typedef_t *, unsigned int)
     char * fmi2_causality_to_string(fmi2_causality_enu_t)
