@@ -511,6 +511,7 @@ class FMICSAlg(AlgorithmBase):
                                                       self.input[1][:,1:]))
             #Sets the inputs, if any
             self.model.set(input_traj[0], input_traj[1].eval(self.start_time)[0,:])
+        self.input_traj = input_traj
 
         # Initialize?
         if self.options['initialize']:
@@ -545,11 +546,14 @@ class FMICSAlg(AlgorithmBase):
         grid = N.linspace(self.start_time,self.final_time,self.ncp+1)[:-1]
         
         status = 0
-
+        
         #For result writing
         result_write = ResultWriterDymola(self.model)
         result_write.write_header(self.result_file_name)
         result_write.write_point()
+        
+        #Start of simulation, start the clock
+        time_start = time.clock()
         
         for t in grid:
             status = self.model.do_step(t,h)
@@ -560,7 +564,16 @@ class FMICSAlg(AlgorithmBase):
                 
             result_write.write_point()
             
+            self.model.set(self.input_traj[0], self.input_traj[1].eval(t+h)[0,:])
+        
+        #End of simulation, stop the clock
+        time_stop = time.clock()
+        
         result_write.write_finalize()
+        
+        #Log elapsed time
+        print 'Simulation interval    : ' + str(self.start_time) + ' - ' + str(self.final_time) + ' seconds.'
+        print 'Elapsed simulation time: ' + str(time_stop-time_start) + ' seconds.'
  
     def get_result(self):
         """ 
