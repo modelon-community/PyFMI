@@ -564,7 +564,8 @@ class FMICSAlg(AlgorithmBase):
                 
             result_write.write_point()
             
-            self.model.set(self.input_traj[0], self.input_traj[1].eval(t+h)[0,:])
+            if self.input_traj != None:
+                self.model.set(self.input_traj[0], self.input_traj[1].eval(t+h)[0,:])
         
         #End of simulation, stop the clock
         time_stop = time.clock()
