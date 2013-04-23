@@ -1488,6 +1488,27 @@ cdef class FMUModelBase(ModelBase):
         else:
             raise FMUException("The variable type does not have a minimum value.")
 
+    def save_time_point_value_references(self):
+        """
+        Retrieve the value references used for retrieving the data from
+        the method save_time_point.
+        
+        Returns::
+        
+            r --
+                The Real-valued value-references.
+
+            i --
+                The Integer-valued value-references.
+
+            b --
+                The Boolean-valued value-references.
+        """
+        r = self._save_real_variables_val
+        i = self._save_int_variables_val
+        b = self._save_bool_variables_val
+        
+        return r,i,b
 
     def save_time_point(self):
         """
