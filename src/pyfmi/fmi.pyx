@@ -20,6 +20,8 @@ Module containing the FMI interface Python wrappers.
 import os
 import sys
 import logging
+import fnmatch
+import re
 
 import numpy as N
 cimport numpy as N
@@ -732,6 +734,23 @@ cdef class FMUModelBase(ModelBase):
     #
     #    if self._fmu_temp_dir:
     #        delete_temp_dir(self._fmu_temp_dir)
+    
+    def _convert_filter(self, expression):
+        """
+        Convert a filter based on unix filename pattern matching to a 
+        list of regular expressions.
+        """
+        regexp = []
+        if isinstance(expression,str):
+            regex = fnmatch.translate(expression)
+            regexp = [re.compile(regex)]
+        elif isinstance(expression,list):
+            for i in expression:
+                regex = fnmatch.translate(i)
+                regexp.append(re.compile(regex))
+        else:
+            raise FMUException("Unknown input.")
+        return regexp
 
     def _get_version(self):
         """
@@ -1547,7 +1566,8 @@ cdef class FMUModelBase(ModelBase):
 
     def get_model_variables(self,type=None, include_alias=True,
                             causality=None,   variability=None,
-                            only_start=False,  only_fixed=False):
+                            only_start=False,  only_fixed=False,
+                            filter=None):
         """
         Extract the names of the variables in a model.
 
@@ -1571,6 +1591,11 @@ cdef class FMUModelBase(ModelBase):
             only_fixed --
                 If only variables that has a start value that is fixed
                 should be returned. Default False
+            filter --
+                Filter the variables using a unix filename pattern
+                matching (filter="*der*"). Can also be a list of filters
+                See http://docs.python.org/2/library/fnmatch.html. 
+                Default None
 
         Returns::
 
@@ -1587,10 +1612,13 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
         cdef char* desc
         cdef dict variable_dict = {}
+        cdef list filter_list = []
         cdef int  selected_type = 0 #If a type has been selected
         cdef int  selected_variability = 0 #If a variability has been selected
         cdef int  selected_causality = 0 #If a causality has been selected
         cdef int  has_start, is_fixed
+        cdef int  selected_filter = 1 if filter else 0
+        cdef int  length_filter = 0
 
         variable_list = FMIL.fmi1_import_get_variable_list(self._fmu)
         variable_list_size = FMIL.fmi1_import_get_variable_list_size(variable_list)
@@ -1604,6 +1632,9 @@ cdef class FMUModelBase(ModelBase):
         if variability!=None: #A variability has been selected
             target_variability = variability
             selected_variability = 1
+        if selected_filter:
+            filter_list = self._convert_filter(filter)
+            length_filter = len(filter_list)
 
         for i in range(variable_list_size):
 
@@ -1636,15 +1667,21 @@ cdef class FMUModelBase(ModelBase):
                 continue
             if selected_variability == 1 and data_variability != target_variability:
                 continue
+                
+            if selected_filter:
+                for j in range(length_filter):
+                    if re.match(filter_list[j], name):
+                        break
+                else:
+                    continue
 
             if include_alias:
-                #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable(name,
                                        value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind)
+                                       
             elif alias_kind ==FMIL.fmi1_variable_is_not_alias:
-                #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable(name,
                                        value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
