@@ -702,6 +702,13 @@ cdef class FMUModelBase(ModelBase):
                         break
                     log.append(line.strip("\n"))
         return log
+    
+    cpdef _internal_set_fmu_null(self):
+        """
+        This methods is ONLY for testing puposes. It sets the internal
+        fmu state to NULL
+        """
+        self._fmu = NULL
 
     def print_log(self):
         """
@@ -1913,18 +1920,23 @@ cdef class FMUModelCS1(FMUModelBase):
         if self._allocated_fmu:
             FMIL.fmi1_import_terminate_slave(self._fmu)
             FMIL.fmi1_import_free_slave_instance(self._fmu)
+            self._allocated_fmu = False
 
         if self._allocated_dll:
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
+            self._allocated_dll = False
 
         if self._allocated_xml:
             FMIL.fmi1_import_free(self._fmu)
+            self._allocated_xml = False
 
         if self._fmu_temp_dir:
             FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+            self._fmu_temp_dir = ""
 
         if self._allocated_context:
             FMIL.fmi_import_free_context(self.context)
+            self._allocated_context = False
 
     def do_step(self, FMIL.fmi1_real_t current_t, FMIL.fmi1_real_t step_size, new_step=True):
         """
@@ -2043,7 +2055,7 @@ cdef class FMUModelCS1(FMUModelBase):
 
     types_platform = property(fget=_get_types_platform)
 
-    def set_input_derivatives(self, variables, values, FMIL.fmi1_integer_t order):
+    def set_input_derivatives(self, variables, values, orders):
         """
         Sets the input derivative order for the specified variables.
 
@@ -2055,25 +2067,29 @@ cdef class FMUModelCS1(FMUModelBase):
                 values --
                         The actual values.
                 order --
-                        The derivative order to set.
+                        The derivative orders to set.
         """
         cdef int status
         cdef int can_interpolate_inputs
         cdef FMIL.size_t nref
         cdef FMIL.fmi1_import_capabilities_t *fmu_capabilities
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] orders
+        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = N.array(orders, dtype=N.int32, ndmin=1).flatten()
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
         cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=N.float, ndmin=1).flatten()
 
         nref = len(val)
         orders = N.array([0]*nref, dtype=N.int32)
+        
+        if nref != len(np_orders):
+            raise FMUException("The number of variables must be the same as the number of orders.")
 
         fmu_capabilities = FMIL.fmi1_import_get_capabilities(self._fmu)
         can_interpolate_inputs = FMIL.fmi1_import_get_canInterpolateInputs(fmu_capabilities)
         #NOTE IS THIS THE HIGHEST ORDER OF INTERPOLATION OR SIMPLY IF IT CAN OR NOT?
-
-        if order < 1:
-            raise FMUException("The order must be greater than zero.")
+        
+        for i in range(len(np_orders)):
+            if np_orders[i] < 1:
+                raise FMUException("The order must be greater than zero.")
         if not can_interpolate_inputs:
             raise FMUException("The FMU does not support input derivatives.")
 
@@ -2084,11 +2100,10 @@ cdef class FMUModelCS1(FMUModelBase):
             value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).flatten()
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
-                orders[i] = order
         else:
             raise FMUException("The variables must either be a string or a list of strings")
 
-        status = FMIL.fmi1_import_set_real_input_derivatives(self._fmu, <FMIL.fmi1_value_reference_t*>value_refs.data, nref, <FMIL.fmi1_integer_t*>orders.data, <FMIL.fmi1_real_t*>val.data)
+        status = FMIL.fmi1_import_set_real_input_derivatives(self._fmu, <FMIL.fmi1_value_reference_t*>value_refs.data, nref, <FMIL.fmi1_integer_t*>np_orders.data, <FMIL.fmi1_real_t*>val.data)
 
         if status != 0:
             raise FMUException('Failed to set the Real input derivatives.')
@@ -2379,18 +2394,23 @@ cdef class FMUModelME1(FMUModelBase):
         if self._allocated_fmu:
             FMIL.fmi1_import_terminate(self._fmu)
             FMIL.fmi1_import_free_model_instance(self._fmu)
+            self._allocated_fmu = False
 
         if self._allocated_dll:
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
+            self._allocated_dll = False
 
         if self._allocated_xml:
             FMIL.fmi1_import_free(self._fmu)
+            self._allocated_xml = False
 
         if self._fmu_temp_dir:
             FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+            self._fmu_temp_dir = False
 
         if self._allocated_context:
             FMIL.fmi_import_free_context(self.context)
+            self._allocated_context = False
 
     cpdef _get_time(self):
         return self.__t
@@ -4788,7 +4808,6 @@ cdef class FMUModelCS2(FMUModelBase2):
         cdef int          status
         cdef unsigned int can_interpolate_inputs
         cdef FMIL.size_t  nref
-        #cdef FMIL.fmi1_import_capabilities_t *fmu_capabilities
         cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            val = N.array(values, dtype=N.float, ndmin=1).flatten()
