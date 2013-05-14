@@ -1180,11 +1180,11 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_base_type_enu_t type
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
-        
+
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variable_name)
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variable_name)
-            
+
         ref =  FMIL.fmi1_import_get_variable_vr(variable)
         type = FMIL.fmi1_import_get_variable_base_type(variable)
         alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
@@ -1215,11 +1215,11 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_base_type_enu_t type
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
-        
+
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variable_name)
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variable_name)
-            
+
         ref =  FMIL.fmi1_import_get_variable_vr(variable)
         type = FMIL.fmi1_import_get_variable_base_type(variable)
         alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
@@ -2235,16 +2235,16 @@ cdef class FMUModelCS1(FMUModelBase):
         status = FMIL.fmi1_import_reset_slave(self._fmu)
         if status != FMIL.fmi1_status_ok:
             raise FMUException("Failed to reset the FMU.")
-        
+
         #Default values
         self.__t = None
-        
+
         #Internal values
         self._file_open = False
         self._npoints = 0
         self._log = []
-        
-    
+
+
     def instantiate_slave(self, name='Slave', logging=False):
         """
         Instantiate the slave.
@@ -4669,7 +4669,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         #if status != 0:
         #    raise FMUException('Failed to set the debugging option.')
 
-    def initialize(self, relTol=None, tStart=0.0, tStop=1.0, StopTimeDefined=False):
+    def initialize(self, tStart=0.0, tStop=1.0, StopTimeDefined=False, relTol=None):
         """
         Initializes the slave.
 
@@ -4692,7 +4692,9 @@ cdef class FMUModelCS2(FMUModelBase2):
             stopDefined = 0
 
         if relTol is None:
-            relativeTol = self.get_default_experiment_tolerance
+            relativeTol = self.get_default_experiment_tolerance()
+        else:
+            relativeTol = relTol
 
 
         self.time = tStart
