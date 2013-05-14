@@ -702,7 +702,7 @@ cdef class FMUModelBase(ModelBase):
                         break
                     log.append(line.strip("\n"))
         return log
-    
+
     cpdef _internal_set_fmu_null(self):
         """
         This methods is ONLY for testing puposes. It sets the internal
@@ -741,10 +741,10 @@ cdef class FMUModelBase(ModelBase):
     #
     #    if self._fmu_temp_dir:
     #        delete_temp_dir(self._fmu_temp_dir)
-    
+
     def _convert_filter(self, expression):
         """
-        Convert a filter based on unix filename pattern matching to a 
+        Convert a filter based on unix filename pattern matching to a
         list of regular expressions.
         """
         regexp = []
@@ -1518,9 +1518,9 @@ cdef class FMUModelBase(ModelBase):
         """
         Retrieve the value references used for retrieving the data from
         the method save_time_point.
-        
+
         Returns::
-        
+
             r --
                 The Real-valued value-references.
 
@@ -1533,7 +1533,7 @@ cdef class FMUModelBase(ModelBase):
         r = self._save_real_variables_val
         i = self._save_int_variables_val
         b = self._save_bool_variables_val
-        
+
         return r,i,b
 
     def save_time_point(self):
@@ -1601,7 +1601,7 @@ cdef class FMUModelBase(ModelBase):
             filter --
                 Filter the variables using a unix filename pattern
                 matching (filter="*der*"). Can also be a list of filters
-                See http://docs.python.org/2/library/fnmatch.html. 
+                See http://docs.python.org/2/library/fnmatch.html.
                 Default None
 
         Returns::
@@ -1674,7 +1674,7 @@ cdef class FMUModelBase(ModelBase):
                 continue
             if selected_variability == 1 and data_variability != target_variability:
                 continue
-                
+
             if selected_filter:
                 for j in range(length_filter):
                     if re.match(filter_list[j], name):
@@ -1687,7 +1687,7 @@ cdef class FMUModelBase(ModelBase):
                                        value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind)
-                                       
+
             elif alias_kind ==FMIL.fmi1_variable_is_not_alias:
                 variable_dict[name] = ScalarVariable(name,
                                        value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
@@ -2079,14 +2079,14 @@ cdef class FMUModelCS1(FMUModelBase):
 
         nref = len(val)
         orders = N.array([0]*nref, dtype=N.int32)
-        
+
         if nref != len(np_orders):
             raise FMUException("The number of variables must be the same as the number of orders.")
 
         fmu_capabilities = FMIL.fmi1_import_get_capabilities(self._fmu)
         can_interpolate_inputs = FMIL.fmi1_import_get_canInterpolateInputs(fmu_capabilities)
         #NOTE IS THIS THE HIGHEST ORDER OF INTERPOLATION OR SIMPLY IF IT CAN OR NOT?
-        
+
         for i in range(len(np_orders)):
             if np_orders[i] < 1:
                 raise FMUException("The order must be greater than zero.")
@@ -3015,6 +3015,14 @@ cdef class FMUModelBase2(ModelBase):
 
         #Parse xml and check fmu-kind
         self._fmu           = FMIL.fmi2_import_parse_xml(self._context, self._fmu_temp_dir, NULL)
+
+        if self._fmu is NULL:
+            last_error = FMIL.jm_get_last_error(&self.callbacks)
+            if enable_logging:
+                raise FMUException("The XML-could not be read. "+last_error)
+            else:
+                raise FMUException('The XML-could not be read. Enable logging for possible nore information.')
+
         self._fmu_kind      = FMIL.fmi2_import_get_fmu_kind(self._fmu)
         self._allocated_xml = True
 
@@ -4487,20 +4495,20 @@ cdef class FMUModelBase2(ModelBase):
         capabilities['cs_canSerializeFMUstate']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSerializeFMUstate))
         capabilities['capabilities_Num']                          = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_capabilities_Num)
 
-        if self._fmu_kind == FMIL.fmi2_fmu_kind_me:
+        if isinstance(self,FMUModelME2):
             for key in sorted(capabilities.keys())[12:20]:
                 cap[key] = capabilities[key]
             key = sorted(capabilities.keys())[0]
             cap[key] = capabilities[key]
             return cap
 
-        elif self._fmu_kind == FMIL.fmi2_fmu_kind_cs:
+        elif isinstance(self,FMUModelCS2):
             for key in sorted(capabilities.keys())[0:12]:
                 cap[key] = capabilities[key]
             return cap
 
         else:
-            return capabilities
+            raise FMUException('The instance is not curent an instance of an ME-model or a CS-model. Use load_fmu for correct loading.')
 
 
 
@@ -5895,6 +5903,17 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto', log_file_na
     if version == FMIL.fmi_version_1_enu:
         #Check the fmu-kind
         fmu_1 = FMIL.fmi1_import_parse_xml(context, fmu_temp_dir)
+
+        if fmu_1 is NULL:
+            #Delete the context
+            last_error = FMIL.jm_get_last_error(&callbacks)
+            FMIL.fmi_import_free_context(context)
+            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            if enable_logging:
+                raise FMUException("The XML-could not be read. "+last_error)
+            else:
+                raise FMUException('The XML-could not be read. Enable logging for possible nore information.')
+
         fmu_1_kind = FMIL.fmi1_import_get_fmu_kind(fmu_1)
 
         #Compare fmu_kind with input-specified kind
@@ -5916,6 +5935,17 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto', log_file_na
     elif version == FMIL.fmi_version_2_0_enu:
         #Check fmu-kind and compare with input-specified kind
         fmu_2 = FMIL.fmi2_import_parse_xml(context, fmu_temp_dir, NULL)
+
+        if fmu_2 is NULL:
+            #Delete the context
+            last_error = FMIL.jm_get_last_error(&callbacks)
+            FMIL.fmi_import_free_context(context)
+            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            if enable_logging:
+                raise FMUException("The XML-could not be read. "+last_error)
+            else:
+                raise FMUException('The XML-could not be read. Enable logging for possible nore information.')
+
         fmu_2_kind = FMIL.fmi2_import_get_fmu_kind(fmu_2)
 
         #FMU kind is unknown
@@ -5948,6 +5978,19 @@ def load_fmu2(fmu, path = '.', enable_logging = True, kind = 'auto', log_file_na
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             raise FMUException('FMU is a ' + FMIL.fmi2_fmu_kind_to_string(fmu_2_kind) + ' and not a ' + kind.upper())
+
+    else:
+        #This else-statement ensures that the variables "context" and "version" are defined before proceeding
+
+        #Delete the context
+        last_error = FMIL.jm_get_last_error(&callbacks)
+        FMIL.fmi_import_free_context(context)
+        FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+        if enable_logging:
+            raise FMUException("The FMU version is not found. "+last_error)
+        else:
+            raise FMUException("The FMU version is not found. Enable logging for possibly more information.")
+
 
 
     #Delete
