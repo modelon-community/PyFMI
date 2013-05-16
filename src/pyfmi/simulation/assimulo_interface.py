@@ -327,11 +327,17 @@ class FMIODE(Explicit_Problem):
 
         #Check if the event affected the state values and if so sets them
         if eInfo.stateValuesChanged:
-            solver.y = self._model.continuous_states
+            if self._f_nbr == 0:
+                solver.y[0] = 0.0
+            else:
+                solver.y = self._model.continuous_states
         
         #Get new nominal values.
         if eInfo.stateValueReferencesChanged:
-            solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
+            if self._f_nbr == 0:
+                solver.atol = 0.01*solver.rtol*1
+            else:
+                solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
             
         #Check if the simulation should be terminated
         if eInfo.terminateSimulation:
