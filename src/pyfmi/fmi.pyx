@@ -2208,14 +2208,7 @@ cdef class FMUModelCS1(FMUModelBase):
         Calls the low-level FMU function: fmiInstantiateSlave
         """
         cdef int status
-        cdef FMIL.fmi1_boolean_t stopDefined
-
-        if StopTimeDefined:
-            #stopDefined = FMI_TRUE
-            stopDefined = 1
-        else:
-            #stopDefined = FMI_FALSE
-            stopDefined = 0
+        cdef FMIL.fmi1_boolean_t stopDefined = 1 if StopTimeDefined else 0
 
         self.time = tStart
 
@@ -2262,21 +2255,12 @@ cdef class FMUModelCS1(FMUModelBase):
         Calls the low-level FMI function: fmiInstantiateSlave.
         """
         cdef int status
-        cdef FMIL.fmi1_boolean_t log
+        cdef FMIL.fmi1_boolean_t log = 1 if logging else 0
         cdef FMIL.fmi1_real_t timeout = 0.0
-        #cdef FMIL.fmi1_boolean_t visible = FMI_FALSE
         cdef FMIL.fmi1_boolean_t visible = 0
-        #cdef FMIL.fmi1_boolean_t interactive = FMI_FALSE
         cdef FMIL.fmi1_boolean_t interactive = 0
-        cdef object location = ""
-
-        if logging:
-            #log = FMI_TRUE
-            log = 1
-        else:
-            #log = FMI_FALSE
-            log = 0
-
+        cdef FMIL.fmi1_string_t location = NULL
+        
         status = FMIL.fmi1_import_instantiate_slave(self._fmu, name, location,
                                         FMI_MIME_CS_STANDALONE, timeout, visible,
                                         interactive)
