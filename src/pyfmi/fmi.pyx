@@ -3772,14 +3772,14 @@ cdef class FMUModelBase2(ModelBase):
             if include_alias:
                 #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable2(name,
-                                       value_ref, data_type, desc if desc != NULL else "",
+                                       value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind)
             elif alias_kind == FMIL.fmi2_variable_is_not_alias:
                 #Exclude alias
                 #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable2(name,
-                                       value_ref, data_type, desc if desc != NULL else "",
+                                       value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind)
 
@@ -4357,8 +4357,8 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.size_t nv, nz
 
         #input arrays
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v_ref = N.zeros(len(var_ref),  dtype = N.double)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] z_ref = N.zeros(len(func_ref), dtype = N.double)
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.zeros(len(var_ref),  dtype = N.uint32)
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.zeros(len(func_ref), dtype = N.uint32)
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dv    = N.zeros(len(v),        dtype = N.double)
         #output array
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dz    = N.zeros(len(func_ref), dtype = N.double)
@@ -4427,6 +4427,69 @@ cdef class FMUModelBase2(ModelBase):
         description.
         """
         return FMIL.fmi2_import_get_default_experiment_tolerance(self._fmu)
+    
+    
+    cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list):
+        """
+        Helper method to create scalar variables from a variable list.
+        """
+        cdef FMIL.size_t                         variable_list_size
+        cdef dict  variable_dict = {}
+
+        variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
+        
+        for i in range(variable_list_size):
+
+            variable = FMIL.fmi2_import_get_variable(variable_list, i)
+
+            alias_kind       = FMIL.fmi2_import_get_variable_alias_kind(variable)
+            name             = FMIL.fmi2_import_get_variable_name(variable)
+            value_ref        = FMIL.fmi2_import_get_variable_vr(variable)
+            data_type        = FMIL.fmi2_import_get_variable_base_type(variable)
+            data_variability = FMIL.fmi2_import_get_variability(variable)
+            data_causality   = FMIL.fmi2_import_get_causality(variable)
+            desc             = FMIL.fmi2_import_get_variable_description(variable)
+
+            variable_dict[name] = ScalarVariable2(name,
+                                    value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
+                                    data_variability, data_causality,
+                                    alias_kind)
+        
+        return variable_dict
+    
+    def get_derivatives_list(self):
+        """
+        Returns a list of the states derivatives.
+        """
+        cdef FMIL.fmi2_import_variable_list_t*   variable_list
+        
+        variable_list = FMIL.fmi2_import_get_derivatives_list(self._fmu)
+        if variable_list == NULL:
+            raise FMUException("The returned states list is NULL.")
+            
+        variable_dict = self._add_scalar_variables(variable_list)
+        
+        #Free the variable list
+        FMIL.fmi2_import_free_variable_list(variable_list)
+        
+        return variable_dict
+
+    def get_states_list(self):
+        """
+        Returns a list of the states.
+        """
+        cdef FMIL.fmi2_import_variable_list_t*   variable_list
+        
+        variable_list = FMIL.fmi2_import_get_states_list(self._fmu)
+        if variable_list == NULL:
+            raise FMUException("The returned states list is NULL.")
+            
+        variable_dict = self._add_scalar_variables(variable_list)
+        
+        #Free the variable list
+        FMIL.fmi2_import_free_variable_list(variable_list)
+        
+        return variable_dict
 
     def get_capability_flags(self):
         """
@@ -5521,33 +5584,6 @@ cdef class FMUModelME2(FMUModelBase2):
 
         if status != 0:
             raise FMUException('Failed to get the derivative values.')
-
-        return values
-
-    def get_state_value_references(self):
-        """
-        Returns the continuous states valuereferences.
-
-        Returns::
-
-            val --
-                The references to the continuous states.
-
-        Example::
-
-            val = model.get_continuous_value_reference()
-
-        Calls the low-level FMI function: fmiGetStateValueReferences
-        """
-        cdef int status
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] values = N.zeros(self._nContinuousStates, dtype=N.uint32)
-
-        status = FMIL.fmi2_import_get_state_value_references(
-            self._fmu, <FMIL.fmi2_value_reference_t*> values.data, self._nContinuousStates)
-
-        if status != 0:
-            raise FMUException(
-                'Failed to get the continuous state reference values.')
 
         return values
 
