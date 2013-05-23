@@ -1446,7 +1446,7 @@ class FMUModel(BaseModel):
                  start_time=0.0,
                  final_time=1.0,
                  input=(),
-                 algorithm='AssimuloFMIAlg', 
+                 algorithm='AssimuloFMIAlg_deprecated', 
                  options={}):
         """ 
         Compact function for model simulation.
@@ -1456,7 +1456,7 @@ class FMUModel(BaseModel):
         are passed as option classes or as pure dicts. See 
         FMUModel.simulate_options for more details.
         
-        The default algorithm for this function is AssimuloFMIAlg. 
+        The default algorithm for this function is AssimuloFMIAlg_deprecated. 
         
         Parameters::
         

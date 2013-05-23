@@ -47,6 +47,64 @@ class Trajectory:
         self.t = t
         self.x = x
 
+class ResultStorage:
+    pass
+    
+    def get_variable_data(self, key):
+        raise NotImplementedError
+        
+    def is_variable(self, var):
+        raise NotImplementedError
+        
+    def is_negated(self, var):
+        raise NotImplementedError
+    
+
+class ResultHandler:
+
+    def simulation_start(self):
+        """
+        This method is called before the simulation has started and 
+        before the initialization call for the FMU.
+        """
+        pass
+        
+    def initialize_complete(self):
+        """ 
+        This method is called after the initialization method of the FMU
+        has been been called.
+        """
+        pass
+        
+    def integration_point(self, solver=None):
+        """ 
+        This method is called for each time-point for which result are
+        to be stored as indicated by the "number of communcation points"
+        provided to the simulation method.
+        """
+        pass
+        
+    def simulation_end(self):
+        """
+        This method is called at the end of a simulation.
+        """
+        pass
+    
+    def set_options(self, options):
+        """
+        Options are the options dictionary provided to the simulation
+        method.
+        """
+        pass
+        
+    def get_result(self):
+        """
+        Method for retrieving the result. This method should return a 
+        result of an instance of ResultStorage or of an instance of a 
+        subclass of ResultStorage.
+        """
+        raise NotImplementedError
+
 class ResultDymola:
     """
     Base class for representation of a result file.
@@ -175,6 +233,522 @@ class ResultDymola:
         else: #Variable was not a derivative variable
             return name
 
+class ResultWriter():
+    """ 
+    Base class for writing results to file. 
+    """
+    
+    def write_header():
+        """ 
+        The header is intended to be used for writing general information about 
+        the model. This is intended to be called once.
+        """
+        pass
+        
+    def write_point():
+        """ 
+        This method does the writing of the actual result. 
+        """
+        pass
+        
+    def write_finalize():
+        """ 
+        The finalize method can be used to for instance close the file.
+        """
+        pass
+
+class ResultWriterDymola(ResultWriter):
+    """ 
+    Export an optimization or simulation result to file in Dymola's result file 
+    format.
+    """
+    def __init__(self, model, format='txt'):
+        """
+        Export an optimization or simulation result to file in Dymolas result 
+        file format.
+
+        Parameters::
+        
+            model --
+                A FMIModel object.
+            
+            format --
+                A text string equal either to 'txt' for textual format or 'mat' 
+                for binary Matlab format.
+                Default: 'txt'
+
+        Limitations::
+        
+            Currently only textual format is supported.
+        """
+        self.model = model
+        
+        if format!='txt':
+            raise JIOError('The format is currently not supported.')
+        
+        #Internal values
+        self._file_open = False
+        self._npoints = 0
+        
+    
+    def write_header(self, file_name='', parameters=None):
+        """
+        Opens the file and writes the header. This includes the information 
+        about the variables and a table determining the link between variables 
+        and data.
+        
+        Parameters::
+        
+            file_name --
+                If no file name is given, the name of the model (as defined by 
+                FMUModel.get_identifier()) concatenated with the string '_result' is 
+                used. A file suffix equal to the format argument is then 
+                appended to the file name.
+                Default: Empty string.
+        """
+        if file_name=='':
+            file_name=self.model.get_identifier() + '_result.txt'
+
+        # Open file
+        f = codecs.open(file_name,'w','utf-8')
+        self._file_open = True
+        
+        # Write header
+        f.write('#1\n')
+        f.write('char Aclass(3,11)\n')
+        f.write('Atrajectory\n')
+        f.write('1.1\n')
+        f.write('\n')
+        
+        # all lists that we need for later
+        vrefs_alias = []
+        vrefs_noalias = []
+        vrefs = []
+        names_alias = []
+        names_noalias = []
+        names = []
+        aliases_alias = []
+        aliases = []
+        descriptions_alias = []
+        descriptions = []
+        variabilities_alias = []
+        variabilities_noalias = []
+        variabilities = []
+        types_alias = []
+        types_noalias = []
+        types = []
+        
+        for var in self.model.get_model_variables().values():
+            if not var.type == fmi.FMI_STRING and not var.type == fmi.FMI_ENUMERATION:
+                    if var.alias == fmi.FMI_NO_ALIAS:
+                        vrefs_noalias.append(var.value_reference)
+                        names_noalias.append(var.name)
+                        aliases.append(var.alias)
+                        descriptions.append(var.description)
+                        variabilities_noalias.append(var.variability)
+                        types_noalias.append(var.type)
+                    else:
+                        vrefs_alias.append(var.value_reference)
+                        names_alias.append(var.name)
+                        aliases_alias.append(var.alias)
+                        descriptions_alias.append(var.description)
+                        variabilities_alias.append(var.variability)
+                        types_alias.append(var.type)
+                        
+        # need to save these no alias lists for later
+        vrefs = vrefs_noalias[:]
+        names = names_noalias[:]
+        types = types_noalias[:]
+        variabilities = variabilities_noalias[:]
+        
+        # merge lists
+        vrefs.extend(vrefs_alias)
+        names.extend(names_alias)
+        aliases.extend(aliases_alias)
+        descriptions.extend(descriptions_alias)
+        variabilities.extend(variabilities_alias)
+        types.extend(types_alias)
+        
+        # zip to list of tuples and sort - non alias variables are now
+        # guaranteed to be first in list
+        names_noalias = sorted(zip(
+            tuple(vrefs_noalias), 
+            tuple(names_noalias)), 
+            key=itemgetter(0))
+        variabilities_noalias = sorted(zip(
+            tuple(vrefs_noalias), 
+            tuple(variabilities_noalias)), 
+            key=itemgetter(0))
+        types_noalias = sorted(zip(
+            tuple(vrefs_noalias), 
+            tuple(types_noalias)), 
+            key=itemgetter(0))
+        names = sorted(zip(
+            tuple(vrefs), 
+            tuple(names)), 
+            key=itemgetter(0))
+        aliases = sorted(zip(
+            tuple(vrefs), 
+            tuple(aliases)), 
+            key=itemgetter(0))
+        descriptions = sorted(zip(
+            tuple(vrefs), 
+            tuple(descriptions)), 
+            key=itemgetter(0))
+        variabilities = sorted(zip(
+            tuple(vrefs), 
+            tuple(variabilities)), 
+            key=itemgetter(0))
+        types = sorted(zip(
+            tuple(vrefs), 
+            tuple(types)), 
+            key=itemgetter(0))
+        
+        num_vars = len(names)
+        
+        names_sens = []
+        descs_sens = []
+        cont_vars = []
+        
+        if parameters != None:
+            vars = self.model.get_model_variables(type=0,include_alias=False,variability=3)
+            for i in self.model.get_state_value_references():
+                for j in vars.keys():
+                    if i == vars[j].value_reference:
+                        cont_vars.append(vars[j].name)
+        
+        if parameters != None:
+            for j in range(len(parameters)):
+                for i in range(len(self.model.continuous_states)):
+                    names_sens += ['d'+cont_vars[i]+'/d'+parameters[j]]
+                    descs_sens  += ['Sensitivity of '+cont_vars[i]+' with respect to '+parameters[j]+'.']
+
+        # Find the maximum name and description length
+        max_name_length = len('Time')
+        max_desc_length = len('Time in [s]')
+        
+        for i in range(len(names)):
+            name = names[i][1]
+            desc = descriptions[i][1]
+            
+            if (len(name)>max_name_length):
+                max_name_length = len(name)
+                
+            if (len(desc)>max_desc_length):
+                max_desc_length = len(desc)
+        
+        for i in range(len(names_sens)):
+            name = names_sens[i]
+            desc = descs_sens[i]
+            
+            if (len(name)>max_name_length):
+                max_name_length = len(name)
+                
+            if (len(desc)>max_desc_length):
+                max_desc_length = len(desc)
+
+        f.write('char name(%d,%d)\n' % (num_vars+len(names_sens)+1, max_name_length))
+        f.write('time\n')
+
+        for name in names:
+            f.write(name[1] +'\n')
+        for name in names_sens:
+            f.write(name + '\n')
+
+        f.write('\n')
+
+        # Write descriptions       
+        f.write('char description(%d,%d)\n' % (num_vars+len(names_sens) + 1, max_desc_length))
+        f.write('Time in [s]\n')
+
+        # Loop over all variables, not only those with a description
+        for desc in descriptions:
+            f.write(desc[1] +'\n')
+        for desc in descs_sens:
+            f.write(desc + '\n')
+                
+        f.write('\n')
+
+        # Write data meta information
+        
+        f.write('int dataInfo(%d,%d)\n' % (num_vars+len(names_sens) + 1, 4))
+        f.write('0 1 0 -1 # time\n')
+        
+        list_of_continuous_states = N.append(self.model._save_real_variables_val, 
+            self.model._save_int_variables_val)
+        list_of_continuous_states = N.append(list_of_continuous_states, 
+            self.model._save_bool_variables_val).tolist()
+        list_of_continuous_states = dict(zip(list_of_continuous_states, 
+            xrange(len(list_of_continuous_states))))
+        valueref_of_continuous_states = []
+        
+        cnt_1 = 1
+        cnt_2 = 1
+        n_parameters = 0
+        datatable1 = False
+        for i, name in enumerate(names):
+            if aliases[i][1] == 0: # no alias
+                if variabilities[i][1] == fmi.FMI_PARAMETER or \
+                    variabilities[i][1] == fmi.FMI_CONSTANT:
+                    cnt_1 += 1
+                    n_parameters += 1
+                    f.write('1 %d 0 -1 # ' % cnt_1 + name[1]+'\n')
+                    datatable1 = True
+                else:
+                    cnt_2 += 1
+                    valueref_of_continuous_states.append(
+                        list_of_continuous_states[name[0]])
+                    f.write('2 %d 0 -1 # ' % cnt_2 + name[1] +'\n')
+                    datatable1 = False
+                
+            elif aliases[i][1] == 1: # alias
+                if datatable1:
+                    f.write('1 %d 0 -1 # ' % cnt_1 + name[1]+'\n')
+                else:
+                    f.write('2 %d 0 -1 # ' % cnt_2 + name[1] +'\n')
+            else:
+                if datatable1:
+                    f.write('1 -%d 0 -1 # ' % cnt_1 + name[1]+'\n')
+                else:
+                    f.write('2 -%d 0 -1 # ' % cnt_2 + name[1] +'\n')
+        for i, name in enumerate(names_sens):
+            cnt_2 += 1
+            f.write('2 %d 0 -1 # ' % cnt_2 + name +'\n')
+        
+        
+        f.write('\n')
+
+        # Write data
+        # Write data set 1
+        f.write('float data_1(%d,%d)\n' % (2, n_parameters + 1))
+        f.write("%.14E" % self.model.time)
+        str_text = ''
+        
+        # write constants and parameters
+        for i, name in enumerate(names_noalias):
+            if variabilities_noalias[i][1] == fmi.FMI_CONSTANT or \
+                variabilities_noalias[i][1] == fmi.FMI_PARAMETER:
+                    if types_noalias[i][1] == fmi.FMI_REAL:
+                        str_text = str_text + (
+                            " %.14E" % (self.model.get_real([name[0]])))
+                    elif types_noalias[i][1] == fmi.FMI_INTEGER:
+                        str_text = str_text + (
+                            " %.14E" % (self.model.get_integer([name[0]])))
+                    elif types_noalias[i][1] == fmi.FMI_BOOLEAN:
+                        str_text = str_text + (
+                            " %.14E" % (float(
+                                self.model.get_boolean([name[0]])[0])))
+                        
+        f.write(str_text)
+        f.write('\n')
+        self._point_last_t = f.tell()
+        f.write("%s" % ' '*28)
+        f.write(str_text)
+
+        f.write('\n\n')
+        
+        self._nvariables = len(valueref_of_continuous_states)+1
+        self._nvariables_sens = len(names_sens)
+        
+        
+        f.write('float data_2(')
+        self._point_npoints = f.tell()
+        f.write(' '*(14+4+14))
+        f.write('\n')
+        
+        #f.write('%s,%d)\n' % (' '*14, self._nvariables))
+        
+        self._file = f
+        self._data_order = valueref_of_continuous_states
+        
+    def write_point(self, data=None, parameter_data=[]):
+        """ 
+        Writes the current status of the model to file. If the header has not 
+        been written previously it is written now. If data is specified it is 
+        written instead of the current status.
+        
+        Parameters::
+            
+                data --
+                    A one dimensional array of variable trajectory data. data 
+                    should consist of information about the status in the order 
+                    specified by FMUModel.save_time_point()
+                    Default: None
+        """
+        f = self._file
+        data_order = self._data_order
+
+        #If data is none, store the current point from the model
+        if data==None:
+            #Retrieves the time-point
+            [r,i,b] = self.model.save_time_point()
+            data = N.append(N.append(N.append(self.model.time,r),i),b)
+
+        #Write the point
+        str_text = (" %.14E" % data[0])
+        for j in xrange(self._nvariables-1):
+            str_text = str_text + (" %.14E" % (data[1+data_order[j]]))
+        for j in xrange(len(parameter_data)):
+            str_text = str_text + (" %.14E" % (parameter_data[j]))
+        f.write(str_text+'\n')
+        
+        #Update number of points
+        self._npoints+=1
+
+    def write_finalize(self):
+        """ 
+        Finalize the writing by filling in the blanks in the created file. The 
+        blanks consists of the number of points and the final time (in data set 
+        1). Also closes the file.
+        """
+        #If open, finalize and close
+        if self._file_open:
+            
+            f = self._file
+            
+            f.seek(self._point_last_t)
+            
+            f.write('%.14E'%self.model.time)
+            
+            f.seek(self._point_npoints)
+            f.write('%d,%d)' % (self._npoints, self._nvariables+self._nvariables_sens))
+            #f.write('%d'%self._npoints)
+            f.seek(-1,2)
+            #Close the file
+            f.write('\n')
+            f.close()
+            self._file_open = False
+          
+
+
+class ResultStorageMemory(ResultDymola): 
+    """  
+    Class representing a simulation result that is kept in MEMORY. 
+    """ 
+    
+    def __init__(self, model, data, vars_ref, vars): 
+        """ 
+        Load result from the ResultHandlerMemory 
+    
+        Parameters:: 
+	         
+            model -- 
+                Instance of the FMUModel. 
+            data -- 
+                The simulation data. 
+        """             
+        self.model = model 
+        self.vars = vars 
+        self.name = [var.name for var in vars.values()] 
+        self.data = {} 
+            
+        #time real integer boolean 
+        real_val_ref    = vars_ref[0]
+        integer_val_ref = vars_ref[1]
+        boolean_val_ref = vars_ref[2]
+            
+        self.time = data[:,0] 
+        for i,ref in enumerate(real_val_ref+integer_val_ref+boolean_val_ref): 
+            self.data[ref] = data[:,i+1] 
+            
+    def get_variable_data(self,name): 
+        """ 
+        Retrieve the data sequence for a variable with a given name. 
+            
+        Parameters:: 
+            
+            name -- 
+                Name of the variable. 
+    
+        Returns:: 
+            
+            A Trajectory object containing the time vector and the data vector  
+            of the variable. 
+        """ 
+        if name == 'time': 
+            return Trajectory(self.time,self.time) 
+        else: 
+            try: 
+                var = self.vars[name] 
+            except KeyError as ex: 
+                raise VariableNotFoundError("Cannot find variable " + 
+                                        name + " in data file.") 
+                                            
+            factor = -1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1 
+                
+            if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER: 
+                return Trajectory([self.time[0],self.time[-1]],[self.model.get(name),self.model.get(name)]) 
+            else: 
+                return Trajectory(self.time,factor*self.data[var.value_reference]) 
+    
+                    
+    def is_variable(self, name): 
+        """ 
+        Returns True if the given name corresponds to a time-varying variable. 
+            
+        Parameters:: 
+            
+            name --  
+                Name of the variable/parameter/constant. 
+                    
+        Returns:: 
+            
+            True if the variable is time-varying. 
+        """ 
+        if name == 'time': 
+            return True 
+        variability = self.vars[name].variability 
+            
+        if variability ==  fmi.FMI_CONSTANT or variability == fmi.FMI_PARAMETER: 
+            return False 
+        else: 
+            return True 
+                
+    def is_negated(self, name): 
+        """ 
+        Returns True if the given name corresponds to a negated result vector. 
+            
+        Parameters:: 
+            
+            name --  
+                Name of the variable/parameter/constant. 
+                    
+        Returns:: 
+            
+            True if the result should be negated 
+        """ 
+        alias = self.vars[name].alias 
+            
+        if alias == fmi.FMI_NEGATED_ALIAS: 
+            return True 
+        else: 
+            return False 
+        
+    def get_column(self, name): 
+        """ 
+        Returns the column number in the data matrix where the values of the  
+        variable are stored. 
+            
+        Parameters:: 
+            
+            name --  
+                Name of the variable/parameter/constant. 
+                
+        Returns:: 
+            
+            The column number. 
+        """ 
+        raise NotImplementedError 
+        
+    def get_data_matrix(self): 
+        """ 
+        Returns the result matrix. 
+                    
+        Returns:: 
+            
+            The result data matrix. 
+        """ 
+        return self.data 
 
 class ResultDymolaTextual(ResultDymola):
     """ 
@@ -577,37 +1151,106 @@ class ResultDymolaBinary(ResultDymola):
         """
         return self.raw['data_%d'%2]
         
-class ResultWriter():
-    """ 
-    Base class for writing results to file. 
-    """
-    
-    def write_header():
+
+
+class ResultHandlerMemory(ResultHandler):
+    def __init__(self, model):
+        self.model = model
+        
+    def simulation_start(self):
+        """
+        This method is called before the simulation has started and before
+        the initialization of the model.
+        """
+        model = self.model
+        opts = self.options
+        
+        #Store the continuous and discrete variables for result writing
+        reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=3, filter=opts["filter"])
+        reals_discrete = model.get_model_variables(type=0, include_alias=False, variability=2, filter=opts["filter"])
+        int_discrete = model.get_model_variables(type=1, include_alias=False, variability=2, filter=opts["filter"])
+        bool_discrete = model.get_model_variables(type=2, include_alias=False, variability=2, filter=opts["filter"])
+
+        self.vars = model.get_model_variables(filter=opts["filter"])
+        self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]
+        self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
+        self.bool_var_ref = [var.value_reference for var in bool_discrete.values()]
+        
+        self.real_sol = []
+        self.int_sol  = []
+        self.bool_sol = []
+        self.time_sol = []
+        self.param_sol= []
+        
+        self.model = model
+        
+    def initialize_complete(self):
         """ 
-        The header is intended to be used for writing general information about 
-        the model. This is intended to be called once.
+        This method is called after the initialization method of the FMU
+        has been been called.
         """
         pass
         
-    def write_point():
+    def integration_point(self, solver = None):
         """ 
-        This method does the writing of the actual result. 
+        This method is called for each time-point for which result are
+        to be stored as indicated by the "number of communcation points"
+        provided to the simulation method.
         """
-        pass
+        model = self.model
         
-    def write_finalize():
+        #Retrieves the time-point
+        self.time_sol += [model.time]
+        self.real_sol += [model.get_real(self.real_var_ref)]
+        self.int_sol  += [model.get_integer(self.int_var_ref)]
+        self.bool_sol += [model.get_boolean(self.bool_var_ref)]
+        
+        #Sets the parameters, if any
+        if solver and self.options["sensitivities"]:
+            self.param_sol += [N.array(solver.interpolate_sensitivity(model.time, 0)).flatten()]
+        
+    def simulation_end(self):
         """ 
         The finalize method can be used to for instance close the file.
+        ANd this method is called after the simulation has completed.
         """
         pass
+        
+    def get_result(self):
+        """
+        Method for retrieving the result. This method should return a 
+        result of an instance of ResultBase or of an instance of a 
+        subclass of ResultBase.
+        """
+        t = N.array(self.time_sol) 
+        r = N.array(self.real_sol) 
+        data = N.c_[t,r] 
+        
+        if len(self.int_sol) > 0 and len(self.int_sol[0]) > 0: 
+            i = N.array(self.int_sol) 
+            data = N.c_[data,i] 
+        if len(self.bool_sol) > 0 and len(self.bool_sol[0]) > 0: 
+            b = N.array(self.bool_sol) 
+            data = N.c_[data,b] 
 
+        return ResultStorageMemory(self.model, data, [self.real_var_ref,self.int_var_ref,self.bool_var_ref], self.vars)
+        
+    def set_options(self, options):
+        """
+        Options are the options dictionary provided to the simulation
+        method.
+        """
+        self.options = options
 
-class ResultWriterDymola(ResultWriter):
+class ResultHandlerFile(ResultHandler):
     """ 
     Export an optimization or simulation result to file in Dymola's result file 
     format.
     """
-    def __init__(self, model, format='txt'):
+    def __init__(self, model):
+        self.model = model
+    
+    def simulation_start(self):
         """
         Export an optimization or simulation result to file in Dymolas result 
         file format.
@@ -617,26 +1260,42 @@ class ResultWriterDymola(ResultWriter):
             model --
                 A FMIModel object.
             
-            format --
-                A text string equal either to 'txt' for textual format or 'mat' 
-                for binary Matlab format.
-                Default: 'txt'
+            opts --
+                An options dictonary
 
         Limitations::
         
             Currently only textual format is supported.
         """
-        self.model = model
-        
-        if format!='txt':
-            raise JIOError('The format is currently not supported.')
+        opts = self.options
+        model = self.model
         
         #Internal values
-        self._file_open = False
-        self._npoints = 0
+        self.file_open = False
+        self.nbr_points = 0
         
+        self.file_name = opts["result_file_name"]
+        try:
+            self.parameters = opts["sensitivities"]
+        except KeyError:
+            self.parameters = None
+        
+        if self.file_name == "":
+            self.file_name=self.model.get_identifier() + '_result.txt'
+            
+        #Store the continuous and discrete variables for result writing
+        reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=3, filter=opts["filter"])
+        reals_discrete = model.get_model_variables(type=0, include_alias=False, variability=2, filter=opts["filter"])
+        int_discrete = model.get_model_variables(type=1, include_alias=False, variability=2, filter=opts["filter"])
+        bool_discrete = model.get_model_variables(type=2, include_alias=False, variability=2, filter=opts["filter"])
+
+        self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]
+        self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
+        self.bool_var_ref = [var.value_reference for var in bool_discrete.values()]
+        
+        self.filter = opts["filter"]
     
-    def write_header(self, file_name='', parameters=None):
+    def initialize_complete(self):
         """
         Opens the file and writes the header. This includes the information 
         about the variables and a table determining the link between variables 
@@ -651,12 +1310,12 @@ class ResultWriterDymola(ResultWriter):
                 appended to the file name.
                 Default: Empty string.
         """
-        if file_name=='':
-            file_name=self.model.get_identifier() + '_result.txt'
-
+        file_name = self.file_name
+        parameters = self.parameters
+        
         # Open file
         f = codecs.open(file_name,'w','utf-8')
-        self._file_open = True
+        self.file_open = True
         
         # Write header
         f.write('#1\n')
@@ -683,7 +1342,7 @@ class ResultWriterDymola(ResultWriter):
         types_noalias = []
         types = []
         
-        for var in self.model.get_model_variables().values():
+        for var in self.model.get_model_variables(filter=self.filter).values():
             if not var.type == fmi.FMI_STRING and not var.type == fmi.FMI_ENUMERATION:
                     if var.alias == fmi.FMI_NO_ALIAS:
                         vrefs_noalias.append(var.value_reference)
@@ -756,7 +1415,7 @@ class ResultWriterDymola(ResultWriter):
         cont_vars = []
         
         if parameters != None:
-            vars = self.model.get_model_variables(type=0,include_alias=False,variability=3)
+            vars = self.model.get_model_variables(type=0,include_alias=False,variability=3,filter=self.filter)
             for i in self.model.get_state_value_references():
                 for j in vars.keys():
                     if i == vars[j].value_reference:
@@ -819,10 +1478,10 @@ class ResultWriterDymola(ResultWriter):
         f.write('int dataInfo(%d,%d)\n' % (num_vars+len(names_sens) + 1, 4))
         f.write('0 1 0 -1 # time\n')
         
-        list_of_continuous_states = N.append(self.model._save_real_variables_val, 
-            self.model._save_int_variables_val)
+        list_of_continuous_states = N.append(self.real_var_ref, 
+            self.int_var_ref)
         list_of_continuous_states = N.append(list_of_continuous_states, 
-            self.model._save_bool_variables_val).tolist()
+            self.bool_var_ref).tolist()
         list_of_continuous_states = dict(zip(list_of_continuous_states, 
             xrange(len(list_of_continuous_states))))
         valueref_of_continuous_states = []
@@ -906,7 +1565,7 @@ class ResultWriterDymola(ResultWriter):
         self._file = f
         self._data_order = valueref_of_continuous_states
         
-    def write_point(self, data=None, parameter_data=[]):
+    def integration_point(self, solver = None):#parameter_data=[]):
         """ 
         Writes the current status of the model to file. If the header has not 
         been written previously it is written now. If data is specified it is 
@@ -922,32 +1581,39 @@ class ResultWriterDymola(ResultWriter):
         """
         f = self._file
         data_order = self._data_order
+        model = self.model
 
-        #If data is none, store the current point from the model
-        if data==None:
-            #Retrieves the time-point
-            [r,i,b] = self.model.save_time_point()
-            data = N.append(N.append(N.append(self.model.time,r),i),b)
+        #Retrieves the time-point
+        r = model.get_real(self.real_var_ref)
+        i = model.get_integer(self.int_var_ref)
+        b = model.get_boolean(self.bool_var_ref)
+        
+        data = N.append(N.append(N.append(self.model.time,r),i),b)
 
         #Write the point
         str_text = (" %.14E" % data[0])
         for j in xrange(self._nvariables-1):
             str_text = str_text + (" %.14E" % (data[1+data_order[j]]))
-        for j in xrange(len(parameter_data)):
-            str_text = str_text + (" %.14E" % (parameter_data[j]))
+        
+        #Sets the parameters, if any
+        if solver and self.options["sensitivities"]:
+            parameter_data = N.array(solver.interpolate_sensitivity(model.time, 0)).flatten()
+            for j in xrange(len(parameter_data)):
+                str_text = str_text + (" %.14E" % (parameter_data[j]))
+                    
         f.write(str_text+'\n')
         
         #Update number of points
-        self._npoints+=1
+        self.nbr_points+=1
 
-    def write_finalize(self):
+    def simulation_end(self):
         """ 
         Finalize the writing by filling in the blanks in the created file. The 
         blanks consists of the number of points and the final time (in data set 
         1). Also closes the file.
         """
         #If open, finalize and close
-        if self._file_open:
+        if self.file_open:
             
             f = self._file
             
@@ -956,14 +1622,28 @@ class ResultWriterDymola(ResultWriter):
             f.write('%.14E'%self.model.time)
             
             f.seek(self._point_npoints)
-            f.write('%d,%d)' % (self._npoints, self._nvariables+self._nvariables_sens))
+            f.write('%d,%d)' % (self.nbr_points, self._nvariables+self._nvariables_sens))
             #f.write('%d'%self._npoints)
             f.seek(-1,2)
             #Close the file
             f.write('\n')
             f.close()
-            self._file_open = False
-          
+            self.file_open = False
+            
+    def get_result(self):
+        """
+        Method for retrieving the result. This method should return a 
+        result of an instance of ResultBase or of an instance of a 
+        subclass of ResultBase.
+        """
+        return ResultDymolaTextual(self.file_name)
+        
+    def set_options(self, options):
+        """
+        Options are the options dictionary provided to the simulation
+        method.
+        """
+        self.options = options
 
 class ResultWriterDymola_deprecated(ResultWriter):
     """ 
