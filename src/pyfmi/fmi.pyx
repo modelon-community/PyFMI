@@ -33,7 +33,6 @@ cimport fmil_import as FMIL
 from pyfmi.common.core import create_temp_dir, delete_temp_dir
 #from pyfmi.common.core cimport BaseModel
 
-
 int   = N.int32
 N.int = N.int32
 
@@ -512,7 +511,7 @@ cdef class FMUModelBase(ModelBase):
     cdef public object _pyEventInfo
     cdef list _log
     cdef int _version
-    cdef object _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
+    cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
     cdef object _allocated_list
     cdef object _modelid
     cdef object _modelname
@@ -521,9 +520,9 @@ cdef class FMUModelBase(ModelBase):
     cdef public list _save_real_variables_val
     cdef public list _save_int_variables_val
     cdef public list _save_bool_variables_val
-    cdef public object _fmu_temp_dir
     cdef int _fmu_kind
-    cdef public object _fmu_log_name
+    cdef char* _fmu_log_name
+    cdef char* _fmu_temp_dir
 
     def __init__(self, fmu, path='.', enable_logging=True, log_file_name=""):
         """
@@ -536,13 +535,13 @@ cdef class FMUModelBase(ModelBase):
         self._log = []
 
         #Used for deallocation
-        self._allocated_context = False
-        self._allocated_dll = False
-        self._allocated_xml = False
-        self._allocated_fmu = False
+        self._allocated_context = 0
+        self._allocated_dll = 0
+        self._allocated_xml = 0
+        self._allocated_fmu = 0
         self._allocated_list = False
-        self._fmu_temp_dir = None
-        self._fmu_log_name = ""
+        self._fmu_temp_dir = NULL
+        self._fmu_log_name = NULL
 
         #Specify the general callback functions
         self.callbacks.malloc  = FMIL.malloc
@@ -556,7 +555,8 @@ cdef class FMUModelBase(ModelBase):
 
         fmu_full_path = os.path.abspath(os.path.join(path,fmu))
         fmu_temp_dir  = create_temp_dir()
-        self._fmu_temp_dir = fmu_temp_dir
+        self._fmu_temp_dir = <char*>FMIL.malloc((FMIL.strlen(fmu_temp_dir)+1)*sizeof(char))
+        FMIL.strcpy(self._fmu_temp_dir, fmu_temp_dir)
 
         # Check that the file referenced by fmu has the correct file-ending
         if not fmu_full_path.endswith(".fmu"):
@@ -570,7 +570,7 @@ cdef class FMUModelBase(ModelBase):
         self.callBackFunctions.stepFinished = NULL;
 
         self.context = FMIL.fmi_import_allocate_context(&self.callbacks)
-        self._allocated_context = True
+        self._allocated_context = 1
 
         #Get the FMI version of the provided model
         version = FMIL.fmi_import_get_fmi_version(self.context, fmu_full_path, fmu_temp_dir)
@@ -593,7 +593,7 @@ cdef class FMUModelBase(ModelBase):
                 raise FMUException("The XML file could not be parsed. "+last_error)
             else:
                 raise FMUException("The XML file could not be parsed. Enable logging for possibly more information.")
-        self._allocated_xml = True
+        self._allocated_xml = 1
 
         #Check the FMU kind
         fmu_kind = FMIL.fmi1_import_get_fmu_kind(self._fmu)
@@ -613,7 +613,7 @@ cdef class FMUModelBase(ModelBase):
             else:
                 raise FMUException("Error loading the binary. Enable logging for possibly more information.")
             #raise FMUException("The DLL could not be loaded, reported error: "+ last_error)
-        self._allocated_dll = True
+        self._allocated_dll = 1
         FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
 
         #Default values
@@ -624,13 +624,15 @@ cdef class FMUModelBase(ModelBase):
         self._npoints = 0
         self._enable_logging = enable_logging
         self._pyEventInfo = PyEventInfo()
-
+        
         #Load information from model
         self._modelid = FMIL.fmi1_import_get_model_identifier(self._fmu)
         self._modelname = FMIL.fmi1_import_get_model_name(self._fmu)
         self._nEventIndicators = FMIL.fmi1_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
-        self._fmu_log_name = (self._modelid + "_log.txt") if log_file_name=="" else log_file_name
+        fmu_log_name = (self._modelid + "_log.txt") if log_file_name=="" else log_file_name
+        self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
+        FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
         #Create the log file
         with open(self._fmu_log_name,'w') as file:
@@ -674,7 +676,7 @@ cdef class FMUModelBase(ModelBase):
 
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
         #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
-        if self._fmu_log_name != "":
+        if self._fmu_log_name != NULL:
             with open(self._fmu_log_name,'a') as file:
                 file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
         else:
@@ -694,7 +696,7 @@ cdef class FMUModelBase(ModelBase):
             log - A list of lists.
         """
         log = []
-        if self._fmu_log_name != "":
+        if self._fmu_log_name != NULL:
             with open(self._fmu_log_name,'r') as file:
                 while True:
                     line = file.readline()
@@ -1917,26 +1919,27 @@ cdef class FMUModelCS1(FMUModelBase):
         """
         Deallocate memory allocated
         """
-        if self._allocated_fmu:
+        if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate_slave(self._fmu)
             FMIL.fmi1_import_free_slave_instance(self._fmu)
-            self._allocated_fmu = False
 
-        if self._allocated_dll:
+        if self._allocated_dll == 1:
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
-            self._allocated_dll = False
 
-        if self._allocated_xml:
+        if self._allocated_xml == 1:
             FMIL.fmi1_import_free(self._fmu)
-            self._allocated_xml = False
-
-        if self._fmu_temp_dir:
+        
+        if self._fmu_temp_dir != NULL:
             FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
-            self._fmu_temp_dir = ""
+            FMIL.free(self._fmu_temp_dir)
+            self._fmu_temp_dir = NULL
 
-        if self._allocated_context:
+        if self._allocated_context == 1:
             FMIL.fmi_import_free_context(self.context)
-            self._allocated_context = False
+        
+        if self._fmu_log_name != NULL:
+            FMIL.free(self._fmu_log_name)
+            self._fmu_log_name = NULL
 
     def do_step(self, FMIL.fmi1_real_t current_t, FMIL.fmi1_real_t step_size, new_step=True):
         """
@@ -2346,11 +2349,11 @@ cdef class FMUModelME1(FMUModelBase):
         fmiFreeModelInstance and then reloades the DLL and finally
         reinstantiates using fmiInstantiateModel.
         """
-        if self._allocated_fmu:
+        if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate(self._fmu)
             FMIL.fmi1_import_free_model_instance(self._fmu)
 
-        if self._allocated_dll:
+        if self._allocated_dll == 1:
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
 
         global FMI_REGISTER_GLOBALLY
@@ -2375,26 +2378,27 @@ cdef class FMUModelME1(FMUModelBase):
         """
         Deallocate memory allocated
         """
-        if self._allocated_fmu:
+        if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate(self._fmu)
             FMIL.fmi1_import_free_model_instance(self._fmu)
-            self._allocated_fmu = False
 
-        if self._allocated_dll:
+        if self._allocated_dll == 1:
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
-            self._allocated_dll = False
 
-        if self._allocated_xml:
+        if self._allocated_xml == 1:
             FMIL.fmi1_import_free(self._fmu)
-            self._allocated_xml = False
-
-        if self._fmu_temp_dir:
+        
+        if self._fmu_temp_dir != NULL:
             FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
-            self._fmu_temp_dir = False
+            FMIL.free(self._fmu_temp_dir)
+            self._fmu_temp_dir = NULL
 
-        if self._allocated_context:
+        if self._allocated_context == 1:
             FMIL.fmi_import_free_context(self.context)
-            self._allocated_context = False
+        
+        if self._fmu_log_name != NULL:
+            FMIL.free(self._fmu_log_name)
+            self._fmu_log_name = NULL
 
     cpdef _get_time(self):
         return self.__t
