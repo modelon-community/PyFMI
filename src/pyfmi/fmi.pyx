@@ -3046,7 +3046,7 @@ cdef class FMUModelBase2(ModelBase):
                 file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
             self._log = []
 
-
+        
         #Store the continuous and discrete variables for result writing
         reals_continuous = self.get_model_variables(type=0, include_alias=False, variability=4)
         reals_discrete   = self.get_model_variables(type=0, include_alias=False, variability=3)
@@ -3679,7 +3679,8 @@ cdef class FMUModelBase2(ModelBase):
 
     def get_model_variables(self, type = None, include_alias = True,
                              causality = None,   variability = None,
-                            only_start = False,   only_fixed = False):   ### Initial
+                            only_start = False,   only_fixed = False,
+                            filter = None):
         """
         Extract the names of the variables in a model.
 
@@ -3703,6 +3704,11 @@ cdef class FMUModelBase2(ModelBase):
             only_fixed --
                 If only variables that has a start value that is fixed
                 should be returned. Default False
+            filter --
+                Filter the variables using a unix filename pattern
+                matching (filter="*der*"). Can also be a list of filters
+                See http://docs.python.org/2/library/fnmatch.html.
+                Default None
 
         Returns::
 
@@ -3724,6 +3730,8 @@ cdef class FMUModelBase2(ModelBase):
         cdef int   selected_causality = 0   #If a causality has been selected
         cdef int   has_start, is_fixed
         cdef int   i
+        cdef int  selected_filter = 1 if filter else 0
+        cdef int  length_filter = 0
 
         variable_list      = FMIL.fmi2_import_get_variable_list(self._fmu, 0) # Can change order in variable list !!!!
         variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
@@ -3737,6 +3745,9 @@ cdef class FMUModelBase2(ModelBase):
         if variability != None: #A variability has been selected
             target_variability = variability
             selected_variability = 1
+        if selected_filter:
+            filter_list = self._convert_filter(filter)
+            length_filter = len(filter_list)
 
         for i in range(variable_list_size):
 
@@ -3768,7 +3779,14 @@ cdef class FMUModelBase2(ModelBase):
                 continue
             if selected_variability == 1 and data_variability != target_variability:
                 continue
-
+            
+            if selected_filter:
+                for j in range(length_filter):
+                    if re.match(filter_list[j], name):
+                        break
+                else:
+                    continue
+            
             if include_alias:
                 #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable2(name,

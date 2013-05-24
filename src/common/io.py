@@ -1165,17 +1165,31 @@ class ResultHandlerMemory(ResultHandler):
         model = self.model
         opts = self.options
         
-        #Store the continuous and discrete variables for result writing
-        reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=3, filter=opts["filter"])
-        reals_discrete = model.get_model_variables(type=0, include_alias=False, variability=2, filter=opts["filter"])
-        int_discrete = model.get_model_variables(type=1, include_alias=False, variability=2, filter=opts["filter"])
-        bool_discrete = model.get_model_variables(type=2, include_alias=False, variability=2, filter=opts["filter"])
-
         self.vars = model.get_model_variables(filter=opts["filter"])
-        self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]
-        self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
-        self.bool_var_ref = [var.value_reference for var in bool_discrete.values()]
         
+        #Store the continuous and discrete variables for result writing
+        
+        if isinstance(model,fmi.FMUModelBase):
+            reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=3, filter=opts["filter"])
+            reals_discrete   = model.get_model_variables(type=0, include_alias=False, variability=2, filter=opts["filter"])
+            int_discrete     = model.get_model_variables(type=1, include_alias=False, variability=2, filter=opts["filter"])
+            bool_discrete    = model.get_model_variables(type=2, include_alias=False, variability=2, filter=opts["filter"])
+
+            
+            self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]
+            self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
+            self.bool_var_ref = [var.value_reference for var in bool_discrete.values()]
+        else:
+            reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=4)
+            reals_discrete   = model.get_model_variables(type=0, include_alias=False, variability=3)
+            reals_tunable    = model.get_model_variables(type=0, include_alias=False, variability=2)
+            int_discrete     = model.get_model_variables(type=1, include_alias=False, variability=3)
+            bool_discrete    = model.get_model_variables(type=2, include_alias=False, variability=3)
+
+            self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]+[var.value_reference for var in reals_tunable.values()]
+            self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
+            self.bool_var_ref = [var.value_reference for var in bool_discrete.values()]
+            
         self.real_sol = []
         self.int_sol  = []
         self.bool_sol = []
@@ -1284,14 +1298,27 @@ class ResultHandlerFile(ResultHandler):
             self.file_name=self.model.get_identifier() + '_result.txt'
             
         #Store the continuous and discrete variables for result writing
-        reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=3, filter=opts["filter"])
-        reals_discrete = model.get_model_variables(type=0, include_alias=False, variability=2, filter=opts["filter"])
-        int_discrete = model.get_model_variables(type=1, include_alias=False, variability=2, filter=opts["filter"])
-        bool_discrete = model.get_model_variables(type=2, include_alias=False, variability=2, filter=opts["filter"])
+        if isinstance(model,fmi.FMUModelBase):
+            reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=3, filter=opts["filter"])
+            reals_discrete   = model.get_model_variables(type=0, include_alias=False, variability=2, filter=opts["filter"])
+            int_discrete     = model.get_model_variables(type=1, include_alias=False, variability=2, filter=opts["filter"])
+            bool_discrete    = model.get_model_variables(type=2, include_alias=False, variability=2, filter=opts["filter"])
 
-        self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]
-        self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
-        self.bool_var_ref = [var.value_reference for var in bool_discrete.values()]
+            
+            self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]
+            self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
+            self.bool_var_ref = [var.value_reference for var in bool_discrete.values()]
+        else:
+            reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=4)
+            reals_discrete   = model.get_model_variables(type=0, include_alias=False, variability=3)
+            reals_tunable    = model.get_model_variables(type=0, include_alias=False, variability=2)
+            int_discrete     = model.get_model_variables(type=1, include_alias=False, variability=3)
+            bool_discrete    = model.get_model_variables(type=2, include_alias=False, variability=3)
+
+            self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]+[var.value_reference for var in reals_tunable.values()]
+            self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
+            self.bool_var_ref = [var.value_reference for var in bool_discrete.values()]
+        
         
         self.filter = opts["filter"]
     
