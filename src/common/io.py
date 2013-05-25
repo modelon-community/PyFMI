@@ -1170,6 +1170,7 @@ class ResultHandlerMemory(ResultHandler):
         #Store the continuous and discrete variables for result writing
         
         if isinstance(model,fmi.FMUModelBase):
+            """
             reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=3, filter=opts["filter"])
             reals_discrete   = model.get_model_variables(type=0, include_alias=False, variability=2, filter=opts["filter"])
             int_discrete     = model.get_model_variables(type=1, include_alias=False, variability=2, filter=opts["filter"])
@@ -1179,12 +1180,14 @@ class ResultHandlerMemory(ResultHandler):
             self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]
             self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
             self.bool_var_ref = [var.value_reference for var in bool_discrete.values()]
+            """
+            self.real_var_ref, self.int_var_ref, self.bool_var_ref = model.get_model_time_varying_variables(filter=opts["filter"])
         else:
-            reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=4)
-            reals_discrete   = model.get_model_variables(type=0, include_alias=False, variability=3)
-            reals_tunable    = model.get_model_variables(type=0, include_alias=False, variability=2)
-            int_discrete     = model.get_model_variables(type=1, include_alias=False, variability=3)
-            bool_discrete    = model.get_model_variables(type=2, include_alias=False, variability=3)
+            reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=4, filter=opts["filter"])
+            reals_discrete   = model.get_model_variables(type=0, include_alias=False, variability=3, filter=opts["filter"])
+            reals_tunable    = model.get_model_variables(type=0, include_alias=False, variability=2, filter=opts["filter"])
+            int_discrete     = model.get_model_variables(type=1, include_alias=False, variability=3, filter=opts["filter"])
+            bool_discrete    = model.get_model_variables(type=2, include_alias=False, variability=3, filter=opts["filter"])
 
             self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]+[var.value_reference for var in reals_tunable.values()]
             self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
@@ -1299,6 +1302,7 @@ class ResultHandlerFile(ResultHandler):
             
         #Store the continuous and discrete variables for result writing
         if isinstance(model,fmi.FMUModelBase):
+            """
             reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=3, filter=opts["filter"])
             reals_discrete   = model.get_model_variables(type=0, include_alias=False, variability=2, filter=opts["filter"])
             int_discrete     = model.get_model_variables(type=1, include_alias=False, variability=2, filter=opts["filter"])
@@ -1308,19 +1312,18 @@ class ResultHandlerFile(ResultHandler):
             self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]
             self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
             self.bool_var_ref = [var.value_reference for var in bool_discrete.values()]
+            """
+            self.real_var_ref, self.int_var_ref, self.bool_var_ref = model.get_model_time_varying_variables(filter=opts["filter"])
         else:
-            reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=4)
-            reals_discrete   = model.get_model_variables(type=0, include_alias=False, variability=3)
-            reals_tunable    = model.get_model_variables(type=0, include_alias=False, variability=2)
-            int_discrete     = model.get_model_variables(type=1, include_alias=False, variability=3)
-            bool_discrete    = model.get_model_variables(type=2, include_alias=False, variability=3)
+            reals_continuous = model.get_model_variables(type=0, include_alias=False, variability=4, filter=opts["filter"])
+            reals_discrete   = model.get_model_variables(type=0, include_alias=False, variability=3, filter=opts["filter"])
+            reals_tunable    = model.get_model_variables(type=0, include_alias=False, variability=2, filter=opts["filter"])
+            int_discrete     = model.get_model_variables(type=1, include_alias=False, variability=3, filter=opts["filter"])
+            bool_discrete    = model.get_model_variables(type=2, include_alias=False, variability=3, filter=opts["filter"])
 
             self.real_var_ref = [var.value_reference for var in reals_continuous.values()]+[var.value_reference for var in reals_discrete.values()]+[var.value_reference for var in reals_tunable.values()]
             self.int_var_ref  = [var.value_reference for var in int_discrete.values()]
             self.bool_var_ref = [var.value_reference for var in bool_discrete.values()]
-        
-        
-        self.filter = opts["filter"]
     
     def initialize_complete(self):
         """
@@ -1369,7 +1372,7 @@ class ResultHandlerFile(ResultHandler):
         types_noalias = []
         types = []
         
-        for var in self.model.get_model_variables(filter=self.filter).values():
+        for var in self.model.get_model_variables(filter=self.options["filter"]).values():
             if not var.type == fmi.FMI_STRING and not var.type == fmi.FMI_ENUMERATION:
                     if var.alias == fmi.FMI_NO_ALIAS:
                         vrefs_noalias.append(var.value_reference)
@@ -1442,7 +1445,7 @@ class ResultHandlerFile(ResultHandler):
         cont_vars = []
         
         if parameters != None:
-            vars = self.model.get_model_variables(type=0,include_alias=False,variability=3,filter=self.filter)
+            vars = self.model.get_model_variables(type=0,include_alias=False,variability=3,filter=self.options["filter"])
             for i in self.model.get_state_value_references():
                 for j in vars.keys():
                     if i == vars[j].value_reference:
@@ -1512,25 +1515,69 @@ class ResultHandlerFile(ResultHandler):
         list_of_continuous_states = dict(zip(list_of_continuous_states, 
             xrange(len(list_of_continuous_states))))
         valueref_of_continuous_states = []
+        list_of_parameters = []
         
         cnt_1 = 1
         cnt_2 = 1
         n_parameters = 0
         datatable1 = False
+        last_real_vref = -1; last_int_vref = -1; last_bool_vref = -1
         for i, name in enumerate(names):
-            if aliases[i][1] == 0: # no alias
-                if variabilities[i][1] == fmi.FMI_PARAMETER or \
-                    variabilities[i][1] == fmi.FMI_CONSTANT:
-                    cnt_1 += 1
-                    n_parameters += 1
-                    f.write('1 %d 0 -1 # ' % cnt_1 + name[1]+'\n')
-                    datatable1 = True
+            update = False
+            if (types[i][1] == fmi.FMI_REAL and last_real_vref != name[0]):
+                last_real_vref = name[0]
+                update = True
+            if (types[i][1] == fmi.FMI_INTEGER and last_int_vref != name[0]):
+                last_int_vref = name[0]
+                update = True
+            if (types[i][1] == fmi.FMI_BOOLEAN and last_bool_vref != name[0]):
+                last_bool_vref = name[0]
+                update = True
+            if update:
+                if aliases[i][1] == 0:
+                    if variabilities[i][1] == fmi.FMI_PARAMETER or \
+                        variabilities[i][1] == fmi.FMI_CONSTANT:
+                        cnt_1 += 1
+                        n_parameters += 1
+                        datatable1 = True
+                        list_of_parameters.append((types[i][0],types[i][1]))
+                    else:
+                        cnt_2 += 1
+                        valueref_of_continuous_states.append(
+                            list_of_continuous_states[name[0]])
+                        datatable1 = False
                 else:
-                    cnt_2 += 1
-                    valueref_of_continuous_states.append(
-                        list_of_continuous_states[name[0]])
+                    base_var = self.model.get_variable_alias_base(name[1])
+                    variability = self.model.get_variable_variability(base_var)
+                    data_type = self.model.get_variable_data_type(base_var)
+                    if data_type != types[i][1]:
+                        raise Exception
+                    if variability == fmi.FMI_PARAMETER or \
+                        variability == fmi.FMI_CONSTANT:
+                        cnt_1 += 1
+                        n_parameters += 1
+                        datatable1 = True
+                        list_of_parameters.append((types[i][0],types[i][1]))
+                    else:
+                        cnt_2 += 1
+                        valueref_of_continuous_states.append(
+                            list_of_continuous_states[name[0]])
+                        datatable1 = False
+            
+            if aliases[i][1] == 0: # no alias
+                #if variabilities[i][1] == fmi.FMI_PARAMETER or \
+                #    variabilities[i][1] == fmi.FMI_CONSTANT:
+                if datatable1:
+                    #cnt_1 += 1
+                    #n_parameters += 1
+                    f.write('1 %d 0 -1 # ' % cnt_1 + name[1]+'\n')
+                    #datatable1 = True
+                else:
+                    #cnt_2 += 1
+                    #valueref_of_continuous_states.append(
+                    #    list_of_continuous_states[name[0]])
                     f.write('2 %d 0 -1 # ' % cnt_2 + name[1] +'\n')
-                    datatable1 = False
+                    #datatable1 = False
                 
             elif aliases[i][1] == 1: # alias
                 if datatable1:
@@ -1556,6 +1603,20 @@ class ResultHandlerFile(ResultHandler):
         str_text = ''
         
         # write constants and parameters
+        for i, dtype in enumerate(list_of_parameters):
+            vref = dtype[0]
+            if dtype[1] == fmi.FMI_REAL:
+                str_text = str_text + (
+                    " %.14E" % (self.model.get_real([vref])))
+            elif dtype[1] == fmi.FMI_INTEGER:
+                str_text = str_text + (
+                    " %.14E" % (self.model.get_integer([vref])))
+            elif dtype[1] == fmi.FMI_BOOLEAN:
+                str_text = str_text + (
+                    " %.14E" % (float(
+                        self.model.get_boolean([vref])[0])))
+        #raise Exception
+        """
         for i, name in enumerate(names_noalias):
             if variabilities_noalias[i][1] == fmi.FMI_CONSTANT or \
                 variabilities_noalias[i][1] == fmi.FMI_PARAMETER:
@@ -1569,6 +1630,7 @@ class ResultHandlerFile(ResultHandler):
                         str_text = str_text + (
                             " %.14E" % (float(
                                 self.model.get_boolean([name[0]])[0])))
+        """
                         
         f.write(str_text)
         f.write('\n')
