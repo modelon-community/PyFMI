@@ -831,13 +831,15 @@ class ResultDymolaTextual(ResultDymola):
             data = []
             for i in range(0,nLines):
                 info = []
-                while len(info) < nCols:
+                while len(info) < nCols and l != '':
                     l = fid.readline()
                     info.extend(l.split())
                 try:
                     data.append(map(float,info[0:nCols]))
                 except ValueError: #Handle 1.#INF's and such
                     data.append(map(robust_float,info[0:nCols]))
+                if len(info) == 0 and i < nLines-1:
+                    raise JIOError("Inconsistent number of lines in the result data.")
                 del(info)
             self.data.append(N.array(data))
             
