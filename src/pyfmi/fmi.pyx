@@ -2241,7 +2241,7 @@ cdef class FMUModelCS1(FMUModelBase):
         cdef FMIL.fmi1_boolean_t visible = 0
         cdef FMIL.fmi1_boolean_t interactive = 0
         cdef FMIL.fmi1_string_t location = NULL
-        
+
         status = FMIL.fmi1_import_instantiate_slave(self._fmu, name, location,
                                         FMI_MIME_CS_STANDALONE, timeout, visible,
                                         interactive)
@@ -4357,78 +4357,6 @@ cdef class FMUModelBase2(ModelBase):
         return n_bytes
 
 
-    #Derivatives
-
-    def get_directional_derivative(self, var_ref, func_ref, v):
-        """
-        Returns the directional derivatives of the functions with respect
-        to the given variables and in the given direction.
-        In other words, it returns linear combinations of the partial derivatives
-        of the given functions with respect to the selected variables.
-        The point of eveluation is the current time-point.
-
-        Parameters::
-
-            var_ref --
-                A list of variable references that the partial derivatives
-                will be calculated with respect to
-
-            func_ref --
-                A list of function references for which the partial derivatives will be calculated
-            v --
-                A list of numbers specifing the linear combination of the partial derivatives
-
-        Returns::
-
-            value --
-                A vector with the directional derivatives (linear combination of
-                partial derivatives) evaluated in the current time point.
-
-        Example::
-
-            Model.get_directional_derivative(var_ref = [0,1], func_ref = [2,3], v = [1,2])
-            This returns a vector with two values where:
-
-            values[0] = (df2/dv0) * 1 + (df2/dv1) * 2
-            values[1] = (df3/dv0) * 1 + (df3/dv1) * 2
-
-            and right hand side is evaluated in the current time point.
-
-        """
-
-        cdef int status
-        cdef FMIL.size_t nv, nz
-
-        #input arrays
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.zeros(len(var_ref),  dtype = N.uint32)
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.zeros(len(func_ref), dtype = N.uint32)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dv    = N.zeros(len(v),        dtype = N.double)
-        #output array
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dz    = N.zeros(len(func_ref), dtype = N.double)
-
-        if not FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives):
-            raise FMUException('This FMU does not provide directional derivatives')
-
-        if len(var_ref) != len(v):
-            raise FMUException('The length of the list with variables (var_ref) and the seed vector (V) are not equal')
-
-        for i in range(len(var_ref)):
-            v_ref[i] = var_ref[i]
-            dv[i] = v[i]
-        for j in range(len(func_ref)):
-            z_ref[j] = func_ref[j]
-
-        nv = len(v_ref)
-        nz = len(z_ref)
-
-        status = FMIL.fmi2_import_get_directional_derivative(self._fmu, <FMIL.fmi2_value_reference_t*> v_ref.data, nv, <FMIL.fmi2_value_reference_t*> z_ref.data, nz, <FMIL.fmi2_real_t*> dv.data, <FMIL.fmi2_real_t*> dz.data)
-
-        if status != 0:
-            raise FMUException('An error occured while getting the directional derivative, see the log for possible more information')
-
-        return dz
-
-
     #Other functions
 
     def get_ode_sizes(self):
@@ -4496,7 +4424,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef dict  variable_dict = {}
 
         variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
-        
+
         for i in range(variable_list_size):
 
             variable = FMIL.fmi2_import_get_variable(variable_list, i)
@@ -4513,24 +4441,24 @@ cdef class FMUModelBase2(ModelBase):
                                     value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                     data_variability, data_causality,
                                     alias_kind)
-        
+
         return variable_dict
-    
+
     def get_derivatives_list(self):
         """
         Returns a list of the states derivatives.
         """
         cdef FMIL.fmi2_import_variable_list_t*   variable_list
-        
+
         variable_list = FMIL.fmi2_import_get_derivatives_list(self._fmu)
         if variable_list == NULL:
             raise FMUException("The returned states list is NULL.")
-            
+
         variable_dict = self._add_scalar_variables(variable_list)
-        
+
         #Free the variable list
         FMIL.fmi2_import_free_variable_list(variable_list)
-        
+
         return variable_dict
 
     def get_states_list(self):
@@ -4538,16 +4466,50 @@ cdef class FMUModelBase2(ModelBase):
         Returns a list of the states.
         """
         cdef FMIL.fmi2_import_variable_list_t*   variable_list
-        
+
         variable_list = FMIL.fmi2_import_get_states_list(self._fmu)
         if variable_list == NULL:
             raise FMUException("The returned states list is NULL.")
-            
+
         variable_dict = self._add_scalar_variables(variable_list)
-        
+
         #Free the variable list
         FMIL.fmi2_import_free_variable_list(variable_list)
-        
+
+        return variable_dict
+
+    def get_input_list(self):
+        """
+        Returns a dictonary with input variables
+        """
+        cdef FMIL.fmi2_import_variable_list_t*   input_list
+
+        input_list = FMIL.fmi2_import_get_inputs_list(self._fmu)
+        if input_list == NULL:
+            raise FMUException("The returned input list is NULL.")
+
+        variable_dict = self._add_scalar_variables(input_list)
+
+        #Free the variable list
+        FMIL.fmi2_import_free_variable_list(input_list)
+
+        return variable_dict
+
+    def get_output_list(self):
+        """
+        Returns a dictonary with output variables
+        """
+        cdef FMIL.fmi2_import_variable_list_t*   output_list
+
+        output_list = FMIL.fmi2_import_get_outputs_list(self._fmu)
+        if output_list == NULL:
+            raise FMUException("The returned input list is NULL.")
+
+        variable_dict = self._add_scalar_variables(output_list)
+
+        #Free the variable list
+        FMIL.fmi2_import_free_variable_list(output_list)
+
         return variable_dict
 
     def get_capability_flags(self):
@@ -5568,6 +5530,32 @@ cdef class FMUModelME2(FMUModelBase2):
 
         return status
 
+    def completed_integrator_step(self):
+        """
+        This method must be called by the environment after every completed step
+        of the integrator. If the return is True, then the environment must call
+        event_update() otherwise, no action is needed.
+
+        Returns::
+
+            True -> Call event_update().
+            False -> Do nothing.
+
+        Calls the low-level FMI function: fmiCompletedIntegratorStep.
+        """
+        cdef int status
+        cdef FMIL.fmi2_boolean_t callEventUpdate
+
+        status = FMIL.fmi2_import_completed_integrator_step(self._fmu, &callEventUpdate)
+
+        if status != 0:
+            raise FMUException('Failed to call FMI Completed Step.')
+
+        if callEventUpdate == 1:
+            return True
+        else:
+            return False
+
 
 
     #Step, continuity and derivatives functions
@@ -5646,31 +5634,75 @@ cdef class FMUModelME2(FMUModelBase2):
 
         return values
 
-    def completed_integrator_step(self):
+    def get_directional_derivative(self, var_ref, func_ref, v):
         """
-        This method must be called by the environment after every completed step
-        of the integrator. If the return is True, then the environment must call
-        event_update() otherwise, no action is needed.
+        Returns the directional derivatives of the functions with respect
+        to the given variables and in the given direction.
+        In other words, it returns linear combinations of the partial derivatives
+        of the given functions with respect to the selected variables.
+        The point of eveluation is the current time-point.
+
+        Parameters::
+
+            var_ref --
+                A list of variable references that the partial derivatives
+                will be calculated with respect to
+
+            func_ref --
+                A list of function references for which the partial derivatives will be calculated
+            v --
+                A list of numbers specifing the linear combination of the partial derivatives
 
         Returns::
 
-            True -> Call event_update().
-            False -> Do nothing.
+            value --
+                A vector with the directional derivatives (linear combination of
+                partial derivatives) evaluated in the current time point.
 
-        Calls the low-level FMI function: fmiCompletedIntegratorStep.
+        Example::
+
+            Model.get_directional_derivative(var_ref = [0,1], func_ref = [2,3], v = [1,2])
+            This returns a vector with two values where:
+
+            values[0] = (df2/dv0) * 1 + (df2/dv1) * 2
+            values[1] = (df3/dv0) * 1 + (df3/dv1) * 2
+
+            and right hand side is evaluated in the current time point.
+
         """
-        cdef int status
-        cdef FMIL.fmi2_boolean_t callEventUpdate
 
-        status = FMIL.fmi2_import_completed_integrator_step(self._fmu, &callEventUpdate)
+        cdef int status
+        cdef FMIL.size_t nv, nz
+
+        #input arrays
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.zeros(len(var_ref),  dtype = N.uint32)
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.zeros(len(func_ref), dtype = N.uint32)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dv    = N.zeros(len(v),        dtype = N.double)
+        #output array
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dz    = N.zeros(len(func_ref), dtype = N.double)
+
+        if not FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives):
+            raise FMUException('This FMU does not provide directional derivatives')
+
+        if len(var_ref) != len(v):
+            raise FMUException('The length of the list with variables (var_ref) and the seed vector (V) are not equal')
+
+        for i in range(len(var_ref)):
+            v_ref[i] = var_ref[i]
+            dv[i] = v[i]
+        for j in range(len(func_ref)):
+            z_ref[j] = func_ref[j]
+
+        nv = len(v_ref)
+        nz = len(z_ref)
+
+        status = FMIL.fmi2_import_get_directional_derivative(self._fmu, <FMIL.fmi2_value_reference_t*> v_ref.data, nv, <FMIL.fmi2_value_reference_t*> z_ref.data, nz, <FMIL.fmi2_real_t*> dv.data, <FMIL.fmi2_real_t*> dz.data)
 
         if status != 0:
-            raise FMUException('Failed to call FMI Completed Step.')
+            raise FMUException('An error occured while getting the directional derivative, see the log for possible more information')
 
-        if callEventUpdate == 1:
-            return True
-        else:
-            return False
+        return dz
+
 
 
     #Simulation
