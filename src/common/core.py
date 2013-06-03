@@ -39,7 +39,7 @@ def get_temp_location():
 
 tmp_location = get_temp_location()
 
-class BaseModel(object):
+class ModelBase(object):
     """ 
     Abstract Model class containing base functionality.
     """
