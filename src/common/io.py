@@ -1467,13 +1467,11 @@ class ResultHandlerFile(ResultHandler):
         
         f.write('int dataInfo(%d,%d)\n' % (num_vars+len(names_sens) + 1, 4))
         f.write('0 1 0 -1 # time\n')
-        
-        list_of_continuous_states = N.append(self.real_var_ref, 
-            self.int_var_ref)
-        list_of_continuous_states = N.append(list_of_continuous_states, 
-            self.bool_var_ref).tolist()
-        list_of_continuous_states = dict(zip(list_of_continuous_states, 
-            xrange(len(list_of_continuous_states))))
+
+        lst_real_cont = dict(zip(self.real_var_ref,range(len(self.real_var_ref))))
+        lst_int_cont  = dict(zip(self.int_var_ref,[len(self.real_var_ref)+x for x in range(len(self.int_var_ref))]))
+        lst_bool_cont = dict(zip(self.bool_var_ref,[len(self.real_var_ref)+len(self.int_var_ref)+x for x in range(len(self.bool_var_ref))]))
+            
         valueref_of_continuous_states = []
         list_of_parameters = []
         
@@ -1503,8 +1501,14 @@ class ResultHandlerFile(ResultHandler):
                         list_of_parameters.append((types[i][0],types[i][1]))
                     else:
                         cnt_2 += 1
-                        valueref_of_continuous_states.append(
-                            list_of_continuous_states[name[0]])
+                        #valueref_of_continuous_states.append(
+                        #    list_of_continuous_states[name[0]])
+                        if types[i][1] == fmi.FMI_REAL:
+                            valueref_of_continuous_states.append(lst_real_cont[name[0]])
+                        elif types[i][1] == fmi.FMI_INTEGER:
+                            valueref_of_continuous_states.append(lst_int_cont[name[0]])
+                        else:
+                            valueref_of_continuous_states.append(lst_bool_cont[name[0]])
                         datatable1 = False
                 else:
                     base_var = self.model.get_variable_alias_base(name[1])
@@ -1575,22 +1579,6 @@ class ResultHandlerFile(ResultHandler):
                 str_text = str_text + (
                     " %.14E" % (float(
                         self.model.get_boolean([vref])[0])))
-        #raise Exception
-        """
-        for i, name in enumerate(names_noalias):
-            if variabilities_noalias[i][1] == fmi.FMI_CONSTANT or \
-                variabilities_noalias[i][1] == fmi.FMI_PARAMETER:
-                    if types_noalias[i][1] == fmi.FMI_REAL:
-                        str_text = str_text + (
-                            " %.14E" % (self.model.get_real([name[0]])))
-                    elif types_noalias[i][1] == fmi.FMI_INTEGER:
-                        str_text = str_text + (
-                            " %.14E" % (self.model.get_integer([name[0]])))
-                    elif types_noalias[i][1] == fmi.FMI_BOOLEAN:
-                        str_text = str_text + (
-                            " %.14E" % (float(
-                                self.model.get_boolean([name[0]])[0])))
-        """
                         
         f.write(str_text)
         f.write('\n')
