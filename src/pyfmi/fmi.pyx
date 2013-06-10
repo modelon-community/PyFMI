@@ -2090,8 +2090,8 @@ cdef class FMUModelCS1(FMUModelBase):
             raise FMUException('Failed to set the Real input derivatives.')
 
     def simulate(self,
-                 start_time=0.0,
-                 final_time=1.0,
+                 start_time='Default',
+                 final_time='Default',
                  input=(),
                  algorithm='FMICSAlg',
                  options={}):
@@ -2109,11 +2109,13 @@ cdef class FMUModelCS1(FMUModelBase):
 
             start_time --
                 Start time for the simulation.
-                Default: 0.0
+                Default: Start time defined in the default experiment from
+                        the ModelDescription file.
 
             final_time --
                 Final time for the simulation.
-                Default: 1.0
+                Default: Stop time defined in the default experiment from
+                        the ModelDescription file.
 
             input --
                 Input signal for the simulation. The input should be a 2-tuple
@@ -2150,6 +2152,11 @@ cdef class FMUModelCS1(FMUModelBase):
 
             Result object, subclass of common.algorithm_drivers.ResultBase.
         """
+        if start_time == "Default":
+            start_time = self.get_default_experiment_start_time()
+        if final_time == "Default":
+            final_time = self.get_default_experiment_stop_time()
+            
         return self._exec_simulate_algorithm(start_time,
                                              final_time,
                                              input,
@@ -2746,8 +2753,8 @@ cdef class FMUModelME1(FMUModelBase):
             raise FMUException('Failed to set the debugging option.')
 
     def simulate(self,
-                 start_time=0.0,
-                 final_time=1.0,
+                 start_time="Default",
+                 final_time="Default",
                  input=(),
                  algorithm='AssimuloFMIAlg',
                  options={}):
@@ -2765,11 +2772,13 @@ cdef class FMUModelME1(FMUModelBase):
 
             start_time --
                 Start time for the simulation.
-                Default: 0.0
+                Default: Start time defined in the default experiment from
+                        the ModelDescription file.
 
             final_time --
                 Final time for the simulation.
-                Default: 1.0
+                Default: Stop time defined in the default experiment from
+                        the ModelDescription file.
 
             input --
                 Input signal for the simulation. The input should be a 2-tuple
@@ -2810,6 +2819,11 @@ cdef class FMUModelME1(FMUModelBase):
 
             Result object, subclass of common.algorithm_drivers.ResultBase.
         """
+        if start_time == "Default":
+            start_time = self.get_default_experiment_start_time()
+        if final_time == "Default":
+            final_time = self.get_default_experiment_stop_time()
+        
         return self._exec_simulate_algorithm(start_time,
                                              final_time,
                                              input,
