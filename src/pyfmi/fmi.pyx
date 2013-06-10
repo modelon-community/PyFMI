@@ -4962,7 +4962,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         if isinstance(variables,str):
             nref = 1
             value_refs = N.array([0], dtype=N.uint32, ndmin=1).flatten()
-            orders = N.array(order, dtype=N.int32)
+            orders = N.array([order], dtype=N.int32)
             value_refs[0] = self.get_variable_valueref(variables)
         elif isinstance(variables,list) and N.prod([int(isinstance(v,str)) for v in variables]): #prod equals 0 or 1
             nref = len(variables)
