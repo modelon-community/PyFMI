@@ -1524,8 +1524,14 @@ class ResultHandlerFile(ResultHandler):
                         list_of_parameters.append((types[i][0],types[i][1]))
                     else:
                         cnt_2 += 1
-                        valueref_of_continuous_states.append(
-                            list_of_continuous_states[name[0]])
+                        #valueref_of_continuous_states.append(
+                        #    list_of_continuous_states[name[0]])
+                        if types[i][1] == fmi.FMI_REAL:
+                            valueref_of_continuous_states.append(lst_real_cont[name[0]])
+                        elif types[i][1] == fmi.FMI_INTEGER:
+                            valueref_of_continuous_states.append(lst_int_cont[name[0]])
+                        else:
+                            valueref_of_continuous_states.append(lst_bool_cont[name[0]])
                         datatable1 = False
             
             if aliases[i][1] == 0: # no alias
