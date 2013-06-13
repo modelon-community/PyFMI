@@ -22,6 +22,7 @@ import sys
 import logging
 import fnmatch
 import re
+from collections import OrderedDict
 
 import numpy as N
 cimport numpy as N
@@ -73,7 +74,7 @@ FMI_CONSTANT   = FMIL.fmi1_variability_enu_constant
 FMI_PARAMETER  = FMIL.fmi1_variability_enu_parameter
 FMI_DISCRETE   = FMIL.fmi1_variability_enu_discrete
 
-FMI2_CONSTANT   = FMIL.fmi2_variability_enu_constant 
+FMI2_CONSTANT   = FMIL.fmi2_variability_enu_constant
 FMI2_FIXED      = FMIL.fmi2_variability_enu_fixed
 FMI2_TUNABLE    = FMIL.fmi2_variability_enu_tunable
 FMI2_DISCRETE   = FMIL.fmi2_variability_enu_discrete
@@ -632,7 +633,7 @@ cdef class FMUModelBase(ModelBase):
         self._npoints = 0
         self._enable_logging = enable_logging
         self._pyEventInfo = PyEventInfo()
-        
+
         #Load information from model
         self._modelid = FMIL.fmi1_import_get_model_identifier(self._fmu)
         self._modelname = FMIL.fmi1_import_get_model_name(self._fmu)
@@ -1582,10 +1583,10 @@ cdef class FMUModelBase(ModelBase):
         FMIL.fmi1_import_free_variable_list(variable_list)
 
         return variable_dict
-        
+
     def get_model_time_varying_value_references(self, filter=None):
         """
-        Extract the value references of the variables in a model 
+        Extract the value references of the variables in a model
         that are time-varying. This method is typically used to
         retrieve the variables for which the result can be stored.
 
@@ -1632,10 +1633,10 @@ cdef class FMUModelBase(ModelBase):
             name       = FMIL.fmi1_import_get_variable_name(variable)
             data_variability = FMIL.fmi1_import_get_variability(variable)
             data_type  = FMIL.fmi1_import_get_variable_base_type(variable)
-            
+
             if data_type != FMI_REAL and data_type != FMI_INTEGER and data_type != FMI_BOOLEAN:
                 continue
-            
+
             if data_variability != FMI_CONTINUOUS and data_variability != FMI_DISCRETE:
                 continue
 
@@ -1648,13 +1649,13 @@ cdef class FMUModelBase(ModelBase):
             else:
                 if alias_kind != FMIL.fmi1_variable_is_not_alias:
                     continue
-            
+
             if alias_kind == FMIL.fmi1_variable_is_not_alias:
                 value_ref = FMIL.fmi1_import_get_variable_vr(variable)
             else:
                 base_variable = FMIL.fmi1_import_get_variable_alias_base(self._fmu, variable)
                 value_ref  = FMIL.fmi1_import_get_variable_vr(base_variable)
-            
+
             if data_type == FMI_REAL:
                 real_var_ref[value_ref] = 1
             if data_type == FMI_INTEGER:
@@ -1666,24 +1667,24 @@ cdef class FMUModelBase(ModelBase):
         FMIL.fmi1_import_free_variable_list(variable_list)
 
         return real_var_ref.keys(), int_var_ref.keys(), bool_var_ref.keys()
-    
+
     def get_variable_alias_base(self, char* variablename):
         """
         Returns the base variable for the provided variable name.
         """
         cdef FMIL.fmi1_import_variable_t* variable, *base_variable
         cdef FMIL.fmi1_value_reference_t vr
-        
+
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
-            
+
         base_variable = FMIL.fmi1_import_get_variable_alias_base(self._fmu, variable)
         if base_variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
-            
+
         name = FMIL.fmi1_import_get_variable_name(base_variable)
-        
+
         return name
 
     def get_variable_alias(self,char* variablename):
@@ -1908,7 +1909,7 @@ cdef class FMUModelCS1(FMUModelBase):
 
         if self._allocated_xml == 1:
             FMIL.fmi1_import_free(self._fmu)
-        
+
         if self._fmu_temp_dir != NULL:
             FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
             FMIL.free(self._fmu_temp_dir)
@@ -1916,7 +1917,7 @@ cdef class FMUModelCS1(FMUModelBase):
 
         if self._allocated_context == 1:
             FMIL.fmi_import_free_context(self.context)
-        
+
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
@@ -2372,7 +2373,7 @@ cdef class FMUModelME1(FMUModelBase):
 
         if self._allocated_xml == 1:
             FMIL.fmi1_import_free(self._fmu)
-        
+
         if self._fmu_temp_dir != NULL:
             FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
             FMIL.free(self._fmu_temp_dir)
@@ -2380,7 +2381,7 @@ cdef class FMUModelME1(FMUModelBase):
 
         if self._allocated_context == 1:
             FMIL.fmi_import_free_context(self.context)
-        
+
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
@@ -3607,26 +3608,26 @@ cdef class FMUModelBase2(ModelBase):
         name = FMIL.fmi2_import_get_variable_name(variable)
 
         return name
-    
+
     def get_variable_alias_base(self, char* variablename):
         """
         Returns the base variable for the provided variable name.
         """
         cdef FMIL.fmi2_import_variable_t* variable, *base_variable
         cdef FMIL.fmi2_value_reference_t vr
-        
+
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
-            
+
         base_variable = FMIL.fmi2_import_get_variable_alias_base(self._fmu, variable)
         if base_variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
-            
+
         name = FMIL.fmi2_import_get_variable_name(base_variable)
-        
+
         return name
-    
+
     def get_variable_alias(self, char* variablename):
         """
         Return a dict of all alias variables belonging to the provided variable
@@ -3672,10 +3673,10 @@ cdef class FMUModelBase2(ModelBase):
         FMIL.fmi2_import_free_variable_list(alias_list)
 
         return ret_values
-    
+
     def get_model_time_varying_value_references(self, filter=None):
         """
-        Extract the value references of the variables in a model 
+        Extract the value references of the variables in a model
         that are time-varying. This method is typically used to
         retrieve the variables for which the result can be stored.
 
@@ -3725,7 +3726,7 @@ cdef class FMUModelBase2(ModelBase):
 
             if data_type != FMI2_REAL and data_type != FMI2_INTEGER and data_type != FMI2_BOOLEAN:
                 continue
-            
+
             if data_variability != FMI2_CONTINUOUS and data_variability != FMI2_DISCRETE and data_variability != FMI2_TUNABLE:
                 continue
 
@@ -3738,7 +3739,7 @@ cdef class FMUModelBase2(ModelBase):
             else:
                 if alias_kind != FMIL.fmi2_variable_is_not_alias:
                     continue
-            
+
             if data_type == FMI2_REAL:
                 real_var_ref[value_ref] = 1
             if data_type == FMI2_INTEGER:
@@ -3750,8 +3751,8 @@ cdef class FMUModelBase2(ModelBase):
         FMIL.fmi2_import_free_variable_list(variable_list)
 
         return real_var_ref.keys(), int_var_ref.keys(), bool_var_ref.keys()
-        
-    
+
+
     def get_model_variables(self, type = None, include_alias = True,
                              causality = None,   variability = None,
                             only_start = False,   only_fixed = False,
@@ -3854,14 +3855,14 @@ cdef class FMUModelBase2(ModelBase):
                 continue
             if selected_variability == 1 and data_variability != target_variability:
                 continue
-            
+
             if selected_filter:
                 for j in range(length_filter):
                     if re.match(filter_list[j], name):
                         break
                 else:
                     continue
-            
+
             if include_alias:
                 #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable2(name,
@@ -4412,7 +4413,7 @@ cdef class FMUModelBase2(ModelBase):
         description.
         """
         return FMIL.fmi2_import_get_default_experiment_tolerance(self._fmu)
-    
+
     def _convert_filter(self, expression):
         """
         Convert a filter based on unix filename pattern matching to a
@@ -4429,13 +4430,13 @@ cdef class FMUModelBase2(ModelBase):
         else:
             raise FMUException("Unknown input.")
         return regexp
-    
+
     cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list):
         """
         Helper method to create scalar variables from a variable list.
         """
-        cdef FMIL.size_t                         variable_list_size
-        cdef dict  variable_dict = {}
+        cdef FMIL.size_t             variable_list_size
+        variable_dict = OrderedDict()
 
         variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
 
