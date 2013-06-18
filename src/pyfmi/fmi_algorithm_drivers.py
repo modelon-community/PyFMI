@@ -522,6 +522,9 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         # Sensitivities?
         if self.options["sensitivities"]:
+            if self.model.get_generation_tool() != "JModelica.org":
+                raise Exception("Sensitivity calculations only possible with JModelica.org generated FMUs")
+                
             if self.options["solver"] != "CVode":
                 raise Exception("Sensitivity simulations currently only supported using the solver CVode.")
 
