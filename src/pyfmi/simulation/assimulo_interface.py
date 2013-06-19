@@ -395,7 +395,8 @@ class FMIODE(Explicit_Problem):
         if self._model.completed_integrator_step():
             self._logg_step_event += [solver.t]
             #Event have been detect, call event iteration.
-            self.handle_event(solver,[0])
+            #print "Step event detected at: ", solver.t
+            #self.handle_event(solver,[0])
             return 1 #Tell to reinitiate the solver.
         else:
             return 0
@@ -677,8 +678,8 @@ class FMIODE_deprecated(Explicit_Problem):
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
-
-        if solver.continuous_output:
+        
+        if solver.report_continuously:
             if self._write_header:
                 self._write_header = False
                 self.export.write_header(file_name=self.result_file_name)
@@ -818,11 +819,9 @@ class FMIODE_deprecated(Explicit_Problem):
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
-
+        
         if self._model.completed_integrator_step():
             self._logg_step_event += [solver.t]
-            #Event have been detect, call event iteration.
-            self.handle_event(solver,[0])
             return 1 #Tell to reinitiate the solver.
         else:
             return 0
@@ -860,11 +859,11 @@ class FMIODE_deprecated(Explicit_Problem):
                 if solver.__class__.__name__=="CVode": #Only available for CVode
                     header += "Order | Error (Weighted)"
                 f.write(header+"\n")
-
+    
     def finalize(self, solver):
-        if solver.continuous_output:
+        if solver.report_continuously:
             self.export.write_finalize()
-
+        
     def _set_input(self, input):
         self.__input = input
 
@@ -1300,8 +1299,8 @@ class FMIODESENS2(FMIODE2):
         #Sets the parameters, if any
         if self.parameters != None:
             p_data = N.array(solver.interpolate_sensitivity(t, 0)).flatten()
-
-        if solver.continuous_output:
+        
+        if solver.report_continuously:
             if self._write_header:
                 self._write_header = False
                 self.export.write_header(file_name=self.result_file_name, parameters=self.parameters)

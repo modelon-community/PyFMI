@@ -184,8 +184,12 @@ class AssimuloFMIAlgOptions(OptionBase):
             'result_handler': None,
             'filter':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
-                             'atol':"Default",'rtol':"Default",},
-            'Radau5_options':{'atol':"Default",'rtol':"Default"}
+                            'atol':"Default",'rtol':"Default",'external_event_detection':False},
+            'Radau5ODE_options':{'atol':"Default",'rtol':"Default"},
+            'RungeKutta34_options':{'atol':"Default",'rtol':"Default"},
+            'Dopri5_options':{'atol':"Default",'rtol':"Default"},
+            'RodasODE_options':{'atol':"Default",'rtol':"Default"},
+            'ExplicitEuler_options':{},
             }
         super(AssimuloFMIAlgOptions,self).__init__(_defaults)
         # for those key-value-sets where the value is a dict, don't
@@ -373,7 +377,7 @@ class AssimuloFMIAlg_deprecated(AlgorithmBase):
         solver_options = self.solver_options.copy()
 
         #Set solver option continuous_output
-        self.simulator.continuous_output = True
+        self.simulator.report_continuously = True
 
         #loop solver_args and set properties of solver
         for k, v in solver_options.iteritems():
@@ -400,10 +404,10 @@ class AssimuloFMIAlg_deprecated(AlgorithmBase):
         object.
 
         Returns::
-
+        
             The AssimuloSimResult object.
         """
-        if not self.simulator.continuous_output:
+        if not self.simulator.report_continuously:
             write_data(self.simulator,self.write_scaled_result, self.result_file_name)
         # load result file
         res = ResultDymolaTextual(self.result_file_name)
@@ -632,7 +636,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         solver_options = self.solver_options.copy()
 
         #Set solver option continuous_output
-        self.simulator.continuous_output = True
+        self.simulator.report_continuously = True
 
         #loop solver_args and set properties of solver
         for k, v in solver_options.iteritems():
