@@ -189,6 +189,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'RungeKutta34_options':{'atol':"Default",'rtol':"Default"},
             'Dopri5_options':{'atol':"Default",'rtol':"Default"},
             'RodasODE_options':{'atol':"Default",'rtol':"Default"},
+            'LSODAR_options':{'atol':"Default",'rtol':"Default"},
             'ExplicitEuler_options':{},
             }
         super(AssimuloFMIAlgOptions,self).__init__(_defaults)
