@@ -2947,7 +2947,7 @@ cdef class FMUModelBase2(ModelBase):
         self.callBackFunctions.allocateMemory       = FMIL.calloc
         self.callBackFunctions.freeMemory           = FMIL.free
         #self.callBackFunctions.stepFinished         = NULL # ?????
-        #self.callBackFunctions.componentEnvironment = NULL # ?????
+        self.callBackFunctions.componentEnvironment = NULL
 
         """#Specify xml_callbacks
         self.xmlCallbacks.startHandle =
@@ -2999,7 +2999,8 @@ cdef class FMUModelBase2(ModelBase):
                 raise FMUException("The XML-could not be read. "+last_error)
             else:
                 raise FMUException('The XML-could not be read. Enable logging for possible nore information.')
-
+        
+        self.callBackFunctions.componentEnvironment = <FMIL.fmi2_component_environment_t>self._fmu
         self._fmu_kind      = FMIL.fmi2_import_get_fmu_kind(self._fmu)
         self._allocated_xml = True
 
