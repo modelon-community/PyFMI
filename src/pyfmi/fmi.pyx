@@ -564,7 +564,7 @@ cdef class FMUModelBase(ModelBase):
         self.callbacks.free    = FMIL.free
         self.callbacks.logger  = importlogger
         self.callbacks.context = <void*>self #Class loggger
-        self.callbacks.log_level = FMIL.jm_log_level_debug if enable_logging else FMIL.jm_log_level_nothing
+        self.callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
 
         fmu_full_path = os.path.abspath(os.path.join(path,fmu))
         fmu_temp_dir  = create_temp_dir()
@@ -595,7 +595,7 @@ cdef class FMUModelBase(ModelBase):
             else:
                 raise FMUException("The FMU version could not be determined. Enable logging for possibly more information.")
         if version != 1:
-            raise FMUException("PyFMI currently only supports FMI 1.0.")
+            raise FMUException("This class only supports FMI 1.0 (Model Exchange and Co-Simulation).")
 
         #Parse the XML
         self._fmu = FMIL.fmi1_import_parse_xml(self.context, fmu_temp_dir)
@@ -610,7 +610,7 @@ cdef class FMUModelBase(ModelBase):
         #Check the FMU kind
         fmu_kind = FMIL.fmi1_import_get_fmu_kind(self._fmu)
         if fmu_kind != FMI_ME and fmu_kind != FMI_CS_STANDALONE:
-            raise FMUException("PyFMI currently only supports FMI 1.0 for Model Exchange.")
+            raise FMUException("This class only supports FMI 1.0 (Model Exchange and Co-Simulation).")
         self._fmu_kind = fmu_kind
 
         #Connect the DLL
@@ -2955,7 +2955,7 @@ cdef class FMUModelBase2(ModelBase):
         self.callbacks.realloc          = FMIL.realloc
         self.callbacks.free             = FMIL.free
         self.callbacks.logger           = importlogger2
-        self.callbacks.log_level        = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
+        self.callbacks.log_level        = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
         self.callbacks.context          = <void*> self
 
         #Specify FMI2 related callbacks
@@ -4016,38 +4016,6 @@ cdef class FMUModelBase2(ModelBase):
         desc = FMIL.fmi2_import_get_variable_description(variable)
 
         return desc if desc != NULL else ""
-
-    cpdef get_variable_fixed(self, char* variablename):
-        """
-        Returns if the start value is fixed (True - The value is used as
-        an initial value) or not (False - The value is used as a guess
-        value).
-
-        Parameters::
-
-            variablename --
-                The name of the variable
-
-        Returns::
-
-            If the start value is fixed or not.
-        """
-        cdef FMIL.fmi2_import_variable_t *variable
-        cdef int                          status
-        cdef FMIL.fmi2_variability_enu_t  fixed
-
-        variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
-        if variable == NULL:
-            raise FMUException("The variable %s could not be found."%variablename)
-
-        status = FMIL.fmi2_import_get_variable_has_start(variable)
-
-        if status == 0:
-            raise FMUException("The variable %s does not have a start value."%variablename)
-
-        fixed = FMIL.fmi2_import_get_variability(variable)
-
-        return fixed == FMIL.fmi2_variability_enu_fixed
 
     cpdef FMIL.fmi2_variability_enu_t get_variable_variability(self,char* variablename) except *:
         """
