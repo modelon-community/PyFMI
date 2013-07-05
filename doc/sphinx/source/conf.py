@@ -44,14 +44,14 @@ master_doc = 'content'
 
 # General information about the project.
 project = u'PyFMI'
-copyright = u'2012, Modelon AB'
+copyright = u'2013, Modelon AB'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
 # The short X.Y version.
-version = '1.0'
+version = '1.3'
 # The full version, including alpha/beta/rc tags.
 release = '.1'
 
@@ -108,7 +108,7 @@ html_theme_options = {
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = "PyFMI 1.2 documentation"
+html_title = "PyFMI 1.3 documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
@@ -254,7 +254,7 @@ texinfo_documents = [
 epub_title = u'PyFMI'
 epub_author = u'Modelon AB'
 epub_publisher = u'Modelon AB'
-epub_copyright = u'2012, Modelon AB'
+epub_copyright = u'2013, Modelon AB'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.

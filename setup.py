@@ -37,7 +37,7 @@ except ImportError:
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "trunk"
+VERSION = "1.3"
 LICENSE = "LGPL"
 URL = "http://www.jmodelica.org"
 DOWNLOAD_URL = "http://www.jmodelica.org/page/12"
@@ -72,7 +72,7 @@ For a forum discussing usage and development of PyFMI, see http://www.jmodelica.
 
 Requirements:
 -------------
-- `FMI Library (at least 2.0a1) <http://www.jmodelica.org/FMILibrary>`_
+- `FMI Library (at least 2.0a5) <http://www.jmodelica.org/FMILibrary>`_
 - `Numpy (recommended 1.6.2) <http://pypi.python.org/pypi/numpy>`_
 - `Scipy (recommended 0.10.1) <http://pypi.python.org/pypi/scipy>`_
 - `lxml (at least 2.3) <http://pypi.python.org/pypi/lxml>`_
