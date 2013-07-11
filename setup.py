@@ -23,6 +23,7 @@ import distutils
 import os as O
 import shutil
 import numpy as N
+import ctypes.util
 from numpy.distutils.misc_util import Configuration
 #from numpy.distutils.core import setup
 from numpy.distutils.command.build_clib import build_clib
@@ -72,7 +73,7 @@ For a forum discussing usage and development of PyFMI, see http://www.jmodelica.
 
 Requirements:
 -------------
-- `FMI Library (at least 2.0a1) <http://www.jmodelica.org/FMILibrary>`_
+- `FMI Library (at least 2.0a5) <http://www.jmodelica.org/FMILibrary>`_
 - `Numpy (recommended 1.6.2) <http://pypi.python.org/pypi/numpy>`_
 - `Scipy (recommended 0.10.1) <http://pypi.python.org/pypi/scipy>`_
 - `lxml (at least 2.3) <http://pypi.python.org/pypi/lxml>`_
@@ -104,6 +105,8 @@ else:
 static = False
 debug_flag = True
 fmilib_shared = ""
+copy_gcc_lib = False
+gcc_lib = None
 
 static_link_gcc = ["-static-libgcc"]
 
@@ -131,6 +134,10 @@ for x in sys.argv[1:]:
         incdirs = O.path.join(x[12:],'include')
         libdirs = O.path.join(x[12:],'lib')
         copy_args.remove(x)
+    if not x.find('--copy-libgcc'):
+        if x[14:].upper() == "TRUE":
+            copy_gcc_lib = True
+        copy_args.remove(x)
     if not x.find('--static'):
         static = x[9:]
         if x[9:].upper() == "TRUE":
@@ -156,6 +163,12 @@ if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
                 break
         else:
             raise Exception("Could not find FMILibrary at: %s"%libdirs)
+            
+        if copy_gcc_lib:
+            path_gcc_lib = ctypes.util.find_library("libgcc_s_dw2-1.dll")
+            if path_gcc_lib != None:
+                shutil.copy2(path_gcc_lib,O.path.join(".","src","pyfmi"))
+                gcc_lib = O.path.join(".","src","pyfmi","libgcc_s_dw2-1.dll")
 
 def check_extensions():
     ext_list = []
@@ -237,7 +250,7 @@ setup(name=NAME,
       package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'ME1.0'+O.path.sep+'*',
                                'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS1.0'+O.path.sep+'*',
                                'version.txt',
-                               'util'+O.path.sep+'*']+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])},
+                               'util'+O.path.sep+'*']+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])+(['libgcc_s_dw2-1.dll'] if copy_gcc_lib else [])},
       script_args=copy_args
       )
 
@@ -247,3 +260,5 @@ if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
     if sys.platform.startswith("win"):
         if O.path.exists(fmilib_shared):
             O.remove(fmilib_shared)
+        if O.path.exists(gcc_lib):
+            O.remove(gcc_lib)
