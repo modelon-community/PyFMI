@@ -260,5 +260,5 @@ if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
     if sys.platform.startswith("win"):
         if O.path.exists(fmilib_shared):
             O.remove(fmilib_shared)
-        if O.path.exists(gcc_lib):
+        if gcc_lib and O.path.exists(gcc_lib):
             O.remove(gcc_lib)
