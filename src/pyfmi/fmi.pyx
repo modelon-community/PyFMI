@@ -93,6 +93,7 @@ FMI_CS_STANDALONE      = FMIL.fmi1_fmu_kind_enu_cs_standalone
 FMI_MIME_CS_STANDALONE = "application/x-fmu-sharedlibrary"
 
 FMI_REGISTER_GLOBALLY = 1
+FMI_DEFAULT_LOG_LEVEL = FMIL.jm_log_level_error
 
 
 
@@ -538,7 +539,7 @@ cdef class FMUModelBase(ModelBase):
     cdef char* _fmu_log_name
     cdef char* _fmu_temp_dir
 
-    def __init__(self, fmu, path='.', enable_logging=True, log_file_name=""):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
         """
         Constructor.
         """
@@ -564,7 +565,19 @@ cdef class FMUModelBase(ModelBase):
         self.callbacks.free    = FMIL.free
         self.callbacks.logger  = importlogger
         self.callbacks.context = <void*>self #Class loggger
-        self.callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
+        
+        if enable_logging==None:
+            if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
+                if log_level == FMIL.jm_log_level_nothing:
+                    enable_logging = False
+                else:
+                    enable_logging = True
+                self.callbacks.log_level = log_level
+            else:
+                raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
+        else:
+            logging.warning("The attribute 'enable_logging' is deprecated. Please use 'log_level' instead. Setting 'log_level' to INFO...")
+            self.callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
 
         fmu_full_path = os.path.abspath(os.path.join(path,fmu))
         fmu_temp_dir  = create_temp_dir()
@@ -1064,7 +1077,11 @@ cdef class FMUModelBase(ModelBase):
 
     def set_debug_logging(self,flag):
         """
-        Specifies if the debugging should be turned on or off.
+        Specifies if the logging from the FMU should be turned on or 
+        off. Note that this only determines the output from the FMU to
+        PyFMI which are additionally filtered using the method 
+        'set_log_level'. To specify actual given logging output, 
+        please use also use that method.
 
         Parameters::
 
@@ -1076,7 +1093,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_boolean_t log
         cdef int status
 
-        self.callbacks.log_level = FMIL.jm_log_level_warning if flag else FMIL.jm_log_level_nothing
+        #self.callbacks.log_level = FMIL.jm_log_level_warning if flag else FMIL.jm_log_level_nothing
 
         if flag:
             log = 1
@@ -1088,10 +1105,10 @@ cdef class FMUModelBase(ModelBase):
 
         if status != 0:
             raise FMUException('Failed to set the debugging option.')
-
-    def set_fmil_log_level(self, FMIL.jm_log_level_enu_t level):
+            
+    def set_log_level(self, FMIL.jm_log_level_enu_t level):
         """
-        Specifices the log level for FMI Library. Note that this is
+        Specifices the log level for PyFMI. Note that this is
         different from the FMU logging which is specificed via
         set_debug_logging.
 
@@ -1108,10 +1125,13 @@ cdef class FMUModelBase(ModelBase):
                     DEBUG = 6
                     ALL = 7
         """
-        if level < 0 or level > 7:
+        if level < FMIL.jm_log_level_nothing or level > FMIL.jm_log_level_all:
             raise FMUException("Invalid log level for FMI Library (0-7).")
         self.callbacks.log_level = level
 
+    def set_fmil_log_level(self, FMIL.jm_log_level_enu_t level):
+        logging.warning("The method 'set_fmil_log_level' is deprecated, use 'set_log_level' instead.")
+        self.set_log_level(level)
 
     def _set(self,char* variable_name, value):
         """
@@ -1875,7 +1895,7 @@ cdef class FMUModelCS1(FMUModelBase):
     #First step only support fmi1_fmu_kind_enu_cs_standalone
     #stepFinished not supported
 
-    def __init__(self, fmu, path='.', enable_logging=True,log_file_name=""):
+    def __init__(self, fmu, path='.', enable_logging=True,log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
         #Call super
         FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name)
 
@@ -2302,7 +2322,7 @@ cdef class FMUModelME1(FMUModelBase):
     An FMI Model loaded from a DLL.
     """
 
-    def __init__(self, fmu, path='.', enable_logging=True, log_file_name=""):
+    def __init__(self, fmu, path='.', enable_logging=True, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
         #Call super
         FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name)
 
@@ -6101,7 +6121,7 @@ def load_fmu_deprecated(fmu, path='.', enable_logging=True, log_file_name=""):
 
     return model
 
-def load_fmu(fmu, path = '.', enable_logging = True, log_file_name = "", kind = 'auto'):
+def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 'auto', log_level=FMI_DEFAULT_LOG_LEVEL):
     """
     Helper method for creating a model instance.
 
@@ -6178,8 +6198,21 @@ def load_fmu(fmu, path = '.', enable_logging = True, log_file_name = "", kind = 
     callbacks.realloc   = FMIL.realloc
     callbacks.free      = FMIL.free
     callbacks.logger    = importlogger_load_fmu
-    callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
-
+    #callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
+    original_enable_logging = enable_logging
+    
+    if enable_logging==None:
+        if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
+            if log_level == FMIL.jm_log_level_nothing:
+                enable_logging = False
+            else:
+                enable_logging = True
+            callbacks.log_level = log_level
+        else:
+            raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
+    else:
+        logging.warning("The attribute 'enable_logging' is deprecated. Please use 'log_level' instead. Setting 'log_level' to INFO...")
+        callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
 
     #Specify the xml_callbacks for FMU2
     #xml_callbacks.startHandle = None
@@ -6247,9 +6280,9 @@ def load_fmu(fmu, path = '.', enable_logging = True, log_file_name = "", kind = 
 
         #Compare fmu_kind with input-specified kind
         if fmu_1_kind == FMI_ME and kind.upper() != 'CS':
-            model=FMUModelME1(fmu, path, enable_logging, log_file_name)
+            model=FMUModelME1(fmu, path, original_enable_logging, log_file_name,log_level)
         elif fmu_1_kind == FMI_CS_STANDALONE and kind.upper() != 'ME':
-            model=FMUModelCS1(fmu, path, enable_logging, log_file_name)
+            model=FMUModelCS1(fmu, path, original_enable_logging, log_file_name,log_level)
         elif fmu_1_kind == FMIL.fmi1_fmu_kind_enu_cs_tool:
             FMIL.fmi1_import_free(fmu_1)
             FMIL.fmi_import_free_context(context)
@@ -6291,15 +6324,15 @@ def load_fmu(fmu, path = '.', enable_logging = True, log_file_name = "", kind = 
         #FMU kind is known
         if kind.lower() == 'auto':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs:
-                model = FMUModelCS2(fmu, path, enable_logging, log_file_name)
+                model = FMUModelCS2(fmu, path, original_enable_logging, log_file_name)
             elif fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2(fmu, path, enable_logging, log_file_name)
+                model = FMUModelME2(fmu, path, original_enable_logging, log_file_name)
         elif kind.upper() == 'CS':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelCS2(fmu, path, enable_logging, log_file_name)
+                model = FMUModelCS2(fmu, path, original_enable_logging, log_file_name)
         elif kind.upper() == 'ME':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2(fmu, path, enable_logging, log_file_name)
+                model = FMUModelME2(fmu, path, original_enable_logging, log_file_name)
 
         #Could not match FMU kind with input-specified kind
         if model is None:
@@ -6319,7 +6352,6 @@ def load_fmu(fmu, path = '.', enable_logging = True, log_file_name = "", kind = 
             raise FMUException("The FMU version is not found. "+last_error)
         else:
             raise FMUException("The FMU version is not found. Enable logging for possibly more information.")
-
 
     #Delete
     if version == FMIL.fmi_version_1_enu:
