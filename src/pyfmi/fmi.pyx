@@ -1897,7 +1897,7 @@ cdef class FMUModelCS1(FMUModelBase):
 
     def __init__(self, fmu, path='.', enable_logging=True,log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name)
+        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level)
 
         if self._fmu_kind != FMI_CS_STANDALONE:
             raise FMUException("This class only supports FMI 1.0 for Co-simulation.")
@@ -2324,7 +2324,7 @@ cdef class FMUModelME1(FMUModelBase):
 
     def __init__(self, fmu, path='.', enable_logging=True, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name)
+        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level)
 
         if self._fmu_kind != FMI_ME:
             raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
