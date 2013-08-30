@@ -408,7 +408,30 @@ def create_temp_dir():
     tmpdir = tempfile.mkdtemp(prefix='jm_tmp', dir=tmp_location)
     
     return tmpdir
+
+def create_temp_file():
+    """
+    Create a temporary file.
+    """
+    # create JModelica directory for temporary files (if not already created)
+    if not os.path.exists(tmp_location):
+        os.makedirs(tmp_location)
     
+    # create temporary file
+    tmpfile = tempfile.mkstemp(suffix='.txt', prefix='jm_tmp', dir=tmp_location, text=True)
+    os.close(tmpfile[0])
+    
+    return tmpfile[1]
+    
+def delete_temp_file(tmp_file):
+    """
+    This method deletes a temporary file that has been created by
+    for instance create_temp_file.
+    """
+    #Check if the directory exists
+    if os.path.exists(tmp_file):
+        os.remove(tmp_file)
+
 def delete_temp_dir(tmp_dir):
     """
     This method deletes a temporary directory that has been created by
