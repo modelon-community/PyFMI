@@ -32,6 +32,7 @@ N.import_array()
 cimport fmil_import as FMIL
 
 from pyfmi.common.core import create_temp_dir, delete_temp_dir
+from pyfmi.common.core import create_temp_file, delete_temp_file
 #from pyfmi.common.core cimport BaseModel
 
 int   = N.int32
@@ -121,8 +122,10 @@ cdef void importlogger2(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_lev
 
 #CALLBACKS
 cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-    if log_level <= c.log_level:
-        print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
+    with open(<char*>c.context,'a') as file:
+        file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+    #if log_level <= c.log_level:
+    #    print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
     #(<FMUModelBase>c.context)._logger(module,log_level,message)
 
 #Old, use FMIL.fmi#_log_forwarding instead
@@ -1895,7 +1898,7 @@ cdef class FMUModelCS1(FMUModelBase):
     #First step only support fmi1_fmu_kind_enu_cs_standalone
     #stepFinished not supported
 
-    def __init__(self, fmu, path='.', enable_logging=True,log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
         #Call super
         FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level)
 
@@ -2322,7 +2325,7 @@ cdef class FMUModelME1(FMUModelBase):
     An FMI Model loaded from a DLL.
     """
 
-    def __init__(self, fmu, path='.', enable_logging=True, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
         #Call super
         FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level)
 
@@ -6120,6 +6123,18 @@ def load_fmu_deprecated(fmu, path='.', enable_logging=True, log_file_name=""):
     delete_temp_dir(fmu_temp_dir)
 
     return model
+    
+def _handle_load_fmu_exception(fmu, log_file):    
+    log = []
+    with open(log_file,'r') as file:
+        while True:
+            line = file.readline()
+            if line == "":
+                break
+            log.append(line.strip("\n"))
+
+    for i in range(len(log)):
+        print log[i]
 
 def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 'auto', log_level=FMI_DEFAULT_LOG_LEVEL):
     """
@@ -6172,10 +6187,14 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     cdef FMIL.fmi2_import_t*            fmu_2
     cdef FMIL.fmi1_fmu_kind_enu_t       fmu_1_kind
     cdef FMIL.fmi2_fmu_kind_enu_t       fmu_2_kind
+    cdef char*                          log_file_c
 
     #Variables for deallocation
     fmu_temp_dir = None
     model        = None
+    log_file     = create_temp_file()
+    log_file_c = <char*>FMIL.malloc((FMIL.strlen(log_file)+1)*sizeof(char))
+    FMIL.strcpy(log_file_c, log_file)
 
     # Check that the file referenced by fmu has the correct file-ending
     fmu_full_path = os.path.abspath(os.path.join(path,fmu))
@@ -6198,6 +6217,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     callbacks.realloc   = FMIL.realloc
     callbacks.free      = FMIL.free
     callbacks.logger    = importlogger_load_fmu
+    callbacks.context   = <void*>log_file_c
     #callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
     original_enable_logging = enable_logging
     
@@ -6246,8 +6266,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         FMIL.fmi_import_free_context(context)
         FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
+            _handle_load_fmu_exception(fmu, log_file)
             raise FMUException("The FMU version could not be determined. "+last_error)
         else:
+            _handle_load_fmu_exception(fmu, log_file)
             raise FMUException("The FMU version could not be determined. Enable logging for possibly more information.")
 
     if version > 2:
@@ -6256,8 +6278,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         FMIL.fmi_import_free_context(context)
         FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
+            _handle_load_fmu_exception(fmu, log_file)
             raise FMUException("The FMU version is unsupported. "+last_error)
         else:
+            _handle_load_fmu_exception(fmu, log_file)
             raise FMUException("The FMU version is unsupported. Enable logging for possibly more information.")
 
 
@@ -6272,8 +6296,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if callbacks.log_level >= FMIL.jm_log_level_error:
+                _handle_load_fmu_exception(fmu, log_file)
                 raise FMUException("The XML-could not be read. "+last_error)
             else:
+                _handle_load_fmu_exception(fmu, log_file)
                 raise FMUException('The XML-could not be read. Enable logging for possible nore information.')
 
         fmu_1_kind = FMIL.fmi1_import_get_fmu_kind(fmu_1)
@@ -6287,11 +6313,13 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi1_import_free(fmu_1)
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            _handle_load_fmu_exception(fmu, log_file)
             raise FMUException("PyFMI does not support co-simulation tool")
         else:
             FMIL.fmi1_import_free(fmu_1)
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+            _handle_load_fmu_exception(fmu, log_file)
             raise FMUException('FMU is a ' + FMIL.fmi1_fmu_kind_to_string(fmu_1_kind) + ' and not a ' + kind.upper())
 
     elif version == FMIL.fmi_version_2_0_enu:
@@ -6304,8 +6332,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if callbacks.log_level >= FMIL.jm_log_level_error:
+                _handle_load_fmu_exception(fmu, log_file)
                 raise FMUException("The XML-could not be read. "+last_error)
             else:
+                _handle_load_fmu_exception(fmu, log_file)
                 raise FMUException('The XML-could not be read. Enable logging for possible nore information.')
 
         fmu_2_kind = FMIL.fmi2_import_get_fmu_kind(fmu_2)
@@ -6317,8 +6347,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if callbacks.log_level >= FMIL.jm_log_level_error:
+                _handle_load_fmu_exception(fmu, log_file)
                 raise FMUException("The FMU kind could not be determined. "+last_error)
             else:
+                _handle_load_fmu_exception(fmu, log_file)
                 raise FMUException("The FMU kind could not be determined. Enable logging for possibly more information.")
 
         #FMU kind is known
@@ -6339,6 +6371,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi2_import_free(fmu_2)
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            _handle_load_fmu_exception(fmu, log_file)
             raise FMUException('FMU is a ' + FMIL.fmi2_fmu_kind_to_string(fmu_2_kind) + ' and not a ' + kind.upper())
 
     else:
@@ -6349,8 +6382,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         FMIL.fmi_import_free_context(context)
         FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
+            _handle_load_fmu_exception(fmu, log_file)
             raise FMUException("The FMU version is not found. "+last_error)
         else:
+            _handle_load_fmu_exception(fmu, log_file)
             raise FMUException("The FMU version is not found. Enable logging for possibly more information.")
 
     #Delete
@@ -6363,7 +6398,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         FMIL.fmi2_import_free(fmu_2)
         FMIL.fmi_import_free_context(context)
         FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
-
+    
+    #Delete log file
+    delete_temp_file(log_file)
+    FMIL.free(log_file_c)
 
     return model
 
