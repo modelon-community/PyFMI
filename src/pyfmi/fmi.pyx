@@ -284,14 +284,6 @@ cdef class ScalarVariable:
     """
     Class defining data structure based on the XML element ScalarVariable.
     """
-    cdef object _name
-    cdef FMIL.fmi1_value_reference_t _value_reference
-    cdef object _description #A characater pointer but we need an own reference and this is sufficient
-    cdef FMIL.fmi1_base_type_enu_t _type
-    cdef FMIL.fmi1_variability_enu_t _variability
-    cdef FMIL.fmi1_causality_enu_t _causality
-    cdef FMIL.fmi1_variable_alias_kind_enu_t _alias
-
     def __init__(self, name, value_reference, type, description="",
                        variability=FMIL.fmi1_variability_enu_continuous,
                        causality=FMIL.fmi1_causality_enu_internal,
@@ -391,15 +383,6 @@ cdef class ScalarVariable2:
     """
     Class defining data structure based on the XML element ScalarVariable.
     """
-
-    cdef FMIL.fmi2_value_reference_t         _value_reference
-    cdef FMIL.fmi2_base_type_enu_t           _type
-    cdef FMIL.fmi2_variability_enu_t         _variability
-    cdef FMIL.fmi2_causality_enu_t           _causality
-    cdef FMIL.fmi2_variable_alias_kind_enu_t _alias
-    cdef object _name
-    cdef object _description #A characater pointer but we need an own reference and this is sufficient
-
     def __init__(self, name, value_reference, type, description = "",
                        variability = FMIL.fmi2_variability_enu_unknown,
                        causality   = FMIL.fmi2_causality_enu_unknown,
@@ -499,9 +482,6 @@ cdef class FMUState2:
     """
     Class containing a pointer to a FMU-state.
     """
-
-    cdef FMIL.fmi2_FMU_state_t* fmu_state
-
     def __init__(self):
         self.fmu_state = NULL
 
@@ -511,37 +491,6 @@ cdef class FMUModelBase(ModelBase):
     """
     An FMI Model loaded from a DLL.
     """
-    #FMIL related variables
-    cdef FMIL.fmi1_callback_functions_t callBackFunctions
-    cdef FMIL.jm_callbacks callbacks
-    cdef FMIL.fmi_import_context_t* context
-    cdef FMIL.fmi1_import_t* _fmu
-    cdef FMIL.fmi1_event_info_t _eventInfo
-    cdef FMIL.fmi1_import_variable_list_t *variable_list
-    cdef FMIL.fmi1_fmu_kind_enu_t fmu_kind
-    cdef FMIL.jm_status_enu_t jm_status
-
-    #Internal values
-    cdef public object __t
-    cdef public object _file_open
-    cdef public object _npoints
-    cdef public object _enable_logging
-    cdef public object _pyEventInfo
-    cdef list _log
-    cdef int _version
-    cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
-    cdef object _allocated_list
-    cdef object _modelid
-    cdef object _modelname
-    cdef unsigned int _nEventIndicators
-    cdef unsigned int _nContinuousStates
-    cdef public list _save_real_variables_val
-    cdef public list _save_int_variables_val
-    cdef public list _save_bool_variables_val
-    cdef int _fmu_kind
-    cdef char* _fmu_log_name
-    cdef char* _fmu_temp_dir
-
     def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
         """
         Constructor.
@@ -1192,7 +1141,7 @@ cdef class FMUModelBase(ModelBase):
             value = self.get_real([ref])
             return -1*value if alias_kind == FMI_NEGATED_ALIAS else value
         elif type == FMIL.fmi1_base_type_int or type == FMIL.fmi1_base_type_enum: #INTEGER
-            value = self.get_integer([ref])
+            value = self.get_integer([ref]) 
             return -1*value if alias_kind == FMI_NEGATED_ALIAS else value
         elif type == FMIL.fmi1_base_type_str: #STRING
             return self.get_string([ref])
@@ -2887,39 +2836,6 @@ cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
     """
-
-    #FMIL related variables
-    cdef FMIL.jm_callbacks              callbacks
-    cdef FMIL.fmi_import_context_t*     _context
-    cdef FMIL.fmi2_callback_functions_t callBackFunctions
-    cdef FMIL.fmi2_import_t*            _fmu
-    cdef FMIL.fmi2_fmu_kind_enu_t       _fmu_kind
-    cdef FMIL.fmi_version_enu_t         _version
-    cdef FMIL.jm_string                 last_error
-    cdef FMIL.size_t                    _nEventIndicators
-    cdef FMIL.size_t                    _nContinuousStates
-    cdef FMIL.size_t                    _nCategories
-    cdef FMIL.fmi2_event_info_t         _eventInfo
-
-    #Internal values
-    cdef list           _log
-    cdef object         _fmu_temp_dir
-    cdef object         _fmu_full_path
-    cdef public object  _enable_logging
-    cdef object         _allocated_context
-    cdef object         _allocated_xml
-    cdef object         _allocated_dll
-    cdef object         _allocated_fmu
-    cdef char*          _modelId
-    cdef object         _modelName
-    cdef public object  _fmu_log_name
-    cdef list           _categories
-    cdef public list    _save_real_variables_val
-    cdef public list    _save_int_variables_val
-    cdef public list    _save_bool_variables_val
-    cdef object         __t
-    cdef public object  _pyEventInfo
-
     def __init__(self, fmu, path = '.', enable_logging = True, log_file_name = ""):
         """
         Constructor of the model.
