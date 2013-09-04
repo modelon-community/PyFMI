@@ -1157,7 +1157,7 @@ cdef class FMUModelBase(ModelBase):
             if alias_kind == FMI_NEGATED_ALIAS:
                 value = -value
             self.set_real([ref], [value])
-        elif type == FMIL.fmi1_base_type_int: #INTEGER
+        elif type == FMIL.fmi1_base_type_int or type == FMIL.fmi1_base_type_enum: #INTEGER
             if alias_kind == FMI_NEGATED_ALIAS:
                 value = -value
             self.set_integer([ref], [value])
@@ -1191,7 +1191,7 @@ cdef class FMUModelBase(ModelBase):
         if type == FMIL.fmi1_base_type_real:  #REAL
             value = self.get_real([ref])
             return -1*value if alias_kind == FMI_NEGATED_ALIAS else value
-        elif type == FMIL.fmi1_base_type_int: #INTEGER
+        elif type == FMIL.fmi1_base_type_int or type == FMIL.fmi1_base_type_enum: #INTEGER
             value = self.get_integer([ref])
             return -1*value if alias_kind == FMI_NEGATED_ALIAS else value
         elif type == FMIL.fmi1_base_type_str: #STRING

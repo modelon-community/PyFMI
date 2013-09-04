@@ -110,8 +110,7 @@ class FMIODE(Explicit_Problem):
         Initialize the problem.
         """
         self._model = model
-        self.input = input
-        self.input_names = []
+        self._adapt_input(input)
 
         #Set start time to the model
         self._model.time = start_time
@@ -163,7 +162,22 @@ class FMIODE(Explicit_Problem):
 
         if with_jacobian:
             self.jac = self.j #Activates the jacobian
-
+    
+    def _adapt_input(self, input):
+        if input != None:
+            input_value_refs = []
+            input_alias_type = []
+            if isinstance(input[0],str):
+                input_value_refs.append(self._model.get_variable_valueref(input[0]))
+                input_alias_type.append(-1.0 if self._model.get_variable_alias(input[0])[input[0]] == -1 else 1.0)
+            else:
+                for name in input[0]:
+                    input_value_refs.append(self._model.get_variable_valueref(name))
+                    input_alias_type.append(-1.0 if self._model.get_variable_alias(name)[name] == -1 else 1.0)
+            self.input_value_refs = input_value_refs
+            self.input_alias_type = input_alias_type if N.any(input_alias_type==-1) else 1.0
+        self.input = input
+    
     def rhs(self, t, y, sw=None):
         """
         The rhs (right-hand-side) for an ODE problem.
@@ -176,7 +190,8 @@ class FMIODE(Explicit_Problem):
 
         #Sets the inputs, if any
         if self.input!=None:
-            self._model.set(self.input[0], self.input[1].eval(t)[0,:])
+            self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
+            #self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
         #Evaluating the rhs
         rhs = self._model.get_derivatives()
@@ -199,7 +214,8 @@ class FMIODE(Explicit_Problem):
 
         #Sets the inputs, if any
         if self.input!=None:
-            self._model.set(self.input[0], self.input[1].eval(t)[0,:])
+            self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
+            #self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
         #Evaluating the jacobian
 
@@ -226,7 +242,8 @@ class FMIODE(Explicit_Problem):
 
         #Sets the inputs, if any
         if self.input!=None:
-            self._model.set(self.input[0], self.input[1].eval(t)[0,:])
+            self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
+            #self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
         #Evaluating the event indicators
         eventInd = self._model.get_event_indicators()
@@ -259,7 +276,8 @@ class FMIODE(Explicit_Problem):
 
             #Sets the inputs, if any
             if self.input!=None:
-                self._model.set(self.input[0], self.input[1].eval(t)[0,:])
+                self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
+                #self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
@@ -279,8 +297,8 @@ class FMIODE(Explicit_Problem):
 
             #Sets the inputs, if any
             if self.input!=None:
-                self._model.set(self.input[0],
-                    self.input[1].eval(N.array([solver.t]))[0,:])
+                self._model.set_real(self.input_value_refs, self.input[1].eval(N.array([solver.t]))[0,:]*self.input_alias_type)
+                #self._model.set(self.input[0],self.input[1].eval(N.array([solver.t]))[0,:])
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
@@ -386,8 +404,8 @@ class FMIODE(Explicit_Problem):
 
             #Sets the inputs, if any
             if self.input!=None:
-                self._model.set(self.input[0],
-                    self.input[1].eval(N.array([solver.t]))[0,:])
+                self._model.set_real(self.input_value_refs, self.input[1].eval(N.array([solver.t]))[0,:]*self.input_alias_type)
+                #self._model.set(self.input[0],self.input[1].eval(N.array([solver.t]))[0,:])
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
