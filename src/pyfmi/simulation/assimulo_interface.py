@@ -281,8 +281,9 @@ class FMIODE(Explicit_Problem):
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
-
-        self.export.integration_point()
+        
+        if self.export != None:
+            self.export.integration_point()
 
     def handle_event(self, solver, event_info):
         """
@@ -454,7 +455,8 @@ class FMIODE(Explicit_Problem):
                 f.write(header+"\n")
 
     def finalize(self, solver):
-        self.export.simulation_end()
+        if self.export != None:
+            self.export.simulation_end()
 
     def _set_input(self, input):
         self.__input = input
