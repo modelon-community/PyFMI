@@ -53,10 +53,10 @@ cdef class FMUModelME1Extended(FMUModelME1):
         
         nbr_f, nbr_g = self.get_ode_sizes()
 
-        if self._fmu_kind != FMI_ME:
-            raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
+        #if self._fmu_kind != FMI_ME:
+        #    raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
 
-        self.instantiate_slave(logging = self._enable_logging)
+        #self.instantiate_slave(logging = self._enable_logging)
         
         vars = self.get_model_variables(include_alias=False, causality=0)
         input_value_refs = []
@@ -220,7 +220,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
                 order --
                         The derivative order.
         """
-        raise NotImplementedError
+        raise FMUException("Not Implemented.")
 
     def _get_types_platform(self):
         """
