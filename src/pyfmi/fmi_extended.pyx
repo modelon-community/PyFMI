@@ -78,12 +78,25 @@ cdef class FMUModelME1Extended(FMUModelME1):
         self._input_active = 0
         self._input_order = 0
         self._options = {"solver":"CVode","CVode_options":{}}
-
+    
+    def get_solver_options(self):
+        """
+        Returns the default solver options
+        """
+        return self._options
+    
     def set_solver_options(self, options):
-        self._options = options
+        """
+        Specifies the underlying solver and the options to the specified
+        solver.
+        """
+        self._options.update(options)
 
     def _set_solver_options(self):
-        solver_options = self._options[self._options["solver"]+"_options"]
+        try:
+            solver_options = self._options[self._options["solver"]+"_options"]
+        except KeyError:
+            return
 
         #loop solver_args and set properties of solver
         for k, v in solver_options.iteritems():
@@ -462,8 +475,12 @@ cdef class FMUModelME1Extended(FMUModelME1):
         #Set options
         self._solver.verbosity = 50
         self._solver.report_continuously = True
-        self._solver.rtol = tolerance
-        self._solver.atol = tolerance*0.01*(self.nominal_continuous_states if self.get_ode_sizes()[0] > 0 else 1)
+        
+        try:
+            self._solver.rtol = tolerance
+            self._solver.atol = tolerance*0.01*(self.nominal_continuous_states if self.get_ode_sizes()[0] > 0 else 1)
+        except AttributeError:
+            pass
         
         #Set user defined solver options
         self._set_solver_options()
