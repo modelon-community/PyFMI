@@ -65,7 +65,7 @@ class ResultHandler:
     def simulation_start(self):
         """
         This method is called before the simulation has started and 
-        before the initialization call for the FMU.
+        after the initialization call for the FMU.
         """
         pass
         
@@ -1249,22 +1249,14 @@ class ResultHandlerFile(ResultHandler):
     def __init__(self, model):
         self.model = model
     
+    def initialize_complete(self):
+        pass 
+    
     def simulation_start(self):
         """
-        Export an optimization or simulation result to file in Dymolas result 
-        file format.
-
-        Parameters::
-        
-            model --
-                A FMIModel object.
-            
-            opts --
-                An options dictonary
-
-        Limitations::
-        
-            Currently only textual format is supported.
+        Opens the file and writes the header. This includes the information 
+        about the variables and a table determining the link between variables 
+        and data.
         """
         opts = self.options
         model = self.model
@@ -1284,22 +1276,7 @@ class ResultHandlerFile(ResultHandler):
             
         #Store the continuous and discrete variables for result writing
         self.real_var_ref, self.int_var_ref, self.bool_var_ref = model.get_model_time_varying_value_references(filter=opts["filter"])
-    
-    def initialize_complete(self):
-        """
-        Opens the file and writes the header. This includes the information 
-        about the variables and a table determining the link between variables 
-        and data.
         
-        Parameters::
-        
-            file_name --
-                If no file name is given, the name of the model (as defined by 
-                FMUModel.get_identifier()) concatenated with the string '_result' is 
-                used. A file suffix equal to the format argument is then 
-                appended to the file name.
-                Default: Empty string.
-        """
         file_name = self.file_name
         parameters = self.parameters
         

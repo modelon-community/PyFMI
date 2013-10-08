@@ -513,7 +513,6 @@ class AssimuloFMIAlg(AlgorithmBase):
             raise Exception("Unknown option to result_handling.")
 
         self.result_handler.set_options(self.options)
-        self.result_handler.simulation_start()
 
         # Initialize?
         if self.options['initialize']:
@@ -523,7 +522,9 @@ class AssimuloFMIAlg(AlgorithmBase):
                 rtol, atol = self.model.get_tolerances()
                 self.model.initialize(relativeTolerance=rtol)
 
-        self.result_handler.initialize_complete()
+            self.result_handler.initialize_complete()
+            
+        self.result_handler.simulation_start()
 
         # Sensitivities?
         if self.options["sensitivities"]:
@@ -834,13 +835,14 @@ class FMICSAlg(AlgorithmBase):
             raise Exception("Unknown option to result_handling.")
 
         self.result_handler.set_options(self.options)
-        self.result_handler.simulation_start()
 
         # Initialize?
         if self.options['initialize']:
             self.model.initialize(start_time, final_time, StopTimeDefined=True)
 
-        self.result_handler.initialize_complete()
+            self.result_handler.initialize_complete()
+            
+        self.result_handler.simulation_start()
 
     def _set_options(self):
         """
