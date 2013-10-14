@@ -233,6 +233,64 @@ class ResultDymola:
         else: #Variable was not a derivative variable
             return name
 
+class ResultCSVTextual:
+    def __init__(self, filename):
+        
+        fid = codecs.open(filename,'r','utf-8')
+        
+        name = fid.readline().strip().split(";")
+        self.name = name
+        
+        self.data_matrix = {}
+        for i,n in enumerate(name):
+            self.data_matrix[n] = i
+        
+        data = []
+        while True:
+            row = fid.readline().strip().split(";")
+            
+            if row[-1] == "" or row[-1] == "\n":
+                break
+            
+            data.append([float(d) for d in row])
+            
+        self.data = N.array(data)
+        
+    def get_variable_data(self,name):
+        """
+        Retrieve the data sequence for a variable with a given name.
+        
+        Parameters::
+        
+            name --
+                Name of the variable.
+
+        Returns::
+        
+            A Trajectory object containing the time vector and the data vector 
+            of the variable.
+        """
+        if name == 'time':
+            return Trajectory(self.data[:,0],self.data[:,0])
+        else:
+            return Trajectory(self.data[:,0],self.data[:,self.data_matrix[name]])
+                
+    def is_variable(self, name):
+        return True
+            
+    def is_negated(self, name):
+        return False
+        
+    def get_data_matrix(self):
+        """
+        Returns the result matrix.
+                
+        Returns::
+        
+            The result data matrix.
+        """
+        return self.data
+
 class ResultWriter():
     """ 
     Base class for writing results to file. 
@@ -1233,6 +1291,183 @@ class ResultHandlerMemory(ResultHandler):
             data = N.c_[data,b] 
 
         return ResultStorageMemory(self.model, data, [self.real_var_ref,self.int_var_ref,self.bool_var_ref], self.vars)
+        
+    def set_options(self, options):
+        """
+        Options are the options dictionary provided to the simulation
+        method.
+        """
+        self.options = options
+
+class ResultHandlerCSV(ResultHandler):
+    def __init__(self, model, delimiter=";"):
+        self.model = model
+        self.delimiter = delimiter
+    
+    def initialize_complete(self):
+        pass
+    
+    def simulation_start(self):
+        """
+        Opens the file and writes the header. This includes the information 
+        about the variables and a table determining the link between variables 
+        and data.
+        """
+        opts = self.options
+        model = self.model
+        
+        #Internal values
+        self.file_open = False
+        self.nbr_points = 0
+        delimiter = self.delimiter
+        
+        self.file_name = opts["result_file_name"]
+        try:
+            self.parameters = opts["sensitivities"]
+        except KeyError:
+            self.parameters = None
+        
+        if self.file_name == "":
+            self.file_name=self.model.get_identifier() + '_result.csv'
+        
+        vars = model.get_model_variables(filter=opts["filter"])
+        
+        const_valref_real = []
+        const_name_real = []
+        const_alias_real = []
+        const_valref_int = []
+        const_name_int = []
+        const_alias_int = []
+        const_valref_bool = []
+        const_name_bool = []
+        const_alias_bool = []
+        cont_valref_real = []
+        cont_name_real = []
+        cont_alias_real = []
+        cont_valref_int = []
+        cont_name_int = []
+        cont_alias_int = []
+        cont_valref_bool = []
+        cont_name_bool = []
+        cont_alias_bool = []
+        
+        for name in vars.keys():
+            var = vars[name]
+            if var.type == fmi.FMI_REAL:
+                if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
+                    const_valref_real.append(var.value_reference)
+                    const_name_real.append(var.name)
+                    const_alias_real.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+                else:
+                    cont_valref_real.append(var.value_reference)
+                    cont_name_real.append(var.name)
+                    cont_alias_real.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+            elif var.type == fmi.FMI_INTEGER:
+                if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
+                    const_valref_int.append(var.value_reference)
+                    const_name_int.append(var.name)
+                    const_alias_int.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+                else:
+                    cont_valref_int.append(var.value_reference)
+                    cont_name_int.append(var.name)
+                    cont_alias_int.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+            elif var.type == fmi.FMI_BOOLEAN:
+                if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
+                    const_valref_bool.append(var.value_reference)
+                    const_name_bool.append(var.name)
+                    const_alias_bool.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+                else:
+                    cont_valref_bool.append(var.value_reference)
+                    cont_name_bool.append(var.name)
+                    cont_alias_bool.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+        
+        # Open file
+        f = codecs.open(self.file_name,'w','utf-8')
+        self.file_open = True
+        
+        name_str = "Time"
+        for name in const_name_real+const_name_int+const_name_bool+cont_name_real+cont_name_int+cont_name_bool:
+            name_str += delimiter+name
+            
+        f.write(name_str+"\n")
+        
+        const_val_real    = model.get_real(const_valref_real)
+        const_val_int     = model.get_integer(const_valref_int)
+        const_val_bool    = model.get_boolean(const_valref_bool)
+        
+        const_str = ""
+        for i,val in enumerate(const_val_real):
+            const_str += "%.14E"%(const_alias_real[i]*val)+delimiter
+        for i,val in enumerate(const_val_int):
+            const_str += "%.14E"%(const_alias_int[i]*val)+delimiter
+        for i,val in enumerate(const_val_bool):
+            const_str += "%.14E"%(const_alias_bool[i]*val)+delimiter
+            
+        #for val in N.append(const_val_real,N.append(const_val_int,const_val_boolean)):
+        #    const_str += "%.14E"%val+delimiter
+        self.const_str = const_str
+        
+        self._file = f
+        
+        self.cont_valref_real = cont_valref_real
+        self.cont_alias_real  = N.array(cont_alias_real)
+        self.cont_valref_int  = cont_valref_int
+        self.cont_alias_int  = N.array(cont_alias_int)
+        self.cont_valref_bool = cont_valref_bool
+        self.cont_alias_bool  = N.array(cont_alias_bool)
+        
+    def integration_point(self, solver = None):
+        """ 
+        Writes the current status of the model to file. If the header has not 
+        been written previously it is written now. If data is specified it is 
+        written instead of the current status.
+        
+        Parameters::
+            
+                data --
+                    A one dimensional array of variable trajectory data. data 
+                    should consist of information about the status in the order 
+                    specified by FMUModel.save_time_point()
+                    Default: None
+        """
+        f = self._file
+        model = self.model
+
+        #Retrieves the time-point
+        t = model.time
+        r = model.get_real(self.cont_valref_real)*self.cont_alias_real
+        i = model.get_integer(self.cont_valref_int)*self.cont_alias_int
+        b = model.get_boolean(self.cont_valref_bool)*self.cont_alias_bool
+        
+        data = N.append(N.append(r,i),b)
+        
+        cont_str = ""
+        for val in data:
+            cont_str += "%.14E;"%val
+            
+        f.write("%.14E;"%t)
+        f.write(self.const_str)
+        f.write(cont_str[:-1]+"\n")
+        
+
+    def simulation_end(self):
+        """ 
+        Finalize the writing by filling in the blanks in the created file. The 
+        blanks consists of the number of points and the final time (in data set 
+        1). Also closes the file.
+        """
+        #If open, finalize and close
+        if self.file_open:
+            self._file.close()
+            self.file_open = False
+            
+    def get_result(self):
+        """
+        Method for retrieving the result. This method should return a 
+        result of an instance of ResultBase or of an instance of a 
+        subclass of ResultBase.
+        """
+        return ResultCSVTextual(self.file_name)
         
     def set_options(self, options):
         """
