@@ -117,7 +117,7 @@ class FMIODE(Explicit_Problem):
 
         self.t0 = start_time
         self.y0 = self._model.continuous_states
-        self.problem_name = self._model.get_name()
+        self.name = self._model.get_name()
 
         [f_nbr, g_nbr] = self._model.get_ode_sizes()
 
