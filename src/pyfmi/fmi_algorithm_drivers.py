@@ -27,7 +27,7 @@ import numpy as N
 import pyfmi
 import pyfmi.fmi as fmi
 from pyfmi.common.algorithm_drivers import AlgorithmBase, AssimuloSimResult, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
-from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerMemory, ResultHandler
+from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerMemory, ResultHandler, ResultHandlerDummy
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
@@ -509,6 +509,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                 raise Exception("The result handler needs to be specified when using a custom result handling.")
             if not isinstance(self.result_handler, ResultHandler):
                 raise Exception("The result handler needs to be a subclass of ResultHandler.")
+        elif self.options["result_handling"] == "none": #No result handling (for performance)
+            self.result_handler = ResultHandlerDummy(self.model)
         else:
             raise Exception("Unknown option to result_handling.")
 

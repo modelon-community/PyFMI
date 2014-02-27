@@ -1899,6 +1899,13 @@ class ResultHandlerFile(ResultHandler):
         method.
         """
         self.options = options
+        
+class ResultHandlerDummy(ResultHandler):
+    def __init__(self, model):
+        self.model = model
+    
+    def get_result(self):
+        return None
 
 class ResultWriterDymola_deprecated(ResultWriter):
     """ 
