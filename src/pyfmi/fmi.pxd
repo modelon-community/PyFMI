@@ -177,6 +177,7 @@ cdef class FMUModelBase2(ModelBase):
     cpdef deserialize_fmu_state(self, serialized_fmu)
     cpdef serialized_fmu_state_size(self, state)
     cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list)
+    cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable)
 
 cdef class FMUModelCS2(FMUModelBase2):
     
@@ -187,6 +188,5 @@ cdef class FMUModelME2(FMUModelBase2):
     
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi2_real_t t)
-    cpdef completed_event_iteration(self)
     cpdef get_derivatives(self)
     
