@@ -3497,6 +3497,8 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI functions: fmiEnterInitializationMode,
                                            fmiExitInitializationMode
         """
+        if not self.time:
+            raise FMUException("Setup Experiment has to be called prior to the initialization method.")
         
         status = FMIL.fmi2_import_enter_initialization_mode(self._fmu)
         

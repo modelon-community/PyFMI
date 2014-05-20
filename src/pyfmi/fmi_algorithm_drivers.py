@@ -513,6 +513,9 @@ class AssimuloFMIAlg(AlgorithmBase):
                 raise Exception("Unknown model.")
 
             self.result_handler.initialize_complete()
+        
+        elif not self.model.time and isinstance(self.model.fmi.FMUModelME2):
+            raise Exception("Setup Experiment has not been called, this has to be called prior to the initialization call.")
             
         self.result_handler.simulation_start()
 
@@ -839,6 +842,9 @@ class FMICSAlg(AlgorithmBase):
                 raise Exception("Unknown model.")
                 
             self.result_handler.initialize_complete()
+            
+        elif not self.model.time and isinstance(self.model.fmi.FMUModelCS2):
+            raise Exception("Setup Experiment has not been called, this has to be called prior to the initialization call.")
             
         self.result_handler.simulation_start()
 
