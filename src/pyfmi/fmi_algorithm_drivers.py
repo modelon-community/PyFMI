@@ -26,6 +26,7 @@ import numpy as N
 
 import pyfmi
 import pyfmi.fmi as fmi
+import pyfmi.fmi_extended as fmi_extended
 from pyfmi.common.algorithm_drivers import AlgorithmBase, AssimuloSimResult, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
 from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerMemory, ResultHandler, ResultHandlerDummy
 from pyfmi.common.core import TrajectoryLinearInterpolation
@@ -831,7 +832,7 @@ class FMICSAlg(AlgorithmBase):
 
         # Initialize?
         if self.options['initialize']:
-            if isinstance(self.model, fmi.FMUModelCS1):
+            if isinstance(self.model, fmi.FMUModelCS1) or isinstance(self.model, fmi_extended.FMUModelME1Extended):
                 self.model.initialize(start_time, final_time, StopTimeDefined=True)
 
             elif isinstance(self.model, fmi.FMUModelCS2):
