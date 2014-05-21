@@ -147,22 +147,19 @@ cdef class FMUModelBase2(ModelBase):
 
     #Internal values
     cdef list           _log
-    cdef object         _fmu_temp_dir
     cdef object         _fmu_full_path
     cdef public object  _enable_logging
-    cdef object         _allocated_context
-    cdef object         _allocated_xml
-    cdef object         _allocated_dll
-    cdef object         _allocated_fmu
+    cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
     cdef char*          _modelId
     cdef object         _modelName
-    cdef public object  _fmu_log_name
     cdef list           _categories
     cdef public list    _save_real_variables_val
     cdef public list    _save_int_variables_val
     cdef public list    _save_bool_variables_val
     cdef object         __t
     cdef public object  _pyEventInfo
+    cdef char* _fmu_log_name
+    cdef char* _fmu_temp_dir
     
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message)
     cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, char* variablename) except *
@@ -177,6 +174,7 @@ cdef class FMUModelBase2(ModelBase):
     cpdef deserialize_fmu_state(self, serialized_fmu)
     cpdef serialized_fmu_state_size(self, state)
     cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list)
+    cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable)
 
 cdef class FMUModelCS2(FMUModelBase2):
     
@@ -187,6 +185,5 @@ cdef class FMUModelME2(FMUModelBase2):
     
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi2_real_t t)
-    cpdef completed_event_iteration(self)
     cpdef get_derivatives(self)
     

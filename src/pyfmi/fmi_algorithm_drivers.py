@@ -497,12 +497,25 @@ class AssimuloFMIAlg(AlgorithmBase):
         # Initialize?
         if self.options['initialize']:
             try:
-                self.model.initialize(relativeTolerance=self.solver_options['rtol'])
+                rtol = self.solver_options['rtol']
             except KeyError:
                 rtol, atol = self.model.get_tolerances()
+                
+            if isinstance(self.model, fmi.FMUModelME1):
                 self.model.initialize(relativeTolerance=rtol)
+                
+            elif isinstance(self.model, fmi.FMUModelME2):
+                self.model.setup_experiment(tolerance=rtol, start_time=self.start_time, stop_time=self.final_time)
+                self.model.initialize()
+                self.model.event_update()
+                self.model.enter_continuous_time_mode()
+            else:
+                raise Exception("Unknown model.")
 
             self.result_handler.initialize_complete()
+        
+        elif self.model.time == None and isinstance(self.model, fmi.FMUModelME2):
+            raise Exception("Setup Experiment has not been called, this has to be called prior to the initialization call.")
             
         self.result_handler.simulation_start()
 
@@ -818,9 +831,20 @@ class FMICSAlg(AlgorithmBase):
 
         # Initialize?
         if self.options['initialize']:
-            self.model.initialize(start_time, final_time, StopTimeDefined=True)
+            if isinstance(self.model, fmi.FMUModelCS1):
+                self.model.initialize(start_time, final_time, StopTimeDefined=True)
 
+            elif isinstance(self.model, fmi.FMUModelCS2):
+                self.model.setup_experiment(start_time=start_time, stop_time_defined=True, stop_time=final_time)
+                self.model.initialize()
+                
+            else:
+                raise Exception("Unknown model.")
+                
             self.result_handler.initialize_complete()
+            
+        elif self.model.time == None and isinstance(self.model, fmi.FMUModelCS2):
+            raise Exception("Setup Experiment has not been called, this has to be called prior to the initialization call.")
             
         self.result_handler.simulation_start()
 

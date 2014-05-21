@@ -964,7 +964,7 @@ class FMIODE2(Explicit_Problem):
         #self._sol_int  += [i]
         #self._sol_bool += b
 
-        if self._model.get_capability_flags()['me_providesDirectionalDerivatives']:
+        if self._model.get_capability_flags()['providesDirectionalDerivatives']:
             self.jac = self.j #Activates the jacobian
 
     def rhs(self, t, y, sw=None):
@@ -1005,7 +1005,11 @@ class FMIODE2(Explicit_Problem):
             self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
         #Evaluating the jacobian
-
+        
+        #If there are no states return a dummy jacobian.
+        if self._f_nbr == 0:
+            return N.array([[0.0]])
+        
         #-Evaluating
         Jac = N.zeros(len(y)**2) #Matrix that holds the information, first y elements is the first column of the Jac
 
@@ -1053,7 +1057,7 @@ class FMIODE2(Explicit_Problem):
         """
         eInfo = self._model.get_event_info()
 
-        if eInfo.upcomingTimeEvent == True:
+        if eInfo.nextEventTimeDefined == True:
             return eInfo.nextEventTime
         else:
             return None
@@ -1114,27 +1118,19 @@ class FMIODE2(Explicit_Problem):
                 str_der = ""
                 for i in self._model.get_derivatives():
                     str_der += " %.14E"%i
-
+        
+        #Enter event mode
+        self._model.enter_event_mode()
+        
+        self._model.event_update()
         eInfo = self._model.get_event_info()
-        eInfo.iterationConverged = False
-
-        while eInfo.iterationConverged == False:
-            self._model.event_update(intermediateResult=False)
-
-            eInfo = self._model.get_event_info()
-            #Retrieve solutions (if needed)
-            #if eInfo.iterationConverged == False:
-            #    pass
-
-        #Call the Completed_event _iteration (New in FMI 2.0)
-        self._model.completed_event_iteration()
 
         #Check if the event affected the state values and if so sets them
-        if eInfo.stateValuesChanged:
+        if eInfo.valuesOfContinuousStatesChanged:
             solver.y = self._model.continuous_states
 
         #Get new nominal values.
-        if eInfo.stateValueReferencesChanged:
+        if eInfo.nominalsOfContinuousStatesChanged:
             solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
 
         #Check if the simulation should be terminated
@@ -1164,6 +1160,9 @@ class FMIODE2(Explicit_Problem):
                 if solver.__class__.__name__=="CVode": #Only available for CVode
                     header += "Order | Error (Weighted)"
                 f.write(header+"\n")
+        
+        #Enter continuous mode again
+        self._model.enter_continuous_time_mode()
 
     def step_events(self, solver):
         """
@@ -1202,8 +1201,9 @@ class FMIODE2(Explicit_Problem):
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
-
-        if self._model.completed_integrator_step():
+        
+        enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
+        if enter_event_mode:
             self._logg_step_event += [solver.t]
             #Event have been detect, call event iteration.
             self.handle_event(solver,[0])
