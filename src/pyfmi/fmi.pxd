@@ -149,10 +149,7 @@ cdef class FMUModelBase2(ModelBase):
     cdef list           _log
     cdef object         _fmu_full_path
     cdef public object  _enable_logging
-    cdef object         _allocated_context
-    cdef object         _allocated_xml
-    cdef object         _allocated_dll
-    cdef object         _allocated_fmu
+    cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
     cdef char*          _modelId
     cdef object         _modelName
     cdef list           _categories

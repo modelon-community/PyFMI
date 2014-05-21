@@ -2189,7 +2189,7 @@ cdef class FMUModelCS1(FMUModelBase):
         if status != FMIL.fmi1_status_ok:
             raise FMUException("The slave failed to initialize. See the log for possibly more information.")
 
-        self._allocated_fmu = True
+        self._allocated_fmu = 1
 
     def reset(self):
         """
@@ -2697,7 +2697,7 @@ cdef class FMUModelME1(FMUModelBase):
                 raise FMUException('Initialize returned with a error.' \
                     ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
 
-        self._allocated_fmu = True
+        self._allocated_fmu = 1
 
 
     def instantiate_model(self, name='Model', logging=False):
@@ -2885,13 +2885,12 @@ cdef class FMUModelBase2(ModelBase):
         self._categories        = []
 
         #Used for deallocation
-        self._allocated_context = False
-        self._allocated_xml     = False
-        self._allocated_dll     = False
-        self._allocated_fmu     = False
+        self._allocated_context = 0
+        self._allocated_dll = 0
+        self._allocated_xml = 0
+        self._allocated_fmu = 0
         self._fmu_temp_dir = NULL
         self._fmu_log_name = NULL
-
 
         #Default values
         self.__t = None
@@ -2941,7 +2940,7 @@ cdef class FMUModelBase2(ModelBase):
 
         # Create a struct for allocation
         self._context           = FMIL.fmi_import_allocate_context(&self.callbacks)
-        self._allocated_context = True
+        self._allocated_context = 1
 
         #Get the FMI version of the provided model
         fmu_temp_dir  = create_temp_dir()
@@ -2977,7 +2976,7 @@ cdef class FMUModelBase2(ModelBase):
         self.callBackFunctions.componentEnvironment = <FMIL.fmi2_component_environment_t>self._fmu
         #self.callBackFunctions.componentEnvironment = <FMIL.fmi2_component_environment_t>self
         self._fmu_kind      = FMIL.fmi2_import_get_fmu_kind(self._fmu)
-        self._allocated_xml = True
+        self._allocated_xml = 1
 
         #FMU kind is unknown
         if self._fmu_kind == FMIL.fmi2_fmu_kind_unknown:
@@ -2995,7 +2994,7 @@ cdef class FMUModelBase2(ModelBase):
                 raise FMUException(last_error)
             else:
                 raise FMUException("Error loading the binary. Enable logging for possibly more information.")
-        self._allocated_dll = True
+        self._allocated_dll = 1
 
         #Load information from model
         self._modelName         = FMIL.fmi2_import_get_model_name(self._fmu)
@@ -3541,7 +3540,7 @@ cdef class FMUModelBase2(ModelBase):
                     ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
                     
 
-        self._allocated_fmu = True
+        self._allocated_fmu = 1
 
 
     def set_fmil_log_level(self, level):
@@ -4954,23 +4953,23 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         Deallocate memory allocated
         """
-        if self._allocated_fmu:
+        if self._allocated_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
             FMIL.fmi2_import_free_instance(self._fmu)
 
-        if self._allocated_dll:
+        if self._allocated_dll == 1:
             FMIL.fmi2_import_destroy_dllfmu(self._fmu)
 
-        if self._allocated_xml:
+        if self._allocated_xml == 1:
             FMIL.fmi2_import_free(self._fmu)
-
-        if self._allocated_context:
-            FMIL.fmi_import_free_context(self._context)
 
         if self._fmu_temp_dir != NULL:
             FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
             FMIL.free(self._fmu_temp_dir)
             self._fmu_temp_dir = NULL
+            
+        if self._allocated_context == 1:
+            FMIL.fmi_import_free_context(self._context)
             
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
@@ -5490,23 +5489,23 @@ cdef class FMUModelME2(FMUModelBase2):
         Deallocate memory allocated
         """
 
-        if self._allocated_fmu:
+        if self._allocated_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
             FMIL.fmi2_import_free_instance(self._fmu)
 
-        if self._allocated_dll:
+        if self._allocated_dll == 1:
             FMIL.fmi2_import_destroy_dllfmu(self._fmu)
 
-        if self._allocated_xml:
+        if self._allocated_xml == 1:
             FMIL.fmi2_import_free(self._fmu)
-
-        if self._allocated_context:
-            FMIL.fmi_import_free_context(self._context)
 
         if self._fmu_temp_dir != NULL:
             FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
             FMIL.free(self._fmu_temp_dir)
             self._fmu_temp_dir = NULL
+            
+        if self._allocated_context == 1:
+            FMIL.fmi_import_free_context(self._context)
             
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
