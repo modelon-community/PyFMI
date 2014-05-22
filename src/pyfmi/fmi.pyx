@@ -2913,8 +2913,7 @@ cdef class FMUModelBase2(ModelBase):
         self.callBackFunctions.allocateMemory       = FMIL.calloc
         self.callBackFunctions.freeMemory           = FMIL.free
         self.callBackFunctions.stepFinished         = NULL
-        self.callBackFunctions.componentEnvironment = NULL
-        
+        self.callBackFunctions.componentEnvironment = NULL        
         
         if enable_logging==None:
             if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
@@ -3485,6 +3484,9 @@ cdef class FMUModelBase2(ModelBase):
 
         #Default values
         self.__t = None
+        
+        #Reseting the allocation flags
+        self._allocated_fmu = 0
 
         #Internal values
         self._log = []
