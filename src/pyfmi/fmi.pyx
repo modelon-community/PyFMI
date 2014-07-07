@@ -1617,7 +1617,7 @@ cdef class FMUModelBase(ModelBase):
             data_variability = FMIL.fmi1_import_get_variability(variable)
             data_type  = FMIL.fmi1_import_get_variable_base_type(variable)
 
-            if data_type != FMI_REAL and data_type != FMI_INTEGER and data_type != FMI_BOOLEAN:
+            if data_type != FMI_REAL and data_type != FMI_INTEGER and data_type != FMI_BOOLEAN and data_type != FMI_ENUMERATION:
                 continue
 
             if data_variability != FMI_CONTINUOUS and data_variability != FMI_DISCRETE:
@@ -1641,7 +1641,7 @@ cdef class FMUModelBase(ModelBase):
 
             if data_type == FMI_REAL:
                 real_var_ref[value_ref] = 1
-            if data_type == FMI_INTEGER:
+            if data_type == FMI_INTEGER or data_type == FMI_ENUMERATION:
                 int_var_ref[value_ref] = 1
             if data_type == FMI_BOOLEAN:
                 bool_var_ref[value_ref] = 1
@@ -3839,7 +3839,7 @@ cdef class FMUModelBase2(ModelBase):
             data_variability = FMIL.fmi2_import_get_variability(variable)
 
 
-            if data_type != FMI2_REAL and data_type != FMI2_INTEGER and data_type != FMI2_BOOLEAN:
+            if data_type != FMI2_REAL and data_type != FMI2_INTEGER and data_type != FMI2_BOOLEAN and data_type != FMI2_ENUMERATION:
                 continue
 
             if data_variability != FMI2_CONTINUOUS and data_variability != FMI2_DISCRETE and data_variability != FMI2_TUNABLE:
@@ -3857,7 +3857,7 @@ cdef class FMUModelBase2(ModelBase):
 
             if data_type == FMI2_REAL:
                 real_var_ref[value_ref] = 1
-            if data_type == FMI2_INTEGER:
+            if data_type == FMI2_INTEGER or FMI2_ENUMERATION:
                 int_var_ref[value_ref] = 1
             if data_type == FMI2_BOOLEAN:
                 bool_var_ref[value_ref] = 1

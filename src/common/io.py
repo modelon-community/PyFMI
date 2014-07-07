@@ -1363,7 +1363,7 @@ class ResultHandlerCSV(ResultHandler):
                     cont_valref_real.append(var.value_reference)
                     cont_name_real.append(var.name)
                     cont_alias_real.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
-            elif var.type == fmi.FMI_INTEGER:
+            elif var.type == fmi.FMI_INTEGER or var.type == fmi.FMI_ENUMERATION:
                 if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
                     const_valref_int.append(var.value_reference)
                     const_name_int.append(var.name)
@@ -1546,7 +1546,7 @@ class ResultHandlerFile(ResultHandler):
         types = []
         
         for var in self.model.get_model_variables(filter=self.options["filter"]).values():
-            if not var.type == fmi.FMI_STRING and not var.type == fmi.FMI_ENUMERATION:
+            if not var.type == fmi.FMI_STRING:
                     if var.alias == fmi.FMI_NO_ALIAS:
                         vrefs_noalias.append(var.value_reference)
                         names_noalias.append(var.name)
