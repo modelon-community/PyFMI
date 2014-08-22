@@ -831,27 +831,30 @@ class ResultDymolaTextual(ResultDymola):
         nLines = self._find_phrase(fid, 'char Aclass')
 
         nLines = int(nLines[0])
-        Aclass = []
-        for i in range(0,nLines):
-            Aclass.append(fid.readline().strip())
+        Aclass = [fid.readline().strip() for i in range(nLines)]
+        #Aclass = []
+        #for i in range(0,nLines):
+        #    Aclass.append(fid.readline().strip())
         self.Aclass = Aclass
 
         # Read name section
         nLines = self._find_phrase(fid, 'char name')
 
         nLines = int(nLines[0])
-        name = []
-        for i in range(0,nLines):
-            name.append(fid.readline().strip().replace(" ",""))
+        name = [fid.readline().strip().replace(" ","") for i in range(nLines)]
+        #name = []
+        #for i in range(0,nLines):
+        #    name.append(fid.readline().strip().replace(" ",""))
         self.name = name
      
         # Read description section  
         nLines = self._find_phrase(fid, 'char description') 
 
         nLines = int(nLines[0])
-        description = []
-        for i in range(0,nLines):
-            description.append(fid.readline().strip())
+        description = [fid.readline().strip() for i in range(nLines)]
+        #description = []
+        #for i in range(0,nLines):
+        #    description.append(fid.readline().strip())
         self.description = description
 
         # Read dataInfo section
@@ -860,17 +863,19 @@ class ResultDymolaTextual(ResultDymola):
         nCols = nLines[2].partition(')')
         nLines = int(nLines[0])
         nCols = int(nCols[0])
-        dataInfo = []
-        for i in range(0,nLines):
-            info = fid.readline().split()
-            dataInfo.append(map(int,info[0:nCols]))
+        dataInfo = [map(int,fid.readline().split()[0:nCols]) for i in range(nLines)]
+        #dataInfo = []
+        #for i in range(0,nLines):
+        #    info = fid.readline().split()
+        #    dataInfo.append(map(int,info[0:nCols]))
         self.dataInfo = N.array(dataInfo)
 
         # Find out how many data matrices there are
-        nData = 0
-        for i in range(0,nLines):
-            if dataInfo[i][0] > nData:
-                nData = dataInfo[i][0]
+        nData = max(self.dataInfo[:,0])
+        #nData = 0
+        #for i in range(0,nLines):
+        #    if dataInfo[i][0] > nData:
+        #        nData = dataInfo[i][0]
                 
         self.data = []
         for i in range(0,nData): 
@@ -1698,7 +1703,7 @@ class ResultHandlerFile(ResultHandler):
             if (types[i][1] == fmi.FMI_REAL and last_real_vref != name[0]):
                 last_real_vref = name[0]
                 update = True
-            if (types[i][1] == fmi.FMI_INTEGER and last_int_vref != name[0]):
+            if ((types[i][1] == fmi.FMI_INTEGER or types[i][1] == fmi.FMI_ENUMERATION) and last_int_vref != name[0]):
                 last_int_vref = name[0]
                 update = True
             if (types[i][1] == fmi.FMI_BOOLEAN and last_bool_vref != name[0]):
@@ -1718,7 +1723,7 @@ class ResultHandlerFile(ResultHandler):
                         #    list_of_continuous_states[name[0]])
                         if types[i][1] == fmi.FMI_REAL:
                             valueref_of_continuous_states.append(lst_real_cont[name[0]])
-                        elif types[i][1] == fmi.FMI_INTEGER:
+                        elif types[i][1] == fmi.FMI_INTEGER or types[i][1] == fmi.FMI_ENUMERATION:
                             valueref_of_continuous_states.append(lst_int_cont[name[0]])
                         else:
                             valueref_of_continuous_states.append(lst_bool_cont[name[0]])
@@ -1741,7 +1746,7 @@ class ResultHandlerFile(ResultHandler):
                         #    list_of_continuous_states[name[0]])
                         if types[i][1] == fmi.FMI_REAL:
                             valueref_of_continuous_states.append(lst_real_cont[name[0]])
-                        elif types[i][1] == fmi.FMI_INTEGER:
+                        elif types[i][1] == fmi.FMI_INTEGER or types[i][1] == fmi.FMI_ENUMERATION:
                             valueref_of_continuous_states.append(lst_int_cont[name[0]])
                         else:
                             valueref_of_continuous_states.append(lst_bool_cont[name[0]])
@@ -1791,7 +1796,7 @@ class ResultHandlerFile(ResultHandler):
             if dtype[1] == fmi.FMI_REAL:
                 str_text = str_text + (
                     " %.14E" % (self.model.get_real([vref])))
-            elif dtype[1] == fmi.FMI_INTEGER:
+            elif dtype[1] == fmi.FMI_INTEGER or dtype[1] == fmi.FMI_ENUMERATION:
                 str_text = str_text + (
                     " %.14E" % (self.model.get_integer([vref])))
             elif dtype[1] == fmi.FMI_BOOLEAN:
@@ -1820,7 +1825,7 @@ class ResultHandlerFile(ResultHandler):
         
         self._file = f
         self._data_order = valueref_of_continuous_states
-        
+
     def integration_point(self, solver = None):#parameter_data=[]):
         """ 
         Writes the current status of the model to file. If the header has not 
@@ -1844,12 +1849,10 @@ class ResultHandlerFile(ResultHandler):
         i = model.get_integer(self.int_var_ref)
         b = model.get_boolean(self.bool_var_ref)
         
-        data = N.append(N.append(N.append(self.model.time,r),i),b)
+        data = N.append(N.append(r,i),b)
 
         #Write the point
-        str_text = (" %.14E" % data[0])
-        for j in xrange(self._nvariables-1):
-            str_text = str_text + (" %.14E" % (data[1+data_order[j]]))
+        str_text = (" %.14E" % self.model.time) + ''.join([" %.14E" % (data[data_order[j]]) for j in range(self._nvariables-1)])
         
         #Sets the parameters, if any
         if solver and self.options["sensitivities"]:
