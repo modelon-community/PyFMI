@@ -16,7 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #from distutils.core import setup, Extension
-from distutils.ccompiler import new_compiler
+#from distutils.ccompiler import new_compiler
 from distutils.core import setup
 
 import distutils
@@ -24,9 +24,6 @@ import os as O
 import shutil
 import numpy as N
 import ctypes.util
-from numpy.distutils.misc_util import Configuration
-#from numpy.distutils.core import setup
-from numpy.distutils.command.build_clib import build_clib
 import sys
 
 try:
@@ -103,28 +100,16 @@ else:
     libdirs = ""
     
 static = False
-debug_flag = True
+debug_flag = False
 fmilib_shared = ""
 copy_gcc_lib = False
 gcc_lib = None
+force_32bit = False
+no_msvcr = False
 
-static_link_gcc = ["-static-libgcc"]
-
-####NECESSECARY FOR THE DEPRECATED FMI LOGGER
-#Load the helper function
-if sys.platform == 'win32':
-    suffix = '.dll'
-elif sys.platform == 'darwin':
-    suffix = '.dylib'
-else:
-    suffix = '.so'
-
-path_log_src = "src"+O.path.sep+"pyfmi"+O.path.sep+"util" + O.path.sep + "FMILogger.c"
-path_log_dest = "src"+O.path.sep+"pyfmi"+O.path.sep+"util" + O.path.sep + "FMILogger" + suffix
-
-O.system("gcc -fPIC "+path_log_src+" -shared -o "+path_log_dest)
-########
-
+static_link_gcc = "-static-libgcc"
+flag_32bit = "-m32"
+extra_c_flags = ""
 
 # Fix path sep
 for x in sys.argv[1:]:
@@ -145,6 +130,37 @@ for x in sys.argv[1:]:
         else:
             static = False
         copy_args.remove(x)
+    if not x.find('--force-32bit'):
+        if x[14:].upper() == "TRUE":
+            force_32bit = True
+        copy_args.remove(x)
+    if not x.find('--no-msvcr'):
+        if x[11:].upper() == "TRUE":
+            no_msvcr = True
+        copy_args.remove(x)
+    if not x.find('--extra-c-flags'):
+        extra_c_flags = x[16:]
+        copy_args.remove(x)
+
+####NECESSECARY FOR THE DEPRECATED FMI LOGGER
+#Load the helper function
+if sys.platform == 'win32':
+    suffix = '.dll'
+elif sys.platform == 'darwin':
+    suffix = '.dylib'
+else:
+    suffix = '.so'
+
+path_log_src = "src"+O.path.sep+"pyfmi"+O.path.sep+"util" + O.path.sep + "FMILogger.c"
+path_log_dest = "src"+O.path.sep+"pyfmi"+O.path.sep+"util" + O.path.sep + "FMILogger" + suffix
+
+if force_32bit:
+    O.system("gcc "+flag_32bit+" -fPIC " + extra_c_flags +' '+ path_log_src+" -shared -o"+path_log_dest)
+else:
+    O.system("gcc -fPIC "+ extra_c_flags + ' ' + path_log_src+" -shared -o"+path_log_dest)
+
+########
+
 
 if not incdirs:
     raise Exception("FMI Library cannot be found. Please specify its location, either using the flag to the setup script '--fmil-home' or specify it using the environment variable FMIL_HOME.")
@@ -170,13 +186,23 @@ if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
                 shutil.copy2(path_gcc_lib,O.path.join(".","src","pyfmi"))
                 gcc_lib = O.path.join(".","src","pyfmi","libgcc_s_dw2-1.dll")
 
+if no_msvcr:
+    # prevent the MSVCR* being added to the DLLs passed to the linker
+    def msvc_runtime_library_mod(): 
+        return None
+    
+    import numpy.distutils
+    numpy.distutils.misc_util.msvc_runtime_library = msvc_runtime_library_mod
+
 def check_extensions():
     ext_list = []
-
+    extra_link_flags = []
+    
     if static:
-        extra_link_flags = static_link_gcc
-    else:
-        extra_link_flags = [""]
+        extra_link_flags.append(static_link_gcc)
+
+    if force_32bit:
+        extra_link_flags.append(flag_32bit)
 
     #COMMON PYX
     """
@@ -213,10 +239,18 @@ def check_extensions():
         
         if debug_flag:
             ext_list[i].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
-            ext_list[i].extra_link_args = extra_link_flags
         else:
             ext_list[i].extra_compile_args = ["-O2", "-fno-strict-aliasing"]
-            ext_list[i].extra_link_args = extra_link_flags
+        
+        if force_32bit:
+            ext_list[i].extra_compile_args.append(flag_32bit)
+            
+        if extra_c_flags:
+            flags = extra_c_flags.split(' ')
+            for f in flags:
+                ext_list[i].extra_compile_args.append(f)
+        
+        ext_list[i].extra_link_args = extra_link_flags
 
     return ext_list
 
@@ -239,6 +273,7 @@ else:# If it does not, check if the file exists and if not, create the file!
         with open(version_txt, 'w') as f:
             f.write("unknown")
 
+from numpy.distutils.core import setup
 setup(name=NAME,
       version=VERSION,
       license=LICENSE,
