@@ -1391,7 +1391,7 @@ class ResultHandlerCSV(ResultHandler):
         f = codecs.open(self.file_name,'w','utf-8')
         self.file_open = True
         
-        name_str = "Time"
+        name_str = "time"
         for name in const_name_real+const_name_int+const_name_bool+cont_name_real+cont_name_int+cont_name_bool:
             name_str += delimiter+name
             
