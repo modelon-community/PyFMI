@@ -23,6 +23,8 @@ matplotlib.use('WXAgg')
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
 from matplotlib.figure import Figure
 from matplotlib import rcParams
+import fnmatch
+import re
 
 #GUI modules
 try:
@@ -36,11 +38,13 @@ except ImportError:
 try:
     from pyjmi.common.io import ResultDymolaTextual
     from pyjmi.common.io import ResultDymolaBinary
+    from pyjmi.common.io import ResultCSVTextual
     from pyjmi.common.io import JIOError
 except ImportError:
     try:
         from pyfmi.common.io import ResultDymolaTextual
         from pyfmi.common.io import ResultDymolaBinary
+        from pyfmi.common.io import ResultCSVTextual
         from pyfmi.common.io import JIOError
     except ImportError:
         print "JModelica Python package was not found."
@@ -57,6 +61,33 @@ ID_ZOOM    = 15006
 ID_RESIZE  = 15007
 ID_LINES   = 15008
 ID_CLEAR   = 15009
+
+def convert_filter(expression):
+    """
+    Convert a filter based on unix filename pattern matching to a
+    list of regular expressions.
+    """
+    regexp = []
+    if isinstance(expression,str):
+        regex = fnmatch.translate(expression)
+        regexp = [re.compile(regex)]
+    elif isinstance(expression,list):
+        for i in expression:
+            regex = fnmatch.translate(i)
+            regexp.append(re.compile(regex))
+    else:
+        raise Exception("Unknown input.")
+    return regexp
+    
+def match(name, filter_list):
+    found = False
+    for j in range(len(filter_list)):
+        if re.match(filter_list[j], name):
+            found = True
+            break
+    
+    return found
+    
 
 class MainGUI(wx.Frame):
     sizeHeightDefault=900
@@ -262,13 +293,19 @@ class MainGUI(wx.Frame):
                 if n.lower().endswith(".txt"): #Textual file
                     try:
                         self.ResultFiles.append((n,ResultDymolaTextual(O.path.join(dlg.GetDirectory(),n))))
-                    except JIOError:
+                    except (JIOError, IOError):
                         self.SetStatusText("Could not load "+n+".") #Change the statusbar
                         break
                 elif n.lower().endswith(".mat"): #Binary file
                     try:
                         self.ResultFiles.append((n,ResultDymolaBinary(O.path.join(dlg.GetDirectory(),n))))
-                    except TypeError:
+                    except (TypeError, IOError):
+                        self.SetStatusText("Could not load "+n+".") #Change the statusbar
+                        break
+                elif n.lower().endswith(".csv"): #Binary file
+                    try:
+                        self.ResultFiles.append((n,ResultCSVTextual(O.path.join(dlg.GetDirectory(),n))))
+                    except (TypeError, IOError):
                         self.SetStatusText("Could not load "+n+".") #Change the statusbar
                         break
                 else:
@@ -279,7 +316,8 @@ class MainGUI(wx.Frame):
                 
                 self.tree.AddTreeNode(self.ResultFiles[-1][1], self.ResultFiles[-1][0], 
                                             self.filterPanel.checkBoxTimeVarying.GetValue(),
-                                            self.filterPanel.checkBoxParametersConstants.GetValue())
+                                            self.filterPanel.checkBoxParametersConstants.GetValue(),
+                                            self.filterPanel.GetFilter())
                 
                 self.ResultIndex += 1 #Increment the index
                 
@@ -418,11 +456,11 @@ class MainGUI(wx.Frame):
         IDPlot = self.noteBook.GetSelection()
         
         if IDPlot != -1: #If there exist a plot window
-        
+            
+            data = self.tree.GetPyData(item)
+            
             #Store plot variables or "unstore"
             if self.tree.IsItemChecked(item): #Draw
-
-                data = self.tree.GetPyData(item)
                 
                 #Add to Plot panel
                 self.noteBook.GetPage(IDPlot).AddPlotVariable(ID,item,data)
@@ -430,7 +468,8 @@ class MainGUI(wx.Frame):
             else: #Undraw
             
                 #Remove from panel
-                self.noteBook.GetPage(IDPlot).DeletePlotVariable(item)
+                #self.noteBook.GetPage(IDPlot).DeletePlotVariable(item)
+                self.noteBook.GetPage(IDPlot).DeletePlotVariable(data["variable_id"])
                 
             self.noteBook.GetPage(IDPlot).Draw()
             
@@ -455,6 +494,7 @@ class MainGUI(wx.Frame):
             self.SetStatusText("Deleting Result...")
 
             ID = self.tree.FindIndexParent(self.tree.GetSelection())
+            data = self.tree.GetPyData(self.tree.GetSelection())
             IDPlot = self.noteBook.GetSelection()
 
             if ID >= 0: #If id is less then 0, no item is selected
@@ -464,7 +504,8 @@ class MainGUI(wx.Frame):
                 
                 #Redraw
                 for i in range(self.noteBook.GetPageCount()):
-                    self.noteBook.GetPage(i).DeletePlotVariable(ID=ID)
+                    #self.noteBook.GetPage(i).DeletePlotVariable(ID=ID)
+                    self.noteBook.GetPage(i).DeletePlotVariable(global_id=data["result_id"])
                     self.noteBook.GetPage(i).Draw()
 
             self.SetStatusText("")
@@ -538,13 +579,37 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         self.root = self.AddRoot("Result(s)")
         #Root have children
         self.SetItemHasChildren(self.root)
+        #Internal counter for all children
+        self.global_id = 0 #Global ID for each loaded results (unique for each results
+        self.local_id  = 0 #Local ID for each loaded variable (unique for each variable and results)
+        self.node_id   = 0 #Node ID for each node with childrens
         
-    def AddTreeNode(self, resultObject, name,timeVarying=None,parametersConstants=None):
-        child = self.AppendItem(self.root, name)
+        #List of hidden children
+        self.hidden_children = []
+        self.hidden_nodes    = {}
+        self.nodes           = {}
+        
+        #self.SetSpacing(2)
+        print "Spacing: ", self.GetSpacing()
+        
+        
+    def AddTreeNode(self, resultObject, name,timeVarying=None,parametersConstants=None,filter=None):
+        #Add a new dictionary for the nodes
+        self.nodes[self.global_id] = {}
+        
+        child = self.AppendItem(self.root, name, data={"result_id":self.global_id, "node_id": self.node_id})
         self.SetItemHasChildren(child,True)
         
+        #actual node, actual id, actual name, parent node, parent id, 
+        #{"node":child, "node_id":self.node_id, "name":name, "parent_node":self.root, "parent_node_id": -1}
+        self.nodes[self.global_id][self.node_id] = {"node":child, "node_id":self.node_id, "name":name, "parent_node":self.root, "parent_node_id": -1}
+        self.nodes[self.global_id][-1] = {"node":child, "node_id":self.node_id, "name":name, "parent_node":self.root, "parent_node_id": -2}
+        #self.nodes[self.global_id][self.node_id] = [child, -1, name] #Node together with parent and name
+        #self.nodes[self.global_id][-1] = [child, -1, name] #Node together with parent and name
+        self.node_id = self.node_id + 1 #Increment the nodes
+        
         rec = {"root":child}
-
+        
         for item in resultObject.name:
             spl = item.split(".")
             
@@ -553,12 +618,16 @@ class VariableTree(wxCustom.CustomTreeCtrl):
             data["timevarying"] = resultObject.is_variable(item)
             data["traj"] = resultObject.get_variable_data(item)
             data["name"] = item
+            data["full_name"] = item
+            data["result_id"] = self.global_id
+            data["variable_id"] = self.local_id = self.local_id + 1
 
             if len(spl)==1:
-                #if data["timevarying"]:
+                data["parents"] = child
+                data["child"]   = item
+                data["node_id"] = self.GetPyData(child)["node_id"]
                 self.AppendItem(child, item,ct_type=1, data=data)
-                #else:
-                #    self.AppendItem(child, item,ct_type=1, wnd=wx.TextCtrl(self, -1, str(data["traj"].x[0]),style = wx.TE_RIGHT | wx.TE_READONLY,size =(60,-1)), data=data) 
+                
             else:
                 for i in range(len(spl)-1):
                     
@@ -571,22 +640,36 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                     try:
                         rec["".join(spl[:i+1])]
                     except KeyError:
+                        local_data = {"result_id":self.global_id, "node_id":self.node_id}
                         if i==0:
-                            rec["".join(spl[:i+1])] = self.AppendItem(child, spl[i])
+                            rec["".join(spl[:i+1])] = self.AppendItem(child, spl[i], data=local_data)
+                            local_dict = {"node":rec["".join(spl[:i+1])], "node_id":self.node_id, "name":spl[i], "parent_node":child, "parent_node_id": -1}
+                            self.nodes[self.global_id][self.node_id] = local_dict
+                            #self.nodes[self.global_id][self.node_id] = [rec["".join(spl[:i+1])], -1, spl[i]] #Node together with parent
                         else:
-                            rec["".join(spl[:i+1])] = self.AppendItem(rec["".join(spl[:i])], spl[i])
+                            rec["".join(spl[:i+1])] = self.AppendItem(rec["".join(spl[:i])], spl[i], data=local_data)
+                            local_dict = {"node":rec["".join(spl[:i+1])], "node_id":self.node_id, "name":spl[i], "parent_node":rec["".join(spl[:i])], "parent_node_id": self.GetPyData(rec["".join(spl[:i])])["node_id"]}
+                            self.nodes[self.global_id][self.node_id] = local_dict
+                            #self.nodes[self.global_id][self.node_id] = [rec["".join(spl[:i+1])], self.GetPyData(rec["".join(spl[:i])])["node_id"], spl[i]] #Node together with parent
                         self.SetItemHasChildren(rec["".join(spl[:i+1])],True)
-                else:
-                    #if data["timevarying"]:
-                    self.AppendItem(rec["".join(spl[:-1])], spl[-1], ct_type=1, data=data)
-                    #else:
-                    #    self.AppendItem(rec["".join(spl[:-1])], spl[-1], ct_type=1, wnd=wx.TextCtrl(self, -1, str(data["traj"].x[0]),style = wx.TE_RIGHT | wx.TE_READONLY,size =(60,-1)), data=data)
                         
+                        self.node_id = self.node_id + 1 #Increment the nodes
+                else:
+                    data["parents"] = rec["".join(spl[:-1])]
+                    data["child"]   = spl[-1]
+                    data["node_id"] = self.GetPyData(rec["".join(spl[:-1])],)["node_id"]
+                    self.AppendItem(rec["".join(spl[:-1])], spl[-1], ct_type=1, data=data)
+                    
         self.SortChildren(child)
         
+        #Increment global id
+        self.global_id = self.global_id + 1
+        
+        print "Adding: ", name, "Options: ", timeVarying, parametersConstants, filter
+        
         #Hide nodes if options are choosen
-        if timeVarying == False or parametersConstants == False:
-            self.HideNodes(timeVarying,parametersConstants)
+        if timeVarying == False or parametersConstants == False or filter != None:
+            self.HideNodes(timeVarying,parametersConstants,filter)
         
     
     def FindLoneChildDown(self, child):
@@ -622,32 +705,186 @@ class VariableTree(wxCustom.CustomTreeCtrl):
             child = self.GetItemParent(child)
         return child
     
-    def HideNodes(self, hideTimeVarying=None, hideParametersConstants=None):
+    def HideNodes(self, showTimeVarying=None, showParametersConstants=None, filter=None):
         """
         Hide nodes depending on the input.
         
         Parameters::
         
-            hideTimeVarying - Hides or Shows the time varying variables.
+            showTimeVarying - Hides or Shows the time varying variables.
             
-            hideParametersConstants - Hides or Show the parameters.
+            showParametersConstants - Hides or Show the parameters.
         """
+        itemParent = self.GetRootItem()
+        child,cookie = self.GetFirstChild(itemParent)
+        found_child = child
         
+        top_siblings = self.FindTopSiblings()
+        
+        #Hide items if any of the options are True
+        if showTimeVarying == False or showParametersConstants == False or filter != None:
+            while child != itemParent and child != None:
+                already_hidden = False
+                
+                #Find the first youngest child
+                found_child = self.FindLoneChildDown(child)
+                
+                #Find the first sibling up
+                child = self.FindFirstSiblingUp(found_child, itemParent)
+                data  = self.GetPyData(found_child)
+                
+                if found_child in top_siblings:
+                    print "Found child in top siblings, ", self.GetItemText(found_child)
+                    continue
+                
+                #print "Found child:", self.GetItemText(found_child)
+                #print "Child: ", self.GetItemText(child), self.GetPyData(child), "Has Children: ", self.HasChildren(child)
+                
+                if data == None:
+                    print "Found (wrong) child:", self.GetItemText(found_child)
+                    raise Exception
+                
+                try:
+                    data["timevarying"]
+                except KeyError:
+                    print "Found (wrong (exception)) child:", self.GetItemText(found_child)
+                    raise Exception
+                
+                #Enable or disable depending on input to method
+                if showTimeVarying == False and data["timevarying"]:
+                    self.HideItem(found_child, showTimeVarying)
+                    
+                    #Delete the parent if it has no children
+                    self.HideNodeItem(found_child)
+                    
+                    already_hidden = True
+                    
+                if showParametersConstants == False and not data["timevarying"]:
+                    self.HideItem(found_child, showParametersConstants)
+                    
+                    #Delete the parent if it has no children
+                    self.HideNodeItem(found_child)
+                    
+                    already_hidden = True
+                
+                if filter != None and not match(data["full_name"], filter) and not already_hidden:
+                    self.HideItem(found_child, show=False)
+                    
+                    #Delete the parent if it has no children
+                    self.HideNodeItem(found_child)
+        
+        #Re-add items if any of the options are True
+        if showTimeVarying == True or showParametersConstants == True or filter != None:
+            self.AddHiddenItems(showTimeVarying, showParametersConstants, filter)
+    
+    def FindTopSiblings(self):
+        """
+        Finds all the siblings one level down from root.
+        """
         itemParent = self.GetRootItem()
         child,cookie = self.GetFirstChild(itemParent)
         
-        while child != itemParent and child !=None:
-            #Find the first youngest child
-            child = self.FindLoneChildDown(child)
+        siblings = []
+        while child != None:
+            siblings.append(child)
+            child = self.GetNextSibling(child)
             
-            #Enable or disable depending on input to method
-            if hideTimeVarying != None and self.GetPyData(child)["timevarying"]:
-                self.EnableItem(child,hideTimeVarying)
-            if hideParametersConstants != None and not self.GetPyData(child)["timevarying"]:
-                self.EnableItem(child,hideParametersConstants)
+        return siblings
+    
+    def AddHiddenItems(self, showTimeVarying=None, showParametersConstants=None, filter=None):
+
+        #print "Adding hidden items: ", showTimeVarying, showParametersConstants, filter
+        
+        i = 0
+        while i < len(self.hidden_children):
+            data = self.hidden_children[i]
+            matching = False
             
-            #Find the first sibling up
-            child = self.FindFirstSiblingUp(child, itemParent)
+            #Do not add any items!
+            if data["timevarying"] and showTimeVarying == False or not data["timevarying"] and showParametersConstants == False:
+                i = i+1
+                continue
+            
+            if filter != None:
+                matching = match(data["full_name"], filter)
+            
+            if     data["timevarying"] and showTimeVarying == True and (filter == None or filter != None and matching == True) or \
+               not data["timevarying"] and showParametersConstants == True and (filter == None or filter != None and matching == True):
+               #or filter != None and match(data["full_name"], filter):
+                
+                if self.nodes[data["result_id"]][data["node_id"]]["node"] == None:
+                    self.AddHiddenNodes(data)
+                
+                #print "Adding: ", data
+                #print "At node: ", self.nodes[data["result_id"]][data["node_id"]]
+                item = self.AppendItem(self.nodes[data["result_id"]][data["node_id"]]["node"], data["child"],ct_type=1, data=data)
+                if item == None:
+                    raise Exception("Something went wrong when adding the variable.")
+                
+                self.hidden_children.pop(i)
+                i = i-1
+            i = i+1
+    
+    def AddHiddenNodes(self, data):
+        
+        node = self.nodes[data["result_id"]][data["node_id"]]
+        nodes_to_be_added = [node]
+        
+        while node["node"] == None and node["parent_node_id"] != -1:
+            node = self.nodes[data["result_id"]][node["parent_node_id"]]
+            
+            if node["node"] != None:
+                break
+            
+            nodes_to_be_added.append(node)
+        
+        #print "Nodes to be added: ", nodes_to_be_added
+        
+        for i in range(len(nodes_to_be_added)):
+            node = nodes_to_be_added[-(i+1)]
+            
+            #print "Adding node: ", node, " at ", self.nodes[data["result_id"]][node["parent_node_id"]], " or ", self.nodes[data["result_id"]][-1], data
+            local_data = {"result_id":data["result_id"], "node_id":node["node_id"]}
+            """
+            if node["parent_node_id"] == -1:
+                item = self.AppendItem(self.nodes[data["result_id"]][-1], node["name"], data=local_data)
+            else:
+                item = self.AppendItem(node["parent_node_id"], node["name"], data=local_data)
+            """
+            item = self.AppendItem(self.nodes[data["result_id"]][node["parent_node_id"]]["node"], node["name"], data=local_data)
+            #item = self.AppendItem(node["parent_node"], node["name"], data=local_data)
+            self.SetItemHasChildren(item, True)
+            
+            self.nodes[data["result_id"]][node["node_id"]]["node"] = item
+            
+            #print "Node info after adding: ", self.nodes[data["result_id"]][node["node_id"]]
+            
+                    
+    def HideNodeItem(self, item):
+        """
+        Deletes the parents that does not have any children
+        """
+        parent = self.GetItemParent(item)
+        top_siblings = self.FindTopSiblings()
+        
+        while self.HasChildren(parent) == False and parent not in top_siblings:
+            old_parent = self.GetItemParent(parent)
+            
+            #Add the deleted nodes to the hidden list so that we can recreate the list
+            #self.hidden_nodes.append(self.GetPyData(parent))
+            #self.hidden_nodes[self.GetPyData(parent)["node_id"]] = [self.GetPyData(parent), old_parent]
+            #self.nodes[self.GetPyData(parent)["result_id"]][self.GetPyData(parent)["node_id"]][0] = None
+            self.nodes[self.GetPyData(parent)["result_id"]][self.GetPyData(parent)["node_id"]]["node"] = None
+            
+            self.Delete(parent)
+            parent = old_parent
+    
+    def HideItem(self, item, show):
+        data = self.GetPyData(item)
+        
+        if not show:
+            self.hidden_children.append(data)
+            self.Delete(item)
     
     def DeleteParent(self, item):
         """
@@ -662,7 +899,19 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         while parentItem != self.GetRootItem():
             item = parentItem
             parentItem = self.GetItemParent(item)
-
+        
+        #Remove also the hidden items contained in the hidden children list
+        data = self.GetPyData(item)
+        i = 0
+        while i < len(self.hidden_children):
+            if self.hidden_children[i]["result_id"] == data["result_id"]:
+                self.hidden_children.pop(i)
+                i = i-1
+            i = i+1
+            
+        #Delete hidden nodes
+        self.nodes.pop(data["result_id"])
+        
         self.Delete(item) #Delete the parent from the Tree
         
     def FindIndexParent(self, item):
@@ -972,11 +1221,15 @@ class FilterPanel(wx.Panel):
         topSizer = wx.StaticBoxSizer(topBox, wx.VERTICAL)
         
         
-        flexGrid = wx.FlexGridSizer(2, 1, 10, 10)
+        flexGrid = wx.FlexGridSizer(2, 1, 0, 10)
         
         #Create the checkboxes
         self.checkBoxParametersConstants = wx.CheckBox(self, -1, " Parameters / Constants")#, size=(140, -1))
         self.checkBoxTimeVarying = wx.CheckBox(self, -1, " Time-Varying", size=(140, -1))
+        self.searchBox = wx.SearchCtrl(self, -1, "Search", size=(190, -1), style=wx.TE_PROCESS_ENTER)
+        self.searchBox.SetToolTipString("Filter the variables using a unix filename pattern matching \n" \
+                                         '(eg. "*der*"). Can also be a list of filters separated by ";"\n' \
+                                         "See http://docs.python.org/2/library/fnmatch.html.")
         
         #Check the checkboxes
         self.checkBoxParametersConstants.SetValue(True)
@@ -985,6 +1238,7 @@ class FilterPanel(wx.Panel):
         #Add the checkboxes to the flexgrid
         flexGrid.Add(self.checkBoxParametersConstants)
         flexGrid.Add(self.checkBoxTimeVarying)
+        flexGrid.Add(self.searchBox)
 
         flexGrid.AddGrowableCol(0)
         
@@ -998,12 +1252,24 @@ class FilterPanel(wx.Panel):
         #Bind events
         self.Bind(wx.EVT_CHECKBOX, self.OnParametersConstants, self.checkBoxParametersConstants)
         self.Bind(wx.EVT_CHECKBOX, self.OnTimeVarying, self.checkBoxTimeVarying)
+        self.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self.OnSearch, self.searchBox)
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnSearch, self.searchBox)
+    
+    def GetFilter(self):
+        filter = self.searchBox.GetValue().split(";")
+        if filter[0] == "": #If the filter is empty, match all
+            filter = ["*"]
+        filter_list = convert_filter(filter)
+        return filter_list
+    
+    def OnSearch(self, event):
+        self.tree.HideNodes(showTimeVarying=self.checkBoxTimeVarying.GetValue(), showParametersConstants=self.checkBoxParametersConstants.GetValue(), filter=self.GetFilter())
         
     def OnParametersConstants(self, event):
-        self.tree.HideNodes(hideParametersConstants=self.checkBoxParametersConstants.GetValue())
+        self.tree.HideNodes(showTimeVarying=self.checkBoxTimeVarying.GetValue(), showParametersConstants=self.checkBoxParametersConstants.GetValue(), filter=self.GetFilter())
         
     def OnTimeVarying(self, event):
-        self.tree.HideNodes(hideTimeVarying=self.checkBoxTimeVarying.GetValue())
+        self.tree.HideNodes(showTimeVarying=self.checkBoxTimeVarying.GetValue(), showParametersConstants=self.checkBoxParametersConstants.GetValue(), filter=self.GetFilter())
 
 class Lines_Settings:
     def __init__(self, name=None):
@@ -1076,7 +1342,26 @@ class PlotPanel(wx.Panel):
         
     def DeleteAllPlotVariables(self):
         self.plotVariables = []
+    
+    def DeletePlotVariable(self, local_id=None, global_id=None):
         
+        if local_id != None:
+            for i,var in enumerate(self.plotVariables):
+                if var[2]["variable_id"] == local_id:
+                    self.plotVariables.pop(i)
+                    break
+                    
+        if global_id != None:
+            j = 0
+            while j < len(self.plotVariables):
+                if self.plotVariables[j][2]["result_id"] == global_id:
+                    self.plotVariables.pop(j)
+                    j = j-1
+                j = j+1
+                
+                if j==len(self.plotVariables):
+                    break
+    """
     def DeletePlotVariable(self, item=None, ID=None):
         
         if item != None:
@@ -1097,7 +1382,7 @@ class PlotPanel(wx.Panel):
                     
                 if j==len(self.plotVariables):
                     break
-    
+    """
     def OnPass(self, event):
         pass
     
