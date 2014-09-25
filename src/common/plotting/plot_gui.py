@@ -36,16 +36,16 @@ except ImportError:
 
 #JModelica related imports
 try:
-    from pyjmi.common.io import ResultDymolaTextual
-    from pyjmi.common.io import ResultDymolaBinary
-    from pyjmi.common.io import ResultCSVTextual
-    from pyjmi.common.io import JIOError
+    from pyfmi.common.io import ResultDymolaTextual
+    from pyfmi.common.io import ResultDymolaBinary
+    from pyfmi.common.io import ResultCSVTextual
+    from pyfmi.common.io import JIOError
 except ImportError:
     try:
-        from pyfmi.common.io import ResultDymolaTextual
-        from pyfmi.common.io import ResultDymolaBinary
-        from pyfmi.common.io import ResultCSVTextual
-        from pyfmi.common.io import JIOError
+        from pyjmi.common.io import ResultDymolaTextual
+        from pyjmi.common.io import ResultDymolaBinary
+        from pyjmi.common.io import ResultCSVTextual
+        from pyjmi.common.io import JIOError
     except ImportError:
         print "JModelica Python package was not found."
 
@@ -452,7 +452,8 @@ class MainGUI(wx.Frame):
         
         item = event.GetItem()
         
-        ID = self.tree.FindIndexParent(item)
+        #ID = self.tree.FindIndexParent(item)
+        ID = -1 #Not used
         IDPlot = self.noteBook.GetSelection()
         
         if IDPlot != -1: #If there exist a plot window
@@ -589,13 +590,34 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         self.hidden_nodes    = {}
         self.nodes           = {}
         
-        #self.SetSpacing(2)
-        print "Spacing: ", self.GetSpacing()
+        #Internal flags
+        self._update_top_siblings = True
         
-        
+    
+    def RefreshSelectedUnder(self, item):
+        """
+        Refreshes the selected items under the given item.
+
+        :param `item`: an instance of L{GenericTreeItem}.
+        """
+        if self._freezeCount:
+            return
+
+        if item.IsSelected():
+            self.RefreshLine(item)
+
+        children = item.GetChildren()
+        for child in children:
+            if child.IsSelected():
+                self.RefreshLine(child)
+    
     def AddTreeNode(self, resultObject, name,timeVarying=None,parametersConstants=None,filter=None):
+        #Freeze the window temporarely
+        self.Freeze()
+        
         #Add a new dictionary for the nodes
         self.nodes[self.global_id] = {}
+        self._update_top_siblings = True
         
         child = self.AppendItem(self.root, name, data={"result_id":self.global_id, "node_id": self.node_id})
         self.SetItemHasChildren(child,True)
@@ -615,12 +637,14 @@ class VariableTree(wxCustom.CustomTreeCtrl):
             
             #Python object for storing data related to the variable
             data={}
-            data["timevarying"] = resultObject.is_variable(item)
-            data["traj"] = resultObject.get_variable_data(item)
+            data["timevarying"] = None #resultObject.is_variable(item)
+            #data["traj"] = resultObject.get_variable_data(item)
+            data["traj"] = resultObject
             data["name"] = item
             data["full_name"] = item
             data["result_id"] = self.global_id
             data["variable_id"] = self.local_id = self.local_id + 1
+            data["result_object"] = resultObject
 
             if len(spl)==1:
                 data["parents"] = child
@@ -629,13 +653,12 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                 self.AppendItem(child, item,ct_type=1, data=data)
                 
             else:
+                #Handle variables of type der(---.---.x)
+                if spl[0].startswith("der(") and spl[-1].endswith(")"):
+                    spl[0]=spl[0][4:]
+                    spl[-1] = "der("+spl[-1]
+                        
                 for i in range(len(spl)-1):
-                    
-                    #Handle variables of type der(---.---.x)
-                    if spl[0].startswith("der(") and spl[-1].endswith(")"):
-                        spl[0]=spl[0][4:]
-                        spl[-1] = "der("+spl[-1]
-                    
                     #See if the sub directory already been added, else add
                     try:
                         rec["".join(spl[:i+1])]
@@ -645,12 +668,10 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                             rec["".join(spl[:i+1])] = self.AppendItem(child, spl[i], data=local_data)
                             local_dict = {"node":rec["".join(spl[:i+1])], "node_id":self.node_id, "name":spl[i], "parent_node":child, "parent_node_id": -1}
                             self.nodes[self.global_id][self.node_id] = local_dict
-                            #self.nodes[self.global_id][self.node_id] = [rec["".join(spl[:i+1])], -1, spl[i]] #Node together with parent
                         else:
                             rec["".join(spl[:i+1])] = self.AppendItem(rec["".join(spl[:i])], spl[i], data=local_data)
                             local_dict = {"node":rec["".join(spl[:i+1])], "node_id":self.node_id, "name":spl[i], "parent_node":rec["".join(spl[:i])], "parent_node_id": self.GetPyData(rec["".join(spl[:i])])["node_id"]}
                             self.nodes[self.global_id][self.node_id] = local_dict
-                            #self.nodes[self.global_id][self.node_id] = [rec["".join(spl[:i+1])], self.GetPyData(rec["".join(spl[:i])])["node_id"], spl[i]] #Node together with parent
                         self.SetItemHasChildren(rec["".join(spl[:i+1])],True)
                         
                         self.node_id = self.node_id + 1 #Increment the nodes
@@ -666,11 +687,14 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         self.global_id = self.global_id + 1
         
         print "Adding: ", name, "Options: ", timeVarying, parametersConstants, filter
+        print "Condition: ", timeVarying == False or parametersConstants == False or filter != None
         
         #Hide nodes if options are choosen
         if timeVarying == False or parametersConstants == False or filter != None:
             self.HideNodes(timeVarying,parametersConstants,filter)
         
+        #Un-Freeze the window
+        self.Thaw()
     
     def FindLoneChildDown(self, child):
         """
@@ -749,6 +773,9 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                 except KeyError:
                     print "Found (wrong (exception)) child:", self.GetItemText(found_child)
                     raise Exception
+                    
+                if data["timevarying"] == None:
+                    data["timevarying"] = data["result_object"].is_variable(data["full_name"])
                 
                 #Enable or disable depending on input to method
                 if showTimeVarying == False and data["timevarying"]:
@@ -767,7 +794,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                     
                     already_hidden = True
                 
-                if filter != None and not match(data["full_name"], filter) and not already_hidden:
+                if not already_hidden and filter != None and not match(data["full_name"], filter):
                     self.HideItem(found_child, show=False)
                     
                     #Delete the parent if it has no children
@@ -781,13 +808,18 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         """
         Finds all the siblings one level down from root.
         """
-        itemParent = self.GetRootItem()
-        child,cookie = self.GetFirstChild(itemParent)
-        
-        siblings = []
-        while child != None:
-            siblings.append(child)
-            child = self.GetNextSibling(child)
+        if self._update_top_siblings:
+            itemParent = self.GetRootItem()
+            child,cookie = self.GetFirstChild(itemParent)
+            
+            siblings = []
+            while child != None:
+                siblings.append(child)
+                child = self.GetNextSibling(child)
+            self._top_siblings = siblings
+        else:
+            siblings = self._top_siblings
+        self._update_top_siblings = False
             
         return siblings
     
@@ -1214,6 +1246,7 @@ class FilterPanel(wx.Panel):
         #Store the parent
         self.parent = parent
         self.tree = tree
+        self.active_filter = False
         
         mainSizer = wx.BoxSizer(wx.VERTICAL)
         
@@ -1256,14 +1289,21 @@ class FilterPanel(wx.Panel):
         self.Bind(wx.EVT_TEXT_ENTER, self.OnSearch, self.searchBox)
     
     def GetFilter(self):
-        filter = self.searchBox.GetValue().split(";")
-        if filter[0] == "": #If the filter is empty, match all
-            filter = ["*"]
-        filter_list = convert_filter(filter)
+        if self.active_filter == True:
+            filter = self.searchBox.GetValue().split(";")
+            if filter[0] == "": #If the filter is empty, match all
+                filter = ["*"]
+            filter_list = convert_filter(filter)
+        else:
+            filter_list = None
         return filter_list
     
     def OnSearch(self, event):
+        self.active_filter = True
         self.tree.HideNodes(showTimeVarying=self.checkBoxTimeVarying.GetValue(), showParametersConstants=self.checkBoxParametersConstants.GetValue(), filter=self.GetFilter())
+        
+        if self.searchBox.GetValue() == "":
+            self.active_filter = False
         
     def OnParametersConstants(self, event):
         self.tree.HideNodes(showTimeVarying=self.checkBoxTimeVarying.GetValue(), showParametersConstants=self.checkBoxParametersConstants.GetValue(), filter=self.GetFilter())
@@ -1561,10 +1601,13 @@ class PlotPanel(wx.Panel):
         self.subplot.hold(True)
 
         for i in self.plotVariables:
+            traj = i[2]["traj"].get_variable_data(i[2]["full_name"])
             if i[3].color is None:
-                self.subplot.plot(i[2]["traj"].t, i[2]["traj"].x,label=i[3].name,linewidth=i[3].width,marker=i[3].marker,linestyle=i[3].style,markersize=i[3].markersize)
+                #self.subplot.plot(i[2]["traj"].t, i[2]["traj"].x,label=i[3].name,linewidth=i[3].width,marker=i[3].marker,linestyle=i[3].style,markersize=i[3].markersize)
+                self.subplot.plot(traj.t, traj.x,label=i[3].name,linewidth=i[3].width,marker=i[3].marker,linestyle=i[3].style,markersize=i[3].markersize)
             else:
-                self.subplot.plot(i[2]["traj"].t, i[2]["traj"].x,label=i[3].name,linewidth=i[3].width,marker=i[3].marker,linestyle=i[3].style,markersize=i[3].markersize,color=i[3].color)
+                #self.subplot.plot(i[2]["traj"].t, i[2]["traj"].x,label=i[3].name,linewidth=i[3].width,marker=i[3].marker,linestyle=i[3].style,markersize=i[3].markersize,color=i[3].color)
+                self.subplot.plot(traj.t, traj.x,label=i[3].name,linewidth=i[3].width,marker=i[3].marker,linestyle=i[3].style,markersize=i[3].markersize,color=i[3].color)
                 
         self.DrawSettings()
         
