@@ -1099,13 +1099,25 @@ class ResultDymolaBinary(ResultDymola):
                 'u',
                 name[:,i].tolist()).tounicode().rstrip().replace(" ","") \
                 for i in range(0,name[0,:].size)]
-        description = self.raw['description']
         self.name_lookup = {key:ind for ind,key in enumerate(self.name)}
-        self.description = [
+
+        self._loaded_description = False
+                
+    def _get_description(self):
+        if self._loaded_description == False:
+            description = self.raw['description']
+            self._description = [
             array.array(
                 'u',
                 description[:,i].tolist()).tounicode().rstrip() \
                 for i in range(0,description[0,:].size)]
+            self._loaded_description = True
+        return self._description
+
+    description = property(_get_description, doc = 
+    """
+    Property for accessing the description vector.
+    """)
        
     def get_variable_data(self,name):
         """
