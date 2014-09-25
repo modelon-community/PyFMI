@@ -126,16 +126,20 @@ class ResultDymola:
         name = name.replace(" ", "")
         
         try:
-            return self.name.index(name)
-        except ValueError as ex:
+            #return self.name.index(name)
+            return self.name_lookup[name]
+        except KeyError as ex:
+        #except ValueError as ex:
             #Variable was not found so check if it was a derivative variable
             #and check if there exists a variable with another naming
             #convention
             if self._check_if_derivative_variable(name):
                 try:
                     #First do a simple search for the other naming convention
-                    return self.name.index(self._convert_dx_name(name))
-                except ValueError as ex:
+                    #return self.name.index(self._convert_dx_name(name))
+                    return self.name_lookup[self._convert_dx_name(name)]
+                #except ValueError as ex:
+                except KeyError as ex:
                     return self._exhaustive_search_for_derivatives(name)
             else:
                 raise VariableNotFoundError("Cannot find variable " +
@@ -173,11 +177,15 @@ class ResultDymola:
             der_trial_name = self._create_derivative_from_state(trial_name)
             
             try:
-                return self.name.index(der_trial_name)
-            except ValueError as ex:
+                #return self.name.index(der_trial_name)
+                return self.name_lookup[der_trial_name]
+            #except ValueError as ex:
+            except KeyError as ex:
                 try:
-                    return self.name.index(self._convert_dx_name(der_trial_name))
-                except ValueError as ex:
+                    #return self.name.index(self._convert_dx_name(der_trial_name))
+                    return self.name_lookup[self._convert_dx_name(der_trial_name)]
+                except KeyError as ex:
+                #except ValueError as ex:
                     pass
         else:
             raise VariableNotFoundError("Cannot find variable " +
@@ -846,6 +854,7 @@ class ResultDymolaTextual(ResultDymola):
         #for i in range(0,nLines):
         #    name.append(fid.readline().strip().replace(" ",""))
         self.name = name
+        self.name_lookup = {key:ind for ind,key in enumerate(self.name)}
      
         # Read description section  
         nLines = self._find_phrase(fid, 'char description') 
@@ -1091,6 +1100,7 @@ class ResultDymolaBinary(ResultDymola):
                 name[:,i].tolist()).tounicode().rstrip().replace(" ","") \
                 for i in range(0,name[0,:].size)]
         description = self.raw['description']
+        self.name_lookup = {key:ind for ind,key in enumerate(self.name)}
         self.description = [
             array.array(
                 'u',
