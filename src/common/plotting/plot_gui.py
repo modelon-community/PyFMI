@@ -622,12 +622,8 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         child = self.AppendItem(self.root, name, data={"result_id":self.global_id, "node_id": self.node_id})
         self.SetItemHasChildren(child,True)
         
-        #actual node, actual id, actual name, parent node, parent id, 
-        #{"node":child, "node_id":self.node_id, "name":name, "parent_node":self.root, "parent_node_id": -1}
         self.nodes[self.global_id][self.node_id] = {"node":child, "node_id":self.node_id, "name":name, "parent_node":self.root, "parent_node_id": -1}
         self.nodes[self.global_id][-1] = {"node":child, "node_id":self.node_id, "name":name, "parent_node":self.root, "parent_node_id": -2}
-        #self.nodes[self.global_id][self.node_id] = [child, -1, name] #Node together with parent and name
-        #self.nodes[self.global_id][-1] = [child, -1, name] #Node together with parent and name
         self.node_id = self.node_id + 1 #Increment the nodes
         
         rec = {"root":child}
@@ -657,37 +653,41 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                 if spl[0].startswith("der(") and spl[-1].endswith(")"):
                     spl[0]=spl[0][4:]
                     spl[-1] = "der("+spl[-1]
-                        
+                
+                tmp_str = ""
+                tmp_str_old = ""      
                 for i in range(len(spl)-1):
                     #See if the sub directory already been added, else add
+                    tmp_str_old = tmp_str
+                    tmp_str += spl[i]
                     try:
-                        rec["".join(spl[:i+1])]
+                        rec[tmp_str]
                     except KeyError:
                         local_data = {"result_id":self.global_id, "node_id":self.node_id}
                         if i==0:
-                            rec["".join(spl[:i+1])] = self.AppendItem(child, spl[i], data=local_data)
-                            local_dict = {"node":rec["".join(spl[:i+1])], "node_id":self.node_id, "name":spl[i], "parent_node":child, "parent_node_id": -1}
+                            rec[tmp_str] = self.AppendItem(child, spl[i], data=local_data)
+                            local_dict = {"node":rec[tmp_str], "node_id":self.node_id, "name":spl[i], "parent_node":child, "parent_node_id": -1}
                             self.nodes[self.global_id][self.node_id] = local_dict
                         else:
-                            rec["".join(spl[:i+1])] = self.AppendItem(rec["".join(spl[:i])], spl[i], data=local_data)
-                            local_dict = {"node":rec["".join(spl[:i+1])], "node_id":self.node_id, "name":spl[i], "parent_node":rec["".join(spl[:i])], "parent_node_id": self.GetPyData(rec["".join(spl[:i])])["node_id"]}
+                            rec[tmp_str] = self.AppendItem(rec[tmp_str_old], spl[i], data=local_data)
+                            local_dict = {"node":rec[tmp_str], "node_id":self.node_id, "name":spl[i], "parent_node":rec[tmp_str_old], "parent_node_id": self.GetPyData(rec[tmp_str_old])["node_id"]}
                             self.nodes[self.global_id][self.node_id] = local_dict
-                        self.SetItemHasChildren(rec["".join(spl[:i+1])],True)
+                        self.SetItemHasChildren(rec[tmp_str],True)
                         
                         self.node_id = self.node_id + 1 #Increment the nodes
                 else:
-                    data["parents"] = rec["".join(spl[:-1])]
+                    data["parents"] = rec[tmp_str]
                     data["child"]   = spl[-1]
-                    data["node_id"] = self.GetPyData(rec["".join(spl[:-1])],)["node_id"]
-                    self.AppendItem(rec["".join(spl[:-1])], spl[-1], ct_type=1, data=data)
+                    data["node_id"] = self.GetPyData(rec[tmp_str],)["node_id"]
+                    self.AppendItem(rec[tmp_str], spl[-1], ct_type=1, data=data)
                     
         self.SortChildren(child)
         
         #Increment global id
         self.global_id = self.global_id + 1
         
-        print "Adding: ", name, "Options: ", timeVarying, parametersConstants, filter
-        print "Condition: ", timeVarying == False or parametersConstants == False or filter != None
+        #print "Adding: ", name, "Options: ", timeVarying, parametersConstants, filter
+        #print "Condition: ", timeVarying == False or parametersConstants == False or filter != None
         
         #Hide nodes if options are choosen
         if timeVarying == False or parametersConstants == False or filter != None:
