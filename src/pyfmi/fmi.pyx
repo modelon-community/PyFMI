@@ -658,7 +658,7 @@ cdef class FMUModelBase(ModelBase):
 
     cpdef _internal_set_fmu_null(self):
         """
-        This methods is ONLY for testing puposes. It sets the internal
+        This methods is ONLY for testing purposes. It sets the internal
         fmu state to NULL
         """
         self._fmu = NULL
@@ -1071,8 +1071,8 @@ cdef class FMUModelBase(ModelBase):
             
     def set_log_level(self, FMIL.jm_log_level_enu_t level):
         """
-        Specifices the log level for PyFMI. Note that this is
-        different from the FMU logging which is specificed via
+        Specifies the log level for PyFMI. Note that this is
+        different from the FMU logging which is specified via
         set_debug_logging.
 
         Parameters::
@@ -2150,7 +2150,7 @@ cdef class FMUModelCS1(FMUModelBase):
 
     def simulate_options(self, algorithm='FMICSAlg'):
         """
-        Get an instance of the simulate options class, prefilled with default
+        Get an instance of the simulate options class, filled with default
         values. If called without argument then the options class for the
         default simulation algorithm will be returned.
 
@@ -2193,7 +2193,7 @@ cdef class FMUModelCS1(FMUModelBase):
 
     def reset(self):
         """
-        This metod resets the FMU according to the reset method defined
+        This method resets the FMU according to the reset method defined
         in the FMI1 specification.
         """
 
@@ -2249,7 +2249,7 @@ cdef class FMUModelCS1(FMUModelBase):
 
     def get_capability_flags(self):
         """
-        Returns a dictionary with the cability flags of the FMU.
+        Returns a dictionary with the capability flags of the FMU.
 
         Capabilities::
 
@@ -2315,8 +2315,8 @@ cdef class FMUModelME1(FMUModelBase):
     def reset(self):
         """
         This metod resets the FMU by first calling fmiTerminate and
-        fmiFreeModelInstance and then reloades the DLL and finally
-        reinstantiates using fmiInstantiateModel.
+        fmiFreeModelInstance and then reloads the DLL and finally
+        re-instantiates using fmiInstantiateModel.
         """
         if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate(self._fmu)
@@ -2691,10 +2691,10 @@ cdef class FMUModelME1(FMUModelBase):
         if status > 1:
             if self._enable_logging:
                 raise FMUException(
-                    'Initialize returned with a error.' \
+                    'Initialize returned with an error.' \
                     ' Check the log for information (FMUModel.get_log).')
             else:
-                raise FMUException('Initialize returned with a error.' \
+                raise FMUException('Initialize returned with an error.' \
                     ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
 
         self._allocated_fmu = 1
@@ -2817,7 +2817,7 @@ cdef class FMUModelME1(FMUModelBase):
 
     def simulate_options(self, algorithm='AssimuloFMIAlg'):
         """
-        Get an instance of the simulate options class, prefilled with default
+        Get an instance of the simulate options class, filled with default
         values. If called without argument then the options class for the
         default simulation algorithm will be returned.
 
@@ -3442,7 +3442,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         Calls the underlying FMU method for creating an experiment.
         
-        Parameterers::
+        Parameters::
         
             tolerance_defined --
             tolerance --
@@ -3473,7 +3473,7 @@ cdef class FMUModelBase2(ModelBase):
     
     def reset(self):
         """
-        Resets the FMU back to its origianl state. Note that the environment 
+        Resets the FMU back to its original state. Note that the environment 
         has to initialize the FMU again after this function-call.
         """
         cdef int status
@@ -3515,10 +3515,10 @@ cdef class FMUModelBase2(ModelBase):
         if status > 1:
             if self._enable_logging:
                 raise FMUException(
-                    'Enter Initialize returned with a error.' \
+                    'Enter Initialize returned with an error.' \
                     ' Check the log for information (FMUModel.get_log).')
             else:
-                raise FMUException('Enter Initialize returned with a error.' \
+                raise FMUException('Enter Initialize returned with an error.' \
                     ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
                     
         status = FMIL.fmi2_import_exit_initialization_mode(self._fmu)
@@ -3535,10 +3535,10 @@ cdef class FMUModelBase2(ModelBase):
         if status > 1:
             if self._enable_logging:
                 raise FMUException(
-                    'Exit Initialize returned with a error.' \
+                    'Exit Initialize returned with an error.' \
                     ' Check the log for information (FMUModel.get_log).')
             else:
-                raise FMUException('Exit Initialize returned with a error.' \
+                raise FMUException('Exit Initialize returned with an error.' \
                     ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
                     
 
@@ -3547,8 +3547,8 @@ cdef class FMUModelBase2(ModelBase):
 
     def set_fmil_log_level(self, level):
         """
-        Specifices the log level for FMI Library. Note that this is
-        different from the FMU logging which is specificed via
+        Specifies the log level for FMI Library. Note that this is
+        different from the FMU logging which is specified via
         set_debug_logging.
 
         Parameters::
@@ -3627,7 +3627,7 @@ cdef class FMUModelBase2(ModelBase):
 
         Returns::
             A list with two objects. The first is the number of log categories
-            and the second is a list with the categories avalible for logging.
+            and the second is a list with the categories available for logging.
         """
         cdef FMIL.size_t i
 
@@ -3752,7 +3752,7 @@ cdef class FMUModelBase2(ModelBase):
         Returns::
 
             A dict consisting of the alias variables along with no alias variable.
-            The values indicates wheter or not the variable should be negated or not.
+            The values indicates whether or not the variable should be negated or not.
 
         Raises::
 
@@ -4402,7 +4402,7 @@ cdef class FMUModelBase2(ModelBase):
 
     cpdef serialize_fmu_state(self, state):
         """
-        Serialize the data referenced by the input argumemt.
+        Serialize the data referenced by the input argument.
 
         Parameters::
 
@@ -4442,7 +4442,7 @@ cdef class FMUModelBase2(ModelBase):
 
     cpdef deserialize_fmu_state(self, serialized_fmu):
         """
-        Deserialize the provided byte-vector and returns the corresponding FMU-state.
+        De-serialize the provided byte-vector and returns the corresponding FMU-state.
 
         Parameters::
 
@@ -4623,11 +4623,11 @@ cdef class FMUModelBase2(ModelBase):
     
     def get_derivatives_list(self):
         """
-        Returns a dictonary with the states derivatives.
+        Returns a dictionary with the states derivatives.
 
         Returns::
 
-            An ordered dictonary with the derivative variables.
+            An ordered dictionary with the derivative variables.
         """
         cdef FMIL.fmi2_import_variable_list_t*   variable_list
 
@@ -4644,11 +4644,11 @@ cdef class FMUModelBase2(ModelBase):
 
     def get_states_list(self):
         """
-        Returns a dictonary with the states.
+        Returns a dictionary with the states.
 
         Returns::
 
-            An ordered dictonary with the state variables.
+            An ordered dictionary with the state variables.
         """
         cdef FMIL.fmi2_import_variable_list_t*   variable_list
         cdef FMIL.size_t             variable_list_size
@@ -4677,11 +4677,11 @@ cdef class FMUModelBase2(ModelBase):
 
     def get_input_list(self):
         """
-        Returns a dictonary with input variables
+        Returns a dictionary with input variables
 
         Returns::
 
-            An ordered dictonary with the (real) (continuous) input variables.
+            An ordered dictionary with the (real) (continuous) input variables.
         """
         variable_dict = self.get_model_variables(type=FMI2_REAL, include_alias = False,
                              causality = FMI2_INPUT,   variability = FMI2_CONTINUOUS)
@@ -4690,11 +4690,11 @@ cdef class FMUModelBase2(ModelBase):
 
     def get_output_list(self):
         """
-        Returns a dictonary with output variables
+        Returns a dictionary with output variables
 
         Returns::
 
-            An ordered dictonary with the (real) (continuous) output variables.
+            An ordered dictionary with the (real) (continuous) output variables.
         """
         variable_dict = self.get_model_variables(type=FMI2_REAL, include_alias = False,
                              causality = FMI2_OUTPUT,   variability = FMI2_CONTINUOUS)
@@ -4703,7 +4703,7 @@ cdef class FMUModelBase2(ModelBase):
 
     def get_capability_flags(self):
         """
-        Returns a dictionary with the cability flags of the FMU.
+        Returns a dictionary with the capability flags of the FMU.
 
         Returns::
 
@@ -4762,7 +4762,7 @@ cdef class FMUModelBase2(ModelBase):
         to the given variables and in the given direction.
         In other words, it returns linear combinations of the partial derivatives
         of the given functions with respect to the selected variables.
-        The point of eveluation is the current time-point.
+        The point of evaluation is the current time-point.
 
         Parameters::
 
@@ -4774,7 +4774,7 @@ cdef class FMUModelBase2(ModelBase):
                 A list of function references for which the partial derivatives will be calculated.
 
             v --
-                A seed vector specifing the linear combination of the partial derivatives.
+                A seed vector specifying the linear combination of the partial derivatives.
 
         Returns::
 
@@ -4930,7 +4930,7 @@ cdef class FMUModelCS2(FMUModelBase2):
                 Default: True
 
             log_file_name --
-                Filename for file used to save logmessages.
+                Filename for file used to save log messages.
                 Default: "" (Generates automatically)
 
         Returns::
@@ -5419,7 +5419,7 @@ cdef class FMUModelCS2(FMUModelBase2):
 
     def simulate_options(self, algorithm='FMICSAlg'):
         """
-        Get an instance of the simulate options class, prefilled with default
+        Get an instance of the simulate options class, filled with default
         values. If called without argument then the options class for the
         default simulation algorithm will be returned.
 
@@ -5933,7 +5933,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
     def simulate_options(self, algorithm='AssimuloFMIAlg'):
         """
-        Get an instance of the simulate options class, prefilled with default
+        Get an instance of the simulate options class, filled with default
         values. If called without argument then the options class for the
         default simulation algorithm will be returned.
 
