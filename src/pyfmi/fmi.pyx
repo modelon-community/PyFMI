@@ -2458,7 +2458,7 @@ cdef class FMUModelME1(FMUModelBase):
         status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
 
         if status != 0:
-            raise FMUException('Failed to get the derivative values.')
+            raise FMUException('Failed to get the derivative values at time: %E.'%self.time)
 
         return values
 
@@ -2545,7 +2545,7 @@ cdef class FMUModelME1(FMUModelBase):
             status = FMIL.fmi1_import_eventUpdate(self._fmu, intermediate_result, &self._eventInfo)
 
         if status != 0:
-            raise FMUException('Failed to update the events.')
+            raise FMUException('Failed to update the events at time: %E.'%self.time)
 
     def get_event_info(self):
         """
@@ -5693,14 +5693,14 @@ cdef class FMUModelME2(FMUModelBase2):
         if intermediateResult:
             status = FMIL.fmi2_import_new_discrete_states(self._fmu, &self._eventInfo)
             if status != 0:
-                raise FMUException('Failed to update the events.')
+                raise FMUException('Failed to update the events at time: %E.'%self.time)
         else:
             self._eventInfo.newDiscreteStatesNeeded = FMI2_TRUE
             while self._eventInfo.newDiscreteStatesNeeded:
                 status = FMIL.fmi2_import_new_discrete_states(self._fmu, &self._eventInfo)
                 
                 if status != 0:
-                    raise FMUException('Failed to update the events.')
+                    raise FMUException('Failed to update the events at time: %E.'%self.time)
         
 
     def get_tolerances(self):
@@ -5847,7 +5847,7 @@ cdef class FMUModelME2(FMUModelBase2):
         status = FMIL.fmi2_import_get_derivatives(self._fmu, <FMIL.fmi2_real_t*> values.data, self._nContinuousStates)
 
         if status != 0:
-            raise FMUException('Failed to get the derivative values.')
+            raise FMUException('Failed to get the derivative values at time: %E.'%self.time)
 
         return values
 
