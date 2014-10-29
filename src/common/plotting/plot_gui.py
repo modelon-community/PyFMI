@@ -97,7 +97,7 @@ class MainGUI(wx.Frame):
     sizeTreeMin=200
     sizeTreeDefault=sizeTreeMin+40
     
-    def __init__(self, parent, ID):
+    def __init__(self, parent, ID, filename=None):
         
         self.title = "JModelica.org Plot GUI"
         wx.Frame.__init__(self, parent, ID, self.title,
@@ -174,7 +174,9 @@ class MainGUI(wx.Frame):
         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CHANGING, self.OnTabChanging, self.noteBook)
         #Bind the changed of a tab
         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CHANGED, self.OnTabChanged, self.noteBook)
-
+        if not filename == None:
+            self._OpenFile(filename)
+        
         self.Centre(True) #Position the GUI in the centre of the screen
         self.Show(True) #Show the Plot GUI
         
@@ -287,41 +289,7 @@ class MainGUI(wx.Frame):
         #If OK load the results
         if dlg.ShowModal() == wx.ID_OK:
             for n in dlg.GetFilenames():
-                self.SetStatusText("Loading "+n+"...") #Change the statusbar
-                
-                #Find out if the result is a textual or binary file
-                if n.lower().endswith(".txt"): #Textual file
-                    try:
-                        self.ResultFiles.append((n,ResultDymolaTextual(O.path.join(dlg.GetDirectory(),n))))
-                    except (JIOError, IOError):
-                        self.SetStatusText("Could not load "+n+".") #Change the statusbar
-                        break
-                elif n.lower().endswith(".mat"): #Binary file
-                    try:
-                        self.ResultFiles.append((n,ResultDymolaBinary(O.path.join(dlg.GetDirectory(),n))))
-                    except (TypeError, IOError):
-                        self.SetStatusText("Could not load "+n+".") #Change the statusbar
-                        break
-                elif n.lower().endswith(".csv"): #Binary file
-                    try:
-                        self.ResultFiles.append((n,ResultCSVTextual(O.path.join(dlg.GetDirectory(),n))))
-                    except (TypeError, IOError):
-                        self.SetStatusText("Could not load "+n+".") #Change the statusbar
-                        break
-                else:
-                    self.SetStatusText("Could not load "+n+".") #Change the statusbar
-                    break
-                
-                self.SetStatusText("Populating tree for " +n+"...")
-                
-                self.tree.AddTreeNode(self.ResultFiles[-1][1], self.ResultFiles[-1][0], 
-                                            self.filterPanel.checkBoxTimeVarying.GetValue(),
-                                            self.filterPanel.checkBoxParametersConstants.GetValue(),
-                                            self.filterPanel.GetFilter())
-                
-                self.ResultIndex += 1 #Increment the index
-                
-                self.SetStatusText("") #Change the statusbar
+                self._OpenFile(O.path.join(dlg.GetDirectory(),n))
         
         dlg.Destroy() #Destroy the popup window
     
@@ -571,7 +539,58 @@ class MainGUI(wx.Frame):
         dlg.ShowModal()
         dlg.Destroy()
 
+    def _OpenFile(self,filename):
         
+        # Extract filename and result name
+        n = str(filename)
+        if n.find('\\') > n.find('/'):
+            res_name = n.split('\\')[-1]
+        else:
+            res_name = n.split('/')[-1]
+        failToLoad = False
+        self.SetStatusText("Loading "+n+"...") #Change the statusbar
+        
+        #Find out if the result is a textual or binary file
+        if n.lower().endswith(".txt"): #Textual file
+            try:
+                self.ResultFiles.append((res_name,ResultDymolaTextual(n)))
+            except (JIOError, IOError):
+                self.SetStatusText("Could not load "+n+".") #Change the statusbar
+                failToLoad = True
+                
+        elif n.lower().endswith(".mat"): #Binary file
+            try:
+                self.ResultFiles.append((res_name,ResultDymolaBinary(n)))
+            except (TypeError, IOError):
+                self.SetStatusText("Could not load "+n+".") #Change the statusbar
+                failToLoad = True
+                
+        elif n.lower().endswith(".csv"): #Binary file
+            try:
+                self.ResultFiles.append((res_name,ResultCSVTextual(n)))
+            except (TypeError, IOError):
+                self.SetStatusText("Could not load "+n+".") #Change the statusbar
+                failToLoad = True
+                
+        else:
+            self.SetStatusText("Could not load "+n+".") #Change the statusbar
+            failToLoad = True
+            
+        if failToLoad:
+            self.SetStatusText("Could not open file '" + n + "'!\n")
+        else:
+        
+            self.SetStatusText("Populating tree for " +n+"...")
+            
+            self.tree.AddTreeNode(self.ResultFiles[-1][1], self.ResultFiles[-1][0], 
+                                        self.filterPanel.checkBoxTimeVarying.GetValue(),
+                                        self.filterPanel.checkBoxParametersConstants.GetValue(),
+                                        self.filterPanel.GetFilter())
+            
+            self.ResultIndex += 1 #Increment the index
+            
+            self.SetStatusText("") #Change the statusbar
+                
 class VariableTree(wxCustom.CustomTreeCtrl):
     def __init__(self, *args, **kwargs):
         super(VariableTree, self).__init__(*args, **kwargs)
@@ -1724,10 +1743,14 @@ class PlotPanel(wx.Panel):
         return self.settings
     
 
-def startGUI():
+def startGUI(filename=None):
+    """
+    Starts GUI.
+    If a filename is provided, that file is loaded into the GUI on startup.
+    """
     #Start GUI
     app = wx.App(False)
-    gui = MainGUI(None, -1)
+    gui = MainGUI(None, -1,filename)
     app.MainLoop()
 
 if __name__ == '__main__':
