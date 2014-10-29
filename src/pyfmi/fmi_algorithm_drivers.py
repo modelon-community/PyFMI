@@ -450,7 +450,6 @@ class AssimuloFMIAlg(AlgorithmBase):
         self.start_time = start_time
         self.final_time = final_time
         self.input = input
-        self.model.time = start_time #Also set start time into the model
 
         # handle options argument
         if isinstance(options, dict) and not \
@@ -503,6 +502,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                 rtol, atol = self.model.get_tolerances()
                 
             if isinstance(self.model, fmi.FMUModelME1):
+                self.model.time = start_time #Set start time before initialization
                 self.model.initialize(relativeTolerance=rtol)
                 
             elif isinstance(self.model, fmi.FMUModelME2):

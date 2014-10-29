@@ -3857,7 +3857,7 @@ cdef class FMUModelBase2(ModelBase):
 
             if data_type == FMI2_REAL:
                 real_var_ref[value_ref] = 1
-            if data_type == FMI2_INTEGER or FMI2_ENUMERATION:
+            if data_type == FMI2_INTEGER or data_type == FMI2_ENUMERATION:
                 int_var_ref[value_ref] = 1
             if data_type == FMI2_BOOLEAN:
                 bool_var_ref[value_ref] = 1
