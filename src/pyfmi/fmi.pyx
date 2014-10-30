@@ -5591,13 +5591,25 @@ cdef class FMUModelME2(FMUModelBase2):
             if status != 0:
                 raise FMUException('Failed to update the events at time: %E.'%self.time)
         else:
+            tmpValuesOfContinuousStatesChanged = False
+            tmpNominalsOfContinuousStatesChanged = False
+            
             self._eventInfo.newDiscreteStatesNeeded = FMI2_TRUE
             while self._eventInfo.newDiscreteStatesNeeded:
                 status = FMIL.fmi2_import_new_discrete_states(self._fmu, &self._eventInfo)
                 
+                if self._eventInfo.nominalsOfContinuousStatesChanged:
+                    tmpNominalsOfContinuousStatesChanged = True
+                if self._eventInfo.valuesOfContinuousStatesChanged:
+                    tmpValuesOfContinuousStatesChanged = True
                 if status != 0:
                     raise FMUException('Failed to update the events at time: %E.'%self.time)
-        
+            
+            # If the values in the event struct have been overwritten.
+            if tmpNominalsOfContinuousStatesChanged:
+                self._eventInfo.nominalsOfContinuousStatesChanged = True
+            if tmpValuesOfContinuousStatesChanged:
+                self._eventInfo.valuesOfContinuousStatesChanged = True
 
     def get_tolerances(self):
         """
