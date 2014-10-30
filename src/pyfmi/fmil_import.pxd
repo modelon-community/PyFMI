@@ -243,7 +243,8 @@ cdef extern from 'fmilib.h':
         fmi2_cs_canNotUseMemoryManagementFunctions = 14
         fmi2_cs_canGetAndSetFMUstate = 15
         fmi2_cs_canSerializeFMUstate = 16
-        fmi2_capabilities_Num = 17
+        fmi2_cs_providesDirectionalDerivatives = 17
+        fmi2_capabilities_Num = 18
     ctypedef fmi2_capabilities_enu_t fmi2_capabilities_enu_t
 
     cdef enum fmi2_SI_base_units_enu_t:

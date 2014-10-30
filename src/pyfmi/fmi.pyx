@@ -4701,61 +4701,6 @@ cdef class FMUModelBase2(ModelBase):
 
         return variable_dict
 
-    def get_capability_flags(self):
-        """
-        Returns a dictionary with the capability flags of the FMU.
-
-        Returns::
-
-            me_needsExecutionTool
-            me_completedIntegratorStepNotNeeded
-            me_canBeInstantiatedOnlyOncePerProcess
-            me_canNotUseMemoryManagementFunctions
-            me_canGetAndSetFMUstate
-            me_canSerializeFMUstate
-            me_providesDirectionalDerivatives
-            me_completedEventIterationIsProvided
-            cs_needsExecutionTool
-            cs_canHandleVariableCommunicationStepSize
-            cs_canInterpolateInputs
-            cs_maxOutputDerivativeOrder
-            cs_canRunAsynchronuously
-            cs_canBeInstantiatedOnlyOncePerProcess
-            cs_canNotUseMemoryManagementFunctions
-            cs_canGetAndSetFMUstate
-            cs_canSerializeFMUstate
-            capabilities_Num
-        """
-        cdef dict capabilities_me = {}
-        cdef dict capabilities_cs = {}
-
-        capabilities_me['needsExecutionTool']                     = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_needsExecutionTool))
-        capabilities_me['completedIntegratorStepNotNeeded']       = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_completedIntegratorStepNotNeeded))
-        capabilities_me['canBeInstantiatedOnlyOncePerProcess']    = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canBeInstantiatedOnlyOncePerProcess))
-        capabilities_me['canNotUseMemoryManagementFunctions']     = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canNotUseMemoryManagementFunctions))
-        capabilities_me['canGetAndSetFMUstate']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate))
-        capabilities_me['canSerializeFMUstate']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canSerializeFMUstate))
-        capabilities_me['providesDirectionalDerivatives']         = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives))
-        capabilities_me['completedEventIterationIsProvided']      = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_completedEventIterationIsProvided))
-        capabilities_cs['needsExecutionTool']                     = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_needsExecutionTool))
-        capabilities_cs['canHandleVariableCommunicationStepSize'] = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canHandleVariableCommunicationStepSize))
-        capabilities_cs['canInterpolateInputs']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canInterpolateInputs))
-        capabilities_cs['maxOutputDerivativeOrder']               = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_maxOutputDerivativeOrder)
-        capabilities_cs['canRunAsynchronuously']                  = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canRunAsynchronuously))
-        capabilities_cs['canBeInstantiatedOnlyOncePerProcess']    = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canBeInstantiatedOnlyOncePerProcess))
-        capabilities_cs['canNotUseMemoryManagementFunctions']     = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canNotUseMemoryManagementFunctions))
-        capabilities_cs['canGetAndSetFMUstate']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canGetAndSetFMUstate))
-        capabilities_cs['canSerializeFMUstate']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSerializeFMUstate))
-        #capabilities_cs['capabilities_Num']                       = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_capabilities_Num)
-        #capabilities_me['capabilities_Num'] = capabilities_cs['capabilities_Num']
-        
-        if isinstance(self,FMUModelME2):
-            return capabilities_me
-        elif isinstance(self,FMUModelCS2):
-            return capabilities_cs
-        else:
-            raise FMUException('The instance is not curent an instance of an ME-model or a CS-model. Use load_fmu for correct loading.')
-
     def get_directional_derivative(self, var_ref, func_ref, v):
         """
         Returns the directional derivatives of the functions with respect
@@ -4814,7 +4759,7 @@ cdef class FMUModelBase2(ModelBase):
         #output array
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dz    = N.zeros(len(func_ref), dtype = N.double)
 
-        if not FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives):
+        if not self._provides_directional_derivatives():
             raise FMUException('This FMU does not provide directional derivatives')
 
         if len(var_ref) != len(v):
@@ -4835,10 +4780,6 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('An error occured while getting the directional derivative, see the log for possible more information')
 
         return dz
-
-
-
-
 
     def get_version(self):
         """
@@ -5435,6 +5376,43 @@ cdef class FMUModelCS2(FMUModelBase2):
             Options class for the algorithm specified with default values.
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
+        
+    def get_capability_flags(self):
+        """
+        Returns a dictionary with the capability flags of the FMU.
+
+        Returns::
+            Dictionary with keys:
+            needsExecutionTool
+            canHandleVariableCommunicationStepSize
+            canInterpolateInputs
+            maxOutputDerivativeOrder
+            canRunAsynchronuously
+            canBeInstantiatedOnlyOncePerProcess
+            canNotUseMemoryManagementFunctions
+            canGetAndSetFMUstate
+            providesDirectionalDerivatives
+        """
+        cdef dict capabilities = {}
+        capabilities['needsExecutionTool']                     = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_needsExecutionTool))
+        capabilities['canHandleVariableCommunicationStepSize'] = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canHandleVariableCommunicationStepSize))
+        capabilities['canInterpolateInputs']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canInterpolateInputs))
+        capabilities['maxOutputDerivativeOrder']               = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_maxOutputDerivativeOrder)
+        capabilities['canRunAsynchronuously']                  = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canRunAsynchronuously))
+        capabilities['canBeInstantiatedOnlyOncePerProcess']    = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canBeInstantiatedOnlyOncePerProcess))
+        capabilities['canNotUseMemoryManagementFunctions']     = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canNotUseMemoryManagementFunctions))
+        capabilities['canGetAndSetFMUstate']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canGetAndSetFMUstate))
+        capabilities['canSerializeFMUstate']                   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSerializeFMUstate))
+        capabilities['providesDirectionalDerivatives']         = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_providesDirectionalDerivatives))
+
+        return capabilities
+    
+    def _provides_directional_derivatives(self):
+        """
+        Check capability to provide directional derivatives.
+        """
+        return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_providesDirectionalDerivatives)
+
 
 cdef class FMUModelME2(FMUModelBase2):
     """
@@ -5612,12 +5590,12 @@ cdef class FMUModelME2(FMUModelBase2):
             event_info    = model.event_info
             nextEventTime = model.event_info.nextEventTime
         """
-        self._pyEventInfo.newDiscreteStatesNeeded          = self._eventInfo.newDiscreteStatesNeeded == 1
-        self._pyEventInfo.terminateSimulation = self._eventInfo.terminateSimulation == 1
-        self._pyEventInfo.nominalsOfContinuousStatesChanged          = self._eventInfo.nominalsOfContinuousStatesChanged == 1
-        self._pyEventInfo.valuesOfContinuousStatesChanged         = self._eventInfo.valuesOfContinuousStatesChanged == 1
-        self._pyEventInfo.nextEventTimeDefined           = self._eventInfo.nextEventTimeDefined == 1
-        self._pyEventInfo.nextEventTime               = self._eventInfo.nextEventTime
+        self._pyEventInfo.newDiscreteStatesNeeded           = self._eventInfo.newDiscreteStatesNeeded == 1
+        self._pyEventInfo.terminateSimulation               = self._eventInfo.terminateSimulation == 1
+        self._pyEventInfo.nominalsOfContinuousStatesChanged = self._eventInfo.nominalsOfContinuousStatesChanged == 1
+        self._pyEventInfo.valuesOfContinuousStatesChanged   = self._eventInfo.valuesOfContinuousStatesChanged == 1
+        self._pyEventInfo.nextEventTimeDefined              = self._eventInfo.nextEventTimeDefined == 1
+        self._pyEventInfo.nextEventTime                     = self._eventInfo.nextEventTime
 
         return self._pyEventInfo
     
@@ -5949,9 +5927,39 @@ cdef class FMUModelME2(FMUModelBase2):
             Options class for the algorithm specified with default values.
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
+        
+    def get_capability_flags(self):
+        """
+        Returns a dictionary with the capability flags of the FMU.
 
-
-
+        Returns::
+            Dictionary with keys:
+            needsExecutionTool
+            completedIntegratorStepNotNeeded
+            canBeInstantiatedOnlyOncePerProcess
+            canNotUseMemoryManagementFunctions
+            canGetAndSetFMUstate
+            canSerializeFMUstate
+            providesDirectionalDerivatives
+            completedEventIterationIsProvided
+        """
+        cdef dict capabilities = {}
+        capabilities['needsExecutionTool']                  = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_needsExecutionTool))
+        capabilities['completedIntegratorStepNotNeeded']    = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_completedIntegratorStepNotNeeded))
+        capabilities['canBeInstantiatedOnlyOncePerProcess'] = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canBeInstantiatedOnlyOncePerProcess))
+        capabilities['canNotUseMemoryManagementFunctions']  = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canNotUseMemoryManagementFunctions))
+        capabilities['canGetAndSetFMUstate']                = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate))
+        capabilities['canSerializeFMUstate']                = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canSerializeFMUstate))
+        capabilities['providesDirectionalDerivatives']      = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives))
+        capabilities['completedEventIterationIsProvided']   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_completedEventIterationIsProvided))
+        
+        return capabilities
+        
+    def _provides_directional_derivatives(self):
+        """
+        Check capability to provide directional derivatives.
+        """
+        return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives)
 
 #Temporary should be removed! (after a period)
 cdef class FMUModel(FMUModelME1):
