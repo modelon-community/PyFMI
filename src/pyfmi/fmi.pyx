@@ -747,7 +747,7 @@ cdef class FMUModelBase(ModelBase):
 
             val = model.get_real([232])
 
-        Calls the low-level FMI function: fmiGetReal/fmiSetReal
+        Calls the low-level FMI function: fmiGetReal
         """
         cdef int status
         cdef FMIL.size_t nref
@@ -779,7 +779,7 @@ cdef class FMUModelBase(ModelBase):
 
             model.set_real([234,235],[2.34,10.4])
 
-        Calls the low-level FMI function: fmiGetReal/fmiSetReal
+        Calls the low-level FMI function: fmiSetReal
         """
         cdef int status
         cdef FMIL.size_t nref
@@ -814,7 +814,7 @@ cdef class FMUModelBase(ModelBase):
 
             val = model.get_integer([232])
 
-        Calls the low-level FMI function: fmiGetInteger/fmiSetInteger
+        Calls the low-level FMI function: fmiGetInteger
         """
         cdef int status
         cdef FMIL.size_t nref
@@ -846,7 +846,7 @@ cdef class FMUModelBase(ModelBase):
 
             model.set_integer([234,235],[12,-3])
 
-        Calls the low-level FMI function: fmiGetInteger/fmiSetInteger
+        Calls the low-level FMI function: fmiSetInteger
         """
         cdef int status
         cdef FMIL.size_t nref
@@ -883,7 +883,7 @@ cdef class FMUModelBase(ModelBase):
 
             val = model.get_boolean([232])
 
-        Calls the low-level FMI function: fmiGetBoolean/fmiSetBoolean
+        Calls the low-level FMI function: fmiGetBoolean
         """
         cdef int status
         cdef FMIL.size_t nref
@@ -929,7 +929,7 @@ cdef class FMUModelBase(ModelBase):
 
             model.set_boolean([234,235],[True,False])
 
-        Calls the low-level FMI function: fmiGetBoolean/fmiSetBoolean
+        Calls the low-level FMI function: fmiSetBoolean
         """
         cdef int status
         cdef FMIL.size_t nref
@@ -979,7 +979,7 @@ cdef class FMUModelBase(ModelBase):
 
             val = model.get_string([232])
 
-        Calls the low-level FMI function: fmiGetString/fmiSetString
+        Calls the low-level FMI function: fmiGetString
         """
         raise NotImplementedError
         cdef int status
@@ -1014,7 +1014,7 @@ cdef class FMUModelBase(ModelBase):
 
             model.set_string([234,235],['text','text'])
 
-        Calls the low-level FMI function: fmiGetString/fmiSetString
+        Calls the low-level FMI function: fmiSetString
         """
         raise NotImplementedError
         cdef int status
@@ -1161,6 +1161,24 @@ cdef class FMUModelBase(ModelBase):
             return not value if alias_kind == FMI_NEGATED_ALIAS else value
         else:
             raise FMUException('Type not supported.')
+
+    cpdef _get_time(self):
+        return self.__t
+
+    cpdef _set_time(self, FMIL.fmi1_real_t t):
+        cdef int status
+        self.__t = t
+
+        status = FMIL.fmi1_import_set_time(self._fmu,t)
+
+        if status != 0:
+            raise FMUException('Failed to set the time.')
+
+    time = property(_get_time,_set_time, doc =
+    """
+    Property for accessing the current time of the simulation. Calls the
+    low-level FMI function: fmiSetTime.
+    """)
 
     cpdef get_variable_description(self, char* variablename):
         """
@@ -1866,19 +1884,7 @@ cdef class FMUModelCS1(FMUModelBase):
             raise FMUException("This class only supports FMI 1.0 for Co-simulation.")
 
         self.instantiate_slave(logging = self._enable_logging)
-
-    cpdef _get_time(self):
-        return self.__t
-
-    cpdef _set_time(self, FMIL.fmi1_real_t t):
-        self.__t = t
-
-    time = property(_get_time,_set_time, doc =
-    """
-    Property for accessing the current time of the simulation. Calls the
-    low-level FMI function: fmiSetTime.
-    """)
-
+    
     def __dealloc__(self):
         """
         Deallocate memory allocated
@@ -2368,24 +2374,6 @@ cdef class FMUModelME1(FMUModelBase):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
-
-    cpdef _get_time(self):
-        return self.__t
-
-    cpdef _set_time(self, FMIL.fmi1_real_t t):
-        cdef int status
-        self.__t = t
-
-        status = FMIL.fmi1_import_set_time(self._fmu,t)
-
-        if status != 0:
-            raise FMUException('Failed to set the time.')
-
-    time = property(_get_time,_set_time, doc =
-    """
-    Property for accessing the current time of the simulation. Calls the
-    low-level FMI function: fmiSetTime.
-    """)
 
     def _get_continuous_states(self):
         cdef int status
@@ -3028,7 +3016,7 @@ cdef class FMUModelBase2(ModelBase):
 
             val = model.get_real([232])
 
-        Calls the low-level FMI function: fmiGetReal/fmiSetReal
+        Calls the low-level FMI function: fmi2GetReal
         """
 
         cdef int         status
@@ -3061,7 +3049,7 @@ cdef class FMUModelBase2(ModelBase):
 
             model.set_real([234,235],[2.34,10.4])
 
-        Calls the low-level FMI function: fmiGetReal/fmiSetReal
+        Calls the low-level FMI function: fmi2SetReal
         """
         cdef int status
         cdef FMIL.size_t nref
@@ -3097,7 +3085,7 @@ cdef class FMUModelBase2(ModelBase):
 
             val = model.get_integer([232])
 
-        Calls the low-level FMI function: fmiGetInteger/fmiSetInteger
+        Calls the low-level FMI function: fmi2GetInteger
         """
         cdef int         status
         cdef FMIL.size_t nref
@@ -3130,7 +3118,7 @@ cdef class FMUModelBase2(ModelBase):
 
             model.set_integer([234,235],[12,-3])
 
-        Calls the low-level FMI function: fmiGetInteger/fmiSetInteger
+        Calls the low-level FMI function: fmi2SetInteger
         """
         cdef int status
         cdef FMIL.size_t nref
@@ -3166,7 +3154,7 @@ cdef class FMUModelBase2(ModelBase):
 
             val = model.get_boolean([232])
 
-        Calls the low-level FMI function: fmiGetBoolean/fmiSetBoolean
+        Calls the low-level FMI function: fmi2GetBoolean
         """
         cdef int         status
         cdef FMIL.size_t nref
@@ -3213,7 +3201,7 @@ cdef class FMUModelBase2(ModelBase):
 
             model.set_boolean([234,235],[True,False])
 
-        Calls the low-level FMI function: fmiGetBoolean/fmiSetBoolean
+        Calls the low-level FMI function: fmi2SetBoolean
         """
         cdef int         status
         cdef FMIL.size_t nref
@@ -3262,7 +3250,7 @@ cdef class FMUModelBase2(ModelBase):
 
             val = model.get_string([232])
 
-        Calls the low-level FMI function: fmiGetString/fmiSetString
+        Calls the low-level FMI function: fmi2GetString
         """
 
         raise NotImplementedError
@@ -3297,7 +3285,7 @@ cdef class FMUModelBase2(ModelBase):
 
             model.set_string([234,235],['text','text'])
 
-        Calls the low-level FMI function: fmiGetString/fmiSetString
+        Calls the low-level FMI function: fmi2SetString
         """
         raise NotImplementedError
         cdef int         status
@@ -3364,6 +3352,31 @@ cdef class FMUModelBase2(ModelBase):
                 file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
         else:
             self._log.append([module,log_level,message])
+    
+    cpdef _get_time(self):
+        """
+        Returns the current time of the simulation.
+
+        Returns::
+            The time.
+        """
+        return self.__t
+
+    cpdef _set_time(self, FMIL.fmi2_real_t t):
+        """
+        Sets the current time of the simulation.
+
+        Parameters::
+            t--
+                The time to set.
+        """
+        self.__t = t
+
+    time = property(_get_time,_set_time, doc =
+    """
+    Property for accessing the current time of the simulation. Calls the
+    low-level FMI function: fmi2SetTime.
+    """)
 
     def get_log(self):
         """
@@ -3490,13 +3503,20 @@ cdef class FMUModelBase2(ModelBase):
 
         #Internal values
         self._log = []
+        
+    def terminate(self):
+        """
+        Calls the FMI function fmi2Terminate() on the FMU.
+        After this call, any call to a function changing the state of the FMU will fail.
+        """
+        FMIL.fmi2_import_terminate(self._fmu)
     
     def initialize(self):
         """
         Initializes the model and computes initial values for all variables.
 
-        Calls the low-level FMI functions: fmiEnterInitializationMode,
-                                           fmiExitInitializationMode
+        Calls the low-level FMI functions: fmi2EnterInitializationMode,
+                                           fmi2ExitInitializationMode
         """
         if self.time == None:
             raise FMUException("Setup Experiment has to be called prior to the initialization method.")
@@ -3597,7 +3617,7 @@ cdef class FMUModelBase2(ModelBase):
                 List of categories to log, call get_categories() for list of categories.
                 Default: [] (all categories)
 
-        Calls the low-level FMI function: fmiSetDebuggLogging
+        Calls the low-level FMI function: fmi2SetDebuggLogging
         """
 
         cdef FMIL.fmi2_boolean_t  log
@@ -4304,10 +4324,6 @@ cdef class FMUModelBase2(ModelBase):
         else:
             raise FMUException("The variable type does not have a minimum value.")
 
-
-
-
-
     def get_fmu_state(self):
         """
         Creates a copy of the recent FMU-state and returns
@@ -4498,9 +4514,6 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('An error occured while computing the FMU-state size, see the log for possible more information')
 
         return n_bytes
-
-
-
 
     def get_ode_sizes(self):
         """
@@ -4918,33 +4931,6 @@ cdef class FMUModelCS2(FMUModelBase2):
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
 
-    cpdef _get_time(self):
-        """
-        Returns the current time of the simulation.
-
-        Returns::
-            The time.
-        """
-        return self.__t
-
-    cpdef _set_time(self, FMIL.fmi2_real_t t):
-        """
-        Sets the current time of the simulation.
-
-        Parameters::
-            t--
-                The time to set.
-        """
-        self.__t = t
-
-    time = property(_get_time,_set_time, doc =
-    """
-    Property for accessing the current time of the simulation. Calls the
-    low-level FMI function: fmiSetTime.
-    """)
-
-
-
     def do_step(self, FMIL.fmi2_real_t current_t, FMIL.fmi2_real_t step_size, new_step=True):
         """
         Performs an integrator step.
@@ -4969,7 +4955,7 @@ cdef class FMUModelCS2(FMUModelBase2):
                     FMI_OK, FMI_WARNING. FMI_DISCARD, FMI_ERROR,
                     FMI_FATAL,FMI_PENDING...
 
-        Calls the underlying low-level function fmiDoStep.
+        Calls the underlying low-level function fmi2DoStep.
         """
         cdef int status
         cdef FMIL.fmi2_boolean_t new_s
@@ -4991,9 +4977,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         status from do_step returns FMI_PENDING.
         After this function has been called, only calls to the low-level
         functions:
-            -fmiTerminateSlave
-            -fmiResetSlave
-            -fmiFreeSlaveInstance
+            -fmi2Terminate
+            -fmi2Reset
+            -fmi2FreeInstance
         are allowed
         """
 
@@ -5120,10 +5106,10 @@ cdef class FMUModelCS2(FMUModelBase2):
 
             status_kind --
                 An integer corresponding to one of the following:
-                fmiDoStepStatus       = 0
-                fmiPendingStatus      = 1
-                fmiLastSuccessfulTime = 2
-                fmiTerminated         = 3
+                fmi2DoStepStatus       = 0
+                fmi2PendingStatus      = 1
+                fmi2LastSuccessfulTime = 2
+                fmi2Terminated         = 3
 
         Returns::
 
@@ -5491,74 +5477,6 @@ cdef class FMUModelME2(FMUModelBase2):
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
 
-    """
-    def reset(self):
-        
-        #This metod resets the FMU by first calling fmiTerminate and
-        #fmiFreeModelInstance and then reloades the DLL and finally
-        #reinstantiates using fmiInstantiateModel.
-        
-        if self._allocated_fmu:
-            FMIL.fmi2_import_terminate(self._fmu)
-            FMIL.fmi2_import_free_instance(self._fmu)
-
-        if self._allocated_dll:
-            FMIL.fmi2_import_destroy_dllfmu(self._fmu)
-
-        status = FMIL.fmi2_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
-        if status == FMIL.jm_status_error:
-            raise FMUException("The DLL could not be reloaded, check the log for more information.")
-
-        #Default values
-        self.__t = None
-
-        #Internal values
-        self._log = []
-
-        #Instantiates the model
-        self.instantiate_model()
-    """
-
-    def terminate(self):
-        """
-        Calls the FMI function fmiTerminate() on the FMU.
-        After this call, any call to a function changing the state of the FMU will fail.
-        """
-        FMIL.fmi2_import_terminate(self._fmu)
-
-
-    cpdef _get_time(self):
-        """
-        Returns the current time of the simulation.
-
-        Returns::
-            The time.
-        """
-        return self.__t
-
-    cpdef _set_time(self, FMIL.fmi2_real_t t):
-        """
-        Sets the current time of the simulation.
-
-        Parameters::
-            t--
-                The time to set.
-        """
-
-        cdef int status
-        status = FMIL.fmi2_import_set_time(self._fmu, t)
-
-        if status != 0:
-            raise FMUException('Failed to set the time.')
-        self.__t = t
-
-    time = property(_get_time,_set_time, doc =
-    """
-    Property for accessing the current time of the simulation. Calls the
-    low-level FMI function: fmiSetTime.
-    """)
-
-
     def get_event_info(self):
         """
         Returns the event information from the FMU.
@@ -5732,7 +5650,6 @@ cdef class FMUModelME2(FMUModelBase2):
         
         return enterEventMode==FMI2_TRUE, terminateSimulation==FMI2_TRUE
 
-
     def _get_continuous_states(self):
         """
         Returns a vector with the values of the continuous states.
@@ -5777,7 +5694,7 @@ cdef class FMUModelME2(FMUModelBase2):
         doc=
     """
     Property for accessing the current values of the continuous states. Calls
-    the low-level FMI function: fmiSetContinuousStates/fmiGetContinuousStates.
+    the low-level FMI function: fmi2SetContinuousStates/fmi2GetContinuousStates.
     """)
 
     def _get_nominal_continuous_states(self):
@@ -5801,7 +5718,7 @@ cdef class FMUModelME2(FMUModelBase2):
     nominal_continuous_states = property(_get_nominal_continuous_states, doc =
     """
     Property for accessing the nominal values of the continuous states. Calls
-    the low-level FMI function: fmiGetNominalContinuousStates.
+    the low-level FMI function: fmi2GetNominalContinuousStates.
     """)
 
     cpdef get_derivatives(self):
@@ -5817,7 +5734,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
             dx = model.get_derivatives()
 
-        Calls the low-level FMI function: fmiGetDerivatives
+        Calls the low-level FMI function: fmi2GetDerivatives
         """
         cdef int status
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] values = N.empty(self._nContinuousStates, dtype = N.double)
