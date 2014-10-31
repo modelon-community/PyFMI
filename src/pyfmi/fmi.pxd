@@ -115,14 +115,16 @@ cdef class FMUModelBase(ModelBase):
     cpdef get_variable_min(self,char* variablename)
     cpdef FMIL.fmi1_variability_enu_t get_variable_variability(self,char* variablename) except *
     cpdef FMIL.fmi1_causality_enu_t get_variable_causality(self, char* variablename) except *
-    #FMU object property time
+
+cdef class FMUModelCS1(FMUModelBase):
+    
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi1_real_t t)
 
-#cdef class FMUModelCS1(FMUModelBase):
-
 cdef class FMUModelME1(FMUModelBase):
     
+    cpdef _get_time(self)
+    cpdef _set_time(self, FMIL.fmi1_real_t t)
     cpdef get_derivatives(self)
 
 cdef class FMUModelBase2(ModelBase):
@@ -173,13 +175,15 @@ cdef class FMUModelBase2(ModelBase):
     cpdef serialized_fmu_state_size(self, state)
     cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list)
     cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable)
-    #FMU object property time
+
+cdef class FMUModelCS2(FMUModelBase2):
+
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi2_real_t t)
-
-#cdef class FMUModelCS2(FMUModelBase2):
-
-cdef class FMUModelME2(FMUModelBase2):
     
+cdef class FMUModelME2(FMUModelBase2):
+
+    cpdef _get_time(self)
+    cpdef _set_time(self, FMIL.fmi2_real_t t)
     cpdef get_derivatives(self)
     

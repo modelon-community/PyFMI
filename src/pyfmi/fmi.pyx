@@ -1161,25 +1161,7 @@ cdef class FMUModelBase(ModelBase):
             return not value if alias_kind == FMI_NEGATED_ALIAS else value
         else:
             raise FMUException('Type not supported.')
-
-    cpdef _get_time(self):
-        return self.__t
-
-    cpdef _set_time(self, FMIL.fmi1_real_t t):
-        cdef int status
-        self.__t = t
-
-        status = FMIL.fmi1_import_set_time(self._fmu,t)
-
-        if status != 0:
-            raise FMUException('Failed to set the time.')
-
-    time = property(_get_time,_set_time, doc =
-    """
-    Property for accessing the current time of the simulation. Calls the
-    low-level FMI function: fmiSetTime.
-    """)
-
+    
     cpdef get_variable_description(self, char* variablename):
         """
         Get the description of a given variable.
@@ -1884,6 +1866,18 @@ cdef class FMUModelCS1(FMUModelBase):
             raise FMUException("This class only supports FMI 1.0 for Co-simulation.")
 
         self.instantiate_slave(logging = self._enable_logging)
+        
+    cpdef _get_time(self):
+        return self.__t
+    
+    cpdef _set_time(self, FMIL.fmi1_real_t t):
+        self.__t = t 
+    
+    time = property(_get_time,_set_time, doc =
+    """
+    Property for accessing the current time of the simulation. Calls the
+    low-level FMI function: fmiSetTime.
+    """)
     
     def __dealloc__(self):
         """
@@ -2374,6 +2368,24 @@ cdef class FMUModelME1(FMUModelBase):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+            
+    cpdef _get_time(self):
+        return self.__t
+    
+    cpdef _set_time(self, FMIL.fmi1_real_t t):
+        cdef int status
+        self.__t = t
+
+        status = FMIL.fmi1_import_set_time(self._fmu,t)
+
+        if status != 0:
+            raise FMUException('Failed to set the time.')
+
+    time = property(_get_time,_set_time, doc =
+    """
+    Property for accessing the current time of the simulation. Calls the
+    low-level FMI function: fmiSetTime.
+    """)
 
     def _get_continuous_states(self):
         cdef int status
@@ -3353,31 +3365,6 @@ cdef class FMUModelBase2(ModelBase):
         else:
             self._log.append([module,log_level,message])
     
-    cpdef _get_time(self):
-        """
-        Returns the current time of the simulation.
-
-        Returns::
-            The time.
-        """
-        return self.__t
-
-    cpdef _set_time(self, FMIL.fmi2_real_t t):
-        """
-        Sets the current time of the simulation.
-
-        Parameters::
-            t--
-                The time to set.
-        """
-        self.__t = t
-
-    time = property(_get_time,_set_time, doc =
-    """
-    Property for accessing the current time of the simulation. Calls the
-    low-level FMI function: fmi2SetTime.
-    """)
-
     def get_log(self):
         """
         Returns the log information as a list. To turn on the logging use the
@@ -4930,6 +4917,31 @@ cdef class FMUModelCS2(FMUModelBase2):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+            
+    cpdef _get_time(self):
+        """
+        Returns the current time of the simulation.
+
+        Returns::
+            The time.
+        """
+        return self.__t
+
+    cpdef _set_time(self, FMIL.fmi2_real_t t):
+        """
+        Sets the current time of the simulation. 
+
+        Parameters:: 
+            t-- 
+                The time to set.
+        """
+        self.__t = t
+
+    time = property(_get_time,_set_time, doc =
+    """
+    Property for accessing the current time of the simulation. Calls the
+    low-level FMI function: fmiSetTime
+    """)
 
     def do_step(self, FMIL.fmi2_real_t current_t, FMIL.fmi2_real_t step_size, new_step=True):
         """
@@ -5476,6 +5488,37 @@ cdef class FMUModelME2(FMUModelBase2):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+    cpdef _get_time(self):
+        """
+        Returns the current time of the simulation.
+
+        Returns::
+            The time.
+        """
+        return self.__t
+
+    cpdef _set_time(self, FMIL.fmi2_real_t t):
+        """
+        Sets the current time of the simulation.
+
+        Parameters::
+            t--
+                The time to set.
+        """
+
+        cdef int status
+        status = FMIL.fmi2_import_set_time(self._fmu, t)
+
+        if status != 0:
+            raise FMUException('Failed to set the time.')
+        self.__t = t
+ 
+    time = property(_get_time,_set_time, doc =
+    """
+    Property for accessing the current time of the simulation. Calls the
+    low-level FMI function: fmiSetTime.
+    """)
 
     def get_event_info(self):
         """
