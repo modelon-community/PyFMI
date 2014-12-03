@@ -632,6 +632,13 @@ cdef class FMUModelBase(ModelBase):
                 file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
         else:
             self._log.append([module,log_level,message])
+    
+    def append_log_message(self, module, log_level, message):
+        if self._fmu_log_name != NULL:
+            with open(self._fmu_log_name,'a') as file:
+                file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+        else:
+            self._log.append([module,log_level,message])
 
     def get_log(self):
         """
