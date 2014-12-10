@@ -517,7 +517,13 @@ class AssimuloFMIAlg(AlgorithmBase):
         
         elif self.model.time == None and isinstance(self.model, fmi.FMUModelME2):
             raise Exception("Setup Experiment has not been called, this has to be called prior to the initialization call.")
-            
+        
+        #See if there is an time event at start time
+        if isinstance(self.model, fmi.FMUModelME1):
+            event_info = self.model.get_event_info()
+            if event_info.upcomingTimeEvent and event_info.nextEventTime == model.time:
+                self.model.event_update()
+        
         self.result_handler.simulation_start()
 
         # Sensitivities?
