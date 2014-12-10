@@ -550,19 +550,24 @@ cdef extern from 'fmilib.h':
     #FMI HELPER METHODS (2.0)
     char * fmi2_get_types_platform()
     char * fmi2_import_get_GUID(fmi2_import_t *)
-    char * fmi2_import_get_author(fmi2_import_t *)
-    char * fmi2_import_get_generation_date_and_time(fmi2_import_t *)
-    char * fmi2_import_get_model_name(fmi2_import_t *)
-    fmi2_fmu_kind_enu_t fmi2_import_get_fmu_kind(fmi2_import_t *)
     char * fmi2_import_get_description(fmi2_import_t *)
-    int fmi2_import_create_dllfmu(fmi2_import_t *, fmi2_fmu_kind_enu_t, fmi2_callback_functions_t *)
-    char * fmi2_import_get_license(fmi2_import_t *)
+    char * fmi2_import_get_author(fmi2_import_t *)
     char * fmi2_import_get_version(fmi2_import_t *)
+    char * fmi2_import_get_license(fmi2_import_t *)
+    char * fmi2_import_get_generation_tool(fmi2_import_t *)
+    char * fmi2_import_get_generation_date_and_time(fmi2_import_t *)
+    fmi2_variable_naming_convension_enu_t fmi2_import_get_naming_convention(fmi2_import_t *)
+    char * fmi2_import_get_model_name(fmi2_import_t *)
+    
+    fmi2_fmu_kind_enu_t fmi2_import_get_fmu_kind(fmi2_import_t *)
+    
+    int fmi2_import_create_dllfmu(fmi2_import_t *, fmi2_fmu_kind_enu_t, fmi2_callback_functions_t *)
+    
     unsigned int fmi2_import_get_capability(fmi2_import_t *, fmi2_capabilities_enu_t)
     double fmi2_import_get_default_experiment_stop(fmi2_import_t *)
     double fmi2_import_get_default_experiment_start(fmi2_import_t *)
     double fmi2_import_get_default_experiment_step(fmi2_import_t*)
-    char * fmi2_import_get_generation_tool(fmi2_import_t *)
+    
 
     #FMI HELPER METHODS (1.0)
     char * fmi1_import_get_version(fmi1_import_t *)
@@ -905,7 +910,7 @@ cdef extern from 'fmilib.h':
     fmi2_real_t fmi2_import_get_display_unit_offset(fmi2_import_display_unit_t *)
 
 
-    fmi2_variable_naming_convension_enu_t fmi2_import_get_naming_convention(fmi2_import_t *)
+    
 
     fmi2_import_variable_list_t * fmi2_import_get_sublist(fmi2_import_variable_list_t *, size_t, size_t)
     fmi2_import_variable_list_t * fmi2_import_clone_variable_list(fmi2_import_variable_list_t *)

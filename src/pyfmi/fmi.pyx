@@ -4803,6 +4803,14 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* version = FMIL.fmi2_import_get_version(self._fmu)
         return version
+        
+    def get_model_version(self):
+        """
+        Returns the version fo the FMU.
+        """
+        cdef char* version
+        version = FMIL.fmi2_import_get_model_version(self._fmu)
+        return version if version != NULL else ""
 
     def get_name(self):
         """
@@ -4825,6 +4833,22 @@ cdef class FMUModelBase2(ModelBase):
         cdef char* desc
         desc = FMIL.fmi2_import_get_description(self._fmu)
         return desc if desc != NULL else ""
+        
+    def get_copyright(self):
+        """
+        Return the model copyright.
+        """
+        cdef char* copyright
+        copyright = FMIL.fmi2_import_get_copyright(self._fmu)
+        return copyright if copyright != NULL else ""
+        
+    def get_license(self):
+        """
+        Return the model license.
+        """
+        cdef char* license
+        license = FMIL.fmi2_import_get_license(self._fmu)
+        return license if license != NULL else ""
 
     def get_generation_tool(self):
         """
@@ -4833,6 +4857,14 @@ cdef class FMUModelBase2(ModelBase):
         cdef char* gen
         gen = FMIL.fmi2_import_get_generation_tool(self._fmu)
         return gen if gen != NULL else ""
+        
+    def get_generation_date_and_time(self):
+        """
+        Return the model generation date and time.
+        """
+        cdef char* gen
+        gen = FMIL.fmi2_import_get_generation_date_and_time(self._fmu)
+        return gen if gen != NULL else ""
 
     def get_guid(self):
         """
@@ -4840,6 +4872,19 @@ cdef class FMUModelBase2(ModelBase):
         """
         guid = FMIL.fmi2_import_get_GUID(self._fmu)
         return guid
+        
+    def get_variable_naming_convention(self):
+        """
+        Return the variable naming convention.
+        """
+        cdef FMIL.fmi2_variable_naming_convension_enu_t conv
+        conv = FMIL.fmi2_import_get_naming_convention(self._fmu)
+        if conv == FMIL.fmi2_naming_enu_flat:
+            return "flat"
+        elif conv == FMIL.fmi2_naming_enu_structured:
+            return "structured"
+        else:
+            return "unknown"
 
     def get_identifier(self):
         """
