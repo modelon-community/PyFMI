@@ -58,6 +58,7 @@ cdef class ScalarVariable2:
     cdef FMIL.fmi2_variability_enu_t         _variability
     cdef FMIL.fmi2_causality_enu_t           _causality
     cdef FMIL.fmi2_variable_alias_kind_enu_t _alias
+    cdef FMIL.fmi2_initial_enu_t             _initial
     cdef object _name
     cdef object _description #A characater pointer but we need an own reference and this is sufficient
 
@@ -170,6 +171,7 @@ cdef class FMUModelBase2(ModelBase):
     cpdef get_variable_start(self, char* variablename)
     cpdef get_variable_max(self, char* variablename)
     cpdef get_variable_min(self, char* variablename)
+    cpdef FMIL.fmi2_initial_enu_t get_variable_initial(self, char* variablename)
     cpdef serialize_fmu_state(self, state)
     cpdef deserialize_fmu_state(self, serialized_fmu)
     cpdef serialized_fmu_state_size(self, state)

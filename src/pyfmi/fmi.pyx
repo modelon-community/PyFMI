@@ -102,6 +102,11 @@ FMI_MIME_CS_STANDALONE = "application/x-fmu-sharedlibrary"
 FMI_REGISTER_GLOBALLY = 1
 FMI_DEFAULT_LOG_LEVEL = FMIL.jm_log_level_error
 
+# INITIAL
+FMI2_INITIAL_EXACT      = 0
+FMI2_INITIAL_APPROX     = 1
+FMI2_INITIAL_CALCULATED = 2
+FMI2_INITIAL_UNKNOWN    = 3
 
 
 """Flags for evaluation of FMI Jacobians"""
@@ -397,7 +402,8 @@ cdef class ScalarVariable2:
     def __init__(self, name, value_reference, type, description = "",
                        variability = FMIL.fmi2_variability_enu_unknown,
                        causality   = FMIL.fmi2_causality_enu_unknown,
-                       alias       = FMIL.fmi2_variable_is_not_alias):
+                       alias       = FMIL.fmi2_variable_is_not_alias,
+                       initial     = FMIL.fmi2_initial_enu_unknown):
 
         self._name            = name
         self._value_reference = value_reference
@@ -406,6 +412,7 @@ cdef class ScalarVariable2:
         self._variability     = variability
         self._causality       = causality
         self._alias           = alias
+        self._initial         = initial
 
     def _get_name(self):
         """
@@ -488,6 +495,19 @@ cdef class ScalarVariable2:
         """
         return self._alias
     alias = property(_get_alias)
+    
+    def _get_initial(self):
+        """
+        Get the value of the initial attribute.
+
+        Returns::
+
+            The initial attribute value as enumeration: FMI2_INITIAL_EXACT, 
+                              FMI2_INITIAL_APPROX, FMI2_INITIAL_CALCULATED, 
+                              FMI2_INITIAL_UNKNOWN    
+        """
+        return self._initial
+    initial = property(_get_initial)
 
 cdef class FMUState2:
     """
@@ -3939,6 +3959,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_variability_enu_t         data_variability, target_variability
         cdef FMIL.fmi2_causality_enu_t           data_causality,   target_causality
         cdef FMIL.fmi2_variable_alias_kind_enu_t alias_kind
+        cdef FMIL.fmi2_initial_enu_t             initial
         cdef char* desc
         cdef int   selected_type = 0        #If a type has been selected
         cdef int   selected_variability = 0 #If a variability has been selected
@@ -3977,6 +3998,7 @@ cdef class FMUModelBase2(ModelBase):
             data_variability = FMIL.fmi2_import_get_variability(variable)
             data_causality   = FMIL.fmi2_import_get_causality(variable)
             desc             = FMIL.fmi2_import_get_variable_description(variable)
+            initial          = FMIL.fmi2_import_get_initial(variable)
 
             #If only variables with start are wanted, check if the variable has start
             if only_start and has_start != 1:
@@ -4008,14 +4030,14 @@ cdef class FMUModelBase2(ModelBase):
                 variable_dict[name] = ScalarVariable2(name,
                                        value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
-                                       alias_kind)
+                                       alias_kind, initial)
             elif alias_kind == FMIL.fmi2_variable_is_not_alias:
                 #Exclude alias
                 #variable_dict[name] = value_ref
                 variable_dict[name] = ScalarVariable2(name,
                                        value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
-                                       alias_kind)
+                                       alias_kind, initial)
 
         #Free the variable list
         FMIL.fmi2_import_free_variable_list(variable_list)
@@ -4154,6 +4176,30 @@ cdef class FMUModelBase2(ModelBase):
         variability = FMIL.fmi2_import_get_variability(variable)
 
         return variability
+    
+    cpdef FMIL.fmi2_initial_enu_t get_variable_initial(self, char* variablename) except *:
+        """
+        Get initial of the variable.
+        
+        Parameters::
+        
+            variablename --
+                The name of the variable.
+                
+        Returns::
+        
+            The initial of the variable: EXACT(0), APPROX(1), 
+            CALCULATED(2), UNKNOWN(3)
+        """
+        cdef FMIL.fmi2_import_variable_t* variable
+        cdef FMIL.fmi2_initial_enu_t initial
+
+        variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+        initial = FMIL.fmi2_import_get_initial(variable)
+
+        return initial
 
     cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, char* variablename) except *:
         """
