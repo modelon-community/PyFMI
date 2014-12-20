@@ -35,7 +35,7 @@ except ImportError:
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "2.0b1"
+VERSION = "2.0"
 LICENSE = "LGPL"
 URL = "http://www.jmodelica.org"
 DOWNLOAD_URL = "http://www.jmodelica.org/page/12"
