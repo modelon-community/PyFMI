@@ -162,7 +162,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'result_handler': None,
             'filter':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
-                            'atol':"Default",'rtol':"Default",'external_event_detection':False,'minh':1e-16},
+                            'atol':"Default",'rtol':"Default",'external_event_detection':False},
             'Radau5ODE_options':{'atol':"Default",'rtol':"Default"},
             'RungeKutta34_options':{'atol':"Default",'rtol':"Default"},
             'Dopri5_options':{'atol':"Default",'rtol':"Default"},
@@ -517,7 +517,13 @@ class AssimuloFMIAlg(AlgorithmBase):
         
         elif self.model.time == None and isinstance(self.model, fmi.FMUModelME2):
             raise Exception("Setup Experiment has not been called, this has to be called prior to the initialization call.")
-            
+        
+        #See if there is an time event at start time
+        if isinstance(self.model, fmi.FMUModelME1):
+            event_info = self.model.get_event_info()
+            if event_info.upcomingTimeEvent and event_info.nextEventTime == model.time:
+                self.model.event_update()
+        
         self.result_handler.simulation_start()
 
         # Sensitivities?

@@ -159,6 +159,8 @@ class FMIODE(Explicit_Problem):
         #self._sol_real += [r]
         #self._sol_int  += [i]
         #self._sol_bool += b
+        
+        self._jm_fmu = self._model.get_generation_tool() == "JModelica.org"
 
         if with_jacobian:
             self.jac = self.j #Activates the jacobian
@@ -377,7 +379,29 @@ class FMIODE(Explicit_Problem):
         """
         Method which is called at each successful step.
         """
+        
         if self._logging:
+            
+            if self._jm_fmu:
+                solver_name = solver.__class__.__name__
+                
+                preface = "[INFO][FMU status:OK] "
+                
+                msg = preface + '<%s>Successfully computed a step. Elapsed time for the step  <value name="t">        %.14E</value>"'%(solver_name,solver.get_elapsed_step_time())
+                self._model.append_log_message("Model", 6, msg)
+                
+                if solver_name == "CVode":
+                    msg = preface + '  <vector name="weighted_error">' + " ".join(["     %.14E"%e for e in solver.get_local_errors()*solver.get_error_weights()])+"</vector>"
+                    self._model.append_log_message("Model", 6, msg)
+                    
+                    msg = preface + '  <vector name="order">%d</vector>'%solver.get_last_order()
+                    self._model.append_log_message("Model", 6, msg)
+                
+                #End tag
+                msg = preface + "</%s>"%solver_name
+                self._model.append_log_message("Model", 6, msg)
+                
+            
             with open (self.debug_file_name, 'a') as f:
                 data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
                 #f.write(" Successful step at t = %.14E"%solver.t)

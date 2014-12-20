@@ -283,8 +283,9 @@ class MainGUI(wx.Frame):
         
     def OnMenuOpen(self, event):
         #Open the file window
-        dlg = wx.FileDialog(self, "Open result file(s)",wildcard="Text files (.txt)|*.txt|MATLAB files (.mat)|*.mat|All files (*.*)|*.*",
-                            style=wx.FD_MULTIPLE)
+        dlg = wx.FileDialog(self, "Open result file(s)",
+                        wildcard="Text files (.txt)|*.txt|MATLAB files (.mat)|*.mat|Comma-Separated Values files (.csv)|*.csv|All files (*.*)|*.*",
+                        style=wx.FD_MULTIPLE)
         
         #If OK load the results
         if dlg.ShowModal() == wx.ID_OK:
