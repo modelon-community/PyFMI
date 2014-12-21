@@ -3011,13 +3011,20 @@ cdef class FMUModelBase2(ModelBase):
                 raise FMUException("The FMU kind could not be determined. "+last_error)
             else:
                 raise FMUException("The FMU kind could not be determined. Enable logging for possibly more information.")
+        elif self._fmu_kind == FMIL.fmi2_fmu_kind_me_and_cs:
+            if isinstance(self,FMUModelME2):
+                self._fmu_kind = FMIL.fmi2_fmu_kind_me
+            elif isinstance(self,FMUModelCS2):
+                self._fmu_kind = FMIL.fmi2_fmu_kind_cs
+            else:
+                raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
 
         #Connect the DLL
         status = FMIL.fmi2_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
         if status == FMIL.jm_status_error:
             last_error = FMIL.fmi2_import_get_last_error(self._fmu)
             if enable_logging:
-                raise FMUException(last_error)
+                raise FMUException("Error loading the binary. " + last_error)
             else:
                 raise FMUException("Error loading the binary. Enable logging for possibly more information.")
         self._allocated_dll = 1
@@ -3463,7 +3470,7 @@ cdef class FMUModelBase2(ModelBase):
         status =  FMIL.fmi2_import_instantiate(self._fmu, name, fmuType, NULL, vis)
 
         if status != FMIL.jm_status_success:
-            raise FMUException('Failed to instantiate the model.')
+            raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
     
     def setup_experiment(self, tolerance_defined=True, tolerance="Default", start_time="Default", stop_time_defined=False, stop_time="Default"):
         """
