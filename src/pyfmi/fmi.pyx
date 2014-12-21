@@ -2874,7 +2874,7 @@ cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
     """
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, kind="ME"):
         """
         Constructor of the model.
 
@@ -2894,6 +2894,11 @@ cdef class FMUModelBase2(ModelBase):
             log_file_name --
                 Filename for file used to save logmessages.
                 Default: "" (Generates automatically)
+                
+            kind --
+                Only used to specify the type of the FMU in case it
+                contains both CS and ME.
+                Default: "ME"
 
         Returns::
 
@@ -3011,13 +3016,18 @@ cdef class FMUModelBase2(ModelBase):
                 raise FMUException("The FMU kind could not be determined. "+last_error)
             else:
                 raise FMUException("The FMU kind could not be determined. Enable logging for possibly more information.")
+        elif self._fmu_kind == FMIL.fmi2_fmu_kind_me_and_cs:
+            if kind.upper() == "CS":
+                self._fmu_kind = FMIL.fmi2_fmu_kind_cs
+            else:
+                self._fmu_kind = FMIL.fmi2_fmu_kind_me
 
         #Connect the DLL
         status = FMIL.fmi2_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
         if status == FMIL.jm_status_error:
             last_error = FMIL.fmi2_import_get_last_error(self._fmu)
             if enable_logging:
-                raise FMUException(last_error)
+                raise FMUException("Error loading the binary. " + last_error)
             else:
                 raise FMUException("Error loading the binary. Enable logging for possibly more information.")
         self._allocated_dll = 1
@@ -4978,7 +4988,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
 
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level)
+        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, kind="CS")
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_cs:
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
@@ -5541,7 +5551,7 @@ cdef class FMUModelME2(FMUModelBase2):
             A model as an object from the class FMUModelME2
         """
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level)
+        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, kind="ME")
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_me:
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
