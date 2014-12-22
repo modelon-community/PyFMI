@@ -24,7 +24,7 @@ import codecs
 import numpy as N
 import scipy.io
 
-import xmlparser
+from pyfmi.common import xmlparser
 import pyfmi.fmi as fmi
 
 class Trajectory:
