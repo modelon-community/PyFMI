@@ -1710,7 +1710,7 @@ class FMUModel(ModelBase):
             try:
                 self._fmiFreeModelInstance(self._model)
             except WindowsError:
-                print 'Failed to free model instance.'
+                print('Failed to free model instance.')
         else:
             self._fmiFreeModelInstance(self._model)
            
@@ -1720,7 +1720,7 @@ class FMUModel(ModelBase):
         try:
             os.remove(self._tempdll)
         except:
-            print 'Failed to remove temporary dll ('+ self._tempdll+').'
+            print('Failed to remove temporary dll ('+ self._tempdll+').')
 
 class FMUModel2(FMUModel):
     """
@@ -2143,7 +2143,7 @@ class FMUModel2(FMUModel):
         n_err = 0
         n_spar_errs = 0
         n_spar_warns = 0
-        print "Error summary:"
+        print("Error summary:")
 
         # Put sparsity information from (A/B/C/D)_st into full matrices
         A_sp = N.zeros((nx,nx))
@@ -2162,95 +2162,94 @@ class FMUModel2(FMUModel):
         for i in range(nx):
             for j in range(nx):
                 if N.abs((A[i,j]-Afd[i,j])/(N.abs(Afd[i,j]) + 1)) > tol:                    
-                    print "V_err at: A[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                    print("V_err at: A[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                     "],jac=" +"{0: e}".format(A[i,j]) + \
                     ",fd=" + "{0: e}".format(Afd[i,j]) + \
-                    "=> rel_err=" + "{0: e}".format(N.abs((A[i,j]-Afd[i,j])/(N.abs(Afd[i,j]) + 1)))
+                    "=> rel_err=" + "{0: e}".format(N.abs((A[i,j]-Afd[i,j])/(N.abs(Afd[i,j]) + 1))))
                     n_err = n_err + 1
                 if(N.abs(Afd[i,j]) > spar_tol):
                     if(not A_sp[i,j] == 1 ):
-                        print "S_err at: A[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                        print("S_err at: A[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                         "], sparsity says independent but" + \
-                        " val in fd = " + "{0: e}".format(Afd[i,j])
+                        " val in fd = " + "{0: e}".format(Afd[i,j]))
                         n_spar_errs = n_spar_errs + 1
                 if(A_sp[i,j] == 1):
                     if(N.abs(Afd[i,j]) <= spar_tol):
                         n_spar_warns = n_spar_warns + 1
                         if(not suppress_warnings):
-                            print "S_wrn at: A[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                            print("S_wrn at: A[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                             "], sparsity says dependent but val" + \
-                            " in fd = " + "{0: e}".format(Afd[i,j])
+                            " in fd = " + "{0: e}".format(Afd[i,j]))
         for i in range(nx):
             for j in range(ncu):
                 if N.abs((B[i,j]-Bfd[i,j])/(N.abs(Bfd[i,j]) + 1)) > tol:
-                    print "V_err at: B[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                    print("V_err at: B[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                     "],jac=" +"{0: e}".format(B[i,j]) + \
                     ",fd=" + "{0: e}".format(Bfd[i,j]) + \
-                    "=> rel_err=" + "{0: e}".format(N.abs((B[i,j]-Bfd[i,j])/(N.abs(Bfd[i,j]) + 1)))
+                    "=> rel_err=" + "{0: e}".format(N.abs((B[i,j]-Bfd[i,j])/(N.abs(Bfd[i,j]) + 1))))
                     n_err = n_err + 1
                 if(N.abs(Bfd[i,j]) > spar_tol):
                     if(not B_sp[i,j] == 1 ):
-                        print "S_err at: B[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                        print("S_err at: B[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                         "], sparsity says independent but" + \
-                        " val in fd = " + "{0: e}".format(Bfd[i,j])
+                        " val in fd = " + "{0: e}".format(Bfd[i,j]))
                 if(B_sp[i,j] == 1):
                     if(N.abs(Bfd[i,j]) <= spar_tol):
                         n_spar_warns = n_spar_warns + 1
                         if(not suppress_warnings):
-                            print "S_wrn at: B[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                            print("S_wrn at: B[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                             "], sparsity says dependent but val" + \
-                            " in fd = " + "{0: e}".format(Bfd[i,j])
+                            " in fd = " + "{0: e}".format(Bfd[i,j]))
         for i in range(ncy):
             for j in range(nx):
                 if N.abs((C[i,j]-Cfd[i,j])/(N.abs(Cfd[i,j]) + 1)) > tol:
-                    print "V_err at: C[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                    print("V_err at: C[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                     "],jac=" +"{0: e}".format(C[i,j]) + \
                     ",fd=" + "{0: e}".format(Cfd[i,j]) + \
-                    "=> rel_err=" + "{0: e}".format(N.abs((C[i,j]-Cfd[i,j])/(N.abs(Cfd[i,j]) + 1)))
+                    "=> rel_err=" + "{0: e}".format(N.abs((C[i,j]-Cfd[i,j])/(N.abs(Cfd[i,j]) + 1))))
                     n_err = n_err + 1
                 if(N.abs(Cfd[i,j]) > spar_tol):
                     if(not C_sp[i,j] == 1 ):
-                        print "S_err at: C[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                        print("S_err at: C[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                         "], sparsity says independent but" + \
-                        " val in fd = " + "{0: e}".format(Cfd[i,j])
+                        " val in fd = " + "{0: e}".format(Cfd[i,j]))
                         n_spar_errs = n_spar_errs + 1
                 if(C_sp[i,j] == 1):
                     if(N.abs(Cfd[i,j]) <= spar_tol):
                         n_spar_warns = n_spar_warns + 1
                         if(not suppress_warnings):
-                            print "S_wrn at: C[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                            print("S_wrn at: C[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                             "], sparsity says dependent but val" + \
-                            " in fd = " + "{0: e}".format(Cfd[i,j])
+                            " in fd = " + "{0: e}".format(Cfd[i,j]))
         for i in range(ncy):
             for j in range(ncu):
                 if N.abs((D[i,j]-Dfd[i,j])/(N.abs(Dfd[i,j]) + 1)) > tol:
-                    print "V_err at: D[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                    print("V_err at: D[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                     "],jac=" +"{0: e}".format(D[i,j]) + \
                     ",fd=" + "{0: e}".format(Dfd[i,j]) + \
-                    "=> rel_err=" + "{0: e}".format(N.abs((D[i,j]-Dfd[i,j])/(N.abs(Dfd[i,j]) + 1)))
+                    "=> rel_err=" + "{0: e}".format(N.abs((D[i,j]-Dfd[i,j])/(N.abs(Dfd[i,j]) + 1))))
                     n_err = n_err + 1
                 if(N.abs(Dfd[i,j]) > spar_tol):
                     if(not D_sp[i,j] == 1 ):
-                        print "S_err at: D[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                        print("S_err at: D[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                         "], sparsity says independent but" + \
-                        " val in fd = " + "{0: e}".format(Dfd[i,j])
+                        " val in fd = " + "{0: e}".format(Dfd[i,j]))
                         n_spar_errs = n_spar_errs + 1
                 if(D_sp[i,j] == 1):
                     if(N.abs(Dfd[i,j]) <= spar_tol):
                         n_spar_warns = n_spar_warns + 1
                         if(not suppress_warnings):
-                            print "S_wrn at: D[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
+                            print("S_wrn at: D[" + repr(i).rjust(3) + "," + repr(j).rjust(3) + \
                             "], sparsity says dependent but val" + \
-                            " in fd = " + "{0: e}".format(Dfd[i,j])
+                            " in fd = " + "{0: e}".format(Dfd[i,j]))
 
-        print "Found " + repr(n_err+n_spar_errs) + " errors and " + repr(n_spar_warns) + \
-              " warnings"
+        print("Found " + repr(n_err+n_spar_errs) + " errors and " + repr(n_spar_warns) + " warnings")
         if(not n_err==0):
-            print "  - Value errors: " + str(n_err)
+            print("  - Value errors: " + str(n_err))
         if(not n_spar_errs ==0):
-            print "  - Sparsity errors: " + str(n_spar_errs)
+            print("  - Sparsity errors: " + str(n_spar_errs))
         if(not n_spar_warns ==0):
-            print "  - Sparsity warnings: " + str(n_spar_warns)
+            print("  - Sparsity warnings: " + str(n_spar_warns))
 
         if plot_sparsity_check:
             

@@ -448,10 +448,10 @@ class FMIODE(Explicit_Problem):
         """
         Prints the information about step events.
         """
-        print '\nStep-event information:\n'
+        print('\nStep-event information:\n')
         for i in range(len(self._logg_step_event)):
-            print 'Event at time: %e'%self._logg_step_event[i]
-        print '\nNumber of events: ',len(self._logg_step_event)
+            print('Event at time: %e'%self._logg_step_event[i])
+        print('\nNumber of events: ',len(self._logg_step_event))
 
     def initialize(self, solver):
         if self._logging:
@@ -874,10 +874,10 @@ class FMIODE_deprecated(Explicit_Problem):
         """
         Prints the information about step events.
         """
-        print '\nStep-event information:\n'
+        print('\nStep-event information:\n')
         for i in range(len(self._logg_step_event)):
-            print 'Event at time: %e'%self._logg_step_event[i]
-        print '\nNumber of events: ',len(self._logg_step_event)
+            print('Event at time: %e'%self._logg_step_event[i])
+        print('\nNumber of events: ',len(self._logg_step_event))
 
     def initialize(self, solver):
         if self._logging:
@@ -1239,10 +1239,10 @@ class FMIODE2(Explicit_Problem):
         """
         Prints the information about step events.
         """
-        print '\nStep-event information:\n'
+        print('\nStep-event information:\n')
         for i in range(len(self._logg_step_event)):
-            print 'Event at time: %e'%self._logg_step_event[i]
-        print '\nNumber of events: ',len(self._logg_step_event)
+            print('Event at time: %e'%self._logg_step_event[i])
+        print('\nNumber of events: ',len(self._logg_step_event))
 
     def initialize(self, solver):
         if self._logging:

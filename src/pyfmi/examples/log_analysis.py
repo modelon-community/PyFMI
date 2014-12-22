@@ -65,8 +65,8 @@ class Analyze(object):
 		Get debug info for blocks
 		"""
 		if identifier == None:
-			print "Possible identifiers are:"
-			print self._debug[0][1].keys()
+			print("Possible identifiers are:")
+			print(self._debug[0][1].keys())
 		
 		else:
 			try:
@@ -86,8 +86,8 @@ class Analyze(object):
 					res.append(res_tmp)
 				
 			except KeyError:
-				print "Identifier ", identifier, " not present in debug info"
-				print "Possible identifiers are:"
-				print self._debug[0][1].keys()
+				print("Identifier ", identifier, " not present in debug info")
+				print("Possible identifiers are:")
+				print(self._debug[0][1].keys())
 		
 			return res

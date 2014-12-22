@@ -32,7 +32,7 @@ try:
     import wx.lib.agw.customtreectrl as wxCustom
     import wx.lib.agw.aui as aui
 except ImportError:
-    print "WX-Python not found. The GUI will not work."
+    print("WX-Python not found. The GUI will not work.")
 
 #JModelica related imports
 try:
@@ -47,7 +47,7 @@ except ImportError:
         from pyjmi.common.io import ResultCSVTextual
         from pyjmi.common.io import JIOError
     except ImportError:
-        print "JModelica Python package was not found."
+        print("JModelica Python package was not found.")
 
 #Import general modules
 import os as O
@@ -778,20 +778,20 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                 data  = self.GetPyData(found_child)
                 
                 if found_child in top_siblings:
-                    print "Found child in top siblings, ", self.GetItemText(found_child)
+                    print("Found child in top siblings, ", self.GetItemText(found_child))
                     continue
                 
                 #print "Found child:", self.GetItemText(found_child)
                 #print "Child: ", self.GetItemText(child), self.GetPyData(child), "Has Children: ", self.HasChildren(child)
                 
                 if data == None:
-                    print "Found (wrong) child:", self.GetItemText(found_child)
+                    print("Found (wrong) child:", self.GetItemText(found_child))
                     raise Exception
                 
                 try:
                     data["timevarying"]
                 except KeyError:
-                    print "Found (wrong (exception)) child:", self.GetItemText(found_child)
+                    print("Found (wrong (exception)) child:", self.GetItemText(found_child))
                     raise Exception
                     
                 if data["timevarying"] == None:

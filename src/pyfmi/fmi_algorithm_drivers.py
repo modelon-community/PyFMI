@@ -910,8 +910,8 @@ class FMICSAlg(AlgorithmBase):
         result_handler.simulation_end()
 
         #Log elapsed time
-        print 'Simulation interval    : ' + str(self.start_time) + ' - ' + str(self.final_time) + ' seconds.'
-        print 'Elapsed simulation time: ' + str(time_stop-time_start) + ' seconds.'
+        print('Simulation interval    : ' + str(self.start_time) + ' - ' + str(self.final_time) + ' seconds.')
+        print('Elapsed simulation time: ' + str(time_stop-time_start) + ' seconds.')
 
     def get_result(self):
         """

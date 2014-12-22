@@ -21,6 +21,7 @@ from distutils.core import setup
 
 import distutils
 import os as O
+import sys as S
 import shutil
 import numpy as N
 import ctypes.util
@@ -106,6 +107,7 @@ copy_gcc_lib = False
 gcc_lib = None
 force_32bit = False
 no_msvcr = False
+python3_flag = True if S.hexversion > 0x03000000 else False
 
 static_link_gcc = "-static-libgcc"
 flag_32bit = "-m32"
@@ -251,6 +253,9 @@ def check_extensions():
                 ext_list[i].extra_compile_args.append(f)
         
         ext_list[i].extra_link_args = extra_link_flags
+        
+        if python3_flag:
+            ext_list[i].cython_directives = {"language_level": 3}
 
     return ext_list
 
@@ -259,7 +264,7 @@ ext_list = check_extensions()
 try:
     from subprocess import Popen, PIPE
     _p = Popen(["svnversion", "."], stdout=PIPE)
-    revision = _p.communicate()[0]
+    revision = _p.communicate()[0].decode('ascii')
 except:
     revision = "unknown"
 version_txt = 'src'+O.path.sep+'pyfmi'+O.path.sep+'version.txt'
