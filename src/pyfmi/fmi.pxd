@@ -107,15 +107,15 @@ cdef class FMUModelBase(ModelBase):
     
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message)
     cpdef _internal_set_fmu_null(self)
-    cpdef get_variable_description(self, char* variablename)
-    cpdef FMIL.fmi1_base_type_enu_t get_variable_data_type(self,char* variablename) except *
-    cpdef FMIL.fmi1_value_reference_t get_variable_valueref(self, char* variablename) except *
-    cpdef get_variable_fixed(self, char* variablename)
-    cpdef get_variable_start(self,char* variablename)
-    cpdef get_variable_max(self,char* variablename)
-    cpdef get_variable_min(self,char* variablename)
-    cpdef FMIL.fmi1_variability_enu_t get_variable_variability(self,char* variablename) except *
-    cpdef FMIL.fmi1_causality_enu_t get_variable_causality(self, char* variablename) except *
+    cpdef get_variable_description(self, variablename)
+    cpdef FMIL.fmi1_base_type_enu_t get_variable_data_type(self, variablename) except *
+    cpdef FMIL.fmi1_value_reference_t get_variable_valueref(self, variablename) except *
+    cpdef get_variable_fixed(self, variablename)
+    cpdef get_variable_start(self, variablename)
+    cpdef get_variable_max(self, variablename)
+    cpdef get_variable_min(self, variablename)
+    cpdef FMIL.fmi1_variability_enu_t get_variable_variability(self, variablename) except *
+    cpdef FMIL.fmi1_causality_enu_t get_variable_causality(self, variablename) except *
 
 cdef class FMUModelCS1(FMUModelBase):
     
@@ -151,7 +151,7 @@ cdef class FMUModelBase2(ModelBase):
     cdef object         _fmu_full_path
     cdef public object  _enable_logging
     cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
-    cdef char*          _modelId
+    cdef object         _modelId
     cdef object         _modelName
     cdef list           _categories
     cdef public list    _save_real_variables_val
@@ -163,15 +163,15 @@ cdef class FMUModelBase2(ModelBase):
     cdef char* _fmu_temp_dir
     
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message)
-    cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, char* variablename) except *
-    cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, char* variablename) except *
-    cpdef get_variable_description(self, char* variablename)
-    cpdef FMIL.fmi2_variability_enu_t get_variable_variability(self,char* variablename) except *
-    cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, char* variablename) except *
-    cpdef get_variable_start(self, char* variablename)
-    cpdef get_variable_max(self, char* variablename)
-    cpdef get_variable_min(self, char* variablename)
-    cpdef FMIL.fmi2_initial_enu_t get_variable_initial(self, char* variablename)
+    cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, variablename) except *
+    cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, variablename) except *
+    cpdef get_variable_description(self, variablename)
+    cpdef FMIL.fmi2_variability_enu_t get_variable_variability(self, variablename) except *
+    cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, variablename) except *
+    cpdef get_variable_start(self, variablename)
+    cpdef get_variable_max(self, variablename)
+    cpdef get_variable_min(self, variablename)
+    cpdef FMIL.fmi2_initial_enu_t get_variable_initial(self, variable_name) except *
     cpdef serialize_fmu_state(self, state)
     cpdef deserialize_fmu_state(self, serialized_fmu)
     cpdef serialized_fmu_state_size(self, state)

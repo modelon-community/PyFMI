@@ -641,7 +641,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         self.simulator.report_continuously = True
 
         #loop solver_args and set properties of solver
-        for k, v in solver_options.iteritems():
+        for k, v in solver_options.items():
             try:
                 getattr(self.simulator,k)
             except AttributeError:

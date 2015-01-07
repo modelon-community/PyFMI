@@ -20,3 +20,7 @@ and functions.
 """
 
 __all__ = ['algorithm_drivers', 'core', 'io', 'xmlparser', 'plotting']
+
+
+import sys
+python3_flag = True if sys.hexversion > 0x03000000 else False

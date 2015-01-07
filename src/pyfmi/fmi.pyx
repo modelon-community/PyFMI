@@ -35,6 +35,20 @@ from pyfmi.common.core import create_temp_dir, delete_temp_dir
 from pyfmi.common.core import create_temp_file, delete_temp_file
 #from pyfmi.common.core cimport BaseModel
 
+from pyfmi.common import python3_flag
+
+if python3_flag:
+    import codecs
+    def encode(x):
+        return codecs.latin_1_encode(x)[0]
+    def decode(x):
+        return x.decode()
+else:
+    def encode(x):
+        return x
+    def decode(x):
+        return x
+
 int   = N.int32
 N.int = N.int32
 
@@ -563,7 +577,7 @@ cdef class FMUModelBase(ModelBase):
             self.callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
 
         fmu_full_path = os.path.abspath(os.path.join(path,fmu))
-        fmu_temp_dir  = create_temp_dir()
+        fmu_temp_dir  = encode(create_temp_dir())
         self._fmu_temp_dir = <char*>FMIL.malloc((FMIL.strlen(fmu_temp_dir)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_temp_dir, fmu_temp_dir)
 
@@ -581,6 +595,7 @@ cdef class FMUModelBase(ModelBase):
         self._allocated_context = 1
 
         #Get the FMI version of the provided model
+        fmu_full_path = encode(fmu_full_path)
         version = FMIL.fmi_import_get_fmi_version(self.context, fmu_full_path, fmu_temp_dir)
         self._version = version #Store version
 
@@ -631,11 +646,11 @@ cdef class FMUModelBase(ModelBase):
         self._pyEventInfo = PyEventInfo()
 
         #Load information from model
-        self._modelid = FMIL.fmi1_import_get_model_identifier(self._fmu)
-        self._modelname = FMIL.fmi1_import_get_model_name(self._fmu)
+        self._modelid = decode(FMIL.fmi1_import_get_model_identifier(self._fmu))
+        self._modelname = decode(FMIL.fmi1_import_get_model_name(self._fmu))
         self._nEventIndicators = FMIL.fmi1_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
-        fmu_log_name = (self._modelid + "_log.txt") if log_file_name=="" else log_file_name
+        fmu_log_name = encode((self._modelid + "_log.txt") if log_file_name=="" else log_file_name)
         self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
@@ -1123,7 +1138,7 @@ cdef class FMUModelBase(ModelBase):
         logging.warning("The method 'set_fmil_log_level' is deprecated, use 'set_log_level' instead.")
         self.set_log_level(level)
 
-    def _set(self,char* variable_name, value):
+    def _set(self, variable_name, value):
         """
         Helper method to set, see docstring on set.
         """
@@ -1131,8 +1146,11 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_base_type_enu_t type
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
-        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variable_name)
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variable_name)
 
@@ -1158,7 +1176,7 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException('Type not supported.')
 
 
-    def _get(self,char* variable_name):
+    def _get(self, variable_name):
         """
         Helper method to get, see docstring on get.
         """
@@ -1166,8 +1184,11 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_base_type_enu_t type
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
-        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variable_name)
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variable_name)
 
@@ -1189,13 +1210,13 @@ cdef class FMUModelBase(ModelBase):
         else:
             raise FMUException('Type not supported.')
     
-    cpdef get_variable_description(self, char* variablename):
+    cpdef get_variable_description(self, variable_name):
         """
         Get the description of a given variable.
 
         Parameter::
 
-            variablename --
+            variable_name --
                 The name of the variable
 
         Returns::
@@ -1204,6 +1225,9 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef FMIL.fmi1_import_variable_t* variable
         cdef char* desc
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1213,13 +1237,13 @@ cdef class FMUModelBase(ModelBase):
 
         return desc if desc != NULL else ""
 
-    cpdef FMIL.fmi1_base_type_enu_t get_variable_data_type(self,char* variablename) except *:
+    cpdef FMIL.fmi1_base_type_enu_t get_variable_data_type(self, variable_name) except *:
         """
         Get data type of variable.
 
         Parameter::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
         Returns::
@@ -1228,6 +1252,9 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_base_type_enu_t type
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1237,13 +1264,13 @@ cdef class FMUModelBase(ModelBase):
 
         return type
 
-    cpdef FMIL.fmi1_value_reference_t get_variable_valueref(self, char* variablename) except *:
+    cpdef FMIL.fmi1_value_reference_t get_variable_valueref(self, variable_name) except *:
         """
         Extract the ValueReference given a variable name.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
         Returns::
@@ -1252,6 +1279,9 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_value_reference_t vr
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1296,7 +1326,7 @@ cdef class FMUModelBase(ModelBase):
 
         return  FMIL.fmi1_import_get_real_variable_nominal(real_variable)
 
-    cpdef get_variable_fixed(self, char* variablename):
+    cpdef get_variable_fixed(self, variable_name):
         """
         Returns if the start value is fixed (True - The value is used as
         an initial value) or not (False - The value is used as a guess
@@ -1304,7 +1334,7 @@ cdef class FMUModelBase(ModelBase):
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable
 
         Returns::
@@ -1312,6 +1342,9 @@ cdef class FMUModelBase(ModelBase):
             If the start value is fixed or not.
         """
         cdef FMIL.fmi1_import_variable_t *variable
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1327,14 +1360,14 @@ cdef class FMUModelBase(ModelBase):
         return fixed==1
 
 
-    cpdef get_variable_start(self,char* variablename):
+    cpdef get_variable_start(self, variable_name):
         """
         Returns the start value for the variable or else raises
         FMUException.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable
 
         Returns::
@@ -1350,6 +1383,9 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_base_type_enu_t type
         cdef int status
         cdef FMIL.fmi1_boolean_t FMITRUE = 1
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1385,13 +1421,13 @@ cdef class FMUModelBase(ModelBase):
         else:
             raise FMUException("Unknown variable type.")
 
-    cpdef get_variable_max(self,char* variablename):
+    cpdef get_variable_max(self, variable_name):
         """
         Returns the maximum value for the given variable.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
         Returns::
@@ -1403,6 +1439,9 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_import_real_variable_t* real_variable
         cdef FMIL.fmi1_import_enum_variable_t* enum_variable
         cdef FMIL.fmi1_base_type_enu_t type
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1425,13 +1464,13 @@ cdef class FMUModelBase(ModelBase):
         else:
             raise FMUException("The variable type does not have a maximum value.")
 
-    cpdef get_variable_min(self,char* variablename):
+    cpdef get_variable_min(self, variable_name):
         """
         Returns the minimum value for the given variable.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
         Returns::
@@ -1443,6 +1482,9 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_import_real_variable_t* real_variable
         cdef FMIL.fmi1_import_enum_variable_t* enum_variable
         cdef FMIL.fmi1_base_type_enu_t type
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1543,7 +1585,7 @@ cdef class FMUModelBase(ModelBase):
             variable = FMIL.fmi1_import_get_variable(variable_list, i)
 
             alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
-            name       = FMIL.fmi1_import_get_variable_name(variable)
+            name       = decode(FMIL.fmi1_import_get_variable_name(variable))
             value_ref  = FMIL.fmi1_import_get_variable_vr(variable)
             data_type  = FMIL.fmi1_import_get_variable_base_type(variable)
             has_start  = FMIL.fmi1_import_get_variable_has_start(variable)
@@ -1640,7 +1682,7 @@ cdef class FMUModelBase(ModelBase):
             variable = FMIL.fmi1_import_get_variable(variable_list, i)
 
             alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
-            name       = FMIL.fmi1_import_get_variable_name(variable)
+            name       = decode(FMIL.fmi1_import_get_variable_name(variable))
             data_variability = FMIL.fmi1_import_get_variability(variable)
             data_type  = FMIL.fmi1_import_get_variable_base_type(variable)
 
@@ -1676,14 +1718,17 @@ cdef class FMUModelBase(ModelBase):
         #Free the variable list
         FMIL.fmi1_import_free_variable_list(variable_list)
 
-        return real_var_ref.keys(), int_var_ref.keys(), bool_var_ref.keys()
+        return list(real_var_ref.keys()) if python3_flag else real_var_ref.keys(), list(int_var_ref.keys()) if python3_flag else int_var_ref.keys(), list(bool_var_ref.keys()) if python3_flag else bool_var_ref.keys()
 
-    def get_variable_alias_base(self, char* variablename):
+    def get_variable_alias_base(self, variable_name):
         """
         Returns the base variable for the provided variable name.
         """
         cdef FMIL.fmi1_import_variable_t* variable, *base_variable
         cdef FMIL.fmi1_value_reference_t vr
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1693,11 +1738,11 @@ cdef class FMUModelBase(ModelBase):
         if base_variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        name = FMIL.fmi1_import_get_variable_name(base_variable)
+        name = decode(FMIL.fmi1_import_get_variable_name(base_variable))
 
         return name
 
-    def get_variable_alias(self,char* variablename):
+    def get_variable_alias(self, variable_name):
         """
         Return a dict of all alias variables belonging to the provided variable
         where the key are the names and the value indicating whether the variable
@@ -1717,6 +1762,9 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.size_t alias_list_size
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
         cdef dict ret_values = {}
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1732,7 +1780,7 @@ cdef class FMUModelBase(ModelBase):
             variable = FMIL.fmi1_import_get_variable(alias_list, i)
 
             alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
-            alias_name = FMIL.fmi1_import_get_variable_name(variable)
+            alias_name = decode(FMIL.fmi1_import_get_variable_name(variable))
 
             ret_values[alias_name] = alias_kind
 
@@ -1741,7 +1789,7 @@ cdef class FMUModelBase(ModelBase):
 
         return ret_values
 
-    cpdef FMIL.fmi1_variability_enu_t get_variable_variability(self,char* variablename) except *:
+    cpdef FMIL.fmi1_variability_enu_t get_variable_variability(self, variable_name) except *:
         """
         Get variability of variable.
 
@@ -1758,6 +1806,9 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_variability_enu_t variability
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1786,17 +1837,17 @@ cdef class FMUModelBase(ModelBase):
         if variable==NULL:
             raise FMUException("The variable with the valuref %i could not be found."%valueref)
 
-        name = FMIL.fmi1_import_get_variable_name(variable)
+        name = decode(FMIL.fmi1_import_get_variable_name(variable))
 
         return name
 
-    cpdef FMIL.fmi1_causality_enu_t get_variable_causality(self, char* variablename) except *:
+    cpdef FMIL.fmi1_causality_enu_t get_variable_causality(self, variable_name) except *:
         """
         Get the causality of the variable.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
         Returns::
@@ -1806,6 +1857,9 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_causality_enu_t causality
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -1877,7 +1931,7 @@ cdef class FMUModelBase(ModelBase):
         """
         Return the model GUID.
         """
-        guid = FMIL.fmi1_import_get_GUID(self._fmu)
+        guid = decode(FMIL.fmi1_import_get_GUID(self._fmu))
         return guid
 
 
@@ -2751,6 +2805,7 @@ cdef class FMUModelME1(FMUModelBase):
         else:
             log = 0
 
+        name = encode(name)
         status = FMIL.fmi1_import_instantiate_model(self._fmu, name)
 
         if status != 0:
@@ -2956,11 +3011,11 @@ cdef class FMUModelBase2(ModelBase):
             self.callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error        
 
         # Check that the file referenced by fmu has the correct file-ending
-        self._fmu_full_path = os.path.abspath(os.path.join(path,fmu))
-        if not self._fmu_full_path.endswith('.fmu'):
+        if not fmu.endswith('.fmu'):
             raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
 
         #Check that the file exists
+        self._fmu_full_path = encode(os.path.abspath(os.path.join(path,fmu)))
         if not os.path.isfile(self._fmu_full_path):
             raise FMUException('Could not locate the FMU in the specified directory.')
 
@@ -2969,7 +3024,7 @@ cdef class FMUModelBase2(ModelBase):
         self._allocated_context = 1
 
         #Get the FMI version of the provided model
-        fmu_temp_dir  = create_temp_dir()
+        fmu_temp_dir  = encode(create_temp_dir())
         self._fmu_temp_dir = <char*>FMIL.malloc((FMIL.strlen(fmu_temp_dir)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_temp_dir, fmu_temp_dir)
         self._version      = FMIL.fmi_import_get_fmi_version(self._context, self._fmu_full_path, self._fmu_temp_dir)
@@ -3030,11 +3085,11 @@ cdef class FMUModelBase2(ModelBase):
         self._allocated_dll = 1
 
         #Load information from model
-        self._modelName         = FMIL.fmi2_import_get_model_name(self._fmu)
+        self._modelName         = decode(FMIL.fmi2_import_get_model_name(self._fmu))
         self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
         self._nCategories       = FMIL.fmi2_import_get_log_categories_num(self._fmu)
-        fmu_log_name = (self._modelName + "_log.txt") if log_file_name=="" else log_file_name
+        fmu_log_name = encode((self._modelName + "_log.txt") if log_file_name=="" else log_file_name)
         self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
@@ -3350,7 +3405,7 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to set the String values.')
 
-    def _set(self,char* variable_name, value):
+    def _set(self, variable_name, value):
         """
         Helper method to set, see docstring on set.
         """
@@ -3371,7 +3426,7 @@ cdef class FMUModelBase2(ModelBase):
         else:
             raise FMUException('Type not supported.')
 
-    def _get(self,char* variable_name):
+    def _get(self, variable_name):
         """
         Helper method to get, see docstring on get.
         """
@@ -3467,6 +3522,7 @@ cdef class FMUModelBase2(ModelBase):
         else:
             raise FMUException('The instance is not curent an instance of an ME-model or a CS-model. Use load_fmu for correct loading.')
 
+        name = encode(name)
         status =  FMIL.fmi2_import_instantiate(self._fmu, name, fmuType, NULL, vis)
 
         if status != FMIL.jm_status_success:
@@ -3682,14 +3738,14 @@ cdef class FMUModelBase2(ModelBase):
         return output
 
 
-    def get_variable_nominal(self, variablename=None, valueref=None):
+    def get_variable_nominal(self, variable_name=None, valueref=None):
         """
         Returns the nominal value from a real variable determined by
         either its value reference or its variable name.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
             valueref --
@@ -3701,12 +3757,16 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t*      variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
+        cdef char* variablename
 
         if valueref != None:
             variable = FMIL.fmi2_import_get_variable_by_vr(self._fmu, FMIL.fmi2_base_type_real, <FMIL.fmi2_value_reference_t>valueref)
             if variable == NULL:
                 raise FMUException("The variable with value reference: %s, could not be found."%str(valueref))
-        elif variablename != None:
+        elif variable_name != None:
+            variable_name = encode(variable_name)
+            variablename = variable_name
+            
             variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
             if variable == NULL:
                 raise FMUException("The variable %s could not be found."%variablename)
@@ -3874,7 +3934,7 @@ cdef class FMUModelBase2(ModelBase):
             variable = FMIL.fmi2_import_get_variable(variable_list, i)
 
             alias_kind       = FMIL.fmi2_import_get_variable_alias_kind(variable)
-            name             = FMIL.fmi2_import_get_variable_name(variable)
+            name             = decode(FMIL.fmi2_import_get_variable_name(variable))
             value_ref        = FMIL.fmi2_import_get_variable_vr(variable)
             data_type        = FMIL.fmi2_import_get_variable_base_type(variable)
             data_variability = FMIL.fmi2_import_get_variability(variable)
@@ -3906,7 +3966,7 @@ cdef class FMUModelBase2(ModelBase):
         #Free the variable list
         FMIL.fmi2_import_free_variable_list(variable_list)
 
-        return real_var_ref.keys(), int_var_ref.keys(), bool_var_ref.keys()
+        return list(real_var_ref.keys()) if python3_flag else real_var_ref.keys(), list(int_var_ref.keys()) if python3_flag else int_var_ref.keys(), list(bool_var_ref.keys()) if python3_flag else bool_var_ref.keys()
 
 
     def get_model_variables(self, type = None, include_alias = True,
@@ -3998,7 +4058,7 @@ cdef class FMUModelBase2(ModelBase):
             variable = FMIL.fmi2_import_get_variable(variable_list, i)
 
             alias_kind       = FMIL.fmi2_import_get_variable_alias_kind(variable)
-            name             = FMIL.fmi2_import_get_variable_name(variable)
+            name             = decode(FMIL.fmi2_import_get_variable_name(variable))
             value_ref        = FMIL.fmi2_import_get_variable_vr(variable)
             data_type        = FMIL.fmi2_import_get_variable_base_type(variable)
             has_start        = FMIL.fmi2_import_get_variable_has_start(variable)  #fmi2_import_get_initial, may be of interest
@@ -4089,13 +4149,13 @@ cdef class FMUModelBase2(ModelBase):
 
         return vr_real, vr_int, vr_bool, vr_str, vr_enum
 
-    cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, char* variablename) except *:
+    cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, variable_name) except *:
         """
         Extract the ValueReference given a variable name.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
         Returns::
@@ -4104,6 +4164,9 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_value_reference_t  vr
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -4112,13 +4175,13 @@ cdef class FMUModelBase2(ModelBase):
 
         return vr
 
-    cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, char* variablename) except *:
+    cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, variable_name) except *:
         """
         Get data type of variable.
 
         Parameter::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
         Returns::
@@ -4127,6 +4190,9 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_base_type_enu_t    type
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -4136,13 +4202,13 @@ cdef class FMUModelBase2(ModelBase):
 
         return type
 
-    cpdef get_variable_description(self, char* variablename):
+    cpdef get_variable_description(self, variable_name):
         """
         Get the description of a given variable.
 
         Parameter::
 
-            variablename --
+            variable_name --
                 The name of the variable
 
         Returns::
@@ -4151,6 +4217,9 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef char* desc
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -4160,13 +4229,13 @@ cdef class FMUModelBase2(ModelBase):
 
         return desc if desc != NULL else ""
 
-    cpdef FMIL.fmi2_variability_enu_t get_variable_variability(self,char* variablename) except *:
+    cpdef FMIL.fmi2_variability_enu_t get_variable_variability(self, variable_name) except *:
         """
         Get variability of the variable.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
         Returns::
@@ -4176,6 +4245,9 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_variability_enu_t variability
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -4184,13 +4256,13 @@ cdef class FMUModelBase2(ModelBase):
 
         return variability
     
-    cpdef FMIL.fmi2_initial_enu_t get_variable_initial(self, char* variablename) except *:
+    cpdef FMIL.fmi2_initial_enu_t get_variable_initial(self, variable_name) except *:
         """
         Get initial of the variable.
         
         Parameters::
         
-            variablename --
+            variable_name --
                 The name of the variable.
                 
         Returns::
@@ -4200,21 +4272,24 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_initial_enu_t initial
-
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
+        
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
         initial = FMIL.fmi2_import_get_initial(variable)
-
+        
         return initial
 
-    cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, char* variablename) except *:
+    cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, variable_name) except *:
         """
         Get the causality of the variable.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
         Returns::
@@ -4224,6 +4299,9 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_causality_enu_t causality
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -4233,14 +4311,14 @@ cdef class FMUModelBase2(ModelBase):
 
         return causality
 
-    cpdef get_variable_start(self, char* variablename):
+    cpdef get_variable_start(self, variable_name):
         """
         Returns the start value for the variable or else raises
         FMUException.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable
 
         Returns::
@@ -4256,7 +4334,10 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_string_variable_t*  str_variable
         cdef int                                  status
         cdef FMIL.fmi2_boolean_t                  FMITRUE = 1
-
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
+        
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
@@ -4291,13 +4372,13 @@ cdef class FMUModelBase2(ModelBase):
         else:
             raise FMUException("Unknown variable type.")
 
-    cpdef get_variable_max(self, char* variablename):
+    cpdef get_variable_max(self, variable_name):
         """
         Returns the maximum value for the given variable.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
         Returns::
@@ -4309,6 +4390,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_real_variable_t*    real_variable
         cdef FMIL.fmi2_import_enum_variable_t*    enum_variable
         cdef FMIL.fmi2_base_type_enu_t            type
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -4331,13 +4415,13 @@ cdef class FMUModelBase2(ModelBase):
         else:
             raise FMUException("The variable type does not have a maximum value.")
 
-    cpdef get_variable_min(self, char* variablename):
+    cpdef get_variable_min(self, variable_name):
         """
         Returns the minimum value for the given variable.
 
         Parameters::
 
-            variablename --
+            variable_name --
                 The name of the variable.
 
         Returns::
@@ -4349,6 +4433,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_real_variable_t*    real_variable
         cdef FMIL.fmi2_import_enum_variable_t*    enum_variable
         cdef FMIL.fmi2_base_type_enu_t            type
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -4923,7 +5010,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         Return the model GUID.
         """
-        guid = FMIL.fmi2_import_get_GUID(self._fmu)
+        guid = decode(FMIL.fmi2_import_get_GUID(self._fmu))
         return guid
         
     def get_variable_naming_convention(self):
@@ -4994,7 +5081,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         if self.get_capability_flags()['needsExecutionTool'] == True:
             raise FMUException('Models that need an execution tool are not supported')
 
-        self._modelId = FMIL.fmi2_import_get_model_identifier_CS(self._fmu)
+        self._modelId = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
         self.instantiate()
 
     def __dealloc__(self):
@@ -5564,7 +5651,7 @@ cdef class FMUModelME2(FMUModelBase2):
         self._eventInfo.nextEventTimeDefined              = FMI2_FALSE
         self._eventInfo.nextEventTime                     = 0.0
         
-        self._modelId = FMIL.fmi2_import_get_model_identifier_ME(self._fmu)
+        self._modelId = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
         self.instantiate()
 
     def __dealloc__(self):
@@ -6217,7 +6304,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     #Variables for deallocation
     fmu_temp_dir = None
     model        = None
-    log_file     = create_temp_file()
+    log_file     = encode(create_temp_file())
     log_file_c = <char*>FMIL.malloc((FMIL.strlen(log_file)+1)*sizeof(char))
     FMIL.strcpy(log_file_c, log_file)
 
@@ -6280,7 +6367,8 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     context = FMIL.fmi_import_allocate_context(&callbacks)
 
     #Get the FMI version of the provided model
-    fmu_temp_dir = create_temp_dir()
+    fmu_temp_dir = encode(create_temp_dir())
+    fmu_full_path = encode(fmu_full_path)
     version = FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
 
 

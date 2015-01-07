@@ -24,8 +24,9 @@ import codecs
 import numpy as N
 import scipy.io
 
-from pyfmi.common import xmlparser
+from . import xmlparser
 import pyfmi.fmi as fmi
+from . import python3_flag
 
 class Trajectory:
     """
@@ -872,7 +873,11 @@ class ResultDymolaTextual(ResultDymola):
         nCols = nLines[2].partition(')')
         nLines = int(nLines[0])
         nCols = int(nCols[0])
-        dataInfo = [map(int,fid.readline().split()[0:nCols]) for i in range(nLines)]
+        
+        if python3_flag:
+            dataInfo = [list(map(int,fid.readline().split()[0:nCols])) for i in range(nLines)]
+        else:
+            dataInfo = [map(int,fid.readline().split()[0:nCols]) for i in range(nLines)]
         #dataInfo = []
         #for i in range(0,nLines):
         #    info = fid.readline().split()
