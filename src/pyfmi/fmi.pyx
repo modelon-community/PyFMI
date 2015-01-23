@@ -2976,6 +2976,14 @@ cdef class FMUModelBase2(ModelBase):
 
         #Default values
         self.__t = None
+        self._A = None
+        self._B = None
+        self._C = None
+        self._D = None
+        self._states_references = None
+        self._derivatives_references = None
+        self._outputs_references = None
+        self._inputs_references = None
 
         #Internal values
         self._pyEventInfo = PyEventInfo()
@@ -4788,7 +4796,88 @@ cdef class FMUModelBase2(ModelBase):
         FMIL.fmi2_import_free_variable_list(variable_list)
 
         return variable_dict
-
+    
+    def get_state_space_representation(self, A=True, B=True, C=True, D=True):
+        """
+        Returns a state space representation of the model. I.e::
+        
+            der(x) = Ax + Bu
+                y  = Cx + Du
+                
+        Which of the matrices to be returned can be choosen by the arguments.
+        """
+        cdef N.ndarray v
+        cdef int i
+        
+        if A:
+            if self._states_references is None:
+                states                       = self.get_states_list()
+                self._states_references      = [s.value_reference for s in states.values()]
+            if self._derivatives_references is None:
+                derivatives                  = self.get_derivatives_list()
+                self._derivatives_references = [s.value_reference for s in derivatives.values()]
+            if self._A is None:
+                self._A = N.zeros((len(self._derivatives_references), len(self._states_references)))
+            A = self._A
+                
+            v = N.zeros(len(self._states_references))
+            for i in range(len(self._states_references)):
+                v[i] = 1.0
+                A[:, i] = self.get_directional_derivative(self._states_references, self._derivatives_references, v)
+                v[i] = 0.0
+                
+        if B:
+            if self._inputs_references is None:
+                inputs                       = self.get_input_list()
+                self._inputs_references      = [s.value_reference for s in inputs.values()]
+            if self._derivatives_references is None:
+                derivatives                  = self.get_derivatives_list()
+                self._derivatives_references = [s.value_reference for s in derivatives.values()]
+            if self._B is None:
+                self._B = N.zeros((len(self._derivatives_references), len(self._inputs_references)))
+            B = self._B
+                
+            v = N.zeros(len(self._inputs_references))
+            for i in range(len(self._inputs_references)):
+                v[i] = 1.0
+                B[:, i] = self.get_directional_derivative(self._inputs_references, self._derivatives_references, v)
+                v[i] = 0.0
+        if C:
+            if self._states_references is None:
+                states                       = self.get_states_list()
+                self._states_references      = [s.value_reference for s in states.values()]
+            if self._outputs_references is None:
+                outputs                      = self.get_output_list()
+                self._outputs_references     = [s.value_reference for s in outputs.values()]
+            if self._C is None:
+                self._C = N.zeros((len(self._outputs_references), len(self._states_references)))
+            C = self._C
+                
+            v = N.zeros(len(self._states_references))
+            for i in range(len(self._states_references)):
+                v[i] = 1.0
+                C[:, i] = self.get_directional_derivative(self._states_references, self._outputs_references, v)
+                v[i] = 0.0
+        if D:
+            if self._inputs_references is None:
+                inputs                       = self.get_input_list()
+                self._inputs_references      = [s.value_reference for s in inputs.values()]
+            if self._outputs_references is None:
+                outputs                      = self.get_output_list()
+                self._outputs_references     = [s.value_reference for s in outputs.values()]
+            if self._D is None:
+                self._D = N.zeros((len(self._outputs_references), len(self._inputs_references)))
+            D = self._D
+                
+            v = N.zeros(len(self._inputs_references))
+            for i in range(len(self._inputs_references)):
+                v[i] = 1.0
+                D[:, i] = self.get_directional_derivative(self._inputs_references, self._outputs_references, v)
+                v[i] = 0.0
+            
+        return A,B,C,D
+        
+    
     def get_states_list(self):
         """
         Returns a dictionary with the states.

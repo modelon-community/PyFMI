@@ -161,6 +161,11 @@ cdef class FMUModelBase2(ModelBase):
     cdef public object  _pyEventInfo
     cdef char* _fmu_log_name
     cdef char* _fmu_temp_dir
+    cdef object         _states_references
+    cdef object         _inputs_references
+    cdef object         _outputs_references
+    cdef object         _derivatives_references
+    cdef object         _A, _B, _C, _D
     
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message)
     cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, variablename) except *
