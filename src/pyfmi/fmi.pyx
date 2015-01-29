@@ -68,6 +68,10 @@ FMI_ERROR   = FMIL.fmi1_status_error
 FMI_FATAL   = FMIL.fmi1_status_fatal
 FMI_PENDING = FMIL.fmi1_status_pending
 
+FMI1_DO_STEP_STATUS       = FMIL.fmi1_do_step_status
+FMI1_PENDING_STATUS       = FMIL.fmi1_pending_status
+FMI1_LAST_SUCCESSFUL_TIME = FMIL.fmi1_last_successful_time
+
 # Types
 FMI_REAL        = FMIL.fmi1_base_type_real
 FMI_INTEGER     = FMIL.fmi1_base_type_int
@@ -2100,6 +2104,23 @@ cdef class FMUModelCS1(FMUModelBase):
         return FMIL.fmi1_import_get_types_platform(self._fmu)
 
     types_platform = property(fget=_get_types_platform)
+
+    def get_real_status(self, status_kind):
+        """
+        """
+        cdef FMIL.fmi1_real_t value = 0.0
+        cdef int status
+        
+        if status_kind == FMIL.fmi1_last_successful_time:
+            status = FMIL.fmi1_import_get_real_status(self._fmu, FMIL.fmi1_last_successful_time, &value)
+            
+            if status != 0:
+                raise FMUException('Failed to retrieve the last successful time. See the log for possibly more information.') 
+                
+            return value
+        else:
+            raise FMUException('Not supported status kind.') 
+    
 
     def set_input_derivatives(self, variables, values, orders):
         """
