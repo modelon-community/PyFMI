@@ -115,7 +115,7 @@ FMI2_OUTPUT   = FMIL.fmi2_causality_enu_output
 # FMI types
 FMI_ME                 = FMIL.fmi1_fmu_kind_enu_me
 FMI_CS_STANDALONE      = FMIL.fmi1_fmu_kind_enu_cs_standalone
-FMI_MIME_CS_STANDALONE = "application/x-fmu-sharedlibrary"
+FMI_MIME_CS_STANDALONE = encode("application/x-fmu-sharedlibrary")
 
 FMI_REGISTER_GLOBALLY = 1
 FMI_DEFAULT_LOG_LEVEL = FMIL.jm_log_level_error
@@ -275,11 +275,11 @@ cdef class ModelBase:
             common.algorithm_drivers.AlgorithmBase.
         """
         base_path = 'common.algorithm_drivers'
-        algdrive = __import__(base_path, globals(), locals(), [], -1)
+        algdrive = __import__(base_path, globals(), locals(), [], 1)
         AlgorithmBase = getattr(getattr(algdrive,"algorithm_drivers"), 'AlgorithmBase')
 
         if isinstance(algorithm, basestring):
-            module = __import__(module, globals(), locals(), [algorithm], -1)
+            module = __import__(module, globals(), locals(), [algorithm], 0)
             algorithm = getattr(module, algorithm)
 
         if not issubclass(algorithm, AlgorithmBase):
@@ -299,7 +299,7 @@ cdef class ModelBase:
         Help method. Gets the options class for the algorithm specified in
         'algorithm'.
         """
-        module = __import__(module, globals(), locals(), [algorithm], -1)
+        module = __import__(module, globals(), locals(), [algorithm], 0)
         algorithm = getattr(module, algorithm)
 
         return algorithm.get_default_options()
@@ -2334,7 +2334,8 @@ cdef class FMUModelCS1(FMUModelBase):
         cdef FMIL.fmi1_boolean_t visible = 0
         cdef FMIL.fmi1_boolean_t interactive = 0
         cdef FMIL.fmi1_string_t location = NULL
-
+        
+        name = encode(name)
         status = FMIL.fmi1_import_instantiate_slave(self._fmu, name, location,
                                         FMI_MIME_CS_STANDALONE, timeout, visible,
                                         interactive)
