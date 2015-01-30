@@ -908,7 +908,7 @@ class FMICSAlg(AlgorithmBase):
                 if status == fmi.FMI_DISCARD and isinstance(self.model, fmi.FMUModelCS1):
                     try:
                         last_time = self.model.get_real_status(fmi.FMI1_LAST_SUCCESSFUL_TIME)
-                        if time > t: #Solver succeeded in taken a step a little further than the last time
+                        if last_time > t: #Solver succeeded in taken a step a little further than the last time
                             self.model.time = last_time
                             final_time = last_time
                             result_handler.integration_point()
