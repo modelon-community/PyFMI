@@ -51,7 +51,11 @@ N.int = N.int32
 
 
 class FMIResult(JMResultBase):
-    pass
+    def __init__(self, model=None, result_file_name=None, solver=None, 
+             result_data=None, options=None, status=0):
+        JMResultBase.__init__(self, 
+                model, result_file_name, solver, result_data, options)
+        self.status = status
 
 class AssimuloFMIAlgOptions(OptionBase):
     """
@@ -793,6 +797,8 @@ class FMICSAlg(AlgorithmBase):
         self.start_time = start_time
         self.final_time = final_time
         self.input = input
+        
+        self.status = 0
 
         # handle options argument
         if isinstance(options, dict) and not \
@@ -885,6 +891,7 @@ class FMICSAlg(AlgorithmBase):
         grid = N.linspace(self.start_time,self.final_time,self.ncp+1)[:-1]
 
         status = 0
+        final_time = 0.0
 
         #For result writing
         result_handler.integration_point()
@@ -894,10 +901,24 @@ class FMICSAlg(AlgorithmBase):
 
         for t in grid:
             status = self.model.do_step(t,h)
+            
 
             if status != 0:
-                result_handler.simulation_end()
-                raise Exception("The simulation failed. See the log for more information. Return flag %d"%status)
+                self.status = status
+                if status == fmi.FMI_DISCARD and isinstance(self.model, fmi.FMUModelCS1):
+                    try:
+                        last_time = self.model.get_real_status(fmi.FMI1_LAST_SUCCESSFUL_TIME)
+                        if time > t: #Solver succeeded in taken a step a little further than the last time
+                            self.model.time = last_time
+                            final_time = last_time
+                            result_handler.integration_point()
+                    except fmi.FMUException:
+                        pass
+                break
+                #result_handler.simulation_end()
+                #raise Exception("The simulation failed. See the log for more information. Return flag %d"%status)
+            
+            final_time = t+h
 
             result_handler.integration_point()
 
@@ -908,9 +929,12 @@ class FMICSAlg(AlgorithmBase):
         time_stop = time.clock()
 
         result_handler.simulation_end()
-
+        
+        if self.status != 0:
+            print('Simulation terminated prematurely. See the log for possibly more information. Return flag %d.'%status)
+        
         #Log elapsed time
-        print('Simulation interval    : ' + str(self.start_time) + ' - ' + str(self.final_time) + ' seconds.')
+        print('Simulation interval    : ' + str(self.start_time) + ' - ' + str(final_time) + ' seconds.')
         print('Elapsed simulation time: ' + str(time_stop-time_start) + ' seconds.')
 
     def get_result(self):
@@ -927,7 +951,7 @@ class FMICSAlg(AlgorithmBase):
 
         # create and return result object
         return FMIResult(self.model, self.result_file_name, None,
-            res, self.options)
+            res, self.options, status=self.status)
 
     @classmethod
     def get_default_options(cls):
