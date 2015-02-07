@@ -901,11 +901,16 @@ class FMICSAlg(AlgorithmBase):
 
         for t in grid:
             status = self.model.do_step(t,h)
-            
+            self.status = status
 
             if status != 0:
-                self.status = status
-                if status == fmi.FMI_DISCARD and isinstance(self.model, fmi.FMUModelCS1):
+                
+                if status == fmi.FMI_ERROR:
+                    result_handler.simulation_end()
+                    raise Exception("The simulation failed. See the log for more information. Return flag %d."%status)
+
+                elif status == fmi.FMI_DISCARD and isinstance(self.model, fmi.FMUModelCS1):
+                
                     try:
                         last_time = self.model.get_real_status(fmi.FMI1_LAST_SUCCESSFUL_TIME)
                         if last_time > t: #Solver succeeded in taken a step a little further than the last time
