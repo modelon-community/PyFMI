@@ -878,18 +878,10 @@ class ResultDymolaTextual(ResultDymola):
             dataInfo = [list(map(int,fid.readline().split()[0:nCols])) for i in range(nLines)]
         else:
             dataInfo = [map(int,fid.readline().split()[0:nCols]) for i in range(nLines)]
-        #dataInfo = []
-        #for i in range(0,nLines):
-        #    info = fid.readline().split()
-        #    dataInfo.append(map(int,info[0:nCols]))
         self.dataInfo = N.array(dataInfo)
 
         # Find out how many data matrices there are
         nData = max(self.dataInfo[:,0])
-        #nData = 0
-        #for i in range(0,nLines):
-        #    if dataInfo[i][0] > nData:
-        #        nData = dataInfo[i][0]
                 
         self.data = []
         for i in range(0,nData): 
@@ -912,9 +904,15 @@ class ResultDymolaTextual(ResultDymola):
                     l = fid.readline()
                     info.extend(l.split())
                 try:
-                    data.append(map(float,info[0:nCols]))
+                    if python3_flag:
+                        data.append(list(map(float,info[0:nCols])))
+                    else:
+                        data.append(map(float,info[0:nCols]))
                 except ValueError: #Handle 1.#INF's and such
-                    data.append(map(robust_float,info[0:nCols]))
+                    if python3_flag:
+                        data.append(list(map(robust_float,info[0:nCols])))
+                    else:
+                        data.append(map(robust_float,info[0:nCols]))
                 if len(info) == 0 and i < nLines-1:
                     raise JIOError("Inconsistent number of lines in the result data.")
                 del(info)
