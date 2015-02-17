@@ -500,7 +500,9 @@ cdef extern from 'fmilib.h':
     int fmi2_import_get_real(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_real_t *)
     int fmi2_import_get_continuous_states(fmi2_import_t *, fmi2_real_t *, size_t)
     int fmi2_import_free_fmu_state(fmi2_import_t *, fmi2_FMU_state_t *)
-    void fmi2_import_get_dependencies_outputs_on_inputs(fmi2_import_t *, size_t * *, size_t * *, char * *)
+    #void fmi2_import_get_dependencies_outputs_on_inputs(fmi2_import_t *, size_t **, size_t **, char **)
+    void fmi2_import_get_outputs_dependencies(fmi2_import_t* fmu, size_t** startIndex, size_t** dependency, char** factorKind);
+    void fmi2_import_get_derivatives_dependencies(fmi2_import_t* fmu, size_t** startIndex, size_t** dependency, char** factorKind);
     void fmi2_import_free_instance(fmi2_import_t* fmu)
     size_t fmi2_import_get_number_of_event_indicators(fmi2_import_t *)
     size_t fmi2_import_get_number_of_continuous_states(fmi2_import_t *)

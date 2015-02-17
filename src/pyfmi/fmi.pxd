@@ -173,6 +173,8 @@ cdef class FMUModelBase2(ModelBase):
     cpdef get_variable_description(self, variablename)
     cpdef FMIL.fmi2_variability_enu_t get_variable_variability(self, variablename) except *
     cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, variablename) except *
+    cpdef get_output_dependencies(self)
+    cpdef get_derivatives_dependencies(self)
     cpdef get_variable_start(self, variablename)
     cpdef get_variable_max(self, variablename)
     cpdef get_variable_min(self, variablename)

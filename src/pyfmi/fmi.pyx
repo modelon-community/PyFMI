@@ -1658,7 +1658,8 @@ cdef class FMUModelBase(ModelBase):
 
             Three lists with the real, integer and boolean value-references
         """
-        cdef FMIL.fmi1_import_variable_t *variable, *base_variable
+        cdef FMIL.fmi1_import_variable_t *variable
+        cdef FMIL.fmi1_import_variable_t *base_variable
         cdef FMIL.fmi1_import_variable_list_t *variable_list
         cdef FMIL.size_t variable_list_size
         cdef FMIL.fmi1_value_reference_t value_ref
@@ -1728,7 +1729,8 @@ cdef class FMUModelBase(ModelBase):
         """
         Returns the base variable for the provided variable name.
         """
-        cdef FMIL.fmi1_import_variable_t* variable, *base_variable
+        cdef FMIL.fmi1_import_variable_t* variable
+        cdef FMIL.fmi1_import_variable_t* base_variable
         cdef FMIL.fmi1_value_reference_t vr
         
         variable_name = encode(variable_name)
@@ -3853,7 +3855,8 @@ cdef class FMUModelBase2(ModelBase):
 
            The base variable.
         """
-        cdef FMIL.fmi2_import_variable_t* variable, *base_variable
+        cdef FMIL.fmi2_import_variable_t* variable
+        cdef FMIL.fmi2_import_variable_t* base_variable
         cdef FMIL.fmi2_value_reference_t vr
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -4818,6 +4821,84 @@ cdef class FMUModelBase2(ModelBase):
         FMIL.fmi2_import_free_variable_list(variable_list)
 
         return variable_dict
+        
+    cpdef get_output_dependencies(self):
+        """
+        Retrieve the list of variables that the outputs are 
+        dependent on. Returns two dictionaries, one with the states and 
+        one with the inputs.
+        """ 
+        cdef size_t *dependencyp
+        cdef size_t *start_indexp
+        cdef char   *factor_kindp
+        cdef FMIL.fmi2_import_variable_t *variable
+        cdef FMIL.fmi2_import_variable_list_t *variable_list = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
+
+        FMIL.fmi2_import_get_outputs_dependencies(self._fmu, &start_indexp, &dependencyp, &factor_kindp)
+        
+        if start_indexp == NULL:
+            raise FMUException("No dependency information for the derivatives was found in the model description.")
+            
+        outputs = self.get_output_list().keys()
+        states_list = self.get_states_list()
+        inputs_list = self.get_input_list()
+        
+        states = OrderedDict()
+        inputs = OrderedDict()
+        for i in range(0,len(outputs)):
+            states[outputs[i]]  = []
+            inputs[outputs[i]] = []
+            
+            for j in range(0, start_indexp[i+1]-start_indexp[i]):
+                if dependencyp[start_indexp[i]+j] != 0:
+                    variable = FMIL.fmi2_import_get_variable(variable_list, dependencyp[start_indexp[i]+j]-1)
+                    name             = decode(FMIL.fmi2_import_get_variable_name(variable))
+                    
+                    if states_list.has_key(name):
+                        states[outputs[i]].append(name)
+                    elif inputs_list.has_key(name):
+                        inputs[outputs[i]].append(name)                        
+            
+        return states, inputs
+        
+    cpdef get_derivatives_dependencies(self):
+        """
+        Retrieve the list of variables that the derivatives are 
+        dependent on. Returns two dictionaries, one with the states 
+        and one with the inputs.
+        """ 
+        cdef size_t *dependencyp
+        cdef size_t *start_indexp
+        cdef char   *factor_kindp
+        cdef FMIL.fmi2_import_variable_t *variable
+        cdef FMIL.fmi2_import_variable_list_t *variable_list = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
+
+        FMIL.fmi2_import_get_derivatives_dependencies(self._fmu, &start_indexp, &dependencyp, &factor_kindp)
+        
+        if start_indexp == NULL:
+            raise FMUException("No dependency information for the derivatives was found in the model description.")
+        
+        derivatives = self.get_derivatives_list().keys()
+        states_list = self.get_states_list()
+        inputs_list = self.get_input_list()
+        
+        states = OrderedDict()
+        inputs = OrderedDict()
+        for i in range(0,len(derivatives)):
+            states[derivatives[i]]  = []
+            inputs[derivatives[i]] = []
+            
+            for j in range(0, start_indexp[i+1]-start_indexp[i]):
+                if dependencyp[start_indexp[i]+j] != 0:
+                    variable = FMIL.fmi2_import_get_variable(variable_list, dependencyp[start_indexp[i]+j]-1)
+                    name             = decode(FMIL.fmi2_import_get_variable_name(variable))
+                    
+                    if states_list.has_key(name):
+                        states[derivatives[i]].append(name)
+                    elif inputs_list.has_key(name):
+                        inputs[derivatives[i]].append(name)                        
+            
+        return states, inputs
     
     def get_state_space_representation(self, A=True, B=True, C=True, D=True):
         """
