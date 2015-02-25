@@ -707,7 +707,8 @@ class ResultStorageMemory(ResultDymola):
         self.model = model 
         self.vars = vars 
         self.name = [var.name for var in vars.values()] 
-        self.data = {} 
+        self.data = {}
+        self.data_matrix = data
             
         #time real integer boolean 
         real_val_ref    = vars_ref[0]
@@ -815,7 +816,7 @@ class ResultStorageMemory(ResultDymola):
             
             The result data matrix. 
         """ 
-        return self.data 
+        return self.data_matrix
 
 class ResultDymolaTextual(ResultDymola):
     """ 
