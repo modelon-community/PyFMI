@@ -28,7 +28,7 @@ import pyfmi
 import pyfmi.fmi as fmi
 import pyfmi.fmi_extended as fmi_extended
 from pyfmi.common.algorithm_drivers import AlgorithmBase, AssimuloSimResult, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
-from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerMemory, ResultHandler, ResultHandlerDummy
+from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerMemory, ResultHandler, ResultHandlerDummy, ResultHandlerCSV, ResultCSVTextual
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
@@ -107,7 +107,7 @@ class AssimuloFMIAlgOptions(OptionBase):
         result_handling --
             Specifies how the result should be handled. Either stored to
             file or stored in memory. One can also use a custom handler.
-            Available options: "file", "memory", "custom"
+            Available options: "file", "memory", "csv", "custom"
             Default: "file"
 
         result_handler --
@@ -485,6 +485,8 @@ class AssimuloFMIAlg(AlgorithmBase):
             self.result_handler = ResultHandlerFile(self.model)
         elif self.options["result_handling"] == "memory":
             self.result_handler = ResultHandlerMemory(self.model)
+        elif self.options["result_handling"] == "csv":
+            self.result_handler = ResultHandlerCSV(self.model)
         elif self.options["result_handling"] == "custom":
             self.result_handler = self.options["result_handler"]
             if self.result_handler == None:
@@ -720,7 +722,7 @@ class FMICSAlgOptions(OptionBase):
         result_handling --
             Specifies how the result should be handled. Either stored to
             file or stored in memory. One can also use a custom handler.
-            Available options: "file", "memory", "custom"
+            Available options: "file", "memory", "csv", "custom"
             Default: "file"
 
         result_handler --
@@ -831,6 +833,8 @@ class FMICSAlg(AlgorithmBase):
             self.result_handler = ResultHandlerFile(self.model)
         elif self.options["result_handling"] == "memory":
             self.result_handler = ResultHandlerMemory(self.model)
+        elif self.options["result_handling"] == "csv":
+            self.result_handler = ResultHandlerCSV(self.model)
         elif self.options["result_handling"] == "custom":
             self.result_handler = self.options["result_handler"]
             if self.result_handler == None:

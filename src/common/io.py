@@ -1505,7 +1505,7 @@ class ResultHandlerCSV(ResultHandler):
         result of an instance of ResultBase or of an instance of a 
         subclass of ResultBase.
         """
-        return ResultCSVTextual(self.file_name)
+        return ResultCSVTextual(self.file_name, self.delimiter)
         
     def set_options(self, options):
         """
