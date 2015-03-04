@@ -486,7 +486,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         elif self.options["result_handling"] == "memory":
             self.result_handler = ResultHandlerMemory(self.model)
         elif self.options["result_handling"] == "csv":
-            self.result_handler = ResultHandlerCSV(self.model)
+            self.result_handler = ResultHandlerCSV(self.model, delimiter=",")
         elif self.options["result_handling"] == "custom":
             self.result_handler = self.options["result_handler"]
             if self.result_handler == None:
@@ -834,7 +834,7 @@ class FMICSAlg(AlgorithmBase):
         elif self.options["result_handling"] == "memory":
             self.result_handler = ResultHandlerMemory(self.model)
         elif self.options["result_handling"] == "csv":
-            self.result_handler = ResultHandlerCSV(self.model)
+            self.result_handler = ResultHandlerCSV(self.model, delimiter=",")
         elif self.options["result_handling"] == "custom":
             self.result_handler = self.options["result_handler"]
             if self.result_handler == None:

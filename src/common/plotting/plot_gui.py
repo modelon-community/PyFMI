@@ -284,7 +284,7 @@ class MainGUI(wx.Frame):
     def OnMenuOpen(self, event):
         #Open the file window
         dlg = wx.FileDialog(self, "Open result file(s)",
-                        wildcard="Text files (.txt)|*.txt|MATLAB files (.mat)|*.mat|Comma-Separated Values files (.csv)|*.csv|All files (*.*)|*.*",
+                        wildcard="Supported files (.txt, .mat, .csv)|*.txt;*.mat;*.csv|Text files (.txt)|*.txt|MATLAB files (.mat)|*.mat|Comma-Separated Values files (.csv)|*.csv|All files (*.*)|*.*",
                         style=wx.FD_MULTIPLE)
         
         #If OK load the results
@@ -569,9 +569,13 @@ class MainGUI(wx.Frame):
         elif n.lower().endswith(".csv"): #Binary file
             try:
                 self.ResultFiles.append((res_name,ResultCSVTextual(n)))
-            except (TypeError, IOError):
-                self.SetStatusText("Could not load "+n+".") #Change the statusbar
-                failToLoad = True
+            except (TypeError, IOError, ValueError):
+                self.SetStatusText("Could not load "+n+". Trying with delimiter ','.") #Change the statusbar
+                try:
+                    self.ResultFiles.append((res_name,ResultCSVTextual(n,delimiter=",")))
+                except (TypeError, IOError, ValueError):
+                    self.SetStatusText("Could not load "+n+".") #Change the statusbar
+                    failToLoad = True
                 
         else:
             self.SetStatusText("Could not load "+n+".") #Change the statusbar
@@ -1274,7 +1278,7 @@ class FilterPanel(wx.Panel):
         topSizer = wx.StaticBoxSizer(topBox, wx.VERTICAL)
         
         
-        flexGrid = wx.FlexGridSizer(2, 1, 0, 10)
+        flexGrid = wx.FlexGridSizer(3, 1, 0, 10)
         
         #Create the checkboxes
         self.checkBoxParametersConstants = wx.CheckBox(self, -1, " Parameters / Constants")#, size=(140, -1))

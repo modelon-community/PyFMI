@@ -1423,9 +1423,14 @@ class ResultHandlerCSV(ResultHandler):
         f = codecs.open(self.file_name,'w','utf-8')
         self.file_open = True
         
-        name_str = "time"
-        for name in const_name_real+const_name_int+const_name_bool+cont_name_real+cont_name_int+cont_name_bool:
-            name_str += delimiter+name
+        if delimiter == ",":
+            name_str = '"time"'
+            for name in const_name_real+const_name_int+const_name_bool+cont_name_real+cont_name_int+cont_name_bool:
+                name_str += delimiter+'"'+name+'"'
+        else:
+            name_str = "time"
+            for name in const_name_real+const_name_int+const_name_bool+cont_name_real+cont_name_int+cont_name_bool:
+                name_str += delimiter+name
             
         f.write(name_str+"\n")
         
@@ -1470,6 +1475,7 @@ class ResultHandlerCSV(ResultHandler):
         """
         f = self._file
         model = self.model
+        delimiter = self.delimiter
 
         #Retrieves the time-point
         t = model.time
@@ -1481,9 +1487,9 @@ class ResultHandlerCSV(ResultHandler):
         
         cont_str = ""
         for val in data:
-            cont_str += "%.14E;"%val
+            cont_str += "%.14E%s"%(val,delimiter)
             
-        f.write("%.14E;"%t)
+        f.write("%.14E%s"%(t,delimiter))
         f.write(self.const_str)
         f.write(cont_str[:-1]+"\n")
         
