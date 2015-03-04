@@ -20,6 +20,7 @@ Module for writing optimization and simulation results to file.
 from operator import itemgetter
 import array
 import codecs
+import re
 
 import numpy as N
 import scipy.io
@@ -243,11 +244,16 @@ class ResultDymola:
             return name
 
 class ResultCSVTextual:
-    def __init__(self, filename):
+    def __init__(self, filename, delimiter=";"):
         
         fid = codecs.open(filename,'r','utf-8')
         
-        name = fid.readline().strip().split(";")
+        if delimiter == ";":
+            name = fid.readline().strip().split(delimiter)
+        elif delimiter == ",":
+            name = [s[1:-1] for s in re.findall('".+?"', fid.readline().strip())]
+        else:
+            raise JIOError('Unsupported separator.') 
         self.name = name
         
         self.data_matrix = {}
@@ -256,7 +262,7 @@ class ResultCSVTextual:
         
         data = []
         while True:
-            row = fid.readline().strip().split(";")
+            row = fid.readline().strip().split(delimiter)
             
             if row[-1] == "" or row[-1] == "\n":
                 break
