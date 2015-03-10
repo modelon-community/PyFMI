@@ -165,6 +165,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'result_handling':"file",
             'result_handler': None,
             'filter':None,
+            'extra_equations':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
                             'atol':"Default",'rtol':"Default",'external_event_detection':False},
             'Radau5ODE_options':{'atol':"Default",'rtol':"Default"},
@@ -548,14 +549,14 @@ class AssimuloFMIAlg(AlgorithmBase):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(self.model, result_file_name=self.result_file_name, start_time=self.start_time, parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
             else:
-                self.probl = FMIODE2(self.model, result_file_name=self.result_file_name, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler)
+                self.probl = FMIODE2(self.model, result_file_name=self.result_file_name, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler,extra_equations=self.options["extra_equations"])
         elif isinstance(self.model, fmi.FMUModelME2):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(
                 self.model, input_traj, result_file_name=self.result_file_name, start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
             else:
                 self.probl = FMIODE2(
-                self.model, input_traj, result_file_name=self.result_file_name, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler)
+                self.model, input_traj, result_file_name=self.result_file_name, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler, extra_equations=self.options["extra_equations"])
 
         elif not self.input:
             if self.options["sensitivities"]:

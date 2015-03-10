@@ -931,7 +931,8 @@ class FMIODE2(Explicit_Problem):
     An Assimulo Explicit Model extended to FMI interface.
     """
     def __init__(self, model, input=None, result_file_name='',
-                 with_jacobian=False, start_time=0.0, logging=False, result_handler=None):
+                 with_jacobian=False, start_time=0.0, logging=False, 
+                 result_handler=None, extra_equations=None):
         """
         Initialize the problem.
         """
@@ -987,6 +988,14 @@ class FMIODE2(Explicit_Problem):
         #self._sol_real += [r]
         #self._sol_int  += [i]
         #self._sol_bool += b
+        
+        if extra_equations:
+            self._extra_f_nbr = extra_equations.get_size()
+            self._extra_y0    = extra_equations.y0
+            self.y0 = N.append(self.y0, self._extra_y0)
+            self._extra_equations = extra_equations
+        else:
+            self._extra_f_nbr = 0
 
         if self._model.get_capability_flags()['providesDirectionalDerivatives']:
             self.jac = self.j #Activates the jacobian
@@ -995,6 +1004,10 @@ class FMIODE2(Explicit_Problem):
         """
         The rhs (right-hand-side) for an ODE problem.
         """
+        if self._extra_f_nbr > 0:
+            y_extra = y[-self._extra_f_nbr:]
+            y       = y[:-self._extra_f_nbr]
+        
         #Moving data to the model
         self._model.time = t
         #Check if there are any states
@@ -1011,13 +1024,20 @@ class FMIODE2(Explicit_Problem):
         #If there is no state, use the dummy
         if self._f_nbr == 0:
             rhs = N.array([0.0])
-
+        
+        if self._extra_f_nbr > 0:
+            rhs = N.append(rhs, self._extra_equations.rhs(y_extra))
+        
         return rhs
 
     def j(self, t, y, sw=None):
         """
         The jacobian function for an ODE problem.
         """
+        if self._extra_f_nbr > 0:
+            y_extra = y[-self._extra_f_nbr:]
+            y       = y[:-self._extra_f_nbr]
+            
         #Moving data to the model
         self._model.time = t
         #Check if there are any states
@@ -1060,6 +1080,10 @@ class FMIODE2(Explicit_Problem):
         """
         The event indicator function for a ODE problem.
         """
+        if self._extra_f_nbr > 0:
+            y_extra = y[-self._extra_f_nbr:]
+            y       = y[:-self._extra_f_nbr]
+            
         #Moving data to the model
         self._model.time = t
         #Check if there are any states
@@ -1091,6 +1115,10 @@ class FMIODE2(Explicit_Problem):
         #
         #Post processing (stores the time points).
         #
+        if self._extra_f_nbr > 0:
+            y_extra = y[-self._extra_f_nbr:]
+            y       = y[:-self._extra_f_nbr]
+            
         #Moving data to the model
         if t != self._model.time:
             #Moving data to the model
@@ -1107,17 +1135,25 @@ class FMIODE2(Explicit_Problem):
             rhs = self._model.get_derivatives()
 
         self.export.integration_point()
+        if self._extra_f_nbr > 0:
+            self._extra_equations.handle_result(self.export, y_extra)
 
     def handle_event(self, solver, event_info):
         """
         This method is called when Assimulo finds an event.
         """
+        if self._extra_f_nbr > 0:
+            y_extra = solver.y[-self._extra_f_nbr:]
+            y       = solver.y[:-self._extra_f_nbr]
+        else:
+            y       = solver.y
+            
         #Moving data to the model
         if solver.t!= self._model.time:
             self._model.time = solver.t
             #Check if there are any states
             if self._f_nbr != 0:
-                self._model.continuous_states = solver.y
+                self._model.continuous_states = y
 
             #Sets the inputs, if any
             if self.input!=None:
@@ -1137,7 +1173,7 @@ class FMIODE2(Explicit_Problem):
                 for i in self._model.get_event_indicators():
                     str_ind += " %.14E"%i
                 str_states = ""
-                for i in solver.y:
+                for i in y:
                     str_states += " %.14E"%i
                 str_der = ""
                 for i in self._model.get_derivatives():
@@ -1151,7 +1187,10 @@ class FMIODE2(Explicit_Problem):
 
         #Check if the event affected the state values and if so sets them
         if eInfo.valuesOfContinuousStatesChanged:
-            solver.y = self._model.continuous_states
+            if solver._extra_f_nbr > 0:
+                solver.y = self._model.continuous_states.append(solver.y[-self._extra_f_nbr:])
+            else:
+                solver.y = self._model.continuous_states
 
         #Get new nominal values.
         if eInfo.nominalsOfContinuousStatesChanged:
@@ -1192,6 +1231,12 @@ class FMIODE2(Explicit_Problem):
         """
         Method which is called at each successful step.
         """
+        if self._extra_f_nbr > 0:
+            y_extra = solver.y[-self._extra_f_nbr:]
+            y       = solver.y[:-self._extra_f_nbr]
+        else:
+            y       = solver.y
+            
         if self._logging:
             with open (self.debug_file_name, 'a') as f:
                 data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
@@ -1216,7 +1261,7 @@ class FMIODE2(Explicit_Problem):
             self._model.time = solver.t
             #Check if there are any states
             if self._f_nbr != 0:
-                self._model.continuous_states = solver.y
+                self._model.continuous_states = y
 
             #Sets the inputs, if any
             if self.input!=None:
