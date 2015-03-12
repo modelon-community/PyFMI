@@ -1187,7 +1187,7 @@ class FMIODE2(Explicit_Problem):
 
         #Check if the event affected the state values and if so sets them
         if eInfo.valuesOfContinuousStatesChanged:
-            if solver._extra_f_nbr > 0:
+            if self._extra_f_nbr > 0:
                 solver.y = self._model.continuous_states.append(solver.y[-self._extra_f_nbr:])
             else:
                 solver.y = self._model.continuous_states
