@@ -1054,11 +1054,10 @@ class FMIODE2(Explicit_Problem):
         if self._f_nbr == 0:
             return N.array([[0.0]])
         
+        [A, B, C, D] = self._model.get_state_space_representation(A=True, B=False, C=False, D=False)
+        """
         #-Evaluating
-        Jac = N.zeros(len(y)**2) #Matrix that holds the information, first y elements is the first column of the Jac
-
-        #Compute Jac
-        #self._model.get_jacobian(1, 1, Jac)
+        #Jac = N.zeros(len(y)**2) #Matrix that holds the information, first y elements is the first column of the Jac
 
         states      = self._model.get_states_list()
         derivatives = self._model.get_derivatives_list()
@@ -1073,6 +1072,16 @@ class FMIODE2(Explicit_Problem):
 
         #-Vector manipulation
         Jac = Jac.reshape(len(y),len(y)).transpose() #Reshape to a matrix
+        """
+        if self._extra_f_nbr > 0:
+            if hasattr(self._extra_equations, "jac"):
+                Jac = N.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
+                Jac[:self._f_nbr,:self._f_nbr] = A
+                Jac[self._f_nbr:,self._f_nbr:] = self._extra_equations.jac(y_extra)
+            else:
+                raise Exception("No Jacobian provided for the extra equations")
+        else:
+            Jac = A
 
         return Jac
 
