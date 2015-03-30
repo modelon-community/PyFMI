@@ -165,7 +165,11 @@ cdef class FMUModelBase2(ModelBase):
     cdef object         _inputs_references
     cdef object         _outputs_references
     cdef object         _derivatives_references
+    cdef object         _derivatives_states_dependencies
+    cdef object         _derivatives_inputs_dependencies
     cdef object         _A, _B, _C, _D
+    cdef object         _mask_A
+    cdef object         _A_row_ind, _A_col_ind
     
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message)
     cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, variablename) except *

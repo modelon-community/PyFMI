@@ -24,6 +24,7 @@ import fnmatch
 import re
 from collections import OrderedDict
 
+import scipy.sparse as SPARSE
 import numpy as N
 cimport numpy as N
 
@@ -3001,6 +3002,7 @@ cdef class FMUModelBase2(ModelBase):
         #Default values
         self.__t = None
         self._A = None
+        self._mask_A = None
         self._B = None
         self._C = None
         self._D = None
@@ -3008,6 +3010,8 @@ cdef class FMUModelBase2(ModelBase):
         self._derivatives_references = None
         self._outputs_references = None
         self._inputs_references = None
+        self._derivatives_states_dependencies = None
+        self._derivatives_inputs_dependencies = None
 
         #Internal values
         self._pyEventInfo = PyEventInfo()
@@ -4867,6 +4871,10 @@ cdef class FMUModelBase2(ModelBase):
         dependent on. Returns two dictionaries, one with the states 
         and one with the inputs.
         """ 
+        if (self._derivatives_states_dependencies is not None and
+            self._derivatives_inputs_dependencies is not None):
+               return self._derivatives_states_dependencies, self._derivatives_inputs_dependencies 
+       
         cdef size_t *dependencyp
         cdef size_t *start_indexp
         cdef char   *factor_kindp
@@ -4898,9 +4906,13 @@ cdef class FMUModelBase2(ModelBase):
                     elif inputs_list.has_key(name):
                         inputs[derivatives[i]].append(name)                        
             
+        #Caching
+        self._derivatives_states_dependencies = states
+        self._derivatives_inputs_dependencies = inputs
+            
         return states, inputs
-    
-    def get_state_space_representation(self, A=True, B=True, C=True, D=True):
+        
+    def get_state_space_representation(self, A=True, B=True, C=True, D=True, sparse=False):
         """
         Returns a state space representation of the model. I.e::
         
@@ -4919,15 +4931,43 @@ cdef class FMUModelBase2(ModelBase):
             if self._derivatives_references is None:
                 derivatives                  = self.get_derivatives_list()
                 self._derivatives_references = [s.value_reference for s in derivatives.values()]
-            if self._A is None:
-                self._A = N.zeros((len(self._derivatives_references), len(self._states_references)))
-            A = self._A
+            if sparse is True and self._mask_A is None:
+                states                       = self.get_states_list()
+                derivatives                  = self.get_derivatives_list()
+                [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
+                self._mask_A = []
+                self._A_row_ind = []
+                self._A_col_ind = []
+                for i,state in enumerate(states):
+                    self._mask_A.append([])
+                    mask = [j for j,der in enumerate(derivatives.keys()) if state in derv_state_dep[der]]
+                    self._mask_A[i].append(mask)
+                    self._A_row_ind.extend(mask)
+                    self._A_col_ind.extend([i]*len(mask))
+            
+            if sparse:
+                data = []
                 
-            v = N.zeros(len(self._states_references))
-            for i in range(len(self._states_references)):
-                v[i] = 1.0
-                A[:, i] = self.get_directional_derivative(self._states_references, self._derivatives_references, v)
-                v[i] = 0.0
+                v = N.zeros(len(self._states_references))
+                for i in range(len(self._states_references)):
+                    if self._mask_A[i] == []:
+                        continue
+                    v[i] = 1.0
+                    data.extend(self.get_directional_derivative(self._states_references, self._derivatives_references, v)[self._mask_A[i]])
+                    v[i] = 0.0
+
+                A = SPARSE.csc_matrix((data, (self._A_row_ind, self._A_col_ind)))
+                    
+            else:
+                if self._A is None:
+                    self._A = N.zeros((len(self._derivatives_references), len(self._states_references)))
+                A = self._A
+            
+                v = N.zeros(len(self._states_references))
+                for i in range(len(self._states_references)):
+                    v[i] = 1.0
+                    A[:, i] = self.get_directional_derivative(self._states_references, self._derivatives_references, v)
+                    v[i] = 0.0
                 
         if B:
             if self._inputs_references is None:

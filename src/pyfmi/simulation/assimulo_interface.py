@@ -23,6 +23,7 @@ import logging
 
 import numpy as N
 import numpy.linalg as LIN
+import scipy.sparse as SPARSE
 import pylab as P
 import time
 
@@ -956,8 +957,7 @@ class FMIODE2(Explicit_Problem):
             self.state_events = self.g
         self.time_events = self.t
 
-        #If there is no state in the model, add a dummy
-        #state der(y)=0
+        #If there is no state in the model, add a dummy state der(y)=0
         if f_nbr == 0:
             self.y0 = N.array([0.0])
 
@@ -969,7 +969,6 @@ class FMIODE2(Explicit_Problem):
         self.debug_file_name = model.get_name().replace(".","_")+'_debug.txt'
 
         #Default values
-        #self.export = ResultWriterDymola_deprecated(model) if (isinstance(model,fmi_deprecated.FMUModel) or isinstance(model,fmi_deprecated.FMUModel2)) else ResultWriterDymola(model)
         self.export = result_handler
 
         #Internal values
@@ -980,7 +979,8 @@ class FMIODE2(Explicit_Problem):
         self._logg_step_event = []
         self._write_header = True
         self._logging = logging
-
+        self._sparse_representation = False
+        
         #Stores the first time point
         #[r,i,b] = self._model.save_time_point()
 
@@ -999,6 +999,10 @@ class FMIODE2(Explicit_Problem):
 
         if self._model.get_capability_flags()['providesDirectionalDerivatives']:
             self.jac = self.j #Activates the jacobian
+            
+            #Need to calculate the nnz.
+            [derv_state_dep, derv_input_dep] = model.get_derivatives_dependencies()
+            self.jac_nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])
 
     def rhs(self, t, y, sw=None):
         """
@@ -1054,25 +1058,8 @@ class FMIODE2(Explicit_Problem):
         if self._f_nbr == 0:
             return N.array([[0.0]])
         
-        [A, B, C, D] = self._model.get_state_space_representation(A=True, B=False, C=False, D=False)
-        """
-        #-Evaluating
-        #Jac = N.zeros(len(y)**2) #Matrix that holds the information, first y elements is the first column of the Jac
+        [A, B, C, D] = self._model.get_state_space_representation(A=True, B=False, C=False, D=False, sparse=self._sparse_representation)
 
-        states      = self._model.get_states_list()
-        derivatives = self._model.get_derivatives_list()
-        states_ref  = [s.value_reference for s in states.values()]
-        deriv_ref   = [s.value_reference for s in derivatives.values()]
-        v           = [0]*len(states_ref)
-
-        for i in range(len(v)):
-            v[i-1]=0
-            v[i]=1
-            Jac[i*len(v):(i+1)*len(v)] = self._model.get_directional_derivative(var_ref=states_ref, func_ref=deriv_ref, v=v)
-
-        #-Vector manipulation
-        Jac = Jac.reshape(len(y),len(y)).transpose() #Reshape to a matrix
-        """
         if self._extra_f_nbr > 0:
             if hasattr(self._extra_equations, "jac"):
                 Jac = N.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
@@ -1299,6 +1286,11 @@ class FMIODE2(Explicit_Problem):
         print('\nNumber of events: ',len(self._logg_step_event))
 
     def initialize(self, solver):
+        
+        if hasattr(solver,"linear_solver"):
+            if solver.linear_solver == "SPARSE":
+                self._sparse_representation = True
+        
         if self._logging:
             with open (self.debug_file_name, 'w') as f:
                 model_valref = self._model.get_state_value_references()
