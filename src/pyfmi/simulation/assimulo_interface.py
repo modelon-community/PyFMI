@@ -23,7 +23,7 @@ import logging
 
 import numpy as N
 import numpy.linalg as LIN
-import scipy.sparse as SPARSE
+import scipy.sparse as sp
 import pylab as P
 import time
 
@@ -988,14 +988,6 @@ class FMIODE2(Explicit_Problem):
         #self._sol_real += [r]
         #self._sol_int  += [i]
         #self._sol_bool += b
-        
-        if extra_equations:
-            self._extra_f_nbr = extra_equations.get_size()
-            self._extra_y0    = extra_equations.y0
-            self.y0 = N.append(self.y0, self._extra_y0)
-            self._extra_equations = extra_equations
-        else:
-            self._extra_f_nbr = 0
 
         if self._model.get_capability_flags()['providesDirectionalDerivatives']:
             self.jac = self.j #Activates the jacobian
@@ -1003,6 +995,20 @@ class FMIODE2(Explicit_Problem):
             #Need to calculate the nnz.
             [derv_state_dep, derv_input_dep] = model.get_derivatives_dependencies()
             self.jac_nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])
+            
+        if extra_equations:
+            self._extra_f_nbr = extra_equations.get_size()
+            self._extra_y0    = extra_equations.y0
+            self.y0 = N.append(self.y0, self._extra_y0)
+            self._extra_equations = extra_equations
+            
+            if hasattr(self._extra_equations, "jac"):
+                if hasattr(self._extra_equations, "jac_nnz"):
+                    self.jac_nnz += extra_equations.jac_nnz
+                else:
+                    self.jac_nnz += len(self._extra_f_nbr)*len(self._extra_f_nbr)
+        else:
+            self._extra_f_nbr = 0
 
     def rhs(self, t, y, sw=None):
         """
@@ -1062,9 +1068,21 @@ class FMIODE2(Explicit_Problem):
 
         if self._extra_f_nbr > 0:
             if hasattr(self._extra_equations, "jac"):
-                Jac = N.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
-                Jac[:self._f_nbr,:self._f_nbr] = A
-                Jac[self._f_nbr:,self._f_nbr:] = self._extra_equations.jac(y_extra)
+                if self._sparse_representation:
+                    
+                    Jac = A.tocoo() #Convert to COOrdinate
+                    A2 = self._extra_equations.jac(y_extra).tocoo()
+                    
+                    data = N.append(Jac.data, A2.data)
+                    row  = N.append(Jac.row, A2.row+self._f_nbr)
+                    col  = N.append(Jac.col, A2.col+self._f_nbr)
+                    
+                    #Convert to compresssed sparse column
+                    Jac = sp.csc_matrix((data, (row, col)))
+                else:
+                    Jac = N.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
+                    Jac[:self._f_nbr,:self._f_nbr] = A
+                    Jac[self._f_nbr:,self._f_nbr:] = self._extra_equations.jac(y_extra)
             else:
                 raise Exception("No Jacobian provided for the extra equations")
         else:

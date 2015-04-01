@@ -4946,6 +4946,9 @@ cdef class FMUModelBase2(ModelBase):
                     self._A_col_ind.extend([i]*len(mask))
             
             if sparse:
+                if self._A is None:
+                    self._A = SPARSE.csc_matrix(([0.0]*len(self._A_row_ind), (self._A_row_ind, self._A_col_ind)))
+                A = self._A
                 data = []
                 
                 v = N.zeros(len(self._states_references))
@@ -4956,8 +4959,7 @@ cdef class FMUModelBase2(ModelBase):
                     data.extend(self.get_directional_derivative(self._states_references, self._derivatives_references, v)[self._mask_A[i]])
                     v[i] = 0.0
 
-                A = SPARSE.csc_matrix((data, (self._A_row_ind, self._A_col_ind)))
-                    
+                A.data = N.array(data)
             else:
                 if self._A is None:
                     self._A = N.zeros((len(self._derivatives_references), len(self._states_references)))
