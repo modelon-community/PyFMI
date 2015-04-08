@@ -994,7 +994,7 @@ class FMIODE2(Explicit_Problem):
             
             #Need to calculate the nnz.
             [derv_state_dep, derv_input_dep] = model.get_derivatives_dependencies()
-            self.jac_nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])
+            self.jac_nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+f_nbr
             
         if extra_equations:
             self._extra_f_nbr = extra_equations.get_size()
@@ -1073,12 +1073,17 @@ class FMIODE2(Explicit_Problem):
                     Jac = A.tocoo() #Convert to COOrdinate
                     A2 = self._extra_equations.jac(y_extra).tocoo()
                     
+                    Jac.data = N.append(Jac.data, [0.0]*len(y))
+                    Jac.row  = N.append(Jac.row, range(len(y)))
+                    Jac.col  = N.append(Jac.col, range(len(y)))
+                    
                     data = N.append(Jac.data, A2.data)
                     row  = N.append(Jac.row, A2.row+self._f_nbr)
                     col  = N.append(Jac.col, A2.col+self._f_nbr)
                     
                     #Convert to compresssed sparse column
-                    Jac = sp.csc_matrix((data, (row, col)))
+                    Jac = sp.coo_matrix((data, (row, col)))
+                    Jac = Jac.tocsc()
                 else:
                     Jac = N.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
                     Jac[:self._f_nbr,:self._f_nbr] = A
