@@ -24,7 +24,7 @@ import fnmatch
 import re
 from collections import OrderedDict
 
-import scipy.sparse as SPARSE
+import scipy.sparse as sp
 import numpy as N
 cimport numpy as N
 
@@ -37,6 +37,7 @@ from pyfmi.common.core import create_temp_file, delete_temp_file
 #from pyfmi.common.core cimport BaseModel
 
 from pyfmi.common import python3_flag
+from pyfmi.fmi_util import cpr_seed
 
 if python3_flag:
     import codecs
@@ -4912,7 +4913,106 @@ cdef class FMUModelBase2(ModelBase):
             
         return states, inputs
         
-    def get_state_space_representation(self, A=True, B=True, C=True, D=True, sparse=False):
+    def _get_directional_proxy(self, var_ref, func_ref, group, add_diag=False):
+        cdef list data = []
+        cdef list row = []
+        cdef list col = []
+        
+        if add_diag:
+            dim = min(len(var_ref),len(func_ref))
+            data.extend([0.0]*dim)
+            row.extend(range(dim))
+            col.extend(range(dim))
+        
+        v = N.zeros(len(var_ref))
+        for key in group.keys():
+            v[group[key][0]] = 1.0
+            
+            data.extend(self.get_directional_derivative(var_ref, func_ref, v)[group[key][2]])
+            row.extend(group[key][2])
+            col.extend(group[key][3])
+            
+            v[group[key][0]] = 0.0
+        
+        if len(data) == 0:
+            return sp.csc_matrix((len(func_ref),len(var_ref)))
+        else:
+            return sp.csc_matrix((data, (row, col)), (len(func_ref),len(var_ref)))
+        
+    def _get_A(self):
+        if self._A is None:
+            [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
+            self._group_A = cpr_seed(derv_state_dep, self.get_states_list().keys())
+        if self._states_references is None:
+            states                       = self.get_states_list()
+            self._states_references      = [s.value_reference for s in states.values()]
+        if self._derivatives_references is None:
+            derivatives                  = self.get_derivatives_list()
+            self._derivatives_references = [s.value_reference for s in derivatives.values()]
+        
+        A = self._get_directional_proxy(self._states_references, self._derivatives_references, self._group_A, add_diag=True)
+        
+        if self._A is None:
+            self._A = A
+        
+        return A
+        
+    def _get_B(self):
+        if self._B is None:
+            [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
+            self._group_B = cpr_seed(derv_input_dep, self.get_input_list().keys())
+        if self._inputs_references is None:
+            inputs                       = self.get_input_list()
+            self._inputs_references      = [s.value_reference for s in inputs.values()]
+        if self._derivatives_references is None:
+            derivatives                  = self.get_derivatives_list()
+            self._derivatives_references = [s.value_reference for s in derivatives.values()]
+        
+        B = self._get_directional_proxy(self._inputs_references, self._derivatives_references, self._group_B)
+        
+        if self._B is None:
+            self._B = B
+        
+        return B
+        
+    def _get_C(self):
+        if self._C is None:
+            [out_state_dep, out_input_dep] = self.get_output_dependencies()
+            self._group_C = cpr_seed(out_state_dep, self.get_states_list().keys())
+        if self._states_references is None:
+            states                       = self.get_states_list()
+            self._states_references      = [s.value_reference for s in states.values()]
+        if self._outputs_references is None:
+            outputs                      = self.get_output_list()
+            self._outputs_references     = [s.value_reference for s in outputs.values()]
+            
+        C = self._get_directional_proxy(self._states_references, self._outputs_references, self._group_C)
+        
+        if self._C is None:
+            self._C = C
+        
+        return C
+        
+    def _get_D(self):
+        if self._D is None:
+            [out_state_dep, out_input_dep] = self.get_output_dependencies()
+            self._group_D = cpr_seed(out_input_dep, self.get_input_list().keys())
+        if self._inputs_references is None:
+            inputs                       = self.get_input_list()
+            self._inputs_references      = [s.value_reference for s in inputs.values()]
+        if self._outputs_references is None:
+            outputs                      = self.get_output_list()
+            self._outputs_references     = [s.value_reference for s in outputs.values()]
+            
+        D = self._get_directional_proxy(self._inputs_references, self._outputs_references, self._group_D)
+        
+        if self._D is None:
+            self._D = D
+        
+        return D
+        
+        
+    def get_state_space_representation(self, A=True, B=True, C=True, D=True):
         """
         Returns a state space representation of the model. I.e::
         
@@ -4921,104 +5021,14 @@ cdef class FMUModelBase2(ModelBase):
                 
         Which of the matrices to be returned can be choosen by the arguments.
         """
-        cdef N.ndarray v
-        cdef int i
-        
         if A:
-            if self._states_references is None:
-                states                       = self.get_states_list()
-                self._states_references      = [s.value_reference for s in states.values()]
-            if self._derivatives_references is None:
-                derivatives                  = self.get_derivatives_list()
-                self._derivatives_references = [s.value_reference for s in derivatives.values()]
-            if sparse is True and self._mask_A is None:
-                states                       = self.get_states_list()
-                derivatives                  = self.get_derivatives_list()
-                [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
-                self._mask_A = []
-                self._A_row_ind = []
-                self._A_col_ind = []
-                for i,state in enumerate(states):
-                    self._mask_A.append([])
-                    mask = [j for j,der in enumerate(derivatives.keys()) if state in derv_state_dep[der]]
-                    self._mask_A[i].append(mask)
-                    self._A_row_ind.extend(mask)
-                    self._A_col_ind.extend([i]*len(mask))
-            
-            if sparse:
-                if self._A is None:
-                    self._A = SPARSE.csc_matrix(([0.0]*len(self._A_row_ind), (self._A_row_ind, self._A_col_ind)))
-                A = self._A
-                data = []
-                
-                v = N.zeros(len(self._states_references))
-                for i in range(len(self._states_references)):
-                    if self._mask_A[i] == []:
-                        continue
-                    v[i] = 1.0
-                    data.extend(self.get_directional_derivative(self._states_references, self._derivatives_references, v)[self._mask_A[i]])
-                    v[i] = 0.0
-
-                A.data = N.array(data)
-            else:
-                if self._A is None:
-                    self._A = N.zeros((len(self._derivatives_references), len(self._states_references)))
-                A = self._A
-            
-                v = N.zeros(len(self._states_references))
-                for i in range(len(self._states_references)):
-                    v[i] = 1.0
-                    A[:, i] = self.get_directional_derivative(self._states_references, self._derivatives_references, v)
-                    v[i] = 0.0
-                
+            A = self._get_A()
         if B:
-            if self._inputs_references is None:
-                inputs                       = self.get_input_list()
-                self._inputs_references      = [s.value_reference for s in inputs.values()]
-            if self._derivatives_references is None:
-                derivatives                  = self.get_derivatives_list()
-                self._derivatives_references = [s.value_reference for s in derivatives.values()]
-            if self._B is None:
-                self._B = N.zeros((len(self._derivatives_references), len(self._inputs_references)))
-            B = self._B
-                
-            v = N.zeros(len(self._inputs_references))
-            for i in range(len(self._inputs_references)):
-                v[i] = 1.0
-                B[:, i] = self.get_directional_derivative(self._inputs_references, self._derivatives_references, v)
-                v[i] = 0.0
+            B = self._get_B()
         if C:
-            if self._states_references is None:
-                states                       = self.get_states_list()
-                self._states_references      = [s.value_reference for s in states.values()]
-            if self._outputs_references is None:
-                outputs                      = self.get_output_list()
-                self._outputs_references     = [s.value_reference for s in outputs.values()]
-            if self._C is None:
-                self._C = N.zeros((len(self._outputs_references), len(self._states_references)))
-            C = self._C
-                
-            v = N.zeros(len(self._states_references))
-            for i in range(len(self._states_references)):
-                v[i] = 1.0
-                C[:, i] = self.get_directional_derivative(self._states_references, self._outputs_references, v)
-                v[i] = 0.0
+            C = self._get_C()
         if D:
-            if self._inputs_references is None:
-                inputs                       = self.get_input_list()
-                self._inputs_references      = [s.value_reference for s in inputs.values()]
-            if self._outputs_references is None:
-                outputs                      = self.get_output_list()
-                self._outputs_references     = [s.value_reference for s in outputs.values()]
-            if self._D is None:
-                self._D = N.zeros((len(self._outputs_references), len(self._inputs_references)))
-            D = self._D
-                
-            v = N.zeros(len(self._inputs_references))
-            for i in range(len(self._inputs_references)):
-                v[i] = 1.0
-                D[:, i] = self.get_directional_derivative(self._inputs_references, self._outputs_references, v)
-                v[i] = 0.0
+            D = self._get_D()
             
         return A,B,C,D
         

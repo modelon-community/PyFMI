@@ -224,13 +224,15 @@ def check_extensions():
     
     #FMI PYX
     ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi.pyx"], 
-                    include_path=[".","src","src"+O.sep+"pyfmi"],
-                    include_dirs=[N.get_include()],pyrex_gdb=debug_flag)
+                    include_path=[".","src","src"+O.sep+"pyfmi"])
+    
+    #FMI UTIL
+    ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi_util.pyx"], 
+                    include_path=[".","src","src"+O.sep+"pyfmi"])
     
     #FMI Extended PYX
     ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi_extended.pyx"], 
-                    include_path=[".","src","src"+O.sep+"pyfmi"],
-                    include_dirs=[N.get_include()],pyrex_gdb=debug_flag)
+                    include_path=[".","src","src"+O.sep+"pyfmi"])
     
     for i in range(len(ext_list)):
         

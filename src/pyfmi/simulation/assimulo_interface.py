@@ -1064,7 +1064,9 @@ class FMIODE2(Explicit_Problem):
         if self._f_nbr == 0:
             return N.array([[0.0]])
         
-        [A, B, C, D] = self._model.get_state_space_representation(A=True, B=False, C=False, D=False, sparse=self._sparse_representation)
+        [A, B, C, D] = self._model.get_state_space_representation(A=True, B=False, C=False, D=False)
+        if not self._sparse_representation:
+            A = A.toarray()
 
         if self._extra_f_nbr > 0:
             if hasattr(self._extra_equations, "jac"):
@@ -1073,9 +1075,9 @@ class FMIODE2(Explicit_Problem):
                     Jac = A.tocoo() #Convert to COOrdinate
                     A2 = self._extra_equations.jac(y_extra).tocoo()
                     
-                    Jac.data = N.append(Jac.data, [0.0]*len(y))
-                    Jac.row  = N.append(Jac.row, range(len(y)))
-                    Jac.col  = N.append(Jac.col, range(len(y)))
+                    #Jac.data = N.append(Jac.data, [0.0]*len(y))
+                    #Jac.row  = N.append(Jac.row, range(len(y)))
+                    #Jac.col  = N.append(Jac.col, range(len(y)))
                     
                     data = N.append(Jac.data, A2.data)
                     row  = N.append(Jac.row, A2.row+self._f_nbr)
