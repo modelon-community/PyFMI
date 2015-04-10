@@ -75,8 +75,8 @@ Requirements:
 - `Numpy (recommended 1.6.2) <http://pypi.python.org/pypi/numpy>`_
 - `Scipy (recommended 0.10.1) <http://pypi.python.org/pypi/scipy>`_
 - `lxml (at least 2.3) <http://pypi.python.org/pypi/lxml>`_
-- `Assimulo (at least 2.2) <http://pypi.python.org/pypi/Assimulo>`_
-- `Cython (at least 0.15) <http://cython.org/>`_
+- `Assimulo (at least 2.6) <http://pypi.python.org/pypi/Assimulo>`_
+- `Cython (at least 0.18) <http://cython.org/>`_
 - Python-headers (usually included on Windows, python-dev on Ubuntu)
 
 Optional
