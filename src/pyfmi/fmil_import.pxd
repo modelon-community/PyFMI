@@ -507,7 +507,7 @@ cdef extern from 'fmilib.h':
     size_t fmi2_import_get_number_of_event_indicators(fmi2_import_t *)
     size_t fmi2_import_get_number_of_continuous_states(fmi2_import_t *)
     int fmi2_import_setup_experiment(fmi2_import_t* fmu, fmi2_boolean_t toleranceDefined, fmi2_real_t tolerance,fmi2_real_t startTime, fmi2_boolean_t stopTimeDefined,fmi2_real_t stopTime)
-
+    fmi2_import_variable_list_t* fmi2_import_get_outputs_list(fmi2_import_t *)
 
     #FMI SPECIFICATION METHODS (1.0)
     unsigned int fmi1_import_get_number_of_event_indicators(fmi1_import_t *)

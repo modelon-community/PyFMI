@@ -4774,21 +4774,6 @@ cdef class FMUModelBase2(ModelBase):
             variable = FMIL.fmi2_import_get_variable(variable_list, i)
             scalar_variable = self._add_scalar_variable(variable)
             variable_dict[scalar_variable.name] = scalar_variable
-            
-            """
-            alias_kind       = FMIL.fmi2_import_get_variable_alias_kind(variable)
-            name             = FMIL.fmi2_import_get_variable_name(variable)
-            value_ref        = FMIL.fmi2_import_get_variable_vr(variable)
-            data_type        = FMIL.fmi2_import_get_variable_base_type(variable)
-            data_variability = FMIL.fmi2_import_get_variability(variable)
-            data_causality   = FMIL.fmi2_import_get_causality(variable)
-            desc             = FMIL.fmi2_import_get_variable_description(variable)
-
-            variable_dict[name] = ScalarVariable2(name,
-                                    value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
-                                    data_variability, data_causality,
-                                    alias_kind)
-            """
 
         return variable_dict
     
@@ -5087,8 +5072,28 @@ cdef class FMUModelBase2(ModelBase):
 
             An ordered dictionary with the (real) (continuous) output variables.
         """
-        variable_dict = self.get_model_variables(type=FMI2_REAL, include_alias = False,
-                             causality = FMI2_OUTPUT,   variability = FMI2_CONTINUOUS)
+        #variable_dict = self.get_model_variables(type=FMI2_REAL, include_alias = False,
+        #                     causality = FMI2_OUTPUT,   variability = FMI2_CONTINUOUS)
+                            
+        cdef FMIL.fmi2_import_variable_list_t*   variable_list
+        cdef FMIL.size_t                         variable_list_size
+        cdef FMIL.fmi2_import_variable_t*        variable
+        variable_dict = OrderedDict()
+        
+        variable_list = FMIL.fmi2_import_get_outputs_list(self._fmu)
+        variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
+        
+        if variable_list == NULL:
+            raise FMUException("The returned outputs list is NULL.")
+        
+        for i in range(variable_list_size):
+            variable = FMIL.fmi2_import_get_variable(variable_list, i)
+            
+            scalar_variable = self._add_scalar_variable(variable)
+            variable_dict[scalar_variable.name] = scalar_variable
+
+        #Free the variable list
+        FMIL.fmi2_import_free_variable_list(variable_list)
 
         return variable_dict
 
