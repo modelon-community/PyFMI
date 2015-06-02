@@ -6525,7 +6525,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
                 - 'ME'
                 - 'CS'
                 - 'auto'
-            Default: 'auto' (Chooses ME before CS if both availible)
+            Default: 'auto' (Chooses ME before CS if both available)
 
     Returns::
 
