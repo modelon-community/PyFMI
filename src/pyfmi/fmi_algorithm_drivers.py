@@ -536,14 +536,20 @@ class AssimuloFMIAlg(AlgorithmBase):
         # Sensitivities?
         if self.options["sensitivities"]:
             if self.model.get_generation_tool() != "JModelica.org":
-                raise Exception("Sensitivity calculations only possible with JModelica.org generated FMUs")
+                if isinstance(self.model, fmi.FMUModelME2):
+                    for var in self.options["sensitivities"]:
+                        causality = self.model.get_variable_causality()
+                        if causality != fmi.FMI2_INPUT:
+                            raise FMUException("The sensitivity parameter is not specified as an input which is required.")
+                else:
+                    raise Exception("Sensitivity calculations only possible with JModelica.org generated FMUs")
                 
             if self.options["solver"] != "CVode":
                 raise Exception("Sensitivity simulations currently only supported using the solver CVode.")
 
-                #Checks to see if all the sensitivities are inside the model
-                #else there will be an exception
-                self.model.get(self.options["sensitivities"])
+            #Checks to see if all the sensitivities are inside the model
+            #else there will be an exception
+            self.model.get(self.options["sensitivities"])
 
         if not self.input and isinstance(self.model, fmi.FMUModelME2):
             if self.options["sensitivities"]:

@@ -1155,7 +1155,7 @@ class FMIODE2(Explicit_Problem):
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
-        self.export.integration_point()
+        self.export.integration_point(solver)
         if self._extra_f_nbr > 0:
             self._extra_equations.handle_result(self.export, y_extra)
 
@@ -1358,14 +1358,15 @@ class FMIODE2(Explicit_Problem):
 
 class FMIODESENS2(FMIODE2):
     """
-    FMIODE extended with sensitivity simulation capabilities
+    FMIODE2 extended with sensitivity simulation capabilities
     """
     def __init__(self, model, input=None, result_file_name='',
-                 with_jacobian=False, start_time=0.0, parameters=None, logging=False, result_handler=None):
+                 with_jacobian=False, start_time=0.0, logging=False, 
+                 result_handler=None, extra_equations=None, parameters=None):
 
         #Call FMIODE init method
-        FMIODE.__init__(self, model, input, result_file_name, with_jacobian,
-                start_time,logging, result_handler)
+        FMIODE2.__init__(self, model, input, result_file_name, with_jacobian,
+                start_time,logging, result_handler, extra_equations)
 
         #Store the parameters
         if parameters != None:
@@ -1374,62 +1375,30 @@ class FMIODESENS2(FMIODE2):
             self.p0 = N.array(model.get(parameters)).flatten()
             self.pbar = N.array([N.abs(x) if N.abs(x) > 0 else 1.0 for x in self.p0])
         self.parameters = parameters
-
+        self.derivatives = [v.value_reference for i,v in model.get_derivatives_list().iteritems()]
 
     def rhs(self, t, y, p=None, sw=None):
         #Sets the parameters, if any
         if self.parameters != None:
             self._model.set(self.parameters, p)
 
-        return FMIODE.rhs(self,t,y,sw)
-
+        return FMIODE2.rhs(self,t,y,sw)
 
     def j(self, t, y, p=None, sw=None):
-
         #Sets the parameters, if any
         if self.parameters != None:
             self._model.set(self.parameters, p)
 
         return FMIODE2.j(self,t,y,sw)
 
-    def handle_result(self, solver, t, y):
-        #
-        #Post processing (stores the time points).
-        #
-        #Moving data to the model
-        if t != self._model.time:
-            #Moving data to the model
-            self._model.time = t
-            #Check if there are any states
-            if self._f_nbr != 0:
-                self._model.continuous_states = y
-
-            #Sets the inputs, if any
-            if self.input!=None:
-                self._model.set(self.input[0], self.input[1].eval(t)[0,:])
-
-            #Evaluating the rhs (Have to evaluate the values in the model)
-            rhs = self._model.get_derivatives()
-
-        #Sets the parameters, if any
-        if self.parameters != None:
-            p_data = N.array(solver.interpolate_sensitivity(t, 0)).flatten()
+    def sens_rhs(self, t, y, s, p=None, sw=None):
+        # ds = df/dy s + df/dp
+        J = self.j(t,y,p,sw)
+        sens_rhs = J.dot(s)
         
-        if solver.report_continuously:
-            if self._write_header:
-                self._write_header = False
-                self.export.write_header(file_name=self.result_file_name, parameters=self.parameters)
-            self.export.write_point(parameter_data=p_data)
-        else:
-            #Retrieves the time-point
-            [r,i,b] = self._model.save_time_point()
-
-            #Save the time-point
-            self._sol_real += [r]
-            self._sol_int  += [i]
-            self._sol_bool += [b]
-            self._sol_time += [t]
-
-
-
-
+        for i,param in enumerate(self.parameters):
+            dfdpi = self._model.get_directional_derivative(param, self.derivatives, [1])
+            sens_rhs[:,i] += dfdpi
+        
+        return sens_rhs
+        

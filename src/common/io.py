@@ -1661,13 +1661,18 @@ class ResultHandlerFile(ResultHandler):
         cont_vars = []
         
         if parameters != None:
-            vars = self.model.get_model_variables(type=0,include_alias=False,variability=3,filter=self.options["filter"])
-            for i in self.model.get_state_value_references():
+            
+            if isinstance(self.model, fmi.FMUModelME2):
+                vars = self.model.get_model_variables(type=fmi.FMI2_REAL,include_alias=False,variability=fmi.FMI2_CONTINUOUS,filter=self.options["filter"])
+                state_vars = [v.value_reference for i,v in self.model.get_states_list().iteritems()]
+            else:
+                vars = self.model.get_model_variables(type=fmi.FMI_REAL,include_alias=False,variability=fmi.FMI_CONTINUOUS,filter=self.options["filter"])
+                state_vars = self.model.get_state_value_references()
+            for i in state_vars:
                 for j in vars.keys():
                     if i == vars[j].value_reference:
                         cont_vars.append(vars[j].name)
         
-        if parameters != None:
             for j in range(len(parameters)):
                 for i in range(len(self.model.continuous_states)):
                     names_sens += ['d'+cont_vars[i]+'/d'+parameters[j]]
