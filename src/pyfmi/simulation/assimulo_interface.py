@@ -20,6 +20,7 @@ This file contains code for mapping our JMI Models to the Problem specifications
 required by Assimulo.
 """
 import logging
+import logging as logging_module
 
 import numpy as N
 import numpy.linalg as LIN
@@ -1374,8 +1375,25 @@ class FMIODESENS2(FMIODE2):
                 raise FMIModel_Exception("Parameters must be a list of names.")
             self.p0 = N.array(model.get(parameters)).flatten()
             self.pbar = N.array([N.abs(x) if N.abs(x) > 0 else 1.0 for x in self.p0])
+            self.param_valref = [model.get_variable_valueref(x) for x in parameters]
+            
+            for param in parameters:
+                if model.get_variable_causality(param) != fmi.FMI2_INPUT and model.get_generation_tool() != "JModelica.org":
+                    raise FMIModel_Exception("The sensitivity parameters must be specified as inputs!")
+            
         self.parameters = parameters
         self.derivatives = [v.value_reference for i,v in model.get_derivatives_list().iteritems()]
+        
+        if self._model.get_capability_flags()['providesDirectionalDerivatives']:
+            use_rhs_sens = True
+            for param in parameters:
+                if model.get_variable_causality(param) != fmi.FMI2_INPUT and model.get_generation_tool() == "JModelica.org":
+                    use_rhs_sens = False
+                    logging_module.warning("The sensitivity parameters must be specified as inputs inorder to set up the sensitivity " \
+                            "equations using directional derivatives. Disabling and using finite differences instead.")
+            
+            if use_rhs_sens:
+                self.rhs_sens = self.s #Activates the jacobian
 
     def rhs(self, t, y, p=None, sw=None):
         #Sets the parameters, if any
@@ -1391,13 +1409,13 @@ class FMIODESENS2(FMIODE2):
 
         return FMIODE2.j(self,t,y,sw)
 
-    def sens_rhs(self, t, y, s, p=None, sw=None):
+    def s(self, t, y, s, p=None, sw=None):
         # ds = df/dy s + df/dp
         J = self.j(t,y,p,sw)
         sens_rhs = J.dot(s)
-        
-        for i,param in enumerate(self.parameters):
-            dfdpi = self._model.get_directional_derivative(param, self.derivatives, [1])
+
+        for i,param in enumerate(self.param_valref):
+            dfdpi = self._model.get_directional_derivative([param], self.derivatives, [1])
             sens_rhs[:,i] += dfdpi
         
         return sens_rhs
