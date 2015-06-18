@@ -3624,13 +3624,48 @@ cdef class FMUModelBase2(ModelBase):
         After this call, any call to a function changing the state of the FMU will fail.
         """
         FMIL.fmi2_import_terminate(self._fmu)
-    
-    def initialize(self):
+        
+    def exit_initialization_mode(self):
         """
-        Initializes the model and computes initial values for all variables.
+        Exit initialization mode by calling the low level FMI function
+        fmi2ExitInitializationMode.
+        
+        Note that the method initialize() performs both the enter and 
+        exit of initialization mode.
+        """
+        status = FMIL.fmi2_import_exit_initialization_mode(self._fmu)
+        
+        if status == 1:
+            if self._enable_logging:
+                logging.warning(
+                    'Exit Initialize returned with a warning.' \
+                    ' Check the log for information (FMUModel.get_log).')
+            else:
+                logging.warning('Exit Initialize returned with a warning.' \
+                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
 
-        Calls the low-level FMI functions: fmi2EnterInitializationMode,
-                                           fmi2ExitInitializationMode
+        if status > 1:
+            if self._enable_logging:
+                raise FMUException(
+                    'Exit Initialize returned with an error.' \
+                    ' Check the log for information (FMUModel.get_log).')
+            else:
+                raise FMUException('Exit Initialize returned with an error.' \
+                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    
+
+        self._allocated_fmu = 1
+        
+        return status
+        
+        
+    def enter_initialization_mode(self):
+        """
+        Enters initialization mode by calling the low level FMI function
+        fmi2EnterInitializationMode.
+        
+        Note that the method initialize() performs both the enter and 
+        exit of initialization mode.
         """
         if self.time == None:
             raise FMUException("Setup Experiment has to be called prior to the initialization method.")
@@ -3655,29 +3690,17 @@ cdef class FMUModelBase2(ModelBase):
                 raise FMUException('Enter Initialize returned with an error.' \
                     ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
                     
-        status = FMIL.fmi2_import_exit_initialization_mode(self._fmu)
-        
-        if status == 1:
-            if self._enable_logging:
-                logging.warning(
-                    'Exit Initialize returned with a warning.' \
-                    ' Check the log for information (FMUModel.get_log).')
-            else:
-                logging.warning('Exit Initialize returned with a warning.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+        return status
+    
+    def initialize(self):
+        """
+        Initializes the model and computes initial values for all variables.
 
-        if status > 1:
-            if self._enable_logging:
-                raise FMUException(
-                    'Exit Initialize returned with an error.' \
-                    ' Check the log for information (FMUModel.get_log).')
-            else:
-                raise FMUException('Exit Initialize returned with an error.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
-                    
-
-        self._allocated_fmu = 1
-
+        Calls the low-level FMI functions: fmi2EnterInitializationMode,
+                                           fmi2ExitInitializationMode
+        """
+        self.enter_initialization_mode()
+        self.exit_initialization_mode()
 
     def set_fmil_log_level(self, level):
         """
