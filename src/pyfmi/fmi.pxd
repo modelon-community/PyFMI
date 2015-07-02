@@ -66,7 +66,7 @@ cdef class FMUState2:
     """
     Class containing a pointer to a FMU-state.
     """
-    cdef FMIL.fmi2_FMU_state_t* fmu_state
+    cdef FMIL.fmi2_FMU_state_t fmu_state
 
 
 

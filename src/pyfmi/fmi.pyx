@@ -4531,28 +4531,22 @@ cdef class FMUModelBase2(ModelBase):
 
         Example::
 
-            FMU_state = Model.get_fmu_state()
+            FMU_state = model.get_fmu_state()
         """
-        raise NotImplementedError
-
         cdef int status
-        cdef object cap1, cap2
         cdef FMUState2 state = FMUState2()
 
+        if not self._supports_get_set_FMU_state():
+            raise FMUException('This FMU does not support get and set FMU-state')
 
-        cap1 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
-        cap2 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canGetAndSetFMUstate)
-        if not cap1 and not cap2:
-            raise FMUException('This FMU dos not support get and set FMU-state')
-
-        status = FMIL.fmi2_import_get_fmu_state(self._fmu, state.fmu_state)
+        status = FMIL.fmi2_import_get_fmu_state(self._fmu, &(state.fmu_state))
 
         if status != 0:
             raise FMUException('An error occured while trying to get the FMU-state, see the log for possible more information')
-
+        
         return state
 
-    def set_fmu_state(self, state):
+    def set_fmu_state(self, FMUState2 state):
         """
         Set the FMU to a previous saved state.
 
@@ -4566,23 +4560,16 @@ cdef class FMUModelBase2(ModelBase):
             FMU_state = Model.get_fmu_state()
             Model.set_fmu_state(FMU_state)
         """
-        raise NotImplementedError
-
         cdef int status
-        cdef object cap1, cap2
-        cdef FMUState2 internal_state = state
+        cdef FMIL.fmi2_FMU_state_t internal_state = state.fmu_state
 
-        cap1 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
-        cap2 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canGetAndSetFMUstate)
-        if not cap1 and not cap2:
+        if not self._supports_get_set_FMU_state():
             raise FMUException('This FMU dos not support get and set FMU-state')
 
-        status = FMIL.fmi2_import_set_fmu_state(self._fmu, internal_state.fmu_state)
+        status = FMIL.fmi2_import_set_fmu_state(self._fmu, internal_state)
 
         if status != 0:
             raise FMUException('An error occured while trying to set the FMU-state, see the log for possible more information')
-
-        return None
 
     def free_fmu_state(self, state):
         """
@@ -5874,6 +5861,12 @@ cdef class FMUModelCS2(FMUModelBase2):
         Check capability to provide directional derivatives.
         """
         return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_providesDirectionalDerivatives)
+        
+    def _supports_get_set_FMU_state(self):
+        """
+        Check support for getting and setting the FMU state.
+        """
+        return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canGetAndSetFMUstate)
 
 
 cdef class FMUModelME2(FMUModelBase2):
@@ -6396,6 +6389,12 @@ cdef class FMUModelME2(FMUModelBase2):
         Check capability to provide directional derivatives.
         """
         return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives)
+        
+    def _supports_get_set_FMU_state(self):
+        """
+        Check support for getting and setting the FMU state.
+        """
+        return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
 
 #Temporary should be removed! (after a period)
 cdef class FMUModel(FMUModelME1):
