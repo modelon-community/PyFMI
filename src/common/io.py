@@ -1490,8 +1490,11 @@ class ResultHandlerCSV(ResultHandler):
             cont_str += "%.14E%s"%(val,delimiter)
             
         f.write("%.14E%s"%(t,delimiter))
-        f.write(self.const_str)
-        f.write(cont_str[:-1]+"\n")
+        if len(cont_str) == 0:
+            f.write(self.const_str[:-1]+"\n")
+        else:
+            f.write(self.const_str)
+            f.write(cont_str[:-1]+"\n")
         
 
     def simulation_end(self):
