@@ -978,3 +978,222 @@ class FMICSAlg(AlgorithmBase):
         return FMICSAlgOptions()
 
 
+class SciEstAlg(AlgorithmBase):
+    """
+    Estimation algortihm for FMUs.
+    """
+
+    def __init__(self,
+                 parameters,
+                 measurements,
+                 input,
+                 model,
+                 options):
+        """
+        Estimation algortihm for FMUs .
+
+        Parameters::
+
+            model --
+                fmi.FMUModel* object representation of the model.
+
+            options --
+                The options that should be used in the algorithm. For details on
+                the options, see:
+
+                * model.simulate_options('SciEstAlgOptions')
+
+                or look at the docstring with help:
+
+                * help(pyfmi.fmi_algorithm_drivers.SciEstAlgAlgOptions)
+
+                Valid values are:
+                - A dict that overrides some or all of the default values
+                  provided by SciEstAlgOptions. An empty dict will thus
+                  give all options with default values.
+                - SciEstAlgOptions object.
+        """
+        self.model = model
+
+        # set start time, final time and input trajectory
+        self.parameters = parameters
+        self.measurements = measurements
+        self.input = input
+        
+        # handle options argument
+        if isinstance(options, dict) and not \
+            isinstance(options, SciEstAlgOptions):
+            # user has passed dict with options or empty dict = default
+            self.options = SciEstAlgOptions(options)
+        elif isinstance(options, SciEstAlgOptions):
+            # user has passed FMICSAlgOptions instance
+            self.options = options
+        else:
+            raise InvalidAlgorithmOptionException(options)
+
+        # set options
+        self._set_options()
+        
+        self.result_handler = ResultHandlerCSV(self.model)
+        self.result_handler.set_options(self.options)
+        self.result_handler.initialize_complete()
+
+    def _set_options(self):
+        """
+        Helper function that sets options for FMICS algorithm.
+        """
+        self.options["filter"] = self.parameters
+        
+        if self.options["scaling"] == "Default":
+            scale = []
+            for i,parameter in enumerate(self.parameters):
+                scale.append(self.model.get_variable_nominal(parameter))
+            self.options["scaling"] = N.array(scale)
+        
+        if self.options["simulate_options"] == "Default":
+            self.options["simulate_options"] = self.model.simulate_options()
+            
+        #Modifiy necessary options:
+        self.options["simulate_options"]['ncp']    = self.measurements[1].shape[0] - 1 #Store at the same points as measurment data
+        self.options["simulate_options"]['filter'] = self.measurements[0] #Only store the measurement variables (efficiency)
+        
+        if self.options["simulate_options"].has_key("solver"):
+            solver = self.options["simulate_options"]["solver"]
+            
+            self.options["simulate_options"][solver+"_options"]["verbosity"] = 50 #Disable printout (efficiency)
+            self.options["simulate_options"][solver+"_options"]["store_event_points"] = False #Disable extra store points
+
+    def _set_solver_options(self):
+        """
+        Helper function that sets options for the solver.
+        """
+        pass
+
+    def solve(self):
+        """
+        Runs the estimation.
+        """
+        import scipy as sci
+        import scipy.optimize as sciopt
+        from pyfmi.fmi_util import parameter_estimation_f
+        
+        #Define callback
+        global niter
+        niter = 0
+        def parameter_estimation_callback(y):
+            global niter
+            if niter % 10 == 0:
+                print "  iter    parameters "
+            #print '{:>5d} {:>15e}'.format(niter+1, parameter_estimation_f(y, self.parameters, self.measurements, self.model, self.input, self.options))
+            print '{:>5d} '.format(niter+1), y
+            niter += 1
+        
+        #End of simulation, stop the clock
+        time_start = time.clock()
+        
+        p0 = []
+        for i,parameter in enumerate(self.parameters):
+            p0.append(self.model.get(parameter)/self.options["scaling"][i])
+            
+        print '\nRunning solver: ', self.options["method"]
+        print ' Initial parameters (scaled): ', N.array(p0).flatten()
+        print ' '
+        
+        res = sciopt.minimize(parameter_estimation_f, p0, 
+                                args=(self.parameters, self.measurements, self.model, self.input, self.options), 
+                                method=self.options["method"],
+                                bounds=None, 
+                                constraints=(), 
+                                tol=self.options["tolerance"],
+                                callback=parameter_estimation_callback)
+        
+        for i in range(len(self.parameters)):
+            res["x"][i] = res["x"][i]*self.options["scaling"][i]
+        
+        self.res = res
+        self.status = res["success"]
+        
+        #End of simulation, stop the clock
+        time_stop = time.clock()
+        
+        if not res["success"]:
+            print('Estimation failed: ' + res["message"])
+        else:
+            print('\nEstimation terminated successfully!')
+            print ' Found parameters: ', res["x"]
+        
+        print('Elapsed estimation time: ' + str(time_stop-time_start) + ' seconds.\n')
+
+    def get_result(self):
+        """
+        Write result to file, load result data and create an SciEstResult
+        object.
+
+        Returns::
+
+            The SciEstResult object.
+        """
+        for i,parameter in enumerate(self.parameters):
+            self.model.set(parameter, self.res["x"][i])
+        
+        self.result_handler.simulation_start()
+        
+        self.model.time = self.measurements[1][0,0]
+        self.result_handler.integration_point()
+
+        self.result_handler.simulation_end()
+        
+        self.model.reset()
+        
+        for i,parameter in enumerate(self.parameters):
+            self.model.set(parameter, self.res["x"][i])
+            
+        return FMIResult(self.model, self.options["result_file_name"], None,
+            self.result_handler.get_result(), self.options, status=self.status)
+
+    @classmethod
+    def get_default_options(cls):
+        """
+        Get an instance of the options class for the SciEstAlg algorithm,
+        prefilled with default values. (Class method.)
+        """
+        return SciEstAlgOptions()
+
+class SciEstAlgOptions(OptionBase):
+    """
+    Options for the solving an estimation problem.
+
+        Options::
+
+
+        tolerance    --
+            The tolerance for the estimation algorithm
+            Default: 1e-6
+            
+        method       --
+            The method to use, available methods are methods from:
+            scipy.optimize.minimize.
+            Default: 'Nelder-Mead'
+            
+        scaling      --
+            The scaling of the parameters during the estimation.
+            Default: The nominal values
+            
+        simulate_options    --
+            The simulation options to use when simulating the model
+            in order to get the estimated data.
+            Default: The default options for the underlying model.
+
+    """
+    def __init__(self, *args, **kw):
+        _defaults= {"tolerance": 1e-6,
+                    'result_file_name':'',
+                    'filter':None,
+                    'method': 'Nelder-Mead',
+                    'scaling': 'Default',
+                    'simulate_options': "Default"}
+        super(SciEstAlgOptions,self).__init__(_defaults)
+        # for those key-value-sets where the value is a dict, don't
+        # overwrite the whole dict but instead update the default dict
+        # with the new values
+        self._update_keep_dict_defaults(*args, **kw)

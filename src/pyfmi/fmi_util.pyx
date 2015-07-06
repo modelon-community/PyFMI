@@ -18,6 +18,7 @@
 Module containing the FMI interface Python wrappers.
 """
 from collections import OrderedDict
+cimport numpy as np
 
 cpdef cpr_seed(dependencies, list column_keys):
     cdef int i=0,j=0,k=0
@@ -57,3 +58,27 @@ cpdef cpr_seed(dependencies, list column_keys):
         k = k + 1
         
     return groups
+
+cdef double quad_err(np.ndarray sim, np.ndarray est, int n):
+    cdef double s = 0
+    for i in range(n):
+        s += (sim[i]-est[i])**2
+    
+    return s
+
+cpdef parameter_estimation_f(y, parameters, measurments, model, input, options):
+    
+    model.reset()
+    
+    for i,parameter in enumerate(parameters):
+        model.set(parameter, y[i]*options["scaling"][i])
+    
+    # Simulate model response with new parameter values
+    res = model.simulate(measurments[1][0,0], final_time=measurments[1][-1,0], input=input, options=options["simulate_options"])
+
+    err = 0
+    n = measurments[1].shape[0]
+    for i,parameter in enumerate(measurments[0]):
+        err += quad_err(res[parameter], measurments[1][:,i+1], n)
+
+    return 1.0/n*err**(0.5)
