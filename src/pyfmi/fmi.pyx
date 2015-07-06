@@ -4642,12 +4642,17 @@ cdef class FMUModelBase2(ModelBase):
         else:
             raise FMUException("The variable type does not have a minimum value.")
 
-    def get_fmu_state(self):
+    def get_fmu_state(self, FMUState2 state = None):
         """
         Creates a copy of the recent FMU-state and returns
         a pointer to this state which later can be used to
         set the FMU to this state.
-
+        
+        Parameters::
+        
+            state --
+                Optionally a pointer to an already allocated FMU state
+        
         Returns::
 
             A pointer to a copy of the recent FMU state.
@@ -4657,7 +4662,9 @@ cdef class FMUModelBase2(ModelBase):
             FMU_state = model.get_fmu_state()
         """
         cdef int status
-        cdef FMUState2 state = FMUState2()
+        
+        if state is None:
+            state = FMUState2()
 
         if not self._supports_get_set_FMU_state():
             raise FMUException('This FMU does not support get and set FMU-state')
@@ -4694,7 +4701,7 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('An error occured while trying to set the FMU-state, see the log for possible more information')
 
-    def free_fmu_state(self, state):
+    def free_fmu_state(self, FMUState2 state):
         """
         Free a previously saved FMU-state from the memory.
 
@@ -4705,21 +4712,26 @@ cdef class FMUModelBase2(ModelBase):
 
         Example::
 
-            FMU_state = Model.get_fmu_state
+            FMU_state = Model.get_fmu_state()
             Model.free_fmu_state(FMU_state)
 
         """
-        raise NotImplementedError
-
         cdef int status
-        cdef FMUState2 internal_state = state
+        cdef FMIL.fmi2_FMU_state_t internal_state = state.fmu_state
+        
+        if not self._supports_get_set_FMU_state():
+            raise FMUException('This FMU does not support get and set FMU-state')
+        if internal_state == NULL:
+            print("FMU-state does not seem to be allocated.")
+            return
 
-        status = FMIL.fmi2_import_free_fmu_state(self._fmu, internal_state.fmu_state)
+        status = FMIL.fmi2_import_free_fmu_state(self._fmu, &internal_state)
 
         if status != 0:
             raise FMUException('An error occured while trying to free the FMU-state, see the log for possible more information')
-
-        return None
+        
+        #Memory has been released
+        state.fmu_state = NULL
 
     cpdef serialize_fmu_state(self, state):
         """
