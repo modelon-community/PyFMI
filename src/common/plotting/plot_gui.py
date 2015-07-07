@@ -133,14 +133,14 @@ class MainGUI(wx.Frame):
         #Create the panels (Tree and Plot)
         
         if wx.VERSION < (2,8,11,0):
-            self.tree = VariableTree(self.leftPanel,style = wx.SUNKEN_BORDER | wxCustom.TR_HAS_BUTTONS | wxCustom.TR_HAS_VARIABLE_ROW_HEIGHT | wxCustom.TR_HIDE_ROOT | wxCustom.TR_ALIGN_WINDOWS)
             self.noteBook = aui.AuiNotebook(self.rightPanel, style= aui.AUI_NB_TOP | aui.AUI_NB_TAB_SPLIT | aui.AUI_NB_TAB_MOVE | aui.AUI_NB_SCROLL_BUTTONS | aui.AUI_NB_CLOSE_ON_ACTIVE_TAB | aui.AUI_NB_DRAW_DND_TAB)
+            self.tree = VariableTree(self.noteBook, self.leftPanel,style = wx.SUNKEN_BORDER | wxCustom.TR_HAS_BUTTONS | wxCustom.TR_HAS_VARIABLE_ROW_HEIGHT | wxCustom.TR_HIDE_ROOT | wxCustom.TR_ALIGN_WINDOWS)
         else:
-            self.tree = VariableTree(self.leftPanel,style = wx.SUNKEN_BORDER, agwStyle = wxCustom.TR_HAS_BUTTONS | wxCustom.TR_HAS_VARIABLE_ROW_HEIGHT | wxCustom.TR_HIDE_ROOT | wxCustom.TR_ALIGN_WINDOWS)
             self.noteBook = aui.AuiNotebook(self.rightPanel, agwStyle= aui.AUI_NB_TOP | aui.AUI_NB_TAB_SPLIT | aui.AUI_NB_TAB_MOVE | aui.AUI_NB_SCROLL_BUTTONS | aui.AUI_NB_CLOSE_ON_ACTIVE_TAB | aui.AUI_NB_DRAW_DND_TAB)
+            self.tree = VariableTree(self.noteBook, self.leftPanel,style = wx.SUNKEN_BORDER, agwStyle = wxCustom.TR_HAS_BUTTONS | wxCustom.TR_HAS_VARIABLE_ROW_HEIGHT | wxCustom.TR_HIDE_ROOT | wxCustom.TR_ALIGN_WINDOWS)
         self.plotPanels = [PlotPanel(self.noteBook,self.grid, move=self.move, zoom=self.zoom)]
         self.noteBook.AddPage(self.plotPanels[0],"Plot 1")
-        self.filterPanel = FilterPanel(self.leftPanel, self.tree)
+        self.filterPanel = FilterPanel(self, self.leftPanel, self.tree)
         
         
         #Add the panels to the positioners
@@ -428,18 +428,20 @@ class MainGUI(wx.Frame):
         if IDPlot != -1: #If there exist a plot window
             
             data = self.tree.GetPyData(item)
+            #print "Variable: ", data["variable_id"], item
             
             #Store plot variables or "unstore"
             if self.tree.IsItemChecked(item): #Draw
                 
                 #Add to Plot panel
                 self.noteBook.GetPage(IDPlot).AddPlotVariable(ID,item,data)
+                data["item_checked"] = IDPlot
                 
             else: #Undraw
             
                 #Remove from panel
-                #self.noteBook.GetPage(IDPlot).DeletePlotVariable(item)
                 self.noteBook.GetPage(IDPlot).DeletePlotVariable(data["variable_id"])
+                data["item_checked"] = None
                 
             self.noteBook.GetPage(IDPlot).Draw()
             
@@ -474,7 +476,6 @@ class MainGUI(wx.Frame):
                 
                 #Redraw
                 for i in range(self.noteBook.GetPageCount()):
-                    #self.noteBook.GetPage(i).DeletePlotVariable(ID=ID)
                     self.noteBook.GetPage(i).DeletePlotVariable(global_id=data["result_id"])
                     self.noteBook.GetPage(i).Draw()
 
@@ -492,28 +493,21 @@ class MainGUI(wx.Frame):
             self.editLinesLegends.Enable(False)
                             
     def OnTabChanging(self, event):
-        IDPlot = self.noteBook.GetSelection()
-        
-        #Uncheck the items related to the previous plot
-        if IDPlot != -1:
-            for i,var in enumerate(self.noteBook.GetPage(IDPlot).GetPlotVariables()):
-                self.tree.CheckItem2(var[1],checked=False,torefresh=True)
-            
-            lines = self.noteBook.GetPage(IDPlot).GetLines()
-            if len(lines) != 0:
-                #Enable Lines and Legends
-                self.editLinesLegends.Enable(True)
-            else:
-                #Disable Lines and Legends
-                self.editLinesLegends.Enable(False)
+        #print "Changing: ", self.noteBook.GetSelection()
+        self.UpdateCheckedItemTree(check=False)
     
     def OnTabChanged(self,event):
+        #print "Changed: ", self.noteBook.GetSelection()
+        self.UpdateCheckedItemTree(check=True)
+                
+    def UpdateCheckedItemTree(self, check=True):
+        #print "Update: ", self.noteBook.GetSelection()
         IDPlot = self.noteBook.GetSelection()
         
         #Check the items related to the previous plot
         if IDPlot != -1:
             for i,var in enumerate(self.noteBook.GetPage(IDPlot).GetPlotVariables()):
-                self.tree.CheckItem2(var[1],checked=True,torefresh=True)
+                self.tree.CheckItem2(var[1],checked=check,torefresh=True)
             
             lines = self.noteBook.GetPage(IDPlot).GetLines()
             if len(lines) != 0:
@@ -597,9 +591,10 @@ class MainGUI(wx.Frame):
             self.SetStatusText("") #Change the statusbar
                 
 class VariableTree(wxCustom.CustomTreeCtrl):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, noteBook, *args, **kwargs):
         super(VariableTree, self).__init__(*args, **kwargs)
         
+        self.noteBook = noteBook
         #Add the root item
         self.root = self.AddRoot("Result(s)")
         #Root have children
@@ -665,6 +660,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
             data["result_id"] = self.global_id
             data["variable_id"] = self.local_id = self.local_id + 1
             data["result_object"] = resultObject
+            data["item_checked"] = None
 
             if len(spl)==1:
                 data["parents"] = child
@@ -877,6 +873,10 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                 if item == None:
                     raise Exception("Something went wrong when adding the variable.")
                 
+                if data["item_checked"] is not None: #Item was previously checked.
+                    #print "Item was previously checked", data["item_checked"]
+                    self.noteBook.GetPage(data["item_checked"]).UpdatePlotVariableReference(-1,item,data)
+                
                 self.hidden_children.pop(i)
                 i = i-1
             i = i+1
@@ -937,7 +937,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
     
     def HideItem(self, item, show):
         data = self.GetPyData(item)
-        
+
         if not show:
             self.hidden_children.append(data)
             self.Delete(item)
@@ -1264,10 +1264,11 @@ class DialogAxisLabels(wx.Dialog):
         return xmax,xmin,ymax,ymin,title, xlabel, ylabel, xscale, yscale
         
 class FilterPanel(wx.Panel):
-    def __init__(self, parent,tree, **kwargs):
+    def __init__(self, main, parent,tree, **kwargs):
         wx.Panel.__init__( self, parent, **kwargs )
         
         #Store the parent
+        self.main = main
         self.parent = parent
         self.tree = tree
         self.active_filter = False
@@ -1326,14 +1327,18 @@ class FilterPanel(wx.Panel):
         self.active_filter = True
         self.tree.HideNodes(showTimeVarying=self.checkBoxTimeVarying.GetValue(), showParametersConstants=self.checkBoxParametersConstants.GetValue(), filter=self.GetFilter())
         
+        self.main.UpdateCheckedItemTree()
+        
         if self.searchBox.GetValue() == "":
             self.active_filter = False
         
     def OnParametersConstants(self, event):
         self.tree.HideNodes(showTimeVarying=self.checkBoxTimeVarying.GetValue(), showParametersConstants=self.checkBoxParametersConstants.GetValue(), filter=self.GetFilter())
+        self.main.UpdateCheckedItemTree()
         
     def OnTimeVarying(self, event):
         self.tree.HideNodes(showTimeVarying=self.checkBoxTimeVarying.GetValue(), showParametersConstants=self.checkBoxParametersConstants.GetValue(), filter=self.GetFilter())
+        self.main.UpdateCheckedItemTree()
 
 class Lines_Settings:
     def __init__(self, name=None):
@@ -1406,6 +1411,10 @@ class PlotPanel(wx.Panel):
         
     def DeleteAllPlotVariables(self):
         self.plotVariables = []
+        
+    def UpdatePlotVariableReference(self, ID,item,data):
+        self.DeletePlotVariable(local_id=data["variable_id"])
+        self.AddPlotVariable(ID,item,data)
     
     def DeletePlotVariable(self, local_id=None, global_id=None):
         
@@ -1425,28 +1434,7 @@ class PlotPanel(wx.Panel):
                 
                 if j==len(self.plotVariables):
                     break
-    """
-    def DeletePlotVariable(self, item=None, ID=None):
-        
-        if item != None:
-            for i,var in enumerate(self.plotVariables):
-                if var[1]==item:
-                    self.plotVariables.pop(i)
-                    break
-                    
-        if ID != None:
-            j = 0
-            while j < len(self.plotVariables):
-                if self.plotVariables[j][0] == ID:
-                    self.plotVariables.pop(j)
-                else:
-                    if ID < self.plotVariables[j][0]:
-                        self.plotVariables[j][0] = self.plotVariables[j][0]-1 
-                    j = j+1
-                    
-                if j==len(self.plotVariables):
-                    break
-    """
+
     def OnPass(self, event):
         pass
     
