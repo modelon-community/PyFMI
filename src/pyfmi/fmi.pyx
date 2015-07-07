@@ -1330,7 +1330,7 @@ cdef class FMUModelBase(ModelBase):
 
         return vr
 
-    def get_variable_nominal(self, variablename=None, valueref=None):
+    def get_variable_nominal(self, variable_name=None, valueref=None):
         """
         Returns the nominal value from a real variable determined by
         either its value reference or its variable name.
@@ -1348,12 +1348,16 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef FMIL.fmi1_import_variable_t *variable
         cdef FMIL.fmi1_import_real_variable_t *real_variable
+        cdef char* variablename
 
         if valueref != None:
             variable = FMIL.fmi1_import_get_variable_by_vr(self._fmu, FMIL.fmi1_base_type_real, <FMIL.fmi1_value_reference_t>valueref)
             if variable == NULL:
                 raise FMUException("The variable with value reference: %s, could not be found."%str(valueref))
-        elif variablename != None:
+        elif variable_name != None:
+            variable_name = encode(variable_name)
+            variablename  = variable_name
+
             variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
             if variable == NULL:
                 raise FMUException("The variable %s could not be found."%variablename)

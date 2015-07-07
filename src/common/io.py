@@ -1667,7 +1667,10 @@ class ResultHandlerFile(ResultHandler):
             
             if isinstance(self.model, fmi.FMUModelME2):
                 vars = self.model.get_model_variables(type=fmi.FMI2_REAL,include_alias=False,variability=fmi.FMI2_CONTINUOUS,filter=self.options["filter"])
-                state_vars = [v.value_reference for i,v in self.model.get_states_list().iteritems()]
+                if python3_flag:
+                    state_vars = [v.value_reference for i,v in self.model.get_states_list().items()]
+                else:
+                    state_vars = [v.value_reference for i,v in self.model.get_states_list().iteritems()]
             else:
                 vars = self.model.get_model_variables(type=fmi.FMI_REAL,include_alias=False,variability=fmi.FMI_CONTINUOUS,filter=self.options["filter"])
                 state_vars = self.model.get_state_value_references()
