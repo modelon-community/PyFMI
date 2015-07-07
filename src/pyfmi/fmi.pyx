@@ -4976,9 +4976,12 @@ cdef class FMUModelBase2(ModelBase):
         FMIL.fmi2_import_get_outputs_dependencies(self._fmu, &start_indexp, &dependencyp, &factor_kindp)
         
         if start_indexp == NULL:
-            raise FMUException("No dependency information for the derivatives was found in the model description.")
-            
-        outputs = self.get_output_list().keys()
+            raise FMUException("No dependency information for the outputs was found in the model description.")
+        
+        if python3_flag:
+            outputs = list(self.get_output_list().keys())
+        else:
+            outputs = self.get_output_list().keys()
         states_list = self.get_states_list()
         inputs_list = self.get_input_list()
         
@@ -4993,9 +4996,9 @@ cdef class FMUModelBase2(ModelBase):
                     variable = FMIL.fmi2_import_get_variable(variable_list, dependencyp[start_indexp[i]+j]-1)
                     name             = decode(FMIL.fmi2_import_get_variable_name(variable))
                     
-                    if states_list.has_key(name):
+                    if name in states_list:
                         states[outputs[i]].append(name)
-                    elif inputs_list.has_key(name):
+                    elif name in inputs_list:
                         inputs[outputs[i]].append(name)                        
             
         return states, inputs
@@ -5021,7 +5024,10 @@ cdef class FMUModelBase2(ModelBase):
         if start_indexp == NULL:
             raise FMUException("No dependency information for the derivatives was found in the model description.")
         
-        derivatives = self.get_derivatives_list().keys()
+        if python3_flag:
+            derivatives = list(self.get_derivatives_list().keys())
+        else:
+            derivatives = self.get_derivatives_list().keys()
         states_list = self.get_states_list()
         inputs_list = self.get_input_list()
         
@@ -5036,9 +5042,9 @@ cdef class FMUModelBase2(ModelBase):
                     variable = FMIL.fmi2_import_get_variable(variable_list, dependencyp[start_indexp[i]+j]-1)
                     name             = decode(FMIL.fmi2_import_get_variable_name(variable))
                     
-                    if states_list.has_key(name):
+                    if name in states_list:
                         states[derivatives[i]].append(name)
-                    elif inputs_list.has_key(name):
+                    elif name in inputs_list:
                         inputs[derivatives[i]].append(name)                        
             
         #Caching
@@ -5076,7 +5082,10 @@ cdef class FMUModelBase2(ModelBase):
     def _get_A(self):
         if self._A is None:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
-            self._group_A = cpr_seed(derv_state_dep, self.get_states_list().keys())
+            if python3_flag:
+                self._group_A = cpr_seed(derv_state_dep, list(self.get_states_list().keys()))
+            else:
+                self._group_A = cpr_seed(derv_state_dep, self.get_states_list().keys())
         if self._states_references is None:
             states                       = self.get_states_list()
             self._states_references      = [s.value_reference for s in states.values()]
@@ -5094,7 +5103,10 @@ cdef class FMUModelBase2(ModelBase):
     def _get_B(self):
         if self._B is None:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
-            self._group_B = cpr_seed(derv_input_dep, self.get_input_list().keys())
+            if python3_flag:
+                self._group_B = cpr_seed(derv_input_dep, list(self.get_input_list().keys()))
+            else:
+                self._group_B = cpr_seed(derv_input_dep, self.get_input_list().keys())
         if self._inputs_references is None:
             inputs                       = self.get_input_list()
             self._inputs_references      = [s.value_reference for s in inputs.values()]
@@ -5112,7 +5124,10 @@ cdef class FMUModelBase2(ModelBase):
     def _get_C(self):
         if self._C is None:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
-            self._group_C = cpr_seed(out_state_dep, self.get_states_list().keys())
+            if python3_flag:
+                self._group_C = cpr_seed(out_state_dep, list(self.get_states_list().keys()))
+            else:
+                self._group_C = cpr_seed(out_state_dep, self.get_states_list().keys())
         if self._states_references is None:
             states                       = self.get_states_list()
             self._states_references      = [s.value_reference for s in states.values()]
@@ -5130,7 +5145,10 @@ cdef class FMUModelBase2(ModelBase):
     def _get_D(self):
         if self._D is None:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
-            self._group_D = cpr_seed(out_input_dep, self.get_input_list().keys())
+            if python3_flag:
+                self._group_D = cpr_seed(out_input_dep, list(self.get_input_list().keys()))
+            else:
+                self._group_D = cpr_seed(out_input_dep, self.get_input_list().keys())
         if self._inputs_references is None:
             inputs                       = self.get_input_list()
             self._inputs_references      = [s.value_reference for s in inputs.values()]

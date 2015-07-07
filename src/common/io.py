@@ -552,7 +552,7 @@ class ResultWriterDymola(ResultWriter):
         list_of_continuous_states = N.append(list_of_continuous_states, 
             self.model._save_bool_variables_val).tolist()
         list_of_continuous_states = dict(zip(list_of_continuous_states, 
-            xrange(len(list_of_continuous_states))))
+            range(len(list_of_continuous_states))))
         valueref_of_continuous_states = []
         
         cnt_1 = 1
@@ -659,9 +659,9 @@ class ResultWriterDymola(ResultWriter):
 
         #Write the point
         str_text = (" %.14E" % data[0])
-        for j in xrange(self._nvariables-1):
+        for j in range(self._nvariables-1):
             str_text = str_text + (" %.14E" % (data[1+data_order[j]]))
-        for j in xrange(len(parameter_data)):
+        for j in range(len(parameter_data)):
             str_text = str_text + (" %.14E" % (parameter_data[j]))
         f.write(str_text+'\n')
         
@@ -1906,7 +1906,7 @@ class ResultHandlerFile(ResultHandler):
         #Sets the parameters, if any
         if solver and self.options["sensitivities"]:
             parameter_data = N.array(solver.interpolate_sensitivity(model.time, 0)).flatten()
-            for j in xrange(len(parameter_data)):
+            for j in range(len(parameter_data)):
                 str_text = str_text + (" %.14E" % (parameter_data[j]))
                     
         f.write(str_text+'\n')
@@ -2155,7 +2155,7 @@ class ResultWriterDymola_deprecated(ResultWriter):
         list_of_continuous_states = N.append(list_of_continuous_states, 
             self.model._save_cont_valueref[2]).tolist()
         list_of_continuous_states = dict(zip(list_of_continuous_states, 
-            xrange(len(list_of_continuous_states))))
+            range(len(list_of_continuous_states))))
         valueref_of_continuous_states = []
         
         cnt_1 = 1
@@ -2257,7 +2257,7 @@ class ResultWriterDymola_deprecated(ResultWriter):
 
         #Write the point
         str_text = (" %.14E" % data[0])
-        for j in xrange(self._nvariables-1):
+        for j in range(self._nvariables-1):
             str_text = str_text + (" %.14E" % (data[1+data_order[j]]))
         f.write(str_text+'\n')
         
