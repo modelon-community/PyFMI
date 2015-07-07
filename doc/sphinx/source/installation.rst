@@ -9,6 +9,9 @@ Current version:
 
     Available on PyPI, http://pypi.python.org/pypi/PyFMI
 
+Additionally, PyFMI is available through `conda <http://conda.pydata.org/docs/index.html>`_::
+
+    conda install -c https://conda.binstar.org/chria pyfmi
 
 Requirements:
 -------------
