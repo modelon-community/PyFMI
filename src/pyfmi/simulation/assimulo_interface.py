@@ -31,6 +31,7 @@ import time
 from pyfmi.common.io import ResultWriterDymola, ResultWriterDymola_deprecated
 import pyfmi.fmi as fmi
 import pyfmi.fmi_deprecated as fmi_deprecated
+from pyfmi.common import python3_flag
 from pyfmi.common.core import TrajectoryLinearInterpolation
 
 try:
@@ -1382,7 +1383,10 @@ class FMIODESENS2(FMIODE2):
                     raise FMIModel_Exception("The sensitivity parameters must be specified as inputs!")
             
         self.parameters = parameters
-        self.derivatives = [v.value_reference for i,v in model.get_derivatives_list().iteritems()]
+        if python3_flag:
+            self.derivatives = [v.value_reference for i,v in model.get_derivatives_list().items()]
+        else:
+            self.derivatives = [v.value_reference for i,v in model.get_derivatives_list().iteritems()]
         
         if self._model.get_capability_flags()['providesDirectionalDerivatives']:
             use_rhs_sens = True

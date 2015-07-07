@@ -538,7 +538,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             if self.model.get_generation_tool() != "JModelica.org":
                 if isinstance(self.model, fmi.FMUModelME2):
                     for var in self.options["sensitivities"]:
-                        causality = self.model.get_variable_causality()
+                        causality = self.model.get_variable_causality(var)
                         if causality != fmi.FMI2_INPUT:
                             raise FMUException("The sensitivity parameter is not specified as an input which is required.")
                 else:
@@ -1057,7 +1057,7 @@ class SciEstAlg(AlgorithmBase):
         self.options["simulate_options"]['ncp']    = self.measurements[1].shape[0] - 1 #Store at the same points as measurment data
         self.options["simulate_options"]['filter'] = self.measurements[0] #Only store the measurement variables (efficiency)
         
-        if self.options["simulate_options"].has_key("solver"):
+        if "solver" in self.options["simulate_options"]:
             solver = self.options["simulate_options"]["solver"]
             
             self.options["simulate_options"][solver+"_options"]["verbosity"] = 50 #Disable printout (efficiency)
@@ -1083,9 +1083,9 @@ class SciEstAlg(AlgorithmBase):
         def parameter_estimation_callback(y):
             global niter
             if niter % 10 == 0:
-                print "  iter    parameters "
+                print("  iter    parameters ")
             #print '{:>5d} {:>15e}'.format(niter+1, parameter_estimation_f(y, self.parameters, self.measurements, self.model, self.input, self.options))
-            print '{:>5d} '.format(niter+1), y
+            print('{:>5d} '.format(niter+1) + str(y))
             niter += 1
         
         #End of simulation, stop the clock
@@ -1095,9 +1095,9 @@ class SciEstAlg(AlgorithmBase):
         for i,parameter in enumerate(self.parameters):
             p0.append(self.model.get(parameter)/self.options["scaling"][i])
             
-        print '\nRunning solver: ', self.options["method"]
-        print ' Initial parameters (scaled): ', N.array(p0).flatten()
-        print ' '
+        print('\nRunning solver: ' + self.options["method"])
+        print(' Initial parameters (scaled): ' + str(N.array(p0).flatten()))
+        print(' ')
         
         res = sciopt.minimize(parameter_estimation_f, p0, 
                                 args=(self.parameters, self.measurements, self.model, self.input, self.options), 
@@ -1120,7 +1120,7 @@ class SciEstAlg(AlgorithmBase):
             print('Estimation failed: ' + res["message"])
         else:
             print('\nEstimation terminated successfully!')
-            print ' Found parameters: ', res["x"]
+            print(' Found parameters: ' + str(res["x"]))
         
         print('Elapsed estimation time: ' + str(time_stop-time_start) + ' seconds.\n')
 
