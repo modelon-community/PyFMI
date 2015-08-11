@@ -46,6 +46,11 @@ if assimulo_present:
     from assimulo.problem import Implicit_Problem
     from assimulo.problem import Explicit_Problem
     from assimulo.exception import *
+else: #Create dummy classes
+    class Implicit_Problem:
+        pass
+    class Explicit_Problem:
+        pass
 
 class FMIModel_Exception(Exception):
     """
