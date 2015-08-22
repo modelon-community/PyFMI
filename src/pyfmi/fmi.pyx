@@ -3611,7 +3611,7 @@ cdef class FMUModelBase2(ModelBase):
         else:
             raise FMUException('Type not supported.')
 
-    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
+    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil:
         if self._fmu_log_name != NULL:
             with open(self._fmu_log_name,'a') as file:
                 file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
@@ -5551,7 +5551,7 @@ cdef class FMUModelCS2(FMUModelBase2):
     low-level FMI function: fmiSetTime
     """)
 
-    def do_step(self, FMIL.fmi2_real_t current_t, FMIL.fmi2_real_t step_size, new_step=True):
+    cpdef int do_step(self, FMIL.fmi2_real_t current_t, FMIL.fmi2_real_t step_size, new_step=True):
         """
         Performs an integrator step.
 
@@ -5586,7 +5586,7 @@ cdef class FMUModelCS2(FMUModelBase2):
             new_s = 0
 
         self.time = current_t + step_size
-
+        
         status = FMIL.fmi2_import_do_step(self._fmu, current_t, step_size, new_s)
 
         return status

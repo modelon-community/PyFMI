@@ -172,7 +172,7 @@ cdef class FMUModelBase2(ModelBase):
     cdef object         _mask_A
     cdef object         _A_row_ind, _A_col_ind
     
-    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message)
+    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
     cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, variablename) except *
     cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, variablename) except *
     cpdef get_variable_description(self, variablename)
@@ -194,6 +194,7 @@ cdef class FMUModelCS2(FMUModelBase2):
 
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi2_real_t t)
+    cpdef int do_step(self, FMIL.fmi2_real_t current_t, FMIL.fmi2_real_t step_size, new_step=*)
     
 cdef class FMUModelME2(FMUModelBase2):
 

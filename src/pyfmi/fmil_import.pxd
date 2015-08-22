@@ -473,7 +473,7 @@ cdef extern from 'fmilib.h':
         pass
 
     #FMI SPECIFICATION METHODS (2.0)
-    int fmi2_import_do_step(fmi2_import_t *, fmi2_real_t, fmi2_real_t, fmi2_boolean_t)
+    int fmi2_import_do_step(fmi2_import_t *, fmi2_real_t, fmi2_real_t, fmi2_boolean_t) nogil
     int fmi2_import_get_event_indicators(fmi2_import_t *, fmi2_real_t *, size_t)
     int fmi2_import_completed_integrator_step(fmi2_component_t, fmi2_boolean_t, fmi2_boolean_t*, fmi2_boolean_t*)
     int fmi2_import_exit_initialization_mode(fmi2_import_t* fmu)
