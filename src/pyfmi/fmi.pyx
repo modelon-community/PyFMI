@@ -3284,15 +3284,12 @@ cdef class FMUModelBase2(ModelBase):
 
         Calls the low-level FMI function: fmi2GetReal
         """
-
         cdef int         status
-        cdef FMIL.size_t nref
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        nref = len(input_valueref)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            output_value   = N.array([0.0]*nref,dtype=N.float, ndmin=1)
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            output_value   = N.zeros(input_valueref.size)
 
-        status = FMIL.fmi2_import_get_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_real_t*> output_value.data)
+        status = FMIL.fmi2_import_get_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, input_valueref.size, <FMIL.fmi2_real_t*> output_value.data)
 
         if status != 0:
             raise FMUException('Failed to get the Real values.')
@@ -3318,17 +3315,14 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2SetReal
         """
         cdef int status
-        cdef FMIL.size_t nref
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = N.array(values, dtype=N.float, ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = N.array(values, dtype=N.float, ndmin=1).ravel()
 
-        nref = len(input_valueref)
-
-        if len(input_valueref) != len(set_value):
+        if input_valueref.size != set_value.size:
             raise FMUException('The length of valueref and values are inconsistent.')
 
-        status = FMIL.fmi2_import_set_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_real_t*> set_value.data)
+        status = FMIL.fmi2_import_set_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, input_valueref.size, <FMIL.fmi2_real_t*> set_value.data)
 
         if status != 0:
             raise FMUException('Failed to set the Real values.')
@@ -5674,7 +5668,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         else:
             raise FMUException("The variables must either be a string or a list of strings")
 
-        status = self._set_input_derivatives(value_refs, orders, val)
+        status = self._set_input_derivatives(value_refs, val, orders)
         #status = FMIL.fmi2_import_set_real_input_derivatives(self._fmu, <FMIL.fmi2_value_reference_t*> value_refs.data, nref,
         #                                                        <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> val.data)
 
@@ -6384,7 +6378,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         return ndx
 
-    def _set_continuous_states(self, N.ndarray[FMIL.fmi2_real_t] values):
+    def _set_continuous_states(self, N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values):
         """
         Set the values of the continuous states.
 
