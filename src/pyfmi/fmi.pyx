@@ -1,3 +1,4 @@
+# cython: profile=True
 #!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
@@ -5352,9 +5353,11 @@ cdef class FMUModelBase2(ModelBase):
                                                N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dz):
         cdef int status
         
+        assert dv.size >= v_ref.size and dz.size >= z_ref.size
+        
         status = FMIL.fmi2_import_get_directional_derivative(self._fmu, 
-                  <FMIL.fmi2_value_reference_t*> v_ref.data, len(v_ref), 
-                  <FMIL.fmi2_value_reference_t*> z_ref.data, len(z_ref), 
+                  <FMIL.fmi2_value_reference_t*> v_ref.data, v_ref.size, 
+                  <FMIL.fmi2_value_reference_t*> z_ref.data, z_ref.size, 
                   <FMIL.fmi2_real_t*> dv.data, 
                   <FMIL.fmi2_real_t*> dz.data)
         
@@ -5683,9 +5686,11 @@ cdef class FMUModelCS2(FMUModelBase2):
                                           N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
         cdef int status
         
+        assert values.size >= value_refs.size and orders.size >= value_refs.size
+        
         status = FMIL.fmi2_import_set_real_input_derivatives(self._fmu, 
                         <FMIL.fmi2_value_reference_t*> value_refs.data, 
-                        len(value_refs), <FMIL.fmi2_integer_t*> orders.data, 
+                        value_refs.size, <FMIL.fmi2_integer_t*> orders.data, 
                         <FMIL.fmi2_real_t*> values.data)
         
         return status
@@ -5752,8 +5757,10 @@ cdef class FMUModelCS2(FMUModelBase2):
                                            N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
         cdef int status
         
+        assert values.size >= value_refs.size and orders.size >= value_refs.size
+        
         status = FMIL.fmi2_import_get_real_output_derivatives(self._fmu, 
-                    <FMIL.fmi2_value_reference_t*> value_refs.data, len(value_refs),
+                    <FMIL.fmi2_value_reference_t*> value_refs.data, value_refs.size,
                     <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> values.data)
         
         return status
