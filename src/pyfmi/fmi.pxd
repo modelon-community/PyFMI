@@ -189,12 +189,15 @@ cdef class FMUModelBase2(ModelBase):
     cpdef serialized_fmu_state_size(self, state)
     cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list)
     cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable)
+    cdef int _get_directional_derivative(self, N.ndarray v_ref, N.ndarray z_ref, N.ndarray dv, N.ndarray dz)
 
 cdef class FMUModelCS2(FMUModelBase2):
 
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi2_real_t t)
     cpdef int do_step(self, FMIL.fmi2_real_t current_t, FMIL.fmi2_real_t step_size, new_step=*)
+    cdef int _set_input_derivatives(self, N.ndarray value_refs, N.ndarray values, N.ndarray orders)
+    cdef int _get_output_derivatives(self, N.ndarray value_refs, N.ndarray values, N.ndarray orders)
     
 cdef class FMUModelME2(FMUModelBase2):
 

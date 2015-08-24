@@ -4220,9 +4220,10 @@ cdef class FMUModelBase2(ModelBase):
         cdef int   selected_variability = 0 #If a variability has been selected
         cdef int   selected_causality = 0   #If a causality has been selected
         cdef int   has_start, is_fixed
-        cdef int   i
+        cdef int   i, j
         cdef int  selected_filter = 1 if filter else 0
         cdef int  length_filter = 0
+        cdef list filter_list
         variable_dict = OrderedDict()
 
         variable_list      = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
@@ -5337,12 +5338,27 @@ cdef class FMUModelBase2(ModelBase):
         nv = len(v_ref)
         nz = len(z_ref)
 
-        status = FMIL.fmi2_import_get_directional_derivative(self._fmu, <FMIL.fmi2_value_reference_t*> v_ref.data, nv, <FMIL.fmi2_value_reference_t*> z_ref.data, nz, <FMIL.fmi2_real_t*> dv.data, <FMIL.fmi2_real_t*> dz.data)
+        #status = FMIL.fmi2_import_get_directional_derivative(self._fmu, <FMIL.fmi2_value_reference_t*> v_ref.data, nv, <FMIL.fmi2_value_reference_t*> z_ref.data, nz, <FMIL.fmi2_real_t*> dv.data, <FMIL.fmi2_real_t*> dz.data)
+        status = self._get_directional_derivative(v_ref, z_ref, dv, dz)
 
         if status != 0:
             raise FMUException('An error occured while getting the directional derivative, see the log for possible more information')
 
         return dz
+        
+    cdef int _get_directional_derivative(self, N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] v_ref, 
+                                               N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] z_ref, 
+                                               N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dv, 
+                                               N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dz):
+        cdef int status
+        
+        status = FMIL.fmi2_import_get_directional_derivative(self._fmu, 
+                  <FMIL.fmi2_value_reference_t*> v_ref.data, len(v_ref), 
+                  <FMIL.fmi2_value_reference_t*> z_ref.data, len(z_ref), 
+                  <FMIL.fmi2_real_t*> dv.data, 
+                  <FMIL.fmi2_real_t*> dz.data)
+        
+        return status 
 
     def get_version(self):
         """
@@ -5655,11 +5671,24 @@ cdef class FMUModelCS2(FMUModelBase2):
         else:
             raise FMUException("The variables must either be a string or a list of strings")
 
-        status = FMIL.fmi2_import_set_real_input_derivatives(self._fmu, <FMIL.fmi2_value_reference_t*> value_refs.data, nref,
-                                                                <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> val.data)
+        status = self._set_input_derivatives(value_refs, orders, val)
+        #status = FMIL.fmi2_import_set_real_input_derivatives(self._fmu, <FMIL.fmi2_value_reference_t*> value_refs.data, nref,
+        #                                                        <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> val.data)
 
         if status != 0:
             raise FMUException('Failed to set the Real input derivatives.')
+            
+    cdef int _set_input_derivatives(self, N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] value_refs, 
+                                          N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values, 
+                                          N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
+        cdef int status
+        
+        status = FMIL.fmi2_import_set_real_input_derivatives(self._fmu, 
+                        <FMIL.fmi2_value_reference_t*> value_refs.data, 
+                        len(value_refs), <FMIL.fmi2_integer_t*> orders.data, 
+                        <FMIL.fmi2_real_t*> values.data)
+        
+        return status
 
     def get_output_derivatives(self, variables, FMIL.fmi2_integer_t order):
         """
@@ -5709,13 +5738,25 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         values = N.array([0.0]*nref, dtype=N.float, ndmin=1)
 
-        status = FMIL.fmi2_import_get_real_output_derivatives(self._fmu, <FMIL.fmi2_value_reference_t*> value_refs.data, nref,
-                                                            <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> values.data)
+        #status = FMIL.fmi2_import_get_real_output_derivatives(self._fmu, <FMIL.fmi2_value_reference_t*> value_refs.data, nref,
+        #                                                    <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> values.data)
+        status = self._get_output_derivatives(value_refs, values, orders)
 
         if status != 0:
             raise FMUException('Failed to get the Real output derivatives.')
 
         return values
+        
+    cdef int _get_output_derivatives(self, N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] value_refs, 
+                                           N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values,
+                                           N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
+        cdef int status
+        
+        status = FMIL.fmi2_import_get_real_output_derivatives(self._fmu, 
+                    <FMIL.fmi2_value_reference_t*> value_refs.data, len(value_refs),
+                    <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> values.data)
+        
+        return status
 
 
     def get_status(self, status_kind):
