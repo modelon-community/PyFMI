@@ -1658,7 +1658,8 @@ cdef class FMUModelBase(ModelBase):
 
             if selected_filter:
                 for j in range(length_filter):
-                    if re.match(filter_list[j], name):
+                    #if re.match(filter_list[j], name):
+                    if filter_list[j].match(name):
                         break
                 else:
                     continue
@@ -1739,7 +1740,8 @@ cdef class FMUModelBase(ModelBase):
 
             if selected_filter:
                 for j in range(length_filter):
-                    if re.match(filter_list[j], name):
+                    #if re.match(filter_list[j], name):
+                    if filter_list[j].match(name):
                         break
                 else:
                     continue
@@ -3263,7 +3265,7 @@ cdef class FMUModelBase2(ModelBase):
                 file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
             self._log = []
 
-    def get_real(self, valueref):
+    cpdef N.ndarray get_real(self, valueref):
         """
         Returns the real-values from the valuereference(s).
 
@@ -3295,7 +3297,7 @@ cdef class FMUModelBase2(ModelBase):
 
         return output_value
 
-    def set_real(self, valueref, values):
+    cpdef set_real(self, valueref, values):
         """
         Sets the real-values in the FMU as defined by the valuereference(s).
 
@@ -4130,7 +4132,8 @@ cdef class FMUModelBase2(ModelBase):
 
             if selected_filter:
                 for j in range(length_filter):
-                    if re.match(filter_list[j], name):
+                    #if re.match(filter_list[j], name):
+                    if filter_list[j].match(name):
                         break
                 else:
                     continue
@@ -4270,7 +4273,8 @@ cdef class FMUModelBase2(ModelBase):
 
             if selected_filter:
                 for j in range(length_filter):
-                    if re.match(filter_list[j], name):
+                    #if re.match(filter_list[j], name):
+                    if filter_list[j].match(name):
                         break
                 else:
                     continue

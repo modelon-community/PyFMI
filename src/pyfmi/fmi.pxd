@@ -190,6 +190,8 @@ cdef class FMUModelBase2(ModelBase):
     cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list)
     cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable)
     cdef int _get_directional_derivative(self, N.ndarray v_ref, N.ndarray z_ref, N.ndarray dv, N.ndarray dz)
+    cpdef set_real(self, valueref, values)
+    cpdef N.ndarray get_real(self, valueref)
 
 cdef class FMUModelCS2(FMUModelBase2):
 
