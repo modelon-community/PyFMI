@@ -4173,8 +4173,9 @@ cdef class FMUModelBase2(ModelBase):
                 Default: True
 
             causality --
-                The causality of the variables (Parameter==0, Input==1,
-                Output==2, Local==3, Unknown==4).
+                The causality of the variables (Parameter==0, 
+                Calculated Parameter==1, Input==2, Output==3, Local==4, 
+                Independent==5, Unknown==6).
                 Default: None (i.e all).
 
             variability --
@@ -4481,8 +4482,8 @@ cdef class FMUModelBase2(ModelBase):
 
         Returns::
 
-            The variability of the variable, PARAMETER(0), INPUT(1),
-            OUTPUT(2), LOCAL(3), UNKNOWN(4)
+            The variability of the variable, PARAMETER(0), CALCULATED_PARAMETER(1), INPUT(2),
+            OUTPUT(3), LOCAL(4), INDEPENDENT(5), UNKNOWN(6)
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_causality_enu_t causality
