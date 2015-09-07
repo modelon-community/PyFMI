@@ -1873,7 +1873,10 @@ class ResultHandlerFile(ResultHandler):
         #f.write('%s,%d)\n' % (' '*14, self._nvariables))
         
         self._file = f
-        self._data_order = valueref_of_continuous_states
+        self._data_order  = N.array(valueref_of_continuous_states, dtype=N.int32)
+        self.real_var_ref = N.array(self.real_var_ref, dtype=N.uint32)
+        self.int_var_ref  = N.array(self.int_var_ref, dtype=N.uint32)
+        self.bool_var_ref = N.array(self.bool_var_ref, dtype=N.uint32)
 
     def integration_point(self, solver = None):#parameter_data=[]):
         """ 
@@ -1908,7 +1911,7 @@ class ResultHandlerFile(ResultHandler):
             parameter_data = N.array(solver.interpolate_sensitivity(model.time, 0)).flatten()
             for j in range(len(parameter_data)):
                 str_text = str_text + (" %.14E" % (parameter_data[j]))
-                    
+        
         f.write(str_text+'\n')
         
         #Update number of points

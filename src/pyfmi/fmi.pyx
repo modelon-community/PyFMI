@@ -833,7 +833,7 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef int status
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
         nref = len(val_ref)
         cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref,dtype=N.float, ndmin=1)
 
@@ -865,9 +865,9 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef int status
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=N.float, ndmin=1).flatten()
-        nref = len(val_ref)
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=N.float, ndmin=1).ravel()
+        nref = val_ref.size
 
         if val_ref.size != val.size:
             raise FMUException(
@@ -900,9 +900,9 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef int status
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
 
-        nref = len(valueref)
+        nref = val_ref.size
         cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = N.array([0]*nref, dtype=int,ndmin=1)
 
         status = FMIL.fmi1_import_get_integer(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_integer_t*>val.data)
@@ -932,8 +932,8 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef int status
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = N.array(values, dtype=int,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
+        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = N.array(values, dtype=int,ndmin=1).ravel()
 
         nref = val_ref.size
 
@@ -969,7 +969,7 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef int status
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
 
         nref = val_ref.size
         #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1)
@@ -1016,13 +1016,13 @@ cdef class FMUModelBase(ModelBase):
         cdef int status
         cdef FMIL.size_t nref
 
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
         nref = val_ref.size
 
         #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1).flatten()
         cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
 
-        values = N.array(values,ndmin=1).flatten()
+        values = N.array(values,ndmin=1).ravel()
         for i in range(nref):
             if values[i]:
                 #val[i]=1
@@ -2198,12 +2198,12 @@ cdef class FMUModelCS1(FMUModelBase):
 
         if isinstance(variables,str):
             nref = 1
-            value_refs = N.array([0], dtype=N.uint32,ndmin=1).flatten()
+            value_refs = N.array([0], dtype=N.uint32,ndmin=1).ravel()
             orders = N.array(order, dtype=N.int32)
             value_refs[0] = self.get_variable_valueref(variables)
         elif isinstance(variables,list) and isinstance(variables[-1],str):
             nref = len(variables)
-            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).flatten()
+            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).ravel()
             orders = N.array([0]*nref, dtype=N.int32)
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
@@ -2273,31 +2273,31 @@ cdef class FMUModelCS1(FMUModelBase):
         cdef int can_interpolate_inputs
         cdef FMIL.size_t nref
         cdef FMIL.fmi1_import_capabilities_t *fmu_capabilities
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = N.array(orders, dtype=N.int32, ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = N.array(orders, dtype=N.int32, ndmin=1).ravel()
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=N.float, ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=N.float, ndmin=1).ravel()
 
-        nref = len(val)
+        nref = val.size
         orders = N.array([0]*nref, dtype=N.int32)
 
-        if nref != len(np_orders):
+        if nref != np_orders.size:
             raise FMUException("The number of variables must be the same as the number of orders.")
 
         fmu_capabilities = FMIL.fmi1_import_get_capabilities(self._fmu)
         can_interpolate_inputs = FMIL.fmi1_import_get_canInterpolateInputs(fmu_capabilities)
         #NOTE IS THIS THE HIGHEST ORDER OF INTERPOLATION OR SIMPLY IF IT CAN OR NOT?
 
-        for i in range(len(np_orders)):
+        for i in range(np_orders.size):
             if np_orders[i] < 1:
                 raise FMUException("The order must be greater than zero.")
         if not can_interpolate_inputs:
             raise FMUException("The FMU does not support input derivatives.")
 
         if isinstance(variables,str):
-            value_refs = N.array([0], dtype=N.uint32,ndmin=1).flatten()
+            value_refs = N.array([0], dtype=N.uint32,ndmin=1).ravel()
             value_refs[0] = self.get_variable_valueref(variables)
         elif isinstance(variables,list) and isinstance(variables[-1],str):
-            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).flatten()
+            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).ravel()
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
         else:
@@ -3351,8 +3351,8 @@ cdef class FMUModelBase2(ModelBase):
         cdef int         status
         cdef FMIL.size_t nref
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        nref = len(input_valueref)
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
+        nref = input_valueref.size
         cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         output_value   = N.array([0]*nref, dtype=int,ndmin=1)
 
 
@@ -3384,12 +3384,12 @@ cdef class FMUModelBase2(ModelBase):
         cdef int status
         cdef FMIL.size_t nref
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         set_value      = N.array(values, dtype=int,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
+        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         set_value      = N.array(values, dtype=int,ndmin=1).ravel()
 
-        nref = len(input_valueref)
+        nref = input_valueref.size
 
-        if len(input_valueref) != len(set_value):
+        if input_valueref.size != set_value.size:
             raise FMUException('The length of valueref and values are inconsistent.')
 
         status = FMIL.fmi2_import_set_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> set_value.data)
@@ -3420,8 +3420,8 @@ cdef class FMUModelBase2(ModelBase):
         cdef int         status
         cdef FMIL.size_t nref
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).flatten()
-        nref = len(input_valueref)
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
+        nref = input_valueref.size
 
         #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1)
         cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
@@ -3473,7 +3473,7 @@ cdef class FMUModelBase2(ModelBase):
         #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1).flatten()
         cdef void* set_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
 
-        values = N.array(values,ndmin=1).flatten()
+        values = N.array(values,ndmin=1).ravel()
         for i in range(nref):
             if values[i]:
                 #val[i]=1
@@ -5353,6 +5353,9 @@ cdef class FMUModelBase2(ModelBase):
         
         assert dv.size >= v_ref.size and dz.size >= z_ref.size
         
+        if not self._provides_directional_derivatives():
+            raise FMUException('This FMU does not provide directional derivatives')
+        
         status = FMIL.fmi2_import_get_directional_derivative(self._fmu, 
                   <FMIL.fmi2_value_reference_t*> v_ref.data, v_ref.size, 
                   <FMIL.fmi2_value_reference_t*> z_ref.data, z_ref.size, 
@@ -5648,9 +5651,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         cdef FMIL.size_t  nref
         cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            val = N.array(values, dtype=N.float, ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            val = N.array(values, dtype=N.float, ndmin=1).ravel()
 
-        nref = len(val)
+        nref = val.size
         orders = N.array([0]*nref, dtype=N.int32)
 
         can_interpolate_inputs = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canInterpolateInputs)
@@ -5662,10 +5665,10 @@ cdef class FMUModelCS2(FMUModelBase2):
             raise FMUException("The FMU does not support input derivatives.")
 
         if isinstance(variables,str):
-            value_refs = N.array([0], dtype=N.uint32, ndmin=1).flatten()
+            value_refs = N.array([0], dtype=N.uint32, ndmin=1).ravel()
             value_refs[0] = self.get_variable_valueref(variables)
         elif isinstance(variables,list) and N.prod([int(isinstance(v,str)) for v in variables]): #prod equals 0 or 1
-            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).flatten()
+            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).ravel()
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
                 orders[i] = order
@@ -5726,12 +5729,12 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         if isinstance(variables,str):
             nref = 1
-            value_refs = N.array([0], dtype=N.uint32, ndmin=1).flatten()
+            value_refs = N.array([0], dtype=N.uint32, ndmin=1).ravel()
             orders = N.array([order], dtype=N.int32)
             value_refs[0] = self.get_variable_valueref(variables)
         elif isinstance(variables,list) and N.prod([int(isinstance(v,str)) for v in variables]): #prod equals 0 or 1
             nref = len(variables)
-            value_refs = N.array([0]*nref, dtype=N.uint32, ndmin=1).flatten()
+            value_refs = N.array([0]*nref, dtype=N.uint32, ndmin=1).ravel()
             orders = N.array([0]*nref, dtype=N.int32)
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
