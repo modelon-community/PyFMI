@@ -339,6 +339,97 @@ cdef class ModelBase:
         algorithm = getattr(module, algorithm)
 
         return algorithm.get_default_options()
+        
+    def estimate(self,
+                 parameters,
+                 measurements,
+                 input=(),
+                 algorithm='SciEstAlg',
+                 options={}):
+        """
+        Compact function for model estimation.
+
+        The estimation method depends on which algorithm is used, this can be
+        set with the function argument 'algorithm'. Options for the algorithm
+        are passed as option classes or as pure dicts. See
+        FMUModel.estimate_options for more details.
+
+        The default algorithm for this function is SciEstAlg.
+
+        Parameters::
+
+            parameters --
+                The tunable parameters
+                Default: None (required)
+
+            measurments --
+                The measurements data (name, data). Note that the measurements
+                needs to be distinct and equally spaced.
+                Default: None (required(
+
+            input --
+                Input signal for the estimation. The input should be a 2-tuple
+                consisting of first the names of the input variable(s) and then
+                the data matrix.
+                Default: Empty tuple.
+
+            algorithm --
+                The algorithm which will be used for the estimation is specified
+                by passing the algorithm class as string or class object in this
+                argument. 'algorithm' can be any class which implements the
+                abstract class AlgorithmBase (found in algorithm_drivers.py). In
+                this way it is possible to write own algorithms and use them
+                with this function.
+                Default: 'SciEstAlg'
+
+            options --
+                The options that should be used in the algorithm. For details on
+                the options do:
+
+                    >> myModel = load_fmu(...)
+                    >> opts = myModel.estimate_options()
+                    >> opts?
+
+                Valid values are:
+                    - A dict which gives AssimuloFMIAlgOptions with
+                      default values on all options except the ones
+                      listed in the dict. Empty dict will thus give all
+                      options with default values.
+                    - An options object.
+                Default: Empty dict
+
+        Returns::
+
+            Result object, subclass of common.algorithm_drivers.ResultBase.
+        """
+
+        return self._exec_estimate_algorithm(parameters,
+                                             measurements,
+                                             input,
+                                             'pyfmi.fmi_algorithm_drivers',
+                                             algorithm,
+                                             options)
+
+    def estimate_options(self, algorithm='SciEstAlg'):
+        """
+        Get an instance of the estimation options class, filled with default
+        values. If called without argument then the options class for the
+        default estimation algorithm will be returned.
+
+        Parameters::
+
+            algorithm --
+                The algorithm for which the options class should be fetched.
+                Possible values are: 'SciEstAlg'.
+                Default: 'SciEstAlg'
+
+        Returns::
+
+            Options class for the algorithm specified with default values.
+        """
+        return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
+
+
 
 class FMUException(Exception):
     """
@@ -1982,96 +2073,6 @@ cdef class FMUModelBase(ModelBase):
         guid = decode(FMIL.fmi1_import_get_GUID(self._fmu))
         return guid
         
-    def estimate(self,
-                 parameters,
-                 measurements,
-                 input=(),
-                 algorithm='SciEstAlg',
-                 options={}):
-        """
-        Compact function for model estimation.
-
-        The estimation method depends on which algorithm is used, this can be
-        set with the function argument 'algorithm'. Options for the algorithm
-        are passed as option classes or as pure dicts. See
-        FMUModel.estimate_options for more details.
-
-        The default algorithm for this function is SciEstAlg.
-
-        Parameters::
-
-            parameters --
-                The tunable parameters
-                Default: None (required)
-
-            measurments --
-                The measurements data (name, data). Note that the measurements
-                needs to be distinct and equally spaced.
-                Default: None (required(
-
-            input --
-                Input signal for the estimation. The input should be a 2-tuple
-                consisting of first the names of the input variable(s) and then
-                the data matrix.
-                Default: Empty tuple.
-
-            algorithm --
-                The algorithm which will be used for the estimation is specified
-                by passing the algorithm class as string or class object in this
-                argument. 'algorithm' can be any class which implements the
-                abstract class AlgorithmBase (found in algorithm_drivers.py). In
-                this way it is possible to write own algorithms and use them
-                with this function.
-                Default: 'SciEstAlg'
-
-            options --
-                The options that should be used in the algorithm. For details on
-                the options do:
-
-                    >> myModel = load_fmu(...)
-                    >> opts = myModel.estimate_options()
-                    >> opts?
-
-                Valid values are:
-                    - A dict which gives AssimuloFMIAlgOptions with
-                      default values on all options except the ones
-                      listed in the dict. Empty dict will thus give all
-                      options with default values.
-                    - An options object.
-                Default: Empty dict
-
-        Returns::
-
-            Result object, subclass of common.algorithm_drivers.ResultBase.
-        """
-
-        return self._exec_estimate_algorithm(parameters,
-                                             measurements,
-                                             input,
-                                             'pyfmi.fmi_algorithm_drivers',
-                                             algorithm,
-                                             options)
-
-    def estimate_options(self, algorithm='SciEstAlg'):
-        """
-        Get an instance of the estimation options class, filled with default
-        values. If called without argument then the options class for the
-        default estimation algorithm will be returned.
-
-        Parameters::
-
-            algorithm --
-                The algorithm for which the options class should be fetched.
-                Possible values are: 'SciEstAlg'.
-                Default: 'SciEstAlg'
-
-        Returns::
-
-            Options class for the algorithm specified with default values.
-        """
-        return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
-
-
 cdef class FMUModelCS1(FMUModelBase):
     #First step only support fmi1_fmu_kind_enu_cs_standalone
     #stepFinished not supported
