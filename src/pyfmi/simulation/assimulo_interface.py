@@ -277,7 +277,7 @@ class FMIODE(Explicit_Problem):
         #Post processing (stores the time points).
         #
         #Moving data to the model
-        if t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all()):
+        if t != self._model.time:
             #Moving data to the model
             self._model.time = t
             #Check if there are any states
@@ -300,7 +300,7 @@ class FMIODE(Explicit_Problem):
         This method is called when Assimulo finds an event.
         """
         #Moving data to the model
-        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == solver.y).all()):
+        if solver.t!= self._model.time:
             self._model.time = solver.t
             #Check if there are any states
             if self._f_nbr != 0:
@@ -429,7 +429,7 @@ class FMIODE(Explicit_Problem):
                 f.write(data_line+"\n")
 
         #Moving data to the model
-        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == solver.y).all()):
+        if solver.t != self._model.time:
             self._model.time = solver.t
             #Check if there are any states
             if self._f_nbr != 0:
@@ -545,7 +545,7 @@ class FMIODESENS(FMIODE):
         #Post processing (stores the time points).
         #
         #Moving data to the model
-        if t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all()):
+        if t != self._model.time:
             #Moving data to the model
             self._model.time = t
             #Check if there are any states
@@ -717,7 +717,7 @@ class FMIODE_deprecated(Explicit_Problem):
         #Post processing (stores the time points).
         #
         #Moving data to the model
-        if t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all()):
+        if t != self._model.time:
             #Moving data to the model
             self._model.time = t
             #Check if there are any states
@@ -751,7 +751,7 @@ class FMIODE_deprecated(Explicit_Problem):
         This method is called when Assimulo finds an event.
         """
         #Moving data to the model
-        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == solver.y).all()):
+        if solver.t!= self._model.time:
             self._model.time = solver.t
             #Check if there are any states
             if self._f_nbr != 0:
@@ -858,7 +858,7 @@ class FMIODE_deprecated(Explicit_Problem):
                 f.write(data_line+"\n")
 
         #Moving data to the model
-        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == solver.y).all()):
+        if solver.t != self._model.time:
             self._model.time = solver.t
             #Check if there are any states
             if self._f_nbr != 0:
@@ -1148,7 +1148,7 @@ class FMIODE2(Explicit_Problem):
             y       = y[:-self._extra_f_nbr]
             
         #Moving data to the model
-        if t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all()):
+        if t != self._model.time:
             #Moving data to the model
             self._model.time = t
             #Check if there are any states
@@ -1177,7 +1177,7 @@ class FMIODE2(Explicit_Problem):
             y       = solver.y
             
         #Moving data to the model
-        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == solver.y).all()):
+        if solver.t!= self._model.time:
             self._model.time = solver.t
             #Check if there are any states
             if self._f_nbr != 0:
@@ -1285,7 +1285,7 @@ class FMIODE2(Explicit_Problem):
                 f.write(data_line+"\n")
 
         #Moving data to the model
-        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == solver.y).all()):
+        if solver.t != self._model.time:
             self._model.time = solver.t
             #Check if there are any states
             if self._f_nbr != 0:
