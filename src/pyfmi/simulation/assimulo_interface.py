@@ -395,7 +395,7 @@ class FMIODE(Explicit_Problem):
                 
                 preface = "[INFO][FMU status:OK] "
                 
-                msg = preface + '<%s>Successfully computed a step. Elapsed time for the step  <value name="t">        %.14E</value>"'%(solver_name,solver.get_elapsed_step_time())
+                msg = preface + '<%s>Successfully computed a step at <value name="time">        %.14E</value>. Elapsed time for the step  <value name="t">        %.14E</value>"'%(solver_name,solver.t,solver.get_elapsed_step_time())
                 self._model.append_log_message("Model", 6, msg)
                 
                 if solver_name == "CVode":
