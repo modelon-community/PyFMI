@@ -4974,11 +4974,6 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t *variable
         cdef FMIL.fmi2_import_variable_list_t *variable_list = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
 
-        FMIL.fmi2_import_get_outputs_dependencies(self._fmu, &start_indexp, &dependencyp, &factor_kindp)
-        
-        if start_indexp == NULL:
-            raise FMUException("No dependency information for the outputs was found in the model description.")
-        
         if python3_flag:
             outputs = list(self.get_output_list().keys())
         else:
@@ -4988,6 +4983,15 @@ cdef class FMUModelBase2(ModelBase):
         
         states = OrderedDict()
         inputs = OrderedDict()
+        
+        if len(outputs) == 0: #If there are no outputs, return empty dicts
+            return states, inputs 
+        
+        FMIL.fmi2_import_get_outputs_dependencies(self._fmu, &start_indexp, &dependencyp, &factor_kindp)
+        
+        if start_indexp == NULL:
+            raise FMUException("No dependency information for the outputs was found in the model description.")
+        
         for i in range(0,len(outputs)):
             states[outputs[i]]  = []
             inputs[outputs[i]] = []
