@@ -996,7 +996,8 @@ class FMIODE2(Explicit_Problem):
         #self._sol_int  += [i]
         #self._sol_bool += b
 
-        if self._model.get_capability_flags()['providesDirectionalDerivatives'] and f_nbr > 0:
+        #if self._model.get_capability_flags()['providesDirectionalDerivatives'] and f_nbr > 0:
+        if f_nbr > 0:
             self.jac = self.j #Activates the jacobian
             
             #Need to calculate the nnz.

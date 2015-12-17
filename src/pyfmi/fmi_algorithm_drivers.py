@@ -652,6 +652,9 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         #Set solver option continuous_output
         self.simulator.report_continuously = True
+        
+        if not solver_options.has_key("usejac") and isinstance(self.model, fmi.FMUModelME2):
+            solver_options["usejac"] = not self.model.get_capability_flags()['providesDirectionalDerivatives']
 
         #loop solver_args and set properties of solver
         for k, v in solver_options.items():
