@@ -184,7 +184,7 @@ cdef extern from 'fmilib.h':
         fmi2_naming_enu_unknown = 2
     ctypedef fmi2_variable_naming_convension_enu_t fmi2_variable_naming_convension_enu_t
 
-    cdef enum fmi1_status_kind_t:
+    ctypedef enum fmi1_status_kind_t:
         fmi1_do_step_status = 0
         fmi1_pending_status = 1
         fmi1_last_successful_time = 2
