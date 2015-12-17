@@ -1,3 +1,4 @@
+# cython: profile=True
 #!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
@@ -6129,6 +6130,8 @@ cdef class FMUModelME2(FMUModelBase2):
         self._eventInfo.nextEventTimeDefined              = FMI2_FALSE
         self._eventInfo.nextEventTime                     = 0.0
         
+        self.force_finite_differences = False
+        
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
         self.instantiate()
 
@@ -6608,6 +6611,76 @@ cdef class FMUModelME2(FMUModelBase2):
         Check support for getting and setting the FMU state.
         """
         return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
+
+    def _get_directional_proxy(self, var_ref, func_ref, group, add_diag=False):
+        if self._provides_directional_derivatives() and not self.force_finite_differences:
+            return FMUModelBase2._get_directional_proxy(self, var_ref, func_ref, group, add_diag)
+        else:
+            return self._estimate_directional_derivative(var_ref, func_ref, group, add_diag)
+
+    def _estimate_directional_derivative(self, var_ref, func_ref, group, add_diag=False):
+        cdef list data = []
+        cdef list row = []
+        cdef list col = []
+        cdef int dim = 0, i, j
+        cdef int len_v = len(var_ref)
+        cdef int len_f = len(func_ref)
+        cdef double nominal
+        cdef double RUROUND = (N.finfo(float).eps)**0.5
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v       = N.zeros(len_v, dtype = N.double)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] eps     = N.zeros(len_v, dtype = N.double)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] df      = N.zeros(len_f, dtype = N.double)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert  = N.zeros(len_f, dtype = N.double)
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.array(var_ref, dtype = N.uint32)
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.array(func_ref, dtype = N.uint32) 
+        
+        #structure
+        # - [0] - variable indexes
+        # - [1] - variable names
+        # - [2] - matrix rows
+        # - [3] - matrix columns
+        
+        if add_diag:
+            dim = min(len_v,len_f)
+            data.extend([0.0]*dim)
+            row.extend(range(dim))
+            col.extend(range(dim))
+        
+        df = self.get_real(func_ref)
+        v  = self.get_real(var_ref)
+        for i in range(len_v):
+            nominal = self.get_variable_nominal(valueref = var_ref[i])
+            eps[i] = RUROUND*(max(abs(v[i]), nominal))
+            
+        for key in group.keys():
+            #for i in group[key][0]:
+            #   self.set_real(var_ref[i], v[i]+eps[i])
+            self.set_real(v_ref[group[key][0]], v[group[key][0]]+eps[group[key][0]])
+            
+            #dfpert[:len(z_ref[group[key][2]])] = self.get_real(z_ref[group[key][2]])
+            #print eps[group[key][3]], eps[group[key][3]].shape
+            #print dfpert[:len(z_ref[group[key][2]])], dfpert[:len(z_ref[group[key][2]])].shape
+            #print df[group[key][2]][i], df[group[key][2]][i].shape
+            #for i,j in enumerate(group[key][3]):
+            #    data.append((dfpert[i]-df[group[key][2]][i])/eps[j])
+            #data.extend((dfpert[:len(z_ref[group[key][2]])]-df[group[key][2]])/eps[group[key][3]])
+            try:
+                data.extend((self.get_real(z_ref[group[key][2]]) - df[group[key][2]])/eps[group[key][3]])
+            except FMUException: #Try backward difference (for all variables)
+                self.set_real(v_ref[group[key][0]], v[group[key][0]]-eps[group[key][0]])
+                data.extend((df[group[key][2]] - self.get_real(z_ref[group[key][2]]))/eps[group[key][3]])
+                
+            row.extend(group[key][2])
+            col.extend(group[key][3])
+            
+            #for i in group[key][0]:
+            #    self.set_real(var_ref[i], v[i])
+            self.set_real(v_ref[group[key][0]], v[group[key][0]])
+        
+        if len(data) == 0:
+            return sp.csc_matrix((len_f,len_v))
+        else:
+            return sp.csc_matrix((data, (row, col)), (len_f,len_v))
 
 #Temporary should be removed! (after a period)
 cdef class FMUModel(FMUModelME1):

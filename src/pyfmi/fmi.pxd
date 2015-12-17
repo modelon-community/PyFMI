@@ -206,4 +206,5 @@ cdef class FMUModelME2(FMUModelBase2):
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi2_real_t t)
     cpdef get_derivatives(self)
+    cdef public object force_finite_differences
     
