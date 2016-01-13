@@ -3749,6 +3749,13 @@ cdef class FMUModelBase2(ModelBase):
         """
         FMIL.fmi2_import_terminate(self._fmu)
         
+    def free_instance(self):
+        """
+        Calls the FMI function fmi2FreeInstance() on the FMU. Note that this is not
+        needed generally.
+        """
+        FMIL.fmi2_import_free_instance(self._fmu)
+        
     def exit_initialization_mode(self):
         """
         Exit initialization mode by calling the low level FMI function
@@ -5038,21 +5045,26 @@ cdef class FMUModelBase2(ModelBase):
             FMIL.fmi2_import_get_derivatives_dependencies(self._fmu, &start_indexp, &dependencyp, &factor_kindp)
             
             if start_indexp == NULL:
-                raise FMUException("No dependency information for the derivatives was found in the model description.")
-            
-            for i in range(0,len(derivatives)):
-                states[derivatives[i]]  = []
-                inputs[derivatives[i]] = []
-                
-                for j in range(0, start_indexp[i+1]-start_indexp[i]):
-                    if dependencyp[start_indexp[i]+j] != 0:
-                        variable = FMIL.fmi2_import_get_variable(variable_list, dependencyp[start_indexp[i]+j]-1)
-                        name             = decode(FMIL.fmi2_import_get_variable_name(variable))
-                        
-                        if name in states_list:
-                            states[derivatives[i]].append(name)
-                        elif name in inputs_list:
-                            inputs[derivatives[i]].append(name)                        
+                logging.warning(
+                    'No dependency information for the derivatives was found in the model description.' \
+                    ' Assuming complete dependency.')
+                for i in range(0,len(derivatives)):
+                    states[derivatives[i]]  = states_list.keys()
+                    inputs[derivatives[i]]  = inputs_list.keys()
+            else:
+                for i in range(0,len(derivatives)):
+                    states[derivatives[i]]  = []
+                    inputs[derivatives[i]] = []
+                    
+                    for j in range(0, start_indexp[i+1]-start_indexp[i]):
+                        if dependencyp[start_indexp[i]+j] != 0:
+                            variable = FMIL.fmi2_import_get_variable(variable_list, dependencyp[start_indexp[i]+j]-1)
+                            name             = decode(FMIL.fmi2_import_get_variable_name(variable))
+                            
+                            if name in states_list:
+                                states[derivatives[i]].append(name)
+                            elif name in inputs_list:
+                                inputs[derivatives[i]].append(name)                        
             
         #Caching
         self._derivatives_states_dependencies = states
