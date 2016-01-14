@@ -3143,6 +3143,8 @@ cdef class FMUModelBase2(ModelBase):
         self._inputs_references = None
         self._derivatives_states_dependencies = None
         self._derivatives_inputs_dependencies = None
+        self._outputs_states_dependencies = None
+        self._outputs_inputs_dependencies = None
 
         #Internal values
         self._pyEventInfo = PyEventInfo()
@@ -4974,7 +4976,11 @@ cdef class FMUModelBase2(ModelBase):
         Retrieve the list of variables that the outputs are 
         dependent on. Returns two dictionaries, one with the states and 
         one with the inputs.
-        """ 
+        """
+        if (self._outputs_states_dependencies is not None and
+            self._outputs_inputs_dependencies is not None):
+               return self._outputs_states_dependencies, self._outputs_inputs_dependencies 
+               
         cdef size_t *dependencyp
         cdef size_t *start_indexp
         cdef char   *factor_kindp
@@ -4991,28 +4997,36 @@ cdef class FMUModelBase2(ModelBase):
         states = OrderedDict()
         inputs = OrderedDict()
         
-        if len(outputs) == 0: #If there are no outputs, return empty dicts
-            return states, inputs 
+        if len(outputs) != 0: #If there are no outputs, return empty dicts
         
-        FMIL.fmi2_import_get_outputs_dependencies(self._fmu, &start_indexp, &dependencyp, &factor_kindp)
-        
-        if start_indexp == NULL:
-            raise FMUException("No dependency information for the outputs was found in the model description.")
-        
-        for i in range(0,len(outputs)):
-            states[outputs[i]]  = []
-            inputs[outputs[i]] = []
+            FMIL.fmi2_import_get_outputs_dependencies(self._fmu, &start_indexp, &dependencyp, &factor_kindp)
             
-            for j in range(0, start_indexp[i+1]-start_indexp[i]):
-                if dependencyp[start_indexp[i]+j] != 0:
-                    variable = FMIL.fmi2_import_get_variable(variable_list, dependencyp[start_indexp[i]+j]-1)
-                    name             = decode(FMIL.fmi2_import_get_variable_name(variable))
+            if start_indexp == NULL:
+                logging.warning(
+                        'No dependency information for the outputs was found in the model description.' \
+                        ' Assuming complete dependency.')
+                for i in range(0,len(outputs)):
+                        states[outputs[i]]  = states_list.keys()
+                        inputs[outputs[i]]  = inputs_list.keys()
+            else:
+                for i in range(0,len(outputs)):
+                    states[outputs[i]]  = []
+                    inputs[outputs[i]] = []
                     
-                    if name in states_list:
-                        states[outputs[i]].append(name)
-                    elif name in inputs_list:
-                        inputs[outputs[i]].append(name)                        
-            
+                    for j in range(0, start_indexp[i+1]-start_indexp[i]):
+                        if dependencyp[start_indexp[i]+j] != 0:
+                            variable = FMIL.fmi2_import_get_variable(variable_list, dependencyp[start_indexp[i]+j]-1)
+                            name             = decode(FMIL.fmi2_import_get_variable_name(variable))
+                            
+                            if name in states_list:
+                                states[outputs[i]].append(name)
+                            elif name in inputs_list:
+                                inputs[outputs[i]].append(name)                        
+                     
+        #Caching
+        self._outputs_states_dependencies = states
+        self._outputs_inputs_dependencies = inputs
+               
         return states, inputs
         
     cpdef get_derivatives_dependencies(self):

@@ -167,6 +167,8 @@ cdef class FMUModelBase2(ModelBase):
     cdef object         _derivatives_references
     cdef object         _derivatives_states_dependencies
     cdef object         _derivatives_inputs_dependencies
+    cdef object         _outputs_states_dependencies
+    cdef object         _outputs_inputs_dependencies
     cdef object         _A, _B, _C, _D
     cdef public object         _group_A, _group_B, _group_C, _group_D 
     cdef object         _mask_A
