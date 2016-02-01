@@ -191,7 +191,7 @@ cdef class FMUModelBase2(ModelBase):
     cpdef serialized_fmu_state_size(self, state)
     cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list)
     cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable)
-    cdef int _get_directional_derivative(self, N.ndarray v_ref, N.ndarray z_ref, N.ndarray dv, N.ndarray dz)
+    cdef int _get_directional_derivative(self, N.ndarray v_ref, N.ndarray z_ref, N.ndarray dv, N.ndarray dz) except -1
     cpdef set_real(self, valueref, values)
     cpdef N.ndarray get_real(self, valueref)
 

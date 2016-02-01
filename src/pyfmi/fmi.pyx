@@ -3254,11 +3254,19 @@ cdef class FMUModelBase2(ModelBase):
         self._allocated_dll = 1
 
         #Load information from model
+        if isinstance(self,FMUModelME2):
+            self._modelId           = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
+        elif isinstance(self,FMUModelCS2):
+            self._modelId           = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
+        else:
+            raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
+
+        #Connect the DLL
         self._modelName         = decode(FMIL.fmi2_import_get_model_name(self._fmu))
         self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
         self._nCategories       = FMIL.fmi2_import_get_log_categories_num(self._fmu)
-        fmu_log_name = encode((self._modelName + "_log.txt") if log_file_name=="" else log_file_name)
+        fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
         self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
@@ -3267,6 +3275,9 @@ cdef class FMUModelBase2(ModelBase):
             for i in range(len(self._log)):
                 file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
             self._log = []
+            
+    def get_log_file_name(self):
+        return self._fmu_log_name
 
     cpdef N.ndarray get_real(self, valueref):
         """
@@ -5381,7 +5392,7 @@ cdef class FMUModelBase2(ModelBase):
     cdef int _get_directional_derivative(self, N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] v_ref, 
                                                N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] z_ref, 
                                                N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dv, 
-                                               N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dz):
+                                               N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dz) except -1:
         cdef int status
         
         assert dv.size >= v_ref.size and dz.size >= z_ref.size
