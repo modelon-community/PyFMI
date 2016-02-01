@@ -1154,22 +1154,22 @@ cdef class FMUModelBase(ModelBase):
 
         Calls the low-level FMI function: fmiGetString
         """
-        raise NotImplementedError
-        cdef int status
-        cdef FMIL.size_t nref
-        valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
+        cdef int         status
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1, mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
+        cdef FMIL.fmi1_string_t* output_value = <FMIL.fmi1_string_t*>FMIL.malloc(sizeof(FMIL.fmi1_string_t)*input_valueref.size)
 
-        nref = len(valueref)
-        values = N.ndarray([])
-
-        temp = (self._fmiString*nref)()
-
-        status = self._fmiGetString(self._model, valueref, nref, temp)
+        status = FMIL.fmi1_import_get_string(self._fmu, <FMIL.fmi1_value_reference_t*> input_valueref.data, input_valueref.size, output_value)
 
         if status != 0:
             raise FMUException('Failed to get the String values.')
+        
+        out = []
+        for i in range(input_valueref.size):
+            out.append(decode(output_value[i]))
+            
+        FMIL.free(output_value)
 
-        return N.array(temp)[:]
+        return out
 
     def set_string(self, valueref, values):
         """
@@ -3527,22 +3527,22 @@ cdef class FMUModelBase2(ModelBase):
 
         Calls the low-level FMI function: fmi2GetString
         """
-
-        raise NotImplementedError
         cdef int         status
-        cdef FMIL.size_t nref
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
+        cdef FMIL.fmi2_string_t* output_value = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*input_valueref.size)
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).flatten()
-        nref = len(input_valueref)
-        cdef N.ndarray[FMIL.fmi2_string_t, ndim=1, mode='c']         output_value   = N.array([''] * nref, dtype=N.char, ndmin=1)
-
-
-        status = FMIL.fmi2_import_get_string(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_string_t*> output_value.data)
+        status = FMIL.fmi2_import_get_string(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, input_valueref.size, output_value)
 
         if status != 0:
             raise FMUException('Failed to get the String values.')
+        
+        out = []
+        for i in range(input_valueref.size):
+            out.append(decode(output_value[i]))
+            
+        FMIL.free(output_value)
 
-        return output_value
+        return out
 
     def set_string(self, valueref, values):
         """
