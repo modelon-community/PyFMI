@@ -790,7 +790,9 @@ cdef class FMUModelBase(ModelBase):
             for i in range(len(self._log)):
                 file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
             self._log = []
-
+    
+    def get_log_file_name(self):
+        return self._fmu_log_name
 
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
         if self._fmu_log_name != NULL:
@@ -1189,24 +1191,23 @@ cdef class FMUModelBase(ModelBase):
 
         Calls the low-level FMI function: fmiSetString
         """
-        raise NotImplementedError
         cdef int status
-        cdef FMIL.size_t nref
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
+        cdef FMIL.fmi1_string_t* val = <FMIL.fmi1_string_t*>FMIL.malloc(sizeof(FMIL.fmi1_string_t)*val_ref.size)
 
-        valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-
-        nref = valueref.size
-        values = N.array(values).flatten()
-
-        temp = (self._fmiString*nref)()
-        for i in range(nref):
-            temp[i] = values[i]
-
-        if valueref.size != values.size:
+        if not isinstance(values, list):
+            raise FMUException(
+                'The values needs to be a list of values.')
+        if len(values) != val_ref.size:
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
+        
+        for i in range(val_ref.size):
+            val[i] = values[i]      
+        
+        status = FMIL.fmi1_import_set_string(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, val_ref.size, val)
 
-        status = self._fmiSetString(self._model, valueref, nref, temp)
+        FMIL.free(val)
 
         if status != 0:
             raise FMUException('Failed to set the String values.')
@@ -3562,19 +3563,23 @@ cdef class FMUModelBase2(ModelBase):
 
         Calls the low-level FMI function: fmi2SetString
         """
-        raise NotImplementedError
-        cdef int         status
-        cdef FMIL.size_t nref
+        cdef int status
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
+        cdef FMIL.fmi2_string_t* val = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*val_ref.size)
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).flatten()
-        cdef N.ndarray[FMIL.fmi2_string_t, ndim=1, mode='c']         set_values     = N.array(values, dtype=N.char, ndmin=1).flatten()
+        if not isinstance(values, list):
+            raise FMUException(
+                'The values needs to be a list of values.')
+        if len(values) != val_ref.size:
+            raise FMUException(
+                'The length of valueref and values are inconsistent.')
+        
+        for i in range(val_ref.size):
+            val[i] = values[i]      
+        
+        status = FMIL.fmi2_import_set_string(self._fmu, <FMIL.fmi2_value_reference_t*>val_ref.data, val_ref.size, val)
 
-        nref = input_valueref.size
-
-        if input_valueref.size != set_values.size:
-            raise FMUException('The length of valueref and values are inconsistent.')
-
-        status = FMIL.fmi2_import_set_string(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_string_t*> set_values.data)
+        FMIL.free(val)
 
         if status != 0:
             raise FMUException('Failed to set the String values.')
