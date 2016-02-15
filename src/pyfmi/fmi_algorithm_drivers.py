@@ -1166,9 +1166,8 @@ class SciEstAlgOptions(OptionBase):
     """
     Options for the solving an estimation problem.
 
-        Options::
-
-
+    Options::
+        
         tolerance    --
             The tolerance for the estimation algorithm
             Default: 1e-6
@@ -1186,6 +1185,12 @@ class SciEstAlgOptions(OptionBase):
             The simulation options to use when simulating the model
             in order to get the estimated data.
             Default: The default options for the underlying model.
+            
+        result_file_name --
+            Specifies the name of the file where the result is written.
+            Setting this option to an empty string results in a default
+            file name that is based on the name of the model class.
+            Default: Empty string
 
     """
     def __init__(self, *args, **kw):
