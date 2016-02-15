@@ -352,20 +352,18 @@ cdef class ModelBase:
         The estimation method depends on which algorithm is used, this can be
         set with the function argument 'algorithm'. Options for the algorithm
         are passed as option classes or as pure dicts. See
-        FMUModel.estimate_options for more details.
+        model.estimate_options for more details.
 
         The default algorithm for this function is SciEstAlg.
 
         Parameters::
 
             parameters --
-                The tunable parameters
-                Default: None (required)
+                The tunable parameters (required)
 
-            measurments --
+            measurements --
                 The measurements data (name, data). Note that the measurements
-                needs to be distinct and equally spaced.
-                Default: None (required(
+                needs to be distinct and equally spaced. (required)
 
             input --
                 Input signal for the estimation. The input should be a 2-tuple
@@ -391,7 +389,7 @@ cdef class ModelBase:
                     >> opts?
 
                 Valid values are:
-                    - A dict which gives AssimuloFMIAlgOptions with
+                    - A dict which gives SciEstAlgOptions with
                       default values on all options except the ones
                       listed in the dict. Empty dict will thus give all
                       options with default values.
