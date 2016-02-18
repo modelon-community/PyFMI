@@ -92,6 +92,7 @@ cdef class FMUModelBase(ModelBase):
     cdef public object _pyEventInfo
     cdef list _log
     cdef int _version
+    cdef int _instantiated_fmu
     cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
     cdef object _allocated_list
     cdef object _modelid

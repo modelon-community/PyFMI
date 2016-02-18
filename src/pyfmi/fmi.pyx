@@ -677,9 +677,10 @@ cdef class FMUModelBase(ModelBase):
 
         #Used for deallocation
         self._allocated_context = 0
-        self._allocated_dll = 0
-        self._allocated_xml = 0
-        self._allocated_fmu = 0
+        self._allocated_dll     = 0
+        self._allocated_xml     = 0
+        self._allocated_fmu     = 0
+        self._instantiated_fmu  = 0
         self._allocated_list = False
         self._fmu_temp_dir = NULL
         self._fmu_log_name = NULL
@@ -2103,6 +2104,8 @@ cdef class FMUModelCS1(FMUModelBase):
         """
         if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate_slave(self._fmu)
+            
+        if self._instantiated_fmu == 1:
             FMIL.fmi1_import_free_slave_instance(self._fmu)
 
         if self._allocated_dll == 1:
@@ -2435,6 +2438,9 @@ cdef class FMUModelCS1(FMUModelBase):
         status = FMIL.fmi1_import_reset_slave(self._fmu)
         if status != FMIL.fmi1_status_ok:
             raise FMUException("Failed to reset the FMU.")
+        
+        #The FMU is no longer initialized
+        self._allocated_fmu = 0
 
         #Default values
         self.__t = None
@@ -2476,6 +2482,9 @@ cdef class FMUModelCS1(FMUModelBase):
         if status != FMIL.jm_status_success:
             raise FMUException('Failed to instantiate the slave. See the log for possibly more information.')
 
+        #The FMU is instantiated
+        self._instantiated_fmu = 1
+
         #Just to be safe, some problems with Dymola (2012) FMUs not reacting
         #to logging when set to the instantiate method.
         status = FMIL.fmi1_import_set_debug_logging(self._fmu, log)
@@ -2515,6 +2524,24 @@ cdef class FMUModelCS1(FMUModelBase):
         capabilities["canNotUseMemoryManagementFunctions"] = FMIL.fmi1_import_get_canNotUseMemoryManagementFunctions(cap)
 
         return capabilities
+        
+    def terminate(self):
+        """
+        Calls the FMI function fmiTerminateSlave() on the FMU.
+        After this call, any call to a function changing the state of the FMU will fail.
+        """
+        if self._allocated_fmu == 1:
+            FMIL.fmi1_import_terminate_slave(self._fmu)
+            self._allocated_fmu = 0 #No longer initialized
+        
+    def free_instance(self):
+        """
+        Calls the FMI function fmiFreeSlaveInstance on the FMU.
+        Note that this is not needed in general as it is done automatically.
+        """
+        if self._instantiated_fmu == 1:
+            FMIL.fmi1_import_free_slave_instance(self._fmu)
+            self._instantiated_fmu = 0
 
 cdef class FMUModelME1(FMUModelBase):
     """
@@ -2556,7 +2583,11 @@ cdef class FMUModelME1(FMUModelBase):
         """
         if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate(self._fmu)
+            self._allocated_fmu = 0
+            
+        if self._instantiated_fmu == 1:
             FMIL.fmi1_import_free_model_instance(self._fmu)
+            self._instantiated_fmu = 0
 
         if self._allocated_dll == 1:
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
@@ -2585,6 +2616,8 @@ cdef class FMUModelME1(FMUModelBase):
         """
         if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate(self._fmu)
+            
+        if self._instantiated_fmu == 1:
             FMIL.fmi1_import_free_model_instance(self._fmu)
 
         if self._allocated_dll == 1:
@@ -2965,6 +2998,9 @@ cdef class FMUModelME1(FMUModelBase):
 
         if status != 0:
             raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
+        
+        #The FMU is instantiated
+        self._instantiated_fmu = 1
 
         #Just to be safe, some problems with Dymola (2012) FMUs not reacting
         #to logging when set to the instantiate method.
@@ -2972,6 +3008,8 @@ cdef class FMUModelME1(FMUModelBase):
 
         if status != 0:
             raise FMUException('Failed to set the debugging option. See the log for possibly more information.')
+            
+        
 
     def simulate(self,
                  start_time="Default",
@@ -3076,7 +3114,18 @@ cdef class FMUModelME1(FMUModelBase):
         Calls the FMI function fmiTerminate() on the FMU.
         After this call, any call to a function changing the state of the FMU will fail.
         """
-        FMIL.fmi1_import_terminate(self._fmu)
+        if self._allocated_fmu == 1:
+            FMIL.fmi1_import_terminate(self._fmu)
+            self._allocated_fmu = 0 #No longer initialized
+        
+    def free_instance(self):
+        """
+        Calls the FMI function fmiFreeModelInstance on the FMU.
+        Note that this is not needed in general as it is done automatically.
+        """
+        if self._instantiated_fmu == 1:
+            FMIL.fmi1_import_free_model_instance(self._fmu)
+            self._instantiated_fmu = 0
 
 
 
