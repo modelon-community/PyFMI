@@ -426,7 +426,132 @@ cdef class ModelBase:
             Options class for the algorithm specified with default values.
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
+        
+    def get_log_file_name(self):
+        return self._fmu_log_name
+        
+    def get_number_of_lines_log(self):
+        """
+        Returns the number of lines in the log file.
+        """
+        num_lines = 0
+        if self._fmu_log_name != NULL:
+            with open(self._fmu_log_name,'r') as file:
+                num_lines = sum(1 for line in file)
+        return num_lines
+        
+    def print_log(self, start_lines=-1, end_lines=-1):
+        """
+        Prints the log information to the prompt.
+        """
+        cdef int N
+        log = self.get_log(start_lines, end_lines)
+        N = len(log)
 
+        for i in range(N):
+            print log[i]
+            
+    def get_log(self, int start_lines=-1, int end_lines=-1):
+        """
+        Returns the log information as a list. To turn on the logging 
+        use load_fmu(..., log_level=1-7) in the loading of the FMU. The 
+        log is stored as a list of lists. For example log[0] are the 
+        first log message to the log and consists of, in the following 
+        order, the instance name, the status, the category and the 
+        message.
+
+        Returns::
+
+            log - A list of lists.
+        """
+        cdef int i = 0
+        cdef int num_lines = 0
+        log = []
+        
+        if end_lines != -1:
+            num_lines = self.get_number_of_lines_log()
+        
+        if self._fmu_log_name != NULL:
+            with open(self._fmu_log_name,'r') as file:
+                while True:
+                    i = i + 1
+                    line = file.readline()
+                    if line == "":
+                        break
+                    if start_lines != -1 and end_lines == -1:
+                        if i > start_lines:
+                            break
+                    elif start_lines == -1 and end_lines != -1:
+                        if i < num_lines - end_lines + 1:
+                            continue
+                    elif start_lines != -1 and end_lines != -1:
+                        if i > start_lines and i < num_lines - end_lines + 1:
+                            continue
+                    log.append(line.strip("\n"))
+        return log
+
+    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil:
+        if self._fmu_log_name != NULL:
+            with open(self._fmu_log_name,'a') as file:
+                file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+        else:
+            self._log.append([module,log_level,message])
+            
+    def append_log_message(self, module, log_level, message):
+        if self._fmu_log_name != NULL:
+            with open(self._fmu_log_name,'a') as file:
+                file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+        else:
+            self._log.append([module,log_level,message])
+            
+    def set_log_level(self, FMIL.jm_log_level_enu_t level):
+        """
+        Specifies the log level for PyFMI. Note that this is
+        different from the FMU logging which is specified via
+        set_debug_logging.
+
+        Parameters::
+
+            level --
+                The log level. Available values:
+                    NOTHING = 0
+                    FATAL = 1
+                    ERROR = 2
+                    WARNING = 3
+                    INFO = 4
+                    VERBOSE = 5
+                    DEBUG = 6
+                    ALL = 7
+        """
+        if level < FMIL.jm_log_level_nothing or level > FMIL.jm_log_level_all:
+            raise FMUException("Invalid log level for FMI Library (0-7).")
+        self.callbacks.log_level = level
+        
+    def _convert_filter(self, expression):
+        """
+        Convert a filter based on unix filename pattern matching to a
+        list of regular expressions.
+
+        Parameters::
+
+            expression--
+                String or list to convert.
+
+        Returns::
+
+            The converted filter.
+        """
+        regexp = []
+        if isinstance(expression,str):
+            regex = fnmatch.translate(expression)
+            regexp = [re.compile(regex)]
+        elif isinstance(expression,list):
+            for i in expression:
+                regex = fnmatch.translate(i)
+                regexp.append(re.compile(regex))
+        else:
+            raise FMUException("Unknown input.")
+        return regexp
 
 
 class FMUException(Exception):
@@ -789,46 +914,6 @@ cdef class FMUModelBase(ModelBase):
             for i in range(len(self._log)):
                 file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
             self._log = []
-    
-    def get_log_file_name(self):
-        return self._fmu_log_name
-
-    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-        if self._fmu_log_name != NULL:
-            with open(self._fmu_log_name,'a') as file:
-                file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
-        else:
-            self._log.append([module,log_level,message])
-    
-    def append_log_message(self, module, log_level, message):
-        if self._fmu_log_name != NULL:
-            with open(self._fmu_log_name,'a') as file:
-                file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
-        else:
-            self._log.append([module,log_level,message])
-
-    def get_log(self):
-        """
-        Returns the log information as a list. To turn on the logging use the
-        method, set_debug_logging(True) in the instantiation,
-        FMUModel(..., enable_logging=True). The log is stored as a list of lists.
-        For example log[0] are the first log message to the log and consists of,
-        in the following order, the instance name, the status, the category and
-        the message.
-
-        Returns::
-
-            log - A list of lists.
-        """
-        log = []
-        if self._fmu_log_name != NULL:
-            with open(self._fmu_log_name,'r') as file:
-                while True:
-                    line = file.readline()
-                    if line == "":
-                        break
-                    log.append(line.strip("\n"))
-        return log
 
     cpdef _internal_set_fmu_null(self):
         """
@@ -836,35 +921,6 @@ cdef class FMUModelBase(ModelBase):
         fmu state to NULL
         """
         self._fmu = NULL
-
-    def print_log(self):
-        """
-        Prints the log information to the prompt.
-        """
-        cdef int N
-        log = self.get_log()
-        N = len(log)
-
-        for i in range(N):
-            print log[i]
-            #print "FMIL: module = %s, log level = %d: %s"%(log[i][0], log[i][1], log[i][2])
-
-    def _convert_filter(self, expression):
-        """
-        Convert a filter based on unix filename pattern matching to a
-        list of regular expressions.
-        """
-        regexp = []
-        if isinstance(expression,str):
-            regex = fnmatch.translate(expression)
-            regexp = [re.compile(regex)]
-        elif isinstance(expression,list):
-            for i in expression:
-                regex = fnmatch.translate(i)
-                regexp.append(re.compile(regex))
-        else:
-            raise FMUException("Unknown input.")
-        return regexp
 
     def _get_version(self):
         """
@@ -1241,29 +1297,6 @@ cdef class FMUModelBase(ModelBase):
 
         if status != 0:
             raise FMUException('Failed to set the debugging option.')
-            
-    def set_log_level(self, FMIL.jm_log_level_enu_t level):
-        """
-        Specifies the log level for PyFMI. Note that this is
-        different from the FMU logging which is specified via
-        set_debug_logging.
-
-        Parameters::
-
-            level --
-                The log level. Available values:
-                    NOTHING = 0
-                    FATAL = 1
-                    ERROR = 2
-                    WARNING = 3
-                    INFO = 4
-                    VERBOSE = 5
-                    DEBUG = 6
-                    ALL = 7
-        """
-        if level < FMIL.jm_log_level_nothing or level > FMIL.jm_log_level_all:
-            raise FMUException("Invalid log level for FMI Library (0-7).")
-        self.callbacks.log_level = level
 
     def set_fmil_log_level(self, FMIL.jm_log_level_enu_t level):
         logging.warning("The method 'set_fmil_log_level' is deprecated, use 'set_log_level' instead.")
@@ -3324,9 +3357,6 @@ cdef class FMUModelBase2(ModelBase):
                 file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
             self._log = []
             
-    def get_log_file_name(self):
-        return self._fmu_log_name
-
     cpdef N.ndarray get_real(self, valueref):
         """
         Returns the real-values from the valuereference(s).
@@ -3672,48 +3702,6 @@ cdef class FMUModelBase2(ModelBase):
             return self.get_boolean([ref])
         else:
             raise FMUException('Type not supported.')
-
-    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil:
-        if self._fmu_log_name != NULL:
-            with open(self._fmu_log_name,'a') as file:
-                file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
-        else:
-            self._log.append([module,log_level,message])
-    
-    def get_log(self):
-        """
-        Returns the log information as a list. To turn on the logging use the
-        method, set_debug_logging(True) in the instantiation,
-        FMUModel(..., enable_logging=True). The log is stored as a list of lists.
-        For example log[0] are the first log message to the log and consists of,
-        in the following order, the instance name, the status, the category and
-        the message.
-
-        Returns::
-
-            log - A list of lists.
-        """
-        log = []
-        if self._fmu_log_name != NULL:
-            with open(self._fmu_log_name,'r') as file:
-                while True:
-                    line = file.readline()
-                    if line == "":
-                        break
-                    log.append(line.strip("\n"))
-        return log
-
-    def print_log(self):
-        """
-        Prints the log information to the prompt.
-        """
-        cdef int N
-        log = self.get_log()
-        N = len(log)
-
-        for i in range(N):
-            print log[i]
-    
     
     def instantiate(self, name= 'Model', visible = False):
         """
@@ -3898,28 +3886,9 @@ cdef class FMUModelBase2(ModelBase):
         self.enter_initialization_mode()
         self.exit_initialization_mode()
 
-    def set_fmil_log_level(self, level):
-        """
-        Specifies the log level for FMI Library. Note that this is
-        different from the FMU logging which is specified via
-        set_debug_logging.
-
-        Parameters::
-
-            level --
-                The log level. Available values:
-                    NOTHING = 0
-                    FATAL = 1
-                    ERROR = 2
-                    WARNING = 3
-                    INFO = 4
-                    VERBOSE = 5
-                    DEBUG = 6
-                    ALL = 7
-        """
-        if level < 0 or level > 7:
-            raise FMUException("Invalid log level for FMI Library (0-7).")
-        self.callbacks.log_level = <FMIL.jm_log_level_enu_t> level
+    def set_fmil_log_level(self, FMIL.jm_log_level_enu_t level):
+        logging.warning("The method 'set_fmil_log_level' is deprecated, use 'set_log_level' instead.")
+        self.set_log_level(level)
 
     def get_fmil_log_level(self):
         """
@@ -4955,32 +4924,6 @@ cdef class FMUModelBase2(ModelBase):
         description.
         """
         return FMIL.fmi2_import_get_default_experiment_step(self._fmu)
-
-    def _convert_filter(self, expression):
-        """
-        Convert a filter based on unix filename pattern matching to a
-        list of regular expressions.
-
-        Parameters::
-
-            expression--
-                String or list to convert.
-
-        Returns::
-
-            The converted filter.
-        """
-        regexp = []
-        if isinstance(expression,str):
-            regex = fnmatch.translate(expression)
-            regexp = [re.compile(regex)]
-        elif isinstance(expression,list):
-            for i in expression:
-                regex = fnmatch.translate(i)
-                regexp.append(re.compile(regex))
-        else:
-            raise FMUException("Unknown input.")
-        return regexp
 
     cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list):
         """

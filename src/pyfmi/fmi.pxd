@@ -35,7 +35,11 @@ cdef class ModelBase:
     """
     Abstract Model class containing base functionality.
     """
-    pass
+    cdef list _log
+    cdef char* _fmu_log_name
+    
+    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
+
 
 cdef class ScalarVariable:
     """
@@ -68,8 +72,6 @@ cdef class FMUState2:
     """
     cdef FMIL.fmi2_FMU_state_t fmu_state
 
-
-
 cdef class FMUModelBase(ModelBase):
     """
     An FMI Model loaded from a DLL.
@@ -90,7 +92,6 @@ cdef class FMUModelBase(ModelBase):
     cdef public object _npoints
     cdef public object _enable_logging
     cdef public object _pyEventInfo
-    cdef list _log
     cdef int _version
     cdef int _instantiated_fmu
     cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
@@ -103,10 +104,8 @@ cdef class FMUModelBase(ModelBase):
     cdef public list _save_int_variables_val
     cdef public list _save_bool_variables_val
     cdef int _fmu_kind
-    cdef char* _fmu_log_name
     cdef char* _fmu_temp_dir
     
-    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message)
     cpdef _internal_set_fmu_null(self)
     cpdef get_variable_description(self, variablename)
     cpdef FMIL.fmi1_base_type_enu_t get_variable_data_type(self, variablename) except *
@@ -148,7 +147,6 @@ cdef class FMUModelBase2(ModelBase):
     cdef FMIL.fmi2_event_info_t         _eventInfo
 
     #Internal values
-    cdef list           _log
     cdef object         _fmu_full_path
     cdef public object  _enable_logging
     cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
@@ -160,7 +158,6 @@ cdef class FMUModelBase2(ModelBase):
     cdef public list    _save_bool_variables_val
     cdef object         __t
     cdef public object  _pyEventInfo
-    cdef char* _fmu_log_name
     cdef char* _fmu_temp_dir
     cdef object         _states_references
     cdef object         _inputs_references
@@ -175,7 +172,6 @@ cdef class FMUModelBase2(ModelBase):
     cdef object         _mask_A
     cdef object         _A_row_ind, _A_col_ind
     
-    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
     cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, variablename) except *
     cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, variablename) except *
     cpdef get_variable_description(self, variablename)
