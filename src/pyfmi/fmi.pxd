@@ -37,6 +37,7 @@ cdef class ModelBase:
     """
     cdef list _log
     cdef char* _fmu_log_name
+    cdef FMIL.jm_callbacks callbacks
     
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
 
@@ -78,7 +79,6 @@ cdef class FMUModelBase(ModelBase):
     """
     #FMIL related variables
     cdef FMIL.fmi1_callback_functions_t callBackFunctions
-    cdef FMIL.jm_callbacks callbacks
     cdef FMIL.fmi_import_context_t* context
     cdef FMIL.fmi1_import_t* _fmu
     cdef FMIL.fmi1_event_info_t _eventInfo
@@ -134,7 +134,6 @@ cdef class FMUModelBase2(ModelBase):
     """
     
     #FMIL related variables
-    cdef FMIL.jm_callbacks              callbacks
     cdef FMIL.fmi_import_context_t*     _context
     cdef FMIL.fmi2_callback_functions_t callBackFunctions
     cdef FMIL.fmi2_import_t*            _fmu
