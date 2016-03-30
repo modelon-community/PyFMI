@@ -1286,7 +1286,7 @@ class FMIODE2(Explicit_Problem):
                 f.write(data_line+"\n")
 
         #Moving data to the model
-        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == solver.y).all()):
+        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all()):
             self._model.time = solver.t
             #Check if there are any states
             if self._f_nbr != 0:
