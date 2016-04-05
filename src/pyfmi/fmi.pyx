@@ -4943,6 +4943,9 @@ cdef class FMUModelBase2(ModelBase):
         return variable_dict
     
     cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable):
+        
+        if variable == NULL:
+            raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
 
         alias_kind       = FMIL.fmi2_import_get_variable_alias_kind(variable)
         name             = FMIL.fmi2_import_get_variable_name(variable)
