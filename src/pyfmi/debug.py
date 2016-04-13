@@ -71,16 +71,34 @@ class CVodeDebugInformation(DebugInformation):
         P.legend(("Order","Events"))
         
         P.show()
-        
-    def plot_error(self):
-        P.semilogy(self.simulated_time, N.array(self.weighted_error))
+
+    def plot_error(self, threshold=None, region=None, legend=True):
+        err = N.array(self.weighted_error)
+        time = N.array(self.simulated_time)
+        if region:
+            lw = time > region[0]
+            up = time < region[1]
+            time = time[N.logical_and(lw,up)]
+            err = err[N.logical_and(lw,up), :]
+        if threshold:
+            time_points, nbr_vars = err.shape
+            mask = N.ones(nbr_vars,dtype=bool)
+            for i in range(nbr_vars):
+                if N.max(err[:,i]) < threshold:
+                    mask[i] = False
+            P.semilogy(time, err[:,mask])
+            if legend:
+                P.legend(N.array(self.state_variables)[mask],loc="lower right")
+        else:
+            P.semilogy(time, err)
+            if legend:
+                P.legend(self.state_variables, loc="lower right")
         P.xlabel("Time [s]")
         P.ylabel("Error")
         P.title("Error evolution")
-        P.legend(self.state_variables,loc="lower right")
         P.grid()
         P.show()
-        
+
     def plot_time_distribution(self):
         total_time = N.sum(self.real_time)
         P.plot(self.simulated_time,self.real_time/total_time)

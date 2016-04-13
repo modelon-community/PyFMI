@@ -1326,10 +1326,9 @@ class FMIODE2(Explicit_Problem):
         
         if self._logging:
             with open (self.debug_file_name, 'w') as f:
-                #model_valref = self._model.get_state_value_references()
-                #names = ""
-                #for i in model_valref:
-                #    names += self._model.get_variable_by_valueref(i) + ", "
+                names = ""
+                for i in range(len(solver.y)):
+                    names += self._model.get_states_list().keys()[i] + ", "
 
                 f.write("Solver: %s \n"%solver.__class__.__name__)
                 #f.write("State variables: "+names+ "\n")
