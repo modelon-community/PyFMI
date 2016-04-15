@@ -25,6 +25,10 @@ cdef extern from "stdlib.h":
     void free(void *ptr)
     void *calloc(size_t, size_t)
     void *realloc(void *, size_t)
+    
+#cdef extern from "stdio.h":
+#    int sprintf(char *s,  char *form, ...)
+#    int snprintf(char *s, size_t n, char *format, ...)
 
 #SEE http://wiki.cython.org/FAQ#HowdoIusevariableargs.
 cdef extern from "stdarg.h":
