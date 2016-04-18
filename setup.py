@@ -108,6 +108,7 @@ gcc_lib = None
 force_32bit = False
 no_msvcr = False
 python3_flag = True if S.hexversion > 0x03000000 else False
+with_openmp = False
 
 static_link_gcc = "-static-libgcc"
 flag_32bit = "-m32"
@@ -142,6 +143,9 @@ for x in sys.argv[1:]:
         copy_args.remove(x)
     if not x.find('--extra-c-flags'):
         extra_c_flags = x[16:]
+        copy_args.remove(x)
+    if not x.find('--with-openmp'):
+        with_openmp = True
         copy_args.remove(x)
 
 ####NECESSECARY FOR THE DEPRECATED FMI LOGGER
@@ -233,6 +237,11 @@ def check_extensions():
     #FMI Extended PYX
     ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi_extended.pyx"], 
                     include_path=[".","src","src"+O.sep+"pyfmi"])
+                    
+    #MASTER PYX
+    compile_time_env = {'WITH_OPENMP': with_openmp}
+    ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"master.pyx"], 
+                    include_path=[".","src","src"+O.sep+"pyfmi"], compile_time_env=compile_time_env)
     
     for i in range(len(ext_list)):
         
@@ -255,6 +264,10 @@ def check_extensions():
                 ext_list[i].extra_compile_args.append(f)
         
         ext_list[i].extra_link_args = extra_link_flags
+        
+        if with_openmp:
+            ext_list[i].extra_link_args.append("-fopenmp")
+            ext_list[i].extra_compile_args.append("-fopenmp")
         
         if python3_flag:
             ext_list[i].cython_directives = {"language_level": 3}
