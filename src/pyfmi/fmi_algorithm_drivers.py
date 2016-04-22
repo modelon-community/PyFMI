@@ -531,6 +531,8 @@ class AssimuloFMIAlg(AlgorithmBase):
         
         elif self.model.time == None and isinstance(self.model, fmi.FMUModelME2):
             raise Exception("Setup Experiment has not been called, this has to be called prior to the initialization call.")
+        elif self.model.time == None:
+            raise FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to false")
         
         #See if there is an time event at start time
         if isinstance(self.model, fmi.FMUModelME1):
@@ -889,7 +891,9 @@ class FMICSAlg(AlgorithmBase):
             
         elif self.model.time == None and isinstance(self.model, fmi.FMUModelCS2):
             raise Exception("Setup Experiment has not been called, this has to be called prior to the initialization call.")
-            
+        elif self.model.time == None:
+            raise FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to false")
+        
         self.result_handler.simulation_start()
 
     def _set_options(self):
