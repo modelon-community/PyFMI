@@ -113,9 +113,15 @@ class AssimuloFMIAlgOptions(OptionBase):
         result_handler --
             The handler for the result. Depending on the option in
             result_handling this either defaults to ResultHandlerFile
-            or ResultHandlerMemory. If result_handling custom is choosen
+            or ResultHandlerMemory. If result_handling custom is chosen
             This MUST be provided.
             Default: None
+            
+        return_result --
+            Determines if the simulation result should be returned or 
+            not. If set to False, the simulation result is not loaded
+            into memory after the simulation finishes.
+            Default: True
 
         filter --
             A filter for choosing which variables to actually store
@@ -164,6 +170,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'logging':False,
             'result_handling':"file",
             'result_handler': None,
+            'return_result': True,
             'filter':None,
             'extra_equations':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
@@ -684,8 +691,11 @@ class AssimuloFMIAlg(AlgorithmBase):
 
             The AssimuloSimResult object.
         """
-        # load result file
-        res = self.result_handler.get_result()
+        if self.options["return_result"]:
+            #Retrieve result
+            res = self.result_handler.get_result()
+        else:
+            res = None
         # create and return result object
         return FMIResult(self.model, self.result_file_name, self.simulator,
             res, self.options)
@@ -738,9 +748,15 @@ class FMICSAlgOptions(OptionBase):
         result_handler --
             The handler for the result. Depending on the option in
             result_handling this either defaults to ResultHandlerFile
-            or ResultHandlerMemory. If result_handling custom is choosen
+            or ResultHandlerMemory. If result_handling custom is chosen
             This MUST be provided.
             Default: None
+        
+        return_result --
+            Determines if the simulation result should be returned or 
+            not. If set to False, the simulation result is not loaded
+            into memory after the simulation finishes.
+            Default: True
 
         filter --
             A filter for choosing which variables to actually store
@@ -760,6 +776,7 @@ class FMICSAlgOptions(OptionBase):
             'result_file_name':'',
             'result_handling':"file",
             'result_handler': None,
+            'return_result': True,
             'filter':None,
             }
         super(FMICSAlgOptions,self).__init__(_defaults)
@@ -965,8 +982,11 @@ class FMICSAlg(AlgorithmBase):
 
             The FMICSResult object.
         """
-        # Get the result
-        res = self.result_handler.get_result()
+        if self.options["return_result"]:
+            # Get the result
+            res = self.result_handler.get_result()
+        else:
+            res = None
 
         # create and return result object
         return FMIResult(self.model, self.result_file_name, None,
