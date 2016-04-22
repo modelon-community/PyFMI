@@ -229,7 +229,7 @@ class AssimuloFMIAlg_deprecated(AlgorithmBase):
         self.model = model
 
         if not assimulo_present:
-            raise Exception(
+            raise fmi.FMUException(
                 'Could not find Assimulo package. Check pyfmi.check_packages()')
 
         # set start time, final time and input trajectory
@@ -275,7 +275,7 @@ class AssimuloFMIAlg_deprecated(AlgorithmBase):
         # Sensitivities?
         if self.options["sensitivities"]:
             if self.options["solver"] != "CVode":
-                raise Exception("Sensitivity simulations currently only supported using the solver CVode.")
+                raise fmi.FMUException("Sensitivity simulations currently only supported using the solver CVode.")
 
                 #Checks to see if all the sensitivities are inside the model
                 #else there will be an exception
@@ -455,7 +455,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         self.model = model
 
         if not assimulo_present:
-            raise Exception(
+            raise fmi.FMUException(
                 'Could not find Assimulo package. Check pyfmi.check_packages()')
 
         # set start time, final time and input trajectory
@@ -497,14 +497,14 @@ class AssimuloFMIAlg(AlgorithmBase):
             self.result_handler = ResultHandlerCSV(self.model, delimiter=",")
         elif self.options["result_handling"] == "custom":
             self.result_handler = self.options["result_handler"]
-            if self.result_handler == None:
-                raise Exception("The result handler needs to be specified when using a custom result handling.")
+            if self.result_handler is None:
+                raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
             if not isinstance(self.result_handler, ResultHandler):
-                raise Exception("The result handler needs to be a subclass of ResultHandler.")
+                raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
         elif self.options["result_handling"] == "none": #No result handling (for performance)
             self.result_handler = ResultHandlerDummy(self.model)
         else:
-            raise Exception("Unknown option to result_handling.")
+            raise fmi.FMUException("Unknown option to result_handling.")
 
         self.result_handler.set_options(self.options)
 
@@ -525,14 +525,14 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.model.event_update()
                 self.model.enter_continuous_time_mode()
             else:
-                raise Exception("Unknown model.")
+                raise fmi.FMUException("Unknown model.")
 
             self.result_handler.initialize_complete()
         
-        elif self.model.time == None and isinstance(self.model, fmi.FMUModelME2):
-            raise Exception("Setup Experiment has not been called, this has to be called prior to the initialization call.")
-        elif self.model.time == None:
-            raise FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to false")
+        elif self.model.time is None and isinstance(self.model, fmi.FMUModelME2):
+            raise fmi.FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
+        elif self.model.time is None:
+            raise fmi.FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
         
         #See if there is an time event at start time
         if isinstance(self.model, fmi.FMUModelME1):
@@ -549,12 +549,12 @@ class AssimuloFMIAlg(AlgorithmBase):
                     for var in self.options["sensitivities"]:
                         causality = self.model.get_variable_causality(var)
                         if causality != fmi.FMI2_INPUT:
-                            raise FMUException("The sensitivity parameter is not specified as an input which is required.")
+                            raise fmi.FMUException("The sensitivity parameter is not specified as an input which is required.")
                 else:
-                    raise Exception("Sensitivity calculations only possible with JModelica.org generated FMUs")
+                    raise fmi.FMUException("Sensitivity calculations only possible with JModelica.org generated FMUs")
                 
             if self.options["solver"] != "CVode":
-                raise Exception("Sensitivity simulations currently only supported using the solver CVode.")
+                raise fmi.FMUException("Sensitivity simulations currently only supported using the solver CVode.")
 
             #Checks to see if all the sensitivities are inside the model
             #else there will be an exception
@@ -866,12 +866,12 @@ class FMICSAlg(AlgorithmBase):
             self.result_handler = ResultHandlerCSV(self.model, delimiter=",")
         elif self.options["result_handling"] == "custom":
             self.result_handler = self.options["result_handler"]
-            if self.result_handler == None:
-                raise Exception("The result handler needs to be specified when using a custom result handling.")
+            if self.result_handler is None:
+                raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
             if not isinstance(self.result_handler, ResultHandler):
-                raise Exception("The result handler needs to be a subclass of ResultHandler.")
+                raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
         else:
-            raise Exception("Unknown option to result_handling.")
+            raise fmi.FMUException("Unknown option to result_handling.")
 
         self.result_handler.set_options(self.options)
 
@@ -885,14 +885,14 @@ class FMICSAlg(AlgorithmBase):
                 self.model.initialize()
                 
             else:
-                raise Exception("Unknown model.")
+                raise fmi.FMUException("Unknown model.")
                 
             self.result_handler.initialize_complete()
             
-        elif self.model.time == None and isinstance(self.model, fmi.FMUModelCS2):
-            raise Exception("Setup Experiment has not been called, this has to be called prior to the initialization call.")
-        elif self.model.time == None:
-            raise FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to false")
+        elif self.model.time is None and isinstance(self.model, fmi.FMUModelCS2):
+            raise fmi.FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
+        elif self.model.time is None:
+            raise fmi.FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
         
         self.result_handler.simulation_start()
 
@@ -942,7 +942,7 @@ class FMICSAlg(AlgorithmBase):
                 
                 if status == fmi.FMI_ERROR:
                     result_handler.simulation_end()
-                    raise Exception("The simulation failed. See the log for more information. Return flag %d."%status)
+                    raise fmi.FMUException("The simulation failed. See the log for more information. Return flag %d."%status)
 
                 elif status == fmi.FMI_DISCARD and isinstance(self.model, fmi.FMUModelCS1):
                 
