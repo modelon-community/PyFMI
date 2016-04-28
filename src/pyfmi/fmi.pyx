@@ -3673,7 +3673,7 @@ cdef class FMUModelBase2(ModelBase):
 
         if type == FMIL.fmi2_base_type_real:  #REAL
             self.set_real([ref], [value])
-        elif type == FMIL.fmi2_base_type_int: #INTEGER
+        elif type == FMIL.fmi2_base_type_int or type == FMIL.fmi2_base_type_enum: #INTEGER
             self.set_integer([ref], [value])
         elif type == FMIL.fmi2_base_type_str: #STRING
             self.set_string([ref], [value])
@@ -3694,7 +3694,7 @@ cdef class FMUModelBase2(ModelBase):
 
         if type == FMIL.fmi2_base_type_real:  #REAL
             return self.get_real([ref])
-        elif type == FMIL.fmi2_base_type_int: #INTEGER
+        elif type == FMIL.fmi2_base_type_int or type == FMIL.fmi2_base_type_enum: #INTEGER
             return self.get_integer([ref])
         elif type == FMIL.fmi2_base_type_str: #STRING
             return self.get_string([ref])
