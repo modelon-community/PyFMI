@@ -36,6 +36,8 @@ import scipy.sparse as sp
 import scipy.linalg as lin
 import scipy.sparse.linalg as splin
 import scipy.optimize as sopt
+from numpy.lib import NumpyVersion
+import scipy.version
 
 from fmi cimport FMUModelCS2
 from cpython cimport bool
@@ -46,6 +48,8 @@ cimport openmp
 
 DEF SERIAL   = 0
 DEF PARALLEL = 1
+
+USE_ROOT = NumpyVersion(scipy.version.version) >= "0.11.0"
 
 cdef reset_models(list models):
     for model in models:
@@ -882,7 +886,10 @@ cdef class Master:
                     JM_FMUS = False
                     break
             if JM_FMUS:
-                res = sopt.root(init_f, y, args=(self))
+                if USE_ROOT:
+                    res = sopt.root(init_f, y, args=(self))
+                else:
+                    res = sopt.fsolve(init_f, y, args=(self))
                 if not res["success"]:
                     print res
                     raise Exception("Failed to converge the output system.")
@@ -997,7 +1004,10 @@ cdef class Master:
                     for model in block["outputs"].keys():
                         self.get_specific_connection_outputs(model, block["outputs_mask"][model], y)
                     
-                    res = sopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
+                    if USE_ROOT:
+                        res = sopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
+                    else:
+                        res = sopt.fsolve(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
                     if not res["success"]:
                         print res
                         raise Exception("Failed to converge the initialization system.")
@@ -1019,9 +1029,15 @@ cdef class Master:
             
             if self.algebraic_loops: #If there is an algebraic loop, solve the resulting system
                 if self.support_directional_derivatives:
-                    res = sopt.root(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
+                    if USE_ROOT:
+                        res = sopt.root(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
+                    else:
+                        res = sopt.fsolve(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
                 else:
-                    res = sopt.root(init_f, self.get_connection_outputs(), args=(self))
+                    if USE_ROOT:
+                        res = sopt.root(init_f, self.get_connection_outputs(), args=(self))
+                    else:
+                        res = sopt.fsolve(init_f, self.get_connection_outputs(), args=(self))
                 if not res["success"]:
                     print res
                     raise Exception("Failed to converge the initialization system.")
