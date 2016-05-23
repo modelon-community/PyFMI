@@ -546,9 +546,10 @@ cdef class ModelBase:
             regex = fnmatch.translate(expression)
             regexp = [re.compile(regex)]
         elif isinstance(expression,list):
+            regex = ""
             for i in expression:
-                regex = fnmatch.translate(i)
-                regexp.append(re.compile(regex))
+                regex = regex + fnmatch.translate(i) + "|"
+            regexp = [re.compile(regex[:-1])]
         else:
             raise FMUException("Unknown input.")
         return regexp
