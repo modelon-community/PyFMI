@@ -4032,7 +4032,7 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable with the valuref %i could not be found."%valueref)
 
-        name = FMIL.fmi2_import_get_variable_name(variable)
+        name = decode(FMIL.fmi2_import_get_variable_name(variable))
 
         return name
 
@@ -4061,7 +4061,7 @@ cdef class FMUModelBase2(ModelBase):
         if base_variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        name = FMIL.fmi2_import_get_variable_name(base_variable)
+        name = decode(FMIL.fmi2_import_get_variable_name(base_variable))
 
         return name
 
@@ -4108,7 +4108,7 @@ cdef class FMUModelBase2(ModelBase):
             variable = FMIL.fmi2_import_get_variable(alias_list, i)
 
             alias_kind = FMIL.fmi2_import_get_variable_alias_kind(variable)
-            alias_name = FMIL.fmi2_import_get_variable_name(variable)
+            alias_name = decode(FMIL.fmi2_import_get_variable_name(variable))
 
             ret_values[alias_name] = alias_kind
 
@@ -4949,7 +4949,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
 
         alias_kind       = FMIL.fmi2_import_get_variable_alias_kind(variable)
-        name             = FMIL.fmi2_import_get_variable_name(variable)
+        name             = decode(FMIL.fmi2_import_get_variable_name(variable))
         value_ref        = FMIL.fmi2_import_get_variable_vr(variable)
         data_type        = FMIL.fmi2_import_get_variable_base_type(variable)
         data_variability = FMIL.fmi2_import_get_variability(variable)
