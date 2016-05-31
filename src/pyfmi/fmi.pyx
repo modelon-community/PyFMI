@@ -4026,7 +4026,6 @@ cdef class FMUModelBase2(ModelBase):
 
         """
         cdef FMIL.fmi2_import_variable_t* variable
-        cdef char* name
 
         variable = FMIL.fmi2_import_get_variable_by_vr(self._fmu, <FMIL.fmi2_base_type_enu_t> type, <FMIL.fmi2_value_reference_t> valueref)
         if variable == NULL:
@@ -4092,7 +4091,6 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_variable_alias_kind_enu_t alias_kind
         cdef dict                                ret_values = {}
         cdef FMIL.size_t                         i
-        cdef char*                               alias_name
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:

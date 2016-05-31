@@ -1324,7 +1324,7 @@ cdef class Master:
             time_start = timer()
             self.initialize(start_time, final_time, options)
             time_stop  = timer()
-            print 'Elapsed initialization time: ' + str(time_stop-time_start) + ' seconds.'
+            print('Elapsed initialization time: ' + str(time_stop-time_start) + ' seconds.')
         
         #Store the inputs
         self.set_last_us(self.L.dot(self.get_connection_outputs()))
@@ -1348,12 +1348,12 @@ cdef class Master:
         time_stop = timer()
         
         self.print_statistics(options)
-        print ''
-        print 'Simulation interval      : ' + str(start_time) + ' - ' + str(final_time) + ' seconds.'
-        print 'Elapsed simulation time  : ' + str(time_stop-time_start) + ' seconds.'
+        print('')
+        print('Simulation interval      : ' + str(start_time) + ' - ' + str(final_time) + ' seconds.')
+        print('Elapsed simulation time  : ' + str(time_stop-time_start) + ' seconds.')
         for model in self.models:
-            print ' %f seconds spent in %s.'%(self.elapsed_time[model],model.get_name())
-        print ' %f seconds spent saving simulation result.'%(self.elapsed_time["result_handling"])
+            print(' %f seconds spent in %s.'%(self.elapsed_time[model],model.get_name()))
+        print(' %f seconds spent saving simulation result.'%(self.elapsed_time["result_handling"]))
         
         #Write the results to file and return
         return self.get_results(options)
@@ -1379,22 +1379,22 @@ cdef class Master:
         return res
     
     def print_statistics(self, opts):
-        print 'Master Algorithm options:'
-        print ' Algorithm             :  Jacobi ', ("(variable-step)" if self.error_controlled else "(fixed-step)")
-        print '  Execution            : ', ("Parallel" if self.opts["execution"] == "parallel" else "Serial") 
-        print ' Extrapolation Order   : ', opts["extrapolation_order"] , ("(with smoothing)" if opts["smooth_coupling"] and opts["extrapolation_order"] > 0  else "")
+        print('Master Algorithm options:')
+        print(' Algorithm             :  Jacobi ' + ("(variable-step)" if self.error_controlled else "(fixed-step)"))
+        print('  Execution            : ' + ("Parallel" if self.opts["execution"] == "parallel" else "Serial"))
+        print(' Extrapolation Order   : ' + str(opts["extrapolation_order"]) + ("(with smoothing)" if opts["smooth_coupling"] and opts["extrapolation_order"] > 0  else ""))
         if self.error_controlled:
-            print ' Tolerances (relative) : ', opts["rtol"]
-            print ' Tolerances (absolute) : ', opts["atol"]
+            print(' Tolerances (relative) : ' + str(opts["rtol"]))
+            print(' Tolerances (absolute) : ' + str(opts["atol"]))
         else:
-            print ' Step-size             : ', opts["step_size"]
-        print ' Algebraic loop        : ', "True" if self.algebraic_loops else "False"
-        print '  Linear Correction    : ', "True" if self.linear_correction else "False"
-        print ''
-        print 'Statistics: '
-        print ' Number of global steps        : ', self.statistics["nsteps"]
+            print(' Step-size             : ' + str(opts["step_size"]))
+        print(' Algebraic loop        : ' + ("True" if self.algebraic_loops else "False"))
+        print('  Linear Correction    : ' + ("True" if self.linear_correction else "False"))
+        print('')
+        print('Statistics: ')
+        print(' Number of global steps        : %d'%self.statistics["nsteps"])
         if self.error_controlled:
-            print ' Number of rejected steps      : ', self.statistics["nreject"]
+            print(' Number of rejected steps      : %d'%self.statistics["nreject"])
     
     def _get_support_directional_derivatives(self):
         if self._support_directional_derivatives == -1:
