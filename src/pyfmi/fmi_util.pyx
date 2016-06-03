@@ -33,7 +33,7 @@ def enable_caching(obj):
     def memoizer(*args, **kwargs):
         cache = args[0].cache #First argument is the self object
         #key = str(args) + str(kwargs)
-        key = (args[0], marshal.dumps(args[1:]), marshal.dumps(kwargs))
+        key = (obj, marshal.dumps(args[1:]), marshal.dumps(kwargs))
         
         if len(cache) > 10: #Remove items from cache in case it grows large
             cache.popitem()
