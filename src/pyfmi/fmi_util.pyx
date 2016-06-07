@@ -25,25 +25,6 @@ cimport numpy as np
 
 cimport fmil_import as FMIL
 
-import functools
-import marshal
-
-def enable_caching(obj):
-    @functools.wraps(obj, ('__name__', '__doc__'))
-    def memoizer(*args, **kwargs):
-        cache = args[0].cache #First argument is the self object
-        #key = str(args) + str(kwargs)
-        key = (obj, marshal.dumps(args[1:]), marshal.dumps(kwargs))
-        
-        if len(cache) > 10: #Remove items from cache in case it grows large
-            cache.popitem()
-
-        if key not in cache:
-            cache[key] = obj(*args, **kwargs)
-        return cache[key]
-        
-    return memoizer
-
 cpdef cpr_seed(dependencies, list column_keys):
     cdef int i=0,j=0,k=0
     cdef int n_col = len(column_keys)#len(dependencies.keys())
