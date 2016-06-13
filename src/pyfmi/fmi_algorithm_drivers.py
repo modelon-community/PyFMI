@@ -134,7 +134,7 @@ class AssimuloFMIAlgOptions(OptionBase):
 
     The different solvers provided by the Assimulo simulation package provides
     different options. These options are given in dictionaries with names
-    consisting of the solver name concatenated by the string '_option'. The most
+    consisting of the solver name concatenated by the string '_options'. The most
     common solver options are documented below, for a complete list of options
     see, http://www.jmodelica.org/assimulo
 
