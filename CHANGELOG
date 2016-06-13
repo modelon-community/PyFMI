@@ -1,5 +1,10 @@
 --- CHANGELOG ---
 
+--- PyFMI-2.3.1 ---
+    * Added caching of model variables when retriving the variables lists (ticket:5007)
+    * Added more information about where time is spent in a simulation (ticket:4983)
+    * Improved performance when using filters (ticket:4984)
+
 --- PyFMI-2.3 ---
     * Implemented a Master algorithm for simulation of CS FMUS
                             (ticket:4918)
