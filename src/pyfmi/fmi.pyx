@@ -37,7 +37,7 @@ from pyfmi.common.core import create_temp_file, delete_temp_file
 #from pyfmi.common.core cimport BaseModel
 
 from pyfmi.common import python3_flag
-from pyfmi.fmi_util import cpr_seed
+from pyfmi.fmi_util import cpr_seed, enable_caching
 
 if python3_flag:
     import codecs
@@ -177,7 +177,10 @@ cdef class ModelBase:
     """
     Abstract Model class containing base functionality.
     """
-
+    
+    def __init__(self):
+        self.cache = {}
+    
     def set(self, variable_name, value):
         """
         Sets the given value(s) to the specified variable name(s) into the
@@ -797,6 +800,9 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef int status
         cdef int version
+        
+        #Call super
+        ModelBase.__init__(self)
 
         #Contains the log information
         self._log = []
@@ -1676,7 +1682,7 @@ cdef class FMUModelBase(ModelBase):
         else:
             raise FMUException("The variable type does not have a minimum value.")
 
-
+    @enable_caching
     def get_model_variables(self,type=None, include_alias=True,
                             causality=None,   variability=None,
                             only_start=False,  only_fixed=False,
@@ -1735,7 +1741,7 @@ cdef class FMUModelBase(ModelBase):
 
         variable_list = FMIL.fmi1_import_get_variable_list(self._fmu)
         variable_list_size = FMIL.fmi1_import_get_variable_list_size(variable_list)
-
+        
         if type!=None: #A type have has been selected
             target_type = type
             selected_type = 1
@@ -1805,7 +1811,8 @@ cdef class FMUModelBase(ModelBase):
         FMIL.fmi1_import_free_variable_list(variable_list)
 
         return variable_dict
-
+    
+    @enable_caching
     def get_model_time_varying_value_references(self, filter=None):
         """
         Extract the value references of the variables in a model
@@ -3198,7 +3205,10 @@ cdef class FMUModelBase2(ModelBase):
         cdef dict reals_discrete
         cdef dict int_discrete
         cdef dict bool_discrete
-
+        
+        #Call super
+        ModelBase.__init__(self)
+        
         #Contains the log information
         self._log               = []
         self._enable_logging    = enable_logging
@@ -4114,7 +4124,8 @@ cdef class FMUModelBase2(ModelBase):
         FMIL.fmi2_import_free_variable_list(alias_list)
 
         return ret_values
-
+    
+    @enable_caching
     def get_model_time_varying_value_references(self, filter=None):
         """
         Extract the value references of the variables in a model
@@ -4194,7 +4205,7 @@ cdef class FMUModelBase2(ModelBase):
 
         return list(real_var_ref.keys()) if python3_flag else real_var_ref.keys(), list(int_var_ref.keys()) if python3_flag else int_var_ref.keys(), list(bool_var_ref.keys()) if python3_flag else bool_var_ref.keys()
 
-
+    @enable_caching
     def get_model_variables(self, type = None, include_alias = True,
                              causality = None,   variability = None,
                             only_start = False,   only_fixed = False,
