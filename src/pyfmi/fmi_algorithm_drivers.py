@@ -32,6 +32,8 @@ from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandle
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
+from timeit import default_timer as timer
+
 try:
     import assimulo
     assimulo_present = True
@@ -52,10 +54,11 @@ N.int = N.int32
 
 class FMIResult(JMResultBase):
     def __init__(self, model=None, result_file_name=None, solver=None, 
-             result_data=None, options=None, status=0):
+             result_data=None, options=None, status=0, detailed_timings=None):
         JMResultBase.__init__(self, 
                 model, result_file_name, solver, result_data, options)
         self.status = status
+        self.detailed_timings = detailed_timings
 
 class AssimuloFMIAlgOptions(OptionBase):
     """
@@ -453,6 +456,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                 - AssimuloFMIAlgOptions object.
         """
         self.model = model
+        self.timings = {}
+        self.time_start_total = timer()
 
         if not assimulo_present:
             raise fmi.FMUException(
@@ -476,6 +481,8 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         # set options
         self._set_options()
+        
+        #time_start = timer()
 
         input_traj = None
         if self.input:
@@ -507,6 +514,11 @@ class AssimuloFMIAlg(AlgorithmBase):
             raise fmi.FMUException("Unknown option to result_handling.")
 
         self.result_handler.set_options(self.options)
+        
+        time_end = timer()
+        #self.timings["creating_result_object"] = time_end - time_start
+        time_start = time_end
+        time_res_init = 0.0
 
         # Initialize?
         if self.options['initialize']:
@@ -527,7 +539,9 @@ class AssimuloFMIAlg(AlgorithmBase):
             else:
                 raise fmi.FMUException("Unknown model.")
 
+            time_res_init = timer()
             self.result_handler.initialize_complete()
+            time_res_init = timer() - time_res_init
         
         elif self.model.time is None and isinstance(self.model, fmi.FMUModelME2):
             raise fmi.FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
@@ -539,9 +553,15 @@ class AssimuloFMIAlg(AlgorithmBase):
             event_info = self.model.get_event_info()
             if event_info.upcomingTimeEvent and event_info.nextEventTime == model.time:
                 self.model.event_update()
+                
+        time_end = timer()
+        self.timings["initializing_fmu"] = time_end - time_start - time_res_init
+        time_start = time_end
         
         self.result_handler.simulation_start()
-
+        
+        self.timings["initializing_result"] = timer() - time_start + time_res_init
+            
         # Sensitivities?
         if self.options["sensitivities"]:
             if self.model.get_generation_tool() != "JModelica.org":
@@ -682,7 +702,13 @@ class AssimuloFMIAlg(AlgorithmBase):
         """
         Runs the simulation.
         """
+        time_start = timer()
+            
         self.simulator.simulate(self.final_time, self.ncp)
+                
+        self.timings["storing_result"] = self.probl.timings["handle_result"]
+        self.timings["computing_solution"] = timer() - time_start - self.timings["storing_result"]
+        
 
     def get_result(self):
         """
@@ -693,14 +719,22 @@ class AssimuloFMIAlg(AlgorithmBase):
 
             The AssimuloSimResult object.
         """
+        time_start = timer()
+            
         if self.options["return_result"]:
             #Retrieve result
             res = self.result_handler.get_result()
         else:
             res = None
+            
+        end_time = timer()
+        self.timings["returning_result"] = end_time - time_start
+        self.timings["other"] = end_time - self.time_start_total- sum(self.timings.values())
+        self.timings["total"] = end_time - self.time_start_total
+            
         # create and return result object
         return FMIResult(self.model, self.result_file_name, self.simulator,
-            res, self.options)
+            res, self.options, detailed_timings=self.timings)
 
     @classmethod
     def get_default_options(cls):
@@ -767,8 +801,7 @@ class FMICSAlgOptions(OptionBase):
             example is filter = "*der" , stor all variables ending with
             'der'. Can also be a list.
             Default: None
-
-
+            
     """
     def __init__(self, *args, **kw):
         _defaults= {
@@ -779,7 +812,7 @@ class FMICSAlgOptions(OptionBase):
             'result_handling':"file",
             'result_handler': None,
             'return_result': True,
-            'filter':None,
+            'filter':None
             }
         super(FMICSAlgOptions,self).__init__(_defaults)
         # for those key-value-sets where the value is a dict, don't
@@ -823,6 +856,8 @@ class FMICSAlg(AlgorithmBase):
                 - FMICSAlgOptions object.
         """
         self.model = model
+        self.timings = {}
+        self.time_start_total = timer()
 
         # set start time, final time and input trajectory
         self.start_time = start_time
@@ -857,6 +892,8 @@ class FMICSAlg(AlgorithmBase):
             #Sets the inputs, if any
             self.model.set(input_traj[0], input_traj[1].eval(self.start_time)[0,:])
         self.input_traj = input_traj
+        
+        #time_start = timer()
 
         if self.options["result_handling"] == "file":
             self.result_handler = ResultHandlerFile(self.model)
@@ -874,6 +911,11 @@ class FMICSAlg(AlgorithmBase):
             raise fmi.FMUException("Unknown option to result_handling.")
 
         self.result_handler.set_options(self.options)
+        
+        time_end = timer()
+        #self.timings["creating_result_object"] = time_end - time_start
+        time_start = time_end
+        time_res_init = 0.0
 
         # Initialize?
         if self.options['initialize']:
@@ -886,15 +928,23 @@ class FMICSAlg(AlgorithmBase):
                 
             else:
                 raise fmi.FMUException("Unknown model.")
-                
+            
+            time_res_init = timer()
             self.result_handler.initialize_complete()
+            time_res_init = timer() - time_res_init
             
         elif self.model.time is None and isinstance(self.model, fmi.FMUModelCS2):
             raise fmi.FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
         elif self.model.time is None:
             raise fmi.FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
         
+        time_end = timer()
+        self.timings["initializing_fmu"] = time_end - time_start - time_res_init
+        time_start = time_end
+        
         self.result_handler.simulation_start()
+        
+        self.timings["initializing_result"] = timer() - time_start - time_res_init
 
     def _set_options(self):
         """
@@ -902,7 +952,7 @@ class FMICSAlg(AlgorithmBase):
         """
         # no of communication points
         self.ncp = self.options['ncp']
-
+        
         self.write_scaled_result = self.options['write_scaled_result']
 
         # result file name
@@ -929,7 +979,9 @@ class FMICSAlg(AlgorithmBase):
         final_time = 0.0
 
         #For result writing
+        start_time_point = timer()
         result_handler.integration_point()
+        self.timings["storing_result"] = timer() - start_time_point
 
         #Start of simulation, start the clock
         time_start = time.clock()
@@ -951,7 +1003,10 @@ class FMICSAlg(AlgorithmBase):
                         if last_time > t: #Solver succeeded in taken a step a little further than the last time
                             self.model.time = last_time
                             final_time = last_time
+                            
+                            start_time_point = timer()
                             result_handler.integration_point()
+                            self.timings["storing_result"] += timer() - start_time_point
                     except fmi.FMUException:
                         pass
                 break
@@ -959,8 +1014,10 @@ class FMICSAlg(AlgorithmBase):
                 #raise Exception("The simulation failed. See the log for more information. Return flag %d"%status)
             
             final_time = t+h
-
+            
+            start_time_point = timer()
             result_handler.integration_point()
+            self.timings["storing_result"] += timer() - start_time_point
 
             if self.input_traj != None:
                 self.model.set(self.input_traj[0], self.input_traj[1].eval(t+h)[0,:])
@@ -976,6 +1033,8 @@ class FMICSAlg(AlgorithmBase):
         #Log elapsed time
         print('Simulation interval    : ' + str(self.start_time) + ' - ' + str(final_time) + ' seconds.')
         print('Elapsed simulation time: ' + str(time_stop-time_start) + ' seconds.')
+        
+        self.timings["computing_solution"] = time_stop - time_start - self.timings["storing_result"]
 
     def get_result(self):
         """
@@ -986,15 +1045,22 @@ class FMICSAlg(AlgorithmBase):
 
             The FMICSResult object.
         """
+        time_start = timer()
+        
         if self.options["return_result"]:
             # Get the result
             res = self.result_handler.get_result()
         else:
             res = None
+            
+        end_time = timer()
+        self.timings["returning_result"] = end_time - time_start
+        self.timings["other"] = end_time - self.time_start_total- sum(self.timings.values())
+        self.timings["total"] = end_time - self.time_start_total
 
         # create and return result object
         return FMIResult(self.model, self.result_file_name, None,
-            res, self.options, status=self.status)
+            res, self.options, status=self.status, detailed_timings=self.timings)
 
     @classmethod
     def get_default_options(cls):

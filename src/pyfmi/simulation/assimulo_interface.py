@@ -34,6 +34,8 @@ import pyfmi.fmi_deprecated as fmi_deprecated
 from pyfmi.common import python3_flag
 from pyfmi.common.core import TrajectoryLinearInterpolation
 
+from timeit import default_timer as timer
+
 try:
     import assimulo
     assimulo_present = True
@@ -119,6 +121,7 @@ class FMIODE(Explicit_Problem):
         """
         self._model = model
         self._adapt_input(input)
+        self.timings = {"handle_result": 0.0}
 
         #Set start time to the model
         self._model.time = start_time
@@ -276,6 +279,8 @@ class FMIODE(Explicit_Problem):
         #
         #Post processing (stores the time points).
         #
+        time_start = timer()
+        
         #Moving data to the model
         if t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all()):
             #Moving data to the model
@@ -294,6 +299,8 @@ class FMIODE(Explicit_Problem):
         
         if self.export != None:
             self.export.integration_point()
+            
+        self.timings["handle_result"] += timer() - time_start
 
     def handle_event(self, solver, event_info):
         """
@@ -544,6 +551,8 @@ class FMIODESENS(FMIODE):
         #
         #Post processing (stores the time points).
         #
+        time_start = timer()
+        
         #Moving data to the model
         if t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all()):
             #Moving data to the model
@@ -564,6 +573,8 @@ class FMIODESENS(FMIODE):
             p_data = N.array(solver.interpolate_sensitivity(t, 0)).flatten()
 
         self.export.integration_point(solver)#parameter_data=p_data)
+        
+        self.timings["handle_result"] += timer() - time_start
 
 
 
@@ -947,6 +958,7 @@ class FMIODE2(Explicit_Problem):
         self._model = model
         self.input = input
         self.input_names = []
+        self.timings = {"handle_result": 0.0}
 
         #Set start time to the model
         self._model.time = start_time
@@ -1144,6 +1156,8 @@ class FMIODE2(Explicit_Problem):
         #
         #Post processing (stores the time points).
         #
+        time_start = timer()
+        
         if self._extra_f_nbr > 0:
             y_extra = y[-self._extra_f_nbr:]
             y       = y[:-self._extra_f_nbr]
@@ -1166,6 +1180,8 @@ class FMIODE2(Explicit_Problem):
         self.export.integration_point(solver)
         if self._extra_f_nbr > 0:
             self._extra_equations.handle_result(self.export, y_extra)
+            
+        self.timings["handle_result"] += timer() - time_start
 
     def handle_event(self, solver, event_info):
         """
