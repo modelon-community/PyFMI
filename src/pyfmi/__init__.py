@@ -35,8 +35,10 @@ try:
     _fpath=os.path.join(curr_dir,'version.txt')
     with open(_fpath, 'r') as f:
         __version__=f.readline().strip()
+        __revision__=f.readline().strip()
 except:
     __version__ = "unknown"
+    __revision__= "unknown"
 
 
 def check_packages():
