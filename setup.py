@@ -287,10 +287,12 @@ version_txt = 'src'+O.path.sep+'pyfmi'+O.path.sep+'version.txt'
 #If a revision is found, always write it!
 if revision != "unknown" and revision!="":
     with open(version_txt, 'w') as f:
+        f.write(VERSION+'\n')
         f.write("r"+revision)
 else:# If it does not, check if the file exists and if not, create the file!
     if not O.path.isfile(version_txt):
         with open(version_txt, 'w') as f:
+            f.write(VERSION+'\n')
             f.write("unknown")
 
 from numpy.distutils.core import setup
