@@ -171,6 +171,7 @@ cdef class FMUModelBase2(ModelBase):
     cdef public object         _group_A, _group_B, _group_C, _group_D 
     cdef object         _mask_A
     cdef object         _A_row_ind, _A_col_ind
+    cdef public object  _has_entered_init_mode
     
     cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, variablename) except *
     cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, variablename) except *

@@ -3237,6 +3237,7 @@ cdef class FMUModelBase2(ModelBase):
         self._derivatives_inputs_dependencies = None
         self._outputs_states_dependencies = None
         self._outputs_inputs_dependencies = None
+        self._has_entered_init_mode = False
 
         #Internal values
         self._pyEventInfo = PyEventInfo()
@@ -3799,6 +3800,7 @@ cdef class FMUModelBase2(ModelBase):
 
         #Default values
         self.__t = None
+        self._has_entered_init_mode = False
         
         #Reseting the allocation flags
         self._allocated_fmu = 0
@@ -3884,6 +3886,8 @@ cdef class FMUModelBase2(ModelBase):
             else:
                 raise FMUException('Enter Initialize returned with an error.' \
                     ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    
+        self._has_entered_init_mode = True
                     
         return status
     
@@ -5109,6 +5113,10 @@ cdef class FMUModelBase2(ModelBase):
         cdef list data = []
         cdef list row = []
         cdef list col = []
+        
+        if not self._has_entered_init_mode:
+            raise FMUException("The FMU has not entered initialization mode and thus the directional " \
+                               "derivatives cannot be computed. Call enter_initialization_mode to start the initialization.")
         
         if add_diag:
             dim = min(len(var_ref),len(func_ref))
@@ -6657,6 +6665,9 @@ cdef class FMUModelME2(FMUModelBase2):
         return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
 
     def _get_directional_proxy(self, var_ref, func_ref, group, add_diag=False):
+        if not self._has_entered_init_mode:
+            raise FMUException("The FMU has not entered initialization mode and thus the directional " \
+                               "derivatives cannot be computed. Call enter_initialization_mode to start the initialization.")
         if self._provides_directional_derivatives() and not self.force_finite_differences:
             return FMUModelBase2._get_directional_proxy(self, var_ref, func_ref, group, add_diag)
         else:
