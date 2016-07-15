@@ -39,6 +39,7 @@ cdef class ModelBase:
     cdef char* _fmu_log_name
     cdef FMIL.jm_callbacks callbacks
     cdef public dict cache
+    cdef public object file_object
     
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
 

@@ -180,6 +180,7 @@ cdef class ModelBase:
     
     def __init__(self):
         self.cache = {}
+        self.file_object = None
     
     def set(self, variable_name, value):
         """
@@ -290,11 +291,23 @@ cdef class ModelBase:
         if not issubclass(algorithm, AlgorithmBase):
             raise Exception(str(algorithm)+
             " must be a subclass of common.algorithm_drivers.AlgorithmBase")
-
-        # initialize algorithm
-        alg = algorithm(start_time, final_time, input, self, options)
-        # simulate
-        alg.solve()
+        
+        #open log file
+        self._open_log_file()
+        
+        try:
+            # initialize algorithm
+            alg = algorithm(start_time, final_time, input, self, options)
+            # simulate
+            alg.solve()
+        except:
+            #close log file
+            self._close_log_file()
+            raise #Reraise the exception
+        
+        #close log file
+        self._close_log_file()
+        
         # get and return result
         return alg.get_result()
         
@@ -324,11 +337,23 @@ cdef class ModelBase:
         if not issubclass(algorithm, AlgorithmBase):
             raise Exception(str(algorithm)+
             " must be a subclass of common.algorithm_drivers.AlgorithmBase")
-
-        # initialize algorithm
-        alg = algorithm(parameters, measurements, input, self, options)
-        # simulate
-        alg.solve()
+        
+        #open log file
+        self._open_log_file()
+        
+        try:
+            # initialize algorithm
+            alg = algorithm(parameters, measurements, input, self, options)
+            # simulate
+            alg.solve()
+        except:
+            #close log file
+            self._close_log_file()
+            raise #Reraise the exception
+        
+        #close log file
+        self._close_log_file()
+        
         # get and return result
         return alg.get_result()
 
@@ -493,17 +518,32 @@ cdef class ModelBase:
                     log.append(line.strip("\n"))
         return log
 
+    def _open_log_file(self):
+        if self._fmu_log_name != NULL:
+            self.file_object = open(self._fmu_log_name,'a')
+
+    def _close_log_file(self):
+        if self.file_object:
+            self.file_object.close()
+            self.file_object = None
+
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil:
         if self._fmu_log_name != NULL:
-            with open(self._fmu_log_name,'a') as file:
-                file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+            if self.file_object:
+                self.file_object.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+            else:
+                with open(self._fmu_log_name,'a') as file:
+                    file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
         else:
             self._log.append([module,log_level,message])
             
     def append_log_message(self, module, log_level, message):
         if self._fmu_log_name != NULL:
-            with open(self._fmu_log_name,'a') as file:
-                file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+            if self.file_object:
+                self.file_object.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+            else:
+                with open(self._fmu_log_name,'a') as file:
+                    file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
         else:
             self._log.append([module,log_level,message])
             
