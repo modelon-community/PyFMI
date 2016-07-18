@@ -36,7 +36,6 @@ import scipy.sparse as sp
 import scipy.linalg as lin
 import scipy.sparse.linalg as splin
 import scipy.optimize as sopt
-from numpy.lib import NumpyVersion
 import scipy.version
 
 from fmi cimport FMUModelCS2
@@ -49,7 +48,11 @@ cimport openmp
 DEF SERIAL   = 0
 DEF PARALLEL = 1
 
-USE_ROOT = NumpyVersion(scipy.version.version) >= "0.11.0"
+try:
+    from numpy.lib import NumpyVersion
+    USE_ROOT = NumpyVersion(scipy.version.version) >= "0.11.0"
+except ImportError: #Numpy version is < 1.9.0 so assume scipy version is the same
+    USE_ROOT = False
 
 cdef reset_models(list models):
     for model in models:
