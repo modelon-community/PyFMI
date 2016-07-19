@@ -17,6 +17,12 @@
 
 #from distutils.core import setup, Extension
 #from distutils.ccompiler import new_compiler
+try:
+    from setuptools import setup
+    from setuptools import Extension
+except ImportError:
+    from distutils.core import setup
+    from distutils.extension import Extension
 from distutils.core import setup
 
 import distutils
