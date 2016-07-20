@@ -34,6 +34,7 @@ class CVodeDebugInformation(DebugInformation):
         self.real_time = []
         self.weighted_error = []
         self.events = []
+        self.event_indicators = []
         
         with open(file_name) as file:
             while True:
@@ -48,6 +49,10 @@ class CVodeDebugInformation(DebugInformation):
                         error_data = row_data[3].strip().replace("\n","")
                         error_data = error_data.split(" ")
                         self.weighted_error.append(N.array([abs(float(i)) for i in error_data]))
+                        if len(row_data) > 4:
+                            event_indicators = row_data[4].strip().replace("\n","")
+                            event_indicators = event_indicators.split(" ")
+                            self.event_indicators.append(N.array([abs(float(i)) for i in event_indicators]))
                         row_data = file.readline()
                 elif row_data.startswith("Solver"):
                     self.solver = row_data.split(" ")[-1]
@@ -70,6 +75,28 @@ class CVodeDebugInformation(DebugInformation):
         
         P.legend(("Order","Events"))
         
+        P.show()
+        
+    def plot_event_indicators(self, mask=None, region=None):
+        ev_ind = N.array(self.event_indicators)
+        time = N.array(self.simulated_time)
+        ev_ind_name = N.array(["event_ind_%d"%i for i in range(len(ev_ind[0,:]))])
+        
+        if region:
+            lw = time > region[0]
+            up = time < region[1]
+            time = time[N.logical_and(lw,up)]
+            ev_ind = ev_ind[N.logical_and(lw,up), :]
+        
+        if mask:
+            P.plot(time, ev_ind[:,mask])
+            P.legend(ev_ind_name[mask])
+        else:
+            P.plot(time, ev_ind)
+            P.legend(ev_ind_name)
+        P.grid()
+        P.xlabel("Time [s]")
+        P.title("Event Indicators")
         P.show()
 
     def plot_error(self, threshold=None, region=None, legend=True):

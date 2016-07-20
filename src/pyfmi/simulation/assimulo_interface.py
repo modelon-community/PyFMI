@@ -388,12 +388,28 @@ class FMIODE(Explicit_Problem):
                 header = "Time (simulated) | Time (real) | "
                 if solver.__class__.__name__=="CVode": #Only available for CVode
                     header += "Order | Error (Weighted)"
+                if self._g_nbr > 0:
+                    header += "Indicators"
                 f.write(header+"\n")
 
     def step_events(self, solver):
         """
         Method which is called at each successful step.
         """
+        #Moving data to the model
+        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == solver.y).all()):
+            self._model.time = solver.t
+            #Check if there are any states
+            if self._f_nbr != 0:
+                self._model.continuous_states = solver.y
+
+            #Sets the inputs, if any
+            if self.input!=None:
+                self._model.set_real(self.input_value_refs, self.input[1].eval(N.array([solver.t]))[0,:]*self.input_alias_type)
+                #self._model.set(self.input[0],self.input[1].eval(N.array([solver.t]))[0,:])
+
+            #Evaluating the rhs (Have to evaluate the values in the model)
+            rhs = self._model.get_derivatives()
         
         if self._logging:
             
@@ -433,22 +449,14 @@ class FMIODE(Explicit_Problem):
                     #f.write(" Local (weighted) error vector:"+ str_err)
                     #f.write("\n")
                     data_line += " | %d"%solver.get_last_order()+str_err
+                
+                if self._g_nbr > 0:
+                    str_ev = " |"
+                    for i in self._model.get_event_indicators():
+                        str_ev += " %.14E"%i
+                    data_line += str_ev
+                
                 f.write(data_line+"\n")
-
-        #Moving data to the model
-        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == solver.y).all()):
-            self._model.time = solver.t
-            #Check if there are any states
-            if self._f_nbr != 0:
-                self._model.continuous_states = solver.y
-
-            #Sets the inputs, if any
-            if self.input!=None:
-                self._model.set_real(self.input_value_refs, self.input[1].eval(N.array([solver.t]))[0,:]*self.input_alias_type)
-                #self._model.set(self.input[0],self.input[1].eval(N.array([solver.t]))[0,:])
-
-            #Evaluating the rhs (Have to evaluate the values in the model)
-            rhs = self._model.get_derivatives()
 
         if self._model.completed_integrator_step():
             self._logg_step_event += [solver.t]
@@ -1267,6 +1275,8 @@ class FMIODE2(Explicit_Problem):
                 header = "Time (simulated) | Time (real) | "
                 if solver.__class__.__name__=="CVode": #Only available for CVode
                     header += "Order | Error (Weighted)"
+                if self._g_nbr > 0:
+                    header += "Indicators"
                 f.write(header+"\n")
         
         #Enter continuous mode again
@@ -1281,6 +1291,21 @@ class FMIODE2(Explicit_Problem):
             y       = solver.y[:-self._extra_f_nbr]
         else:
             y       = solver.y
+            
+        #Moving data to the model
+        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all()):
+            self._model.time = solver.t
+            #Check if there are any states
+            if self._f_nbr != 0:
+                self._model.continuous_states = y
+
+            #Sets the inputs, if any
+            if self.input!=None:
+                self._model.set(self.input[0],
+                    self.input[1].eval(N.array([solver.t]))[0,:])
+
+            #Evaluating the rhs (Have to evaluate the values in the model)
+            rhs = self._model.get_derivatives()
             
         if self._logging:
             with open (self.debug_file_name, 'a') as f:
@@ -1299,22 +1324,14 @@ class FMIODE2(Explicit_Problem):
                     #f.write(" Local (weighted) error vector:"+ str_err)
                     #f.write("\n")
                     data_line += " | %d"%solver.get_last_order()+str_err
+                
+                if self._g_nbr > 0:
+                    str_ev = " |"
+                    for i in self._model.get_event_indicators():
+                        str_ev += " %.14E"%i
+                    data_line += str_ev    
+                
                 f.write(data_line+"\n")
-
-        #Moving data to the model
-        if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all()):
-            self._model.time = solver.t
-            #Check if there are any states
-            if self._f_nbr != 0:
-                self._model.continuous_states = y
-
-            #Sets the inputs, if any
-            if self.input!=None:
-                self._model.set(self.input[0],
-                    self.input[1].eval(N.array([solver.t]))[0,:])
-
-            #Evaluating the rhs (Have to evaluate the values in the model)
-            rhs = self._model.get_derivatives()
         
         enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
         if enter_event_mode:
