@@ -207,7 +207,10 @@ class FMIODE(Explicit_Problem):
             #self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
         #Evaluating the rhs
-        rhs = self._model.get_derivatives()
+        try:
+            rhs = self._model.get_derivatives()
+        except fmi.FMUException:
+            raise AssimuloRecoverableError
 
         #If there is no state, use the dummy
         if self._f_nbr == 0:
@@ -1057,7 +1060,10 @@ class FMIODE2(Explicit_Problem):
             self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
         #Evaluating the rhs
-        rhs = self._model.get_derivatives()
+        try:
+            rhs = self._model.get_derivatives()
+        except fmi.FMUException:
+            raise AssimuloRecoverableError
 
         #If there is no state, use the dummy
         if self._f_nbr == 0:
