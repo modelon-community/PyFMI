@@ -117,6 +117,7 @@ FMI2_OUTPUT   = FMIL.fmi2_causality_enu_output
 # FMI types
 FMI_ME                 = FMIL.fmi1_fmu_kind_enu_me
 FMI_CS_STANDALONE      = FMIL.fmi1_fmu_kind_enu_cs_standalone
+FMI_CS_TOOL            = FMIL.fmi1_fmu_kind_enu_cs_tool
 FMI_MIME_CS_STANDALONE = encode("application/x-fmu-sharedlibrary")
 
 FMI_REGISTER_GLOBALLY = 1
@@ -922,7 +923,7 @@ cdef class FMUModelBase(ModelBase):
 
         #Check the FMU kind
         fmu_kind = FMIL.fmi1_import_get_fmu_kind(self._fmu)
-        if fmu_kind != FMI_ME and fmu_kind != FMI_CS_STANDALONE:
+        if fmu_kind != FMI_ME and fmu_kind != FMI_CS_STANDALONE and fmu_kind != FMI_CS_TOOL:
             raise FMUException("This class only supports FMI 1.0 (Model Exchange and Co-Simulation).")
         self._fmu_kind = fmu_kind
 
@@ -2162,7 +2163,7 @@ cdef class FMUModelCS1(FMUModelBase):
         #Call super
         FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level)
 
-        if self._fmu_kind != FMI_CS_STANDALONE:
+        if self._fmu_kind != FMI_CS_STANDALONE and self._fmu_kind != FMI_CS_TOOL:
             raise FMUException("This class only supports FMI 1.0 for Co-simulation.")
 
         self.instantiate_slave(logging = self._enable_logging)
@@ -6862,7 +6863,7 @@ def load_fmu_deprecated(fmu, path='.', enable_logging=True, log_file_name=""):
     fmu_kind = FMIL.fmi1_import_get_fmu_kind(_fmu)
     if fmu_kind == FMI_ME:
         model = FMUModelME1(fmu, path, enable_logging, log_file_name)
-    elif fmu_kind == FMI_CS_STANDALONE:
+    elif fmu_kind == FMI_CS_STANDALONE or fmu_kind == FMI_CS_TOOL:
         model = FMUModelCS1(fmu, path, enable_logging, log_file_name)
     else:
         #Delete the XML
@@ -7072,14 +7073,8 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         #Compare fmu_kind with input-specified kind
         if fmu_1_kind == FMI_ME and kind.upper() != 'CS':
             model=FMUModelME1(fmu, path, original_enable_logging, log_file_name,log_level)
-        elif fmu_1_kind == FMI_CS_STANDALONE and kind.upper() != 'ME':
+        elif (fmu_1_kind == FMI_CS_STANDALONE or fmu_1_kind == FMI_CS_TOOL) and kind.upper() != 'ME':
             model=FMUModelCS1(fmu, path, original_enable_logging, log_file_name,log_level)
-        elif fmu_1_kind == FMIL.fmi1_fmu_kind_enu_cs_tool:
-            FMIL.fmi1_import_free(fmu_1)
-            FMIL.fmi_import_free_context(context)
-            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
-            _handle_load_fmu_exception(fmu, log_file)
-            raise FMUException("PyFMI does not support co-simulation tool")
         else:
             FMIL.fmi1_import_free(fmu_1)
             FMIL.fmi_import_free_context(context)
