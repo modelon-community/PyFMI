@@ -347,7 +347,7 @@ class AssimuloFMIAlg_deprecated(AlgorithmBase):
         #If the tolerances are not set specifically, they are set
         #according to the 'DefaultExperiment' from the XML file.
         try:
-            if self.solver_options["rtol"] == "Default":
+            if isinstance(self.solver_options["rtol"], str) and self.solver_options["rtol"] == "Default":
                 rtol, atol = self.model.get_tolerances()
                 self.solver_options['rtol'] = rtol
         except KeyError:
@@ -355,7 +355,7 @@ class AssimuloFMIAlg_deprecated(AlgorithmBase):
 
         #Check absolute tolerance
         try:
-            if self.solver_options["atol"] == "Default":
+            if isinstance(self.solver_options["atol"], str) and self.solver_options["atol"] == "Default":
                 rtol, atol = self.model.get_tolerances()
                 fnbr, gnbr = self.model.get_ode_sizes()
                 if fnbr == 0:
@@ -655,7 +655,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         #If the tolerances are not set specifically, they are set
         #according to the 'DefaultExperiment' from the XML file.
         try:
-            if self.solver_options["rtol"] == "Default":
+            if isinstance(self.solver_options["rtol"], str) and self.solver_options["rtol"] == "Default":
                 rtol, atol = self.model.get_tolerances()
                 self.solver_options['rtol'] = rtol
         except KeyError:
@@ -663,7 +663,7 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         #Check absolute tolerance
         try:
-            if self.solver_options["atol"] == "Default":
+            if isinstance(self.solver_options["atol"], str) and self.solver_options["atol"] == "Default":
                 rtol, atol = self.model.get_tolerances()
                 fnbr, gnbr = self.model.get_ode_sizes()
                 if fnbr == 0:
@@ -1137,7 +1137,7 @@ class SciEstAlg(AlgorithmBase):
         """
         self.options["filter"] = self.parameters
         
-        if self.options["scaling"] == "Default":
+        if isinstance(self.options["scaling"], str) and self.options["scaling"] == "Default":
             scale = []
             for i,parameter in enumerate(self.parameters):
                 scale.append(self.model.get_variable_nominal(parameter))
