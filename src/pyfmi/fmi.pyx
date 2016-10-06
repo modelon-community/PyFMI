@@ -111,8 +111,12 @@ FMI_OUTPUT   = FMIL.fmi1_causality_enu_output
 FMI_INTERNAL = FMIL.fmi1_causality_enu_internal
 FMI_NONE     = FMIL.fmi1_causality_enu_none
 
-FMI2_INPUT   = FMIL.fmi2_causality_enu_input
-FMI2_OUTPUT   = FMIL.fmi2_causality_enu_output
+FMI2_INPUT     = FMIL.fmi2_causality_enu_input
+FMI2_OUTPUT    = FMIL.fmi2_causality_enu_output
+FMI2_PARAMETER = FMIL.fmi2_causality_enu_parameter
+FMI2_CALCULATED_PARAMETER = FMIL.fmi2_causality_enu_calculated_parameter
+FMI2_LOCAL       = FMIL.fmi2_causality_enu_local
+FMI2_INDEPENDENT = FMIL.fmi2_causality_enu_independent
 
 # FMI types
 FMI_ME                 = FMIL.fmi1_fmu_kind_enu_me
@@ -1943,6 +1947,16 @@ cdef class FMUModelBase(ModelBase):
     def get_variable_alias_base(self, variable_name):
         """
         Returns the base variable for the provided variable name.
+
+        Parameters::
+
+            variable_name--
+                Name of the variable.
+
+        Returns::
+            
+            The base variable.
+            
         """
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_import_variable_t* base_variable
@@ -4090,13 +4104,13 @@ cdef class FMUModelBase2(ModelBase):
 
         return name
 
-    def get_variable_alias_base(self, char* variablename):
+    def get_variable_alias_base(self, variable_name):
         """
         Returns the base variable for the provided variable name.
 
         Parameters::
 
-            variablename--
+            variable_name--
                 Name of the variable.
 
         Returns:
@@ -4106,6 +4120,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_import_variable_t* base_variable
         cdef FMIL.fmi2_value_reference_t vr
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -4119,7 +4136,7 @@ cdef class FMUModelBase2(ModelBase):
 
         return name
 
-    def get_variable_alias(self, char* variablename):
+    def get_variable_alias(self, variable_name):
         """
         Return a dict of all alias variables belonging to the provided variable
         where the key are the names and the value indicating whether the variable
@@ -4127,9 +4144,8 @@ cdef class FMUModelBase2(ModelBase):
 
         Parameters::
 
-            variablename--
+            variable_name--
                 Name of the variable to find alias of.
-
 
         Returns::
 
@@ -4146,6 +4162,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_variable_alias_kind_enu_t alias_kind
         cdef dict                                ret_values = {}
         cdef FMIL.size_t                         i
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
