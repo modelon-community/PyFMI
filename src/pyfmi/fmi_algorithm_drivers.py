@@ -63,14 +63,11 @@ class FMIResult(JMResultBase):
 class AssimuloFMIAlgOptions(OptionBase):
     """
     Options for the solving the FMU using the Assimulo simulation package.
-    Currently, the only solver in the Assimulo package that fully supports
-    simulation of FMUs is the solver CVode.
 
     Assimulo options::
 
         solver --
-            Specifies the simulation algorithm that is to be used. Currently the
-            only supported solver is 'CVode'.
+            Specifies the simulation algorithm that is to be used.
             Default: 'CVode'
 
         ncp    --
