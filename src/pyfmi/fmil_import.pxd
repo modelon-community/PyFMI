@@ -193,7 +193,7 @@ cdef extern from 'fmilib.h':
         fmi1_pending_status = 1
         fmi1_last_successful_time = 2
 
-    cdef enum fmi2_status_kind_t:
+    ctypedef enum fmi2_status_kind_t:
         fmi2_do_step_status = 0
         fmi2_pending_status = 1
         fmi2_last_successful_time = 2

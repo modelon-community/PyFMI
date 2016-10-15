@@ -1000,10 +1000,14 @@ class FMICSAlg(AlgorithmBase):
                     result_handler.simulation_end()
                     raise fmi.FMUException("The simulation failed. See the log for more information. Return flag %d."%status)
 
-                elif status == fmi.FMI_DISCARD and isinstance(self.model, fmi.FMUModelCS1):
+                elif status == fmi.FMI_DISCARD and (isinstance(self.model, fmi.FMUModelCS1) or 
+                                                    isinstance(self.model, fmi.FMUModelCS2)):
                 
                     try:
-                        last_time = self.model.get_real_status(fmi.FMI1_LAST_SUCCESSFUL_TIME)
+                        if isinstance(self.model, fmi.FMUModelCS1):
+                            last_time = self.model.get_real_status(fmi.FMI1_LAST_SUCCESSFUL_TIME)
+                        else:
+                            last_time = self.model.get_real_status(fmi.FMI2_LAST_SUCCESSFUL_TIME)
                         if last_time > t: #Solver succeeded in taken a step a little further than the last time
                             self.model.time = last_time
                             final_time = last_time

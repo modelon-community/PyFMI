@@ -74,6 +74,11 @@ FMI1_DO_STEP_STATUS       = FMIL.fmi1_do_step_status
 FMI1_PENDING_STATUS       = FMIL.fmi1_pending_status
 FMI1_LAST_SUCCESSFUL_TIME = FMIL.fmi1_last_successful_time
 
+FMI2_DO_STEP_STATUS       = FMIL.fmi2_do_step_status
+FMI2_PENDING_STATUS       = FMIL.fmi2_pending_status
+FMI2_LAST_SUCCESSFUL_TIME = FMIL.fmi2_last_successful_time
+FMI2_TERMINATED           = FMIL.fmi2_terminated
+
 # Types
 FMI_REAL        = FMIL.fmi1_base_type_real
 FMI_INTEGER     = FMIL.fmi1_base_type_int
