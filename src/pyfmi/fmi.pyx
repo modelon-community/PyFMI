@@ -978,6 +978,22 @@ cdef class FMUModelBase(ModelBase):
         fmu state to NULL
         """
         self._fmu = NULL
+        
+    def get_version(self):
+        """
+        Returns the FMI version of the Model which it was generated according.
+
+        Returns::
+
+            version --
+                The version.
+
+        Example::
+
+            model.get_version()
+        """
+        version = FMIL.fmi1_import_get_version(self._fmu)
+        return version
 
     def _get_version(self):
         """
@@ -992,6 +1008,7 @@ cdef class FMUModelBase(ModelBase):
 
             model.version
         """
+        logging.warning("The attribute 'version' is deprecated, use 'get_version()' instead.")
         version = FMIL.fmi1_import_get_version(self._fmu)
         return version
 
