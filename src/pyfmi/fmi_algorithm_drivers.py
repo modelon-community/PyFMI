@@ -688,6 +688,11 @@ class AssimuloFMIAlg(AlgorithmBase):
                 solver_options["usejac"] = not self.model.get_capability_flags()['providesDirectionalDerivatives']
             except AttributeError:
                 pass
+        
+        #Override usejac if there are no states
+        fnbr, gnbr = self.model.get_ode_sizes()
+        if "usejac" in solver_options and fnbr == 0:
+            solver_options["usejac"] = False
 
         #loop solver_args and set properties of solver
         for k, v in solver_options.items():
