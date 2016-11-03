@@ -3302,10 +3302,14 @@ cdef class FMUModelBase2(ModelBase):
         #Default values
         self.__t = None
         self._A = None
+        self._group_A = None
         self._mask_A = None
         self._B = None
+        self._group_B = None
         self._C = None
+        self._group_C = None
         self._D = None
+        self._group_D = None
         self._states_references = None
         self._derivatives_references = None
         self._outputs_references = None
@@ -5191,38 +5195,49 @@ cdef class FMUModelBase2(ModelBase):
             
         return states, inputs
         
-    def _get_directional_proxy(self, var_ref, func_ref, group, add_diag=False):
+    def _get_directional_proxy(self, var_ref, func_ref, group=None, add_diag=False):
         cdef list data = []
         cdef list row = []
         cdef list col = []
+        cdef int nbr_var_ref = len(var_ref)
         
         if not self._has_entered_init_mode:
             raise FMUException("The FMU has not entered initialization mode and thus the directional " \
                                "derivatives cannot be computed. Call enter_initialization_mode to start the initialization.")
         
-        if add_diag:
-            dim = min(len(var_ref),len(func_ref))
-            data.extend([0.0]*dim)
-            row.extend(range(dim))
-            col.extend(range(dim))
+        v = N.zeros(nbr_var_ref)
         
-        v = N.zeros(len(var_ref))
-        for key in group.keys():
-            v[group[key][0]] = 1.0
+        if group:
+            if add_diag:
+                dim = min(nbr_var_ref,len(func_ref))
+                data.extend([0.0]*dim)
+                row.extend(range(dim))
+                col.extend(range(dim))
             
-            data.extend(self.get_directional_derivative(var_ref, func_ref, v)[group[key][2]])
-            row.extend(group[key][2])
-            col.extend(group[key][3])
+            for key in group.keys():
+                v[group[key][0]] = 1.0
+                
+                data.extend(self.get_directional_derivative(var_ref, func_ref, v)[group[key][2]])
+                row.extend(group[key][2])
+                col.extend(group[key][3])
+                
+                v[group[key][0]] = 0.0
             
-            v[group[key][0]] = 0.0
-        
-        if len(data) == 0:
-            return sp.csc_matrix((len(func_ref),len(var_ref)))
+            if len(data) == 0:
+                return sp.csc_matrix((len(func_ref),nbr_var_ref))
+            else:
+                return sp.csc_matrix((data, (row, col)), (len(func_ref),nbr_var_ref))
         else:
-            return sp.csc_matrix((data, (row, col)), (len(func_ref),len(var_ref)))
+            
+            A = N.zeros((len(func_ref),nbr_var_ref))
+            for i in range(nbr_var_ref):
+                v[i] = 1.0
+                A[:, i] = self.get_directional_derivative(var_ref, func_ref, v)
+                v[i] = 0.0
+            return A
         
-    def _get_A(self):
-        if self._A is None:
+    def _get_A(self, use_structure_info=True):
+        if self._group_A is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
             if python3_flag:
                 self._group_A = cpr_seed(derv_state_dep, list(self.get_states_list().keys()))
@@ -5235,15 +5250,15 @@ cdef class FMUModelBase2(ModelBase):
             derivatives                  = self.get_derivatives_list()
             self._derivatives_references = [s.value_reference for s in derivatives.values()]
         
-        A = self._get_directional_proxy(self._states_references, self._derivatives_references, self._group_A, add_diag=True)
+        A = self._get_directional_proxy(self._states_references, self._derivatives_references, self._group_A if use_structure_info else None, add_diag=True)
         
         if self._A is None:
             self._A = A
         
         return A
         
-    def _get_B(self):
-        if self._B is None:
+    def _get_B(self, use_structure_info=True):
+        if self._group_B is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
             if python3_flag:
                 self._group_B = cpr_seed(derv_input_dep, list(self.get_input_list().keys()))
@@ -5256,15 +5271,15 @@ cdef class FMUModelBase2(ModelBase):
             derivatives                  = self.get_derivatives_list()
             self._derivatives_references = [s.value_reference for s in derivatives.values()]
         
-        B = self._get_directional_proxy(self._inputs_references, self._derivatives_references, self._group_B)
+        B = self._get_directional_proxy(self._inputs_references, self._derivatives_references, self._group_B if use_structure_info else None)
         
         if self._B is None:
             self._B = B
         
         return B
         
-    def _get_C(self):
-        if self._C is None:
+    def _get_C(self, use_structure_info=True):
+        if self._group_C is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
             if python3_flag:
                 self._group_C = cpr_seed(out_state_dep, list(self.get_states_list().keys()))
@@ -5277,15 +5292,15 @@ cdef class FMUModelBase2(ModelBase):
             outputs                      = self.get_output_list()
             self._outputs_references     = [s.value_reference for s in outputs.values()]
             
-        C = self._get_directional_proxy(self._states_references, self._outputs_references, self._group_C)
+        C = self._get_directional_proxy(self._states_references, self._outputs_references, self._group_C if use_structure_info else None)
         
         if self._C is None:
             self._C = C
         
         return C
         
-    def _get_D(self):
-        if self._D is None:
+    def _get_D(self, use_structure_info=True):
+        if self._group_D is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
             if python3_flag:
                 self._group_D = cpr_seed(out_input_dep, list(self.get_input_list().keys()))
@@ -5298,7 +5313,7 @@ cdef class FMUModelBase2(ModelBase):
             outputs                      = self.get_output_list()
             self._outputs_references     = [s.value_reference for s in outputs.values()]
             
-        D = self._get_directional_proxy(self._inputs_references, self._outputs_references, self._group_D)
+        D = self._get_directional_proxy(self._inputs_references, self._outputs_references, self._group_D if use_structure_info else None)
         
         if self._D is None:
             self._D = D
@@ -5306,23 +5321,25 @@ cdef class FMUModelBase2(ModelBase):
         return D
         
         
-    def get_state_space_representation(self, A=True, B=True, C=True, D=True):
+    def get_state_space_representation(self, A=True, B=True, C=True, D=True, use_structure_info=True):
         """
         Returns a state space representation of the model. I.e::
         
             der(x) = Ax + Bu
                 y  = Cx + Du
                 
-        Which of the matrices to be returned can be choosen by the arguments.
+        Which of the matrices to be returned can be choosen by the arguments. The argument 'use_structure_info'
+        determines if the structure should be taken into account or not. If so, a sparse representation is
+        returned, otherwise a dense.
         """
         if A:
-            A = self._get_A()
+            A = self._get_A(use_structure_info)
         if B:
-            B = self._get_B()
+            B = self._get_B(use_structure_info)
         if C:
-            C = self._get_C()
+            C = self._get_C(use_structure_info)
         if D:
-            D = self._get_D()
+            D = self._get_D(use_structure_info)
             
         return A,B,C,D
         
