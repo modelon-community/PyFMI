@@ -5207,7 +5207,7 @@ cdef class FMUModelBase2(ModelBase):
         
         v = N.zeros(nbr_var_ref)
         
-        if group:
+        if group is not None:
             if add_diag:
                 dim = min(nbr_var_ref,len(func_ref))
                 data.extend([0.0]*dim)
@@ -6772,7 +6772,7 @@ cdef class FMUModelME2(FMUModelBase2):
         else:
             return self._estimate_directional_derivative(var_ref, func_ref, group, add_diag)
 
-    def _estimate_directional_derivative(self, var_ref, func_ref, group, add_diag=False):
+    def _estimate_directional_derivative(self, var_ref, func_ref, group=None, add_diag=False):
         cdef list data = []
         cdef list row = []
         cdef list col = []
@@ -6805,36 +6805,57 @@ cdef class FMUModelME2(FMUModelBase2):
         for i in range(len_v):
             nominal = self.get_variable_nominal(valueref = var_ref[i])
             eps[i] = RUROUND*(max(abs(v[i]), nominal))
-            
-        for key in group.keys():
-            #for i in group[key][0]:
-            #   self.set_real(var_ref[i], v[i]+eps[i])
-            self.set_real(v_ref[group[key][0]], v[group[key][0]]+eps[group[key][0]])
-            
-            #dfpert[:len(z_ref[group[key][2]])] = self.get_real(z_ref[group[key][2]])
-            #print eps[group[key][3]], eps[group[key][3]].shape
-            #print dfpert[:len(z_ref[group[key][2]])], dfpert[:len(z_ref[group[key][2]])].shape
-            #print df[group[key][2]][i], df[group[key][2]][i].shape
-            #for i,j in enumerate(group[key][3]):
-            #    data.append((dfpert[i]-df[group[key][2]][i])/eps[j])
-            #data.extend((dfpert[:len(z_ref[group[key][2]])]-df[group[key][2]])/eps[group[key][3]])
-            try:
-                data.extend((self.get_real(z_ref[group[key][2]]) - df[group[key][2]])/eps[group[key][3]])
-            except FMUException: #Try backward difference (for all variables)
-                self.set_real(v_ref[group[key][0]], v[group[key][0]]-eps[group[key][0]])
-                data.extend((df[group[key][2]] - self.get_real(z_ref[group[key][2]]))/eps[group[key][3]])
-                
-            row.extend(group[key][2])
-            col.extend(group[key][3])
-            
-            #for i in group[key][0]:
-            #    self.set_real(var_ref[i], v[i])
-            self.set_real(v_ref[group[key][0]], v[group[key][0]])
         
-        if len(data) == 0:
-            return sp.csc_matrix((len_f,len_v))
+        if group is not None:
+            for key in group.keys():
+                #for i in group[key][0]:
+                #   self.set_real(var_ref[i], v[i]+eps[i])
+                self.set_real(v_ref[group[key][0]], v[group[key][0]]+eps[group[key][0]])
+                
+                #dfpert[:len(z_ref[group[key][2]])] = self.get_real(z_ref[group[key][2]])
+                #print eps[group[key][3]], eps[group[key][3]].shape
+                #print dfpert[:len(z_ref[group[key][2]])], dfpert[:len(z_ref[group[key][2]])].shape
+                #print df[group[key][2]][i], df[group[key][2]][i].shape
+                #for i,j in enumerate(group[key][3]):
+                #    data.append((dfpert[i]-df[group[key][2]][i])/eps[j])
+                #data.extend((dfpert[:len(z_ref[group[key][2]])]-df[group[key][2]])/eps[group[key][3]])
+                try:
+                    data.extend((self.get_real(z_ref[group[key][2]]) - df[group[key][2]])/eps[group[key][3]])
+                except FMUException: #Try backward difference (for all variables)
+                    self.set_real(v_ref[group[key][0]], v[group[key][0]]-eps[group[key][0]])
+                    data.extend((df[group[key][2]] - self.get_real(z_ref[group[key][2]]))/eps[group[key][3]])
+                    
+                row.extend(group[key][2])
+                col.extend(group[key][3])
+                
+                #for i in group[key][0]:
+                #    self.set_real(var_ref[i], v[i])
+                self.set_real(v_ref[group[key][0]], v[group[key][0]])
+            
+            if len(data) == 0:
+                return sp.csc_matrix((len_f,len_v))
+            else:
+                return sp.csc_matrix((data, (row, col)), (len_f,len_v))
         else:
-            return sp.csc_matrix((data, (row, col)), (len_f,len_v))
+            A = N.zeros((len_f,len_v))
+            for i in range(len_v):
+                tmp = v[i]
+                try:
+                    v[i] += eps[i]
+                    self.set_real(v_ref, v)
+                    dfpert = self.get_real(func_ref)
+                    A[:, i] = (dfpert - df)/eps[i]
+                except FMUException: #Try backward difference
+                    v[i] = tmp - eps[i]
+                    self.set_real(v_ref, v)
+                    dfpert = self.get_real(func_ref)
+                    A[:, i] = (df - dfpert)/eps[i]
+                v[i] = tmp
+            #Reset values
+            self.set_real(v_ref, v)
+            
+            return A
+            
 
 #Temporary should be removed! (after a period)
 cdef class FMUModel(FMUModelME1):
