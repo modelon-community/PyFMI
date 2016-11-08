@@ -6281,7 +6281,7 @@ cdef class FMUModelME2(FMUModelBase2):
         self._eventInfo.nextEventTimeDefined              = FMI2_FALSE
         self._eventInfo.nextEventTime                     = 0.0
         
-        self.force_finite_differences = False
+        self.force_finite_differences = 0
         
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
         self.instantiate()
@@ -6780,7 +6780,7 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef int len_v = len(var_ref)
         cdef int len_f = len(func_ref)
         cdef double nominal
-        cdef double RUROUND = (N.finfo(float).eps)**0.5
+        cdef double RUROUND = (N.finfo(float).eps)**0.5 if self.force_finite_differences is True or self.force_finite_differences == 1 else (N.finfo(float).eps)**(1/3.0)
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v       = N.zeros(len_v, dtype = N.double)
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] eps     = N.zeros(len_v, dtype = N.double)
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] df      = N.zeros(len_f, dtype = N.double)
@@ -6808,28 +6808,27 @@ cdef class FMUModelME2(FMUModelBase2):
         
         if group is not None:
             for key in group.keys():
-                #for i in group[key][0]:
-                #   self.set_real(var_ref[i], v[i]+eps[i])
                 self.set_real(v_ref[group[key][0]], v[group[key][0]]+eps[group[key][0]])
                 
-                #dfpert[:len(z_ref[group[key][2]])] = self.get_real(z_ref[group[key][2]])
-                #print eps[group[key][3]], eps[group[key][3]].shape
-                #print dfpert[:len(z_ref[group[key][2]])], dfpert[:len(z_ref[group[key][2]])].shape
-                #print df[group[key][2]][i], df[group[key][2]][i].shape
-                #for i,j in enumerate(group[key][3]):
-                #    data.append((dfpert[i]-df[group[key][2]][i])/eps[j])
-                #data.extend((dfpert[:len(z_ref[group[key][2]])]-df[group[key][2]])/eps[group[key][3]])
-                try:
-                    data.extend((self.get_real(z_ref[group[key][2]]) - df[group[key][2]])/eps[group[key][3]])
-                except FMUException: #Try backward difference (for all variables)
-                    self.set_real(v_ref[group[key][0]], v[group[key][0]]-eps[group[key][0]])
-                    data.extend((df[group[key][2]] - self.get_real(z_ref[group[key][2]]))/eps[group[key][3]])
+                if self.force_finite_differences is True or self.force_finite_differences == 1: #Forward and Backward difference    
+                    try:
+                        data.extend((self.get_real(z_ref[group[key][2]]) - df[group[key][2]])/eps[group[key][3]])
+                    except FMUException: #Try backward difference (for all variables)
+                        self.set_real(v_ref[group[key][0]], v[group[key][0]]-eps[group[key][0]])
+                        data.extend((df[group[key][2]] - self.get_real(z_ref[group[key][2]]))/eps[group[key][3]])
+
+                else: #Central difference
+                    dfpertp = self.get_real(z_ref[group[key][2]])
                     
+                    self.set_real(v_ref[group[key][0]], v[group[key][0]]-eps[group[key][0]])
+                    
+                    dfpertm = self.get_real(z_ref[group[key][2]])
+                    
+                    data.extend((dfpertp - dfpertm)/(2*eps[group[key][3]]))
+
                 row.extend(group[key][2])
                 col.extend(group[key][3])
-                
-                #for i in group[key][0]:
-                #    self.set_real(var_ref[i], v[i])
+                    
                 self.set_real(v_ref[group[key][0]], v[group[key][0]])
             
             if len(data) == 0:
@@ -6840,19 +6839,30 @@ cdef class FMUModelME2(FMUModelBase2):
             A = N.zeros((len_f,len_v))
             for i in range(len_v):
                 tmp = v[i]
-                try:
-                    v[i] += eps[i]
-                    self.set_real(v_ref, v)
-                    dfpert = self.get_real(func_ref)
-                    A[:, i] = (dfpert - df)/eps[i]
-                except FMUException: #Try backward difference
+                
+                v[i] += eps[i]
+                self.set_real(v_ref, v)
+                        
+                if self.force_finite_differences is True or self.force_finite_differences == 1: #Forward and Backward difference
+                    try:
+                        dfpert = self.get_real(func_ref)
+                        A[:, i] = (dfpert - df)/eps[i]
+                    except FMUException: #Try backward difference
+                        v[i] = tmp - eps[i]
+                        self.set_real(v_ref, v)
+                        dfpert = self.get_real(func_ref)
+                        A[:, i] = (df - dfpert)/eps[i]
+                
+                else: #Central difference
+                    dfpertp = self.get_real(func_ref)
                     v[i] = tmp - eps[i]
                     self.set_real(v_ref, v)
-                    dfpert = self.get_real(func_ref)
-                    A[:, i] = (df - dfpert)/eps[i]
+                    dfpertm = self.get_real(func_ref)
+                    A[:, i] = (dfpertp - dfpertm)/(2*eps[i])
+                
+                #Reset values
                 v[i] = tmp
-            #Reset values
-            self.set_real(v_ref, v)
+                self.set_real(v_ref, v)
             
             return A
             
