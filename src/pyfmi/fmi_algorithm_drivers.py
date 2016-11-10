@@ -706,6 +706,10 @@ class AssimuloFMIAlg(AlgorithmBase):
                 setattr(self.probl, k, v)
                 continue
             setattr(self.simulator, k, v)
+        
+        #Needs to be set as last option in order to have an impact.
+        if "maxord" in solver_options:
+            setattr(self.simulator, "maxord", solver_options["maxord"])
 
     def solve(self):
         """
