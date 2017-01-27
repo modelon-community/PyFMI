@@ -1370,7 +1370,7 @@ class FMIODE2(Explicit_Problem):
                     names += self._model.get_states_list().keys()[i] + ", "
 
                 f.write("Solver: %s \n"%solver.__class__.__name__)
-                #f.write("State variables: "+names+ "\n")
+                f.write("State variables: "+names+ "\n")
 
                 str_y = ""
                 for i in solver.y:
