@@ -2870,7 +2870,7 @@ cdef class FMUModelME1(FMUModelBase):
         status = FMIL.fmi1_import_get_event_indicators(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nEventIndicators)
 
         if status != 0:
-            raise FMUException('Failed to get the event indicators.')
+            raise FMUException('Failed to get the event indicators at time: %E.'%self.time)
 
         return values
 
@@ -6427,7 +6427,8 @@ cdef class FMUModelME2(FMUModelBase2):
         status = FMIL.fmi2_import_get_event_indicators(self._fmu, <FMIL.fmi2_real_t*> values.data, self._nEventIndicators)
 
         if status != 0:
-            raise FMUException('Failed to get the event indicators.')
+            raise FMUException('Failed to get the event indicators at time: %E.'%self.time)
+            
 
         return values
 
