@@ -150,6 +150,7 @@ class FMIODE(Explicit_Problem):
         else:
             self.result_file_name = result_file_name
         self.debug_file_name = model.get_name().replace(".","_")+'_debug.txt'
+        self.debug_file_object = None
 
         #Default values
         self.export = result_handler#ResultWriterDymola_deprecated(model) if (isinstance(model,fmi_deprecated.FMUModel) or isinstance(model,fmi_deprecated.FMUModel2)) else ResultWriterDymola(model)
@@ -204,7 +205,6 @@ class FMIODE(Explicit_Problem):
         #Sets the inputs, if any
         if self.input!=None:
             self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
-            #self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
         #Evaluating the rhs
         try:
@@ -231,7 +231,6 @@ class FMIODE(Explicit_Problem):
         #Sets the inputs, if any
         if self.input!=None:
             self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
-            #self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
         #Evaluating the jacobian
 
@@ -259,7 +258,6 @@ class FMIODE(Explicit_Problem):
         #Sets the inputs, if any
         if self.input!=None:
             self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
-            #self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
         #Evaluating the event indicators
         eventInd = self._model.get_event_indicators()
@@ -279,9 +277,9 @@ class FMIODE(Explicit_Problem):
 
 
     def handle_result(self, solver, t, y):
-        #
-        #Post processing (stores the time points).
-        #
+        """
+        Post processing (stores the time points).
+        """
         time_start = timer()
         
         #Moving data to the model
@@ -295,7 +293,6 @@ class FMIODE(Explicit_Problem):
             #Sets the inputs, if any
             if self.input!=None:
                 self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
-                #self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
@@ -319,26 +316,30 @@ class FMIODE(Explicit_Problem):
             #Sets the inputs, if any
             if self.input!=None:
                 self._model.set_real(self.input_value_refs, self.input[1].eval(N.array([solver.t]))[0,:]*self.input_alias_type)
-                #self._model.set(self.input[0],self.input[1].eval(N.array([solver.t]))[0,:])
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
         if self._logging:
-            with open (self.debug_file_name, 'a') as f:
-                f.write("\nDetected event at t = %.14E \n"%solver.t)
-                f.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
-                f.write(" Time  event info:  "+str(event_info[1])+ "\n")
-
-                str_ind = ""
-                for i in self._model.get_event_indicators():
-                    str_ind += " %.14E"%i
-                str_states = ""
-                for i in solver.y:
-                    str_states += " %.14E"%i
-                str_der = ""
-                for i in self._model.get_derivatives():
-                    str_der += " %.14E"%i
+            str_ind = ""
+            for i in self._model.get_event_indicators():
+                str_ind += " %.14E"%i
+            str_states = ""
+            for i in solver.y:
+                str_states += " %.14E"%i
+            str_der = ""
+            for i in self._model.get_derivatives():
+                str_der += " %.14E"%i
+                
+            if self.debug_file_object:
+                self.debug_file_object.write("\nDetected event at t = %.14E \n"%solver.t)
+                self.debug_file_object.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
+                self.debug_file_object.write(" Time  event info:  "+str(event_info[1])+ "\n")
+            else:
+                with open (self.debug_file_name, 'a') as f:
+                    f.write("\nDetected event at t = %.14E \n"%solver.t)
+                    f.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
+                    f.write(" Time  event info:  "+str(event_info[1])+ "\n")
 
         eInfo = self._model.get_event_info()
         eInfo.iterationConverged = False
@@ -370,17 +371,18 @@ class FMIODE(Explicit_Problem):
             raise TerminateSimulation #Exception from Assimulo
 
         if self._logging:
-            with open (self.debug_file_name, 'a') as f:
-                str_ind2 = ""
-                for i in self._model.get_event_indicators():
-                    str_ind2 += " %.14E"%i
-                str_states2 = ""
-                for i in solver.y:
-                    str_states2 += " %.14E"%i
-                str_der2 = ""
-                for i in self._model.get_derivatives():
-                    str_der2 += " %.14E"%i
-
+            str_ind2 = ""
+            for i in self._model.get_event_indicators():
+                str_ind2 += " %.14E"%i
+            str_states2 = ""
+            for i in solver.y:
+                str_states2 += " %.14E"%i
+            str_der2 = ""
+            for i in self._model.get_derivatives():
+                str_der2 += " %.14E"%i
+                
+            if self.debug_file_object:
+                f = self.debug_file_object
                 f.write(" Indicators (pre) : "+str_ind + "\n")
                 f.write(" Indicators (post): "+str_ind2+"\n")
                 f.write(" States (pre) : "+str_states + "\n")
@@ -394,6 +396,21 @@ class FMIODE(Explicit_Problem):
                 if self._g_nbr > 0:
                     header += "Indicators"
                 f.write(header+"\n")
+            else:
+                with open (self.debug_file_name, 'a') as f:
+                    f.write(" Indicators (pre) : "+str_ind + "\n")
+                    f.write(" Indicators (post): "+str_ind2+"\n")
+                    f.write(" States (pre) : "+str_states + "\n")
+                    f.write(" States (post): "+str_states2 + "\n")
+                    f.write(" Derivatives (pre) : "+str_der + "\n")
+                    f.write(" Derivatives (post): "+str_der2 + "\n\n")
+
+                    header = "Time (simulated) | Time (real) | "
+                    if solver.__class__.__name__=="CVode": #Only available for CVode
+                        header += "Order | Error (Weighted)"
+                    if self._g_nbr > 0:
+                        header += "Indicators"
+                    f.write(header+"\n")
 
     def step_events(self, solver):
         """
@@ -434,32 +451,29 @@ class FMIODE(Explicit_Problem):
                 #End tag
                 msg = preface + "</%s>"%solver_name
                 self._model.append_log_message("Model", 6, msg)
-                
             
-            with open (self.debug_file_name, 'a') as f:
-                data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
-                #f.write(" Successful step at t = %.14E"%solver.t)
-                #f.write(" Elapsed (real) time: %.14E"%(time.clock()-self._timer))
+            data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
 
-                if solver.__class__.__name__=="CVode": #Only available for CVode
-                    #f.write(" Current order: "+str(solver.get_last_order()))
-                    ele = solver.get_local_errors()
-                    eweight = solver.get_error_weights()
-                    err = ele*eweight
-                    str_err = " |"
-                    for i in err:
-                        str_err += " %.14E"%i
-                    #f.write(" Local (weighted) error vector:"+ str_err)
-                    #f.write("\n")
-                    data_line += " | %d"%solver.get_last_order()+str_err
+            if solver.__class__.__name__=="CVode": #Only available for CVode
+                ele = solver.get_local_errors()
+                eweight = solver.get_error_weights()
+                err = ele*eweight
+                str_err = " |"
+                for i in err:
+                    str_err += " %.14E"%i
+                data_line += " | %d"%solver.get_last_order()+str_err
+            
+            if self._g_nbr > 0:
+                str_ev = " |"
+                for i in self._model.get_event_indicators():
+                    str_ev += " %.14E"%i
+                data_line += str_ev
                 
-                if self._g_nbr > 0:
-                    str_ev = " |"
-                    for i in self._model.get_event_indicators():
-                        str_ev += " %.14E"%i
-                    data_line += str_ev
-                
-                f.write(data_line+"\n")
+            if self.debug_file_object:
+                self.debug_file_object.write(data_line+"\n")
+            else:
+                with open (self.debug_file_name, 'a') as f:
+                    f.write(data_line+"\n")
 
         if self._model.completed_integrator_step():
             self._logg_step_event += [solver.t]
@@ -481,32 +495,38 @@ class FMIODE(Explicit_Problem):
 
     def initialize(self, solver):
         if self._logging:
-            with open (self.debug_file_name, 'w') as f:
-                model_valref = self._model.get_state_value_references()
-                names = ""
-                for i in model_valref:
-                    names += self._model.get_variable_by_valueref(i) + ", "
+            self.debug_file_object = open(self.debug_file_name, 'w')
+            f = self.debug_file_object
+            
+            model_valref = self._model.get_state_value_references()
+            names = ""
+            for i in model_valref:
+                names += self._model.get_variable_by_valueref(i) + ", "
 
-                f.write("Solver: %s \n"%solver.__class__.__name__)
-                f.write("State variables: "+names+ "\n")
+            f.write("Solver: %s \n"%solver.__class__.__name__)
+            f.write("State variables: "+names+ "\n")
 
-                str_y = ""
-                for i in solver.y:
-                    str_y += " %.14E"%i
+            str_y = ""
+            for i in solver.y:
+                str_y += " %.14E"%i
 
-                f.write("Initial values: t = %.14E \n"%solver.t)
-                f.write("Initial values: y ="+str_y+"\n\n")
+            f.write("Initial values: t = %.14E \n"%solver.t)
+            f.write("Initial values: y ="+str_y+"\n\n")
 
 
 
-                header = "Time (simulated) | Time (real) | "
-                if solver.__class__.__name__=="CVode": #Only available for CVode
-                    header += "Order | Error (Weighted)"
-                f.write(header+"\n")
+            header = "Time (simulated) | Time (real) | "
+            if solver.__class__.__name__=="CVode": #Only available for CVode
+                header += "Order | Error (Weighted)"
+            f.write(header+"\n")
 
     def finalize(self, solver):
         if self.export != None:
             self.export.simulation_end()
+            
+        if self.debug_file_object:
+            self.debug_file_object.close()
+            self.debug_file_object = None
 
     def _set_input(self, input):
         self.__input = input
@@ -997,6 +1017,7 @@ class FMIODE2(Explicit_Problem):
         else:
             self.result_file_name = result_file_name
         self.debug_file_name = model.get_name().replace(".","_")+'_debug.txt'
+        self.debug_file_object = None
 
         #Default values
         self.export = result_handler
@@ -1223,21 +1244,27 @@ class FMIODE2(Explicit_Problem):
             rhs = self._model.get_derivatives()
 
         if self._logging:
-            with open (self.debug_file_name, 'a') as f:
+            str_ind = ""
+            for i in self._model.get_event_indicators():
+                str_ind += " %.14E"%i
+            str_states = ""
+            for i in y:
+                str_states += " %.14E"%i
+            str_der = ""
+            for i in self._model.get_derivatives():
+                str_der += " %.14E"%i
+                
+            if self.debug_file_object:
+                f = self.debug_file_object
                 f.write("\nDetected event at t = %.14E \n"%solver.t)
                 f.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
                 f.write(" Time  event info:  "+str(event_info[1])+ "\n")
+            else:
+                with open (self.debug_file_name, 'a') as f:
+                    f.write("\nDetected event at t = %.14E \n"%solver.t)
+                    f.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
+                    f.write(" Time  event info:  "+str(event_info[1])+ "\n")
 
-                str_ind = ""
-                for i in self._model.get_event_indicators():
-                    str_ind += " %.14E"%i
-                str_states = ""
-                for i in y:
-                    str_states += " %.14E"%i
-                str_der = ""
-                for i in self._model.get_derivatives():
-                    str_der += " %.14E"%i
-        
         #Enter event mode
         self._model.enter_event_mode()
         
@@ -1260,17 +1287,18 @@ class FMIODE2(Explicit_Problem):
             raise TerminateSimulation #Exception from Assimulo
 
         if self._logging:
-            with open (self.debug_file_name, 'a') as f:
-                str_ind2 = ""
-                for i in self._model.get_event_indicators():
-                    str_ind2 += " %.14E"%i
-                str_states2 = ""
-                for i in solver.y:
-                    str_states2 += " %.14E"%i
-                str_der2 = ""
-                for i in self._model.get_derivatives():
-                    str_der2 += " %.14E"%i
-
+            str_ind2 = ""
+            for i in self._model.get_event_indicators():
+                str_ind2 += " %.14E"%i
+            str_states2 = ""
+            for i in solver.y:
+                str_states2 += " %.14E"%i
+            str_der2 = ""
+            for i in self._model.get_derivatives():
+                str_der2 += " %.14E"%i
+            
+            if self.debug_file_object:
+                f = self.debug_file_object
                 f.write(" Indicators (pre) : "+str_ind + "\n")
                 f.write(" Indicators (post): "+str_ind2+"\n")
                 f.write(" States (pre) : "+str_states + "\n")
@@ -1284,6 +1312,21 @@ class FMIODE2(Explicit_Problem):
                 if self._g_nbr > 0:
                     header += "Indicators"
                 f.write(header+"\n")
+            else:
+                with open (self.debug_file_name, 'a') as f:
+                    f.write(" Indicators (pre) : "+str_ind + "\n")
+                    f.write(" Indicators (post): "+str_ind2+"\n")
+                    f.write(" States (pre) : "+str_states + "\n")
+                    f.write(" States (post): "+str_states2 + "\n")
+                    f.write(" Derivatives (pre) : "+str_der + "\n")
+                    f.write(" Derivatives (post): "+str_der2 + "\n\n")
+
+                    header = "Time (simulated) | Time (real) | "
+                    if solver.__class__.__name__=="CVode": #Only available for CVode
+                        header += "Order | Error (Weighted)"
+                    if self._g_nbr > 0:
+                        header += "Indicators"
+                    f.write(header+"\n")
         
         #Enter continuous mode again
         self._model.enter_continuous_time_mode()
@@ -1314,30 +1357,28 @@ class FMIODE2(Explicit_Problem):
             rhs = self._model.get_derivatives()
             
         if self._logging:
-            with open (self.debug_file_name, 'a') as f:
-                data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
-                #f.write(" Successful step at t = %.14E"%solver.t)
-                #f.write(" Elapsed (real) time: %.14E"%(time.clock()-self._timer))
-
-                if solver.__class__.__name__=="CVode": #Only available for CVode
-                    #f.write(" Current order: "+str(solver.get_last_order()))
-                    ele = solver.get_local_errors()
-                    eweight = solver.get_error_weights()
-                    err = ele*eweight
-                    str_err = " |"
-                    for i in err:
-                        str_err += " %.14E"%i
-                    #f.write(" Local (weighted) error vector:"+ str_err)
-                    #f.write("\n")
-                    data_line += " | %d"%solver.get_last_order()+str_err
+            data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
                 
-                if self._g_nbr > 0:
-                    str_ev = " |"
-                    for i in self._model.get_event_indicators():
-                        str_ev += " %.14E"%i
-                    data_line += str_ev    
+            if solver.__class__.__name__=="CVode": #Only available for CVode
+                ele = solver.get_local_errors()
+                eweight = solver.get_error_weights()
+                err = ele*eweight
+                str_err = " |"
+                for i in err:
+                    str_err += " %.14E"%i
+                data_line += " | %d"%solver.get_last_order()+str_err
+            
+            if self._g_nbr > 0:
+                str_ev = " |"
+                for i in self._model.get_event_indicators():
+                    str_ev += " %.14E"%i
+                data_line += str_ev
                 
-                f.write(data_line+"\n")
+            if self.debug_file_object:
+                self.debug_file_object.write(data_line+"\n")
+            else:
+                with open (self.debug_file_name, 'a') as f:
+                    f.write(data_line+"\n")
         
         enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
         if enter_event_mode:
@@ -1364,30 +1405,34 @@ class FMIODE2(Explicit_Problem):
                 self._sparse_representation = True
         
         if self._logging:
-            with open (self.debug_file_name, 'w') as f:
-                names = ""
-                for i in range(len(solver.y)):
-                    names += self._model.get_states_list().keys()[i] + ", "
+            self.debug_file_object = open(self.debug_file_name, 'w')
+            f = self.debug_file_object
+            
+            names = ""
+            for i in range(len(solver.y)):
+                names += self._model.get_states_list().keys()[i] + ", "
+            
+            f.write("Solver: %s \n"%solver.__class__.__name__)
+            f.write("State variables: "+names+ "\n")
 
-                f.write("Solver: %s \n"%solver.__class__.__name__)
-                f.write("State variables: "+names+ "\n")
+            str_y = ""
+            for i in solver.y:
+                str_y += " %.14E"%i
 
-                str_y = ""
-                for i in solver.y:
-                    str_y += " %.14E"%i
+            f.write("Initial values: t = %.14E \n"%solver.t)
+            f.write("Initial values: y ="+str_y+"\n\n")
 
-                f.write("Initial values: t = %.14E \n"%solver.t)
-                f.write("Initial values: y ="+str_y+"\n\n")
-
-
-
-                header = "Time (simulated) | Time (real) | "
-                if solver.__class__.__name__=="CVode": #Only available for CVode
-                    header += "Order | Error (Weighted)"
-                f.write(header+"\n")
+            header = "Time (simulated) | Time (real) | "
+            if solver.__class__.__name__=="CVode": #Only available for CVode
+                header += "Order | Error (Weighted)"
+            f.write(header+"\n")
 
     def finalize(self, solver):
         self.export.simulation_end()
+        
+        if self.debug_file_object:
+            self.debug_file_object.close()
+            self.debug_file_object = None
 
     def _set_input(self, input):
         self.__input = input
