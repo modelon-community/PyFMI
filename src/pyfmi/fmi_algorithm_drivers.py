@@ -777,6 +777,12 @@ class FMICSAlgOptions(OptionBase):
             is invoked, otherwise it is assumed the user have manually invoked
             model.initialize()
             Default is True.
+            
+        stop_time_defined --
+            If set to True, the model cannot be computed past the set final_time,
+            even in a continuation run. This is only applicable when initialize
+            is set to True. For more information, see the FMI specification.
+            Default False.
 
         write_scaled_result --
             Set this parameter to True to write the result to file without
@@ -823,6 +829,7 @@ class FMICSAlgOptions(OptionBase):
         _defaults= {
             'ncp':500,
             'initialize':True,
+            'stop_time_defined': False,
             'write_scaled_result':False,
             'result_file_name':'',
             'result_handling':"file",
@@ -936,10 +943,10 @@ class FMICSAlg(AlgorithmBase):
         # Initialize?
         if self.options['initialize']:
             if isinstance(self.model, fmi.FMUModelCS1) or isinstance(self.model, fmi_extended.FMUModelME1Extended):
-                self.model.initialize(start_time, final_time, StopTimeDefined=True)
+                self.model.initialize(start_time, final_time, StopTimeDefined=self.options["stop_time_defined"])
 
             elif isinstance(self.model, fmi.FMUModelCS2):
-                self.model.setup_experiment(start_time=start_time, stop_time_defined=True, stop_time=final_time)
+                self.model.setup_experiment(start_time=start_time, stop_time_defined=self.options["stop_time_defined"], stop_time=final_time)
                 self.model.initialize()
                 
             else:
