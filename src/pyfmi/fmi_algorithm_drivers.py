@@ -815,6 +815,15 @@ class FMICSAlgOptions(OptionBase):
             not. If set to False, the simulation result is not loaded
             into memory after the simulation finishes.
             Default: True
+            
+        time_limit --
+            Specifies an upper bound on the time allowed for the 
+            integration to be completed. The time limit is specified 
+            in seconds. Note that the time limit is only checked after
+            a completed step. This means that if a do step takes a lot
+            of time, the execution will not stop at exactly the time
+            limit.
+            Default: none
 
         filter --
             A filter for choosing which variables to actually store
@@ -835,6 +844,7 @@ class FMICSAlgOptions(OptionBase):
             'result_handling':"file",
             'result_handler': None,
             'return_result': True,
+            'time_limit': None,
             'filter':None
             }
         super(FMICSAlgOptions,self).__init__(_defaults)
@@ -1010,7 +1020,7 @@ class FMICSAlg(AlgorithmBase):
         self.timings["storing_result"] = timer() - start_time_point
 
         #Start of simulation, start the clock
-        time_start = time.clock()
+        time_start = timer()
 
         for t in grid:
             status = self.model.do_step(t,h)
@@ -1048,12 +1058,15 @@ class FMICSAlg(AlgorithmBase):
             start_time_point = timer()
             result_handler.integration_point()
             self.timings["storing_result"] += timer() - start_time_point
+            
+            if self.options["time_limit"] and (timer() - time_start) > self.options["time_limit"]:
+                raise fmi.TimeLimitExceeded("The time limit was exceeded at integration time %.8E."%final_time)    
 
             if self.input_traj != None:
                 self.model.set(self.input_traj[0], self.input_traj[1].eval(t+h)[0,:])
 
         #End of simulation, stop the clock
-        time_stop = time.clock()
+        time_stop = timer()
 
         result_handler.simulation_end()
         
@@ -1212,7 +1225,7 @@ class SciEstAlg(AlgorithmBase):
             niter += 1
         
         #End of simulation, stop the clock
-        time_start = time.clock()
+        time_start = timer()
         
         p0 = []
         for i,parameter in enumerate(self.parameters):
@@ -1237,7 +1250,7 @@ class SciEstAlg(AlgorithmBase):
         self.status = res["success"]
         
         #End of simulation, stop the clock
-        time_stop = time.clock()
+        time_stop = timer()
         
         if not res["success"]:
             print('Estimation failed: ' + res["message"])

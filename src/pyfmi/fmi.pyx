@@ -613,6 +613,9 @@ class FMUException(Exception):
     An FMU exception.
     """
     pass
+    
+class TimeLimitExceeded(FMUException):
+    pass
 
 class PyEventInfo():
     pass
