@@ -151,18 +151,16 @@ FMI_OUTPUTS = 2
 
 #CALLBACKS
 cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-    #print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
     if c.context != NULL:
         (<FMUModelBase>c.context)._logger(module,log_level,message)
  
 #CALLBACKS
 cdef void importlogger2(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-    #print "FMIL: module = %s, log lovel = %d: %s" %(module, log_level, message)
     if c.context != NULL:
         (<FMUModelBase2>c.context)._logger(module, log_level, message)
 
 cdef void  importlogger_fmi2(FMIL.fmi2_component_environment_t c, FMIL.fmi2_string_t instanceName, FMIL.fmi2_status_t status, FMIL.fmi2_string_t category, FMIL.fmi2_string_t message, ...):
-    print "FMIL: module = %s, log lovel = %d: %s" %(instanceName, status, category)
+    print("FMIL: module = %s, log lovel = %d: %s" %(instanceName, status, category))
     #if c != NULL:
     #    (<FMUModelBase2>c)._logger(module, log_level, message)
 
@@ -170,9 +168,6 @@ cdef void  importlogger_fmi2(FMIL.fmi2_component_environment_t c, FMIL.fmi2_stri
 cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
     with open(<char*>c.context,'a') as file:
         file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
-    #if log_level <= c.log_level:
-    #    print "FMIL: module = %s, log level = %d: %s"%(module, log_level, message)
-    #(<FMUModelBase>c.context)._logger(module,log_level,message)
 
 #Old, use FMIL.fmi#_log_forwarding instead
 cdef void fmilogger(FMIL.fmi1_component_t c, FMIL.fmi1_string_t instanceName, FMIL.fmi1_status_t status, FMIL.fmi1_string_t category, FMIL.fmi1_string_t message, ...):
@@ -181,7 +176,7 @@ cdef void fmilogger(FMIL.fmi1_component_t c, FMIL.fmi1_string_t instanceName, FM
     FMIL.va_start(args, message)
     FMIL.vsnprintf(buf, 1000, message, args)
     FMIL.va_end(args)
-    print "FMU: fmiStatus = %d;  %s (%s): %s\n"%(status, instanceName, category, buf)
+    print("FMU: fmiStatus = %d;  %s (%s): %s\n"%(status, instanceName, category, buf))
 
 cdef class ModelBase:
     """
@@ -487,7 +482,7 @@ cdef class ModelBase:
         N = len(log)
 
         for i in range(N):
-            print log[i]
+            print(log[i])
             
     def get_log(self, int start_lines=-1, int end_lines=-1):
         """
@@ -1207,9 +1202,6 @@ cdef class FMUModelBase(ModelBase):
         return_values = []
         for i in range(nref):
             return_values.append((<FMIL.fmi1_boolean_t*>val)[i]==1)
-            #print (<FMIL.fmi1_boolean_t*>val)[i], (<FMIL.fmi1_boolean_t*>val)[i]==1
-
-        #print return_values
 
         #Dealloc
         FMIL.free(val)
@@ -3621,9 +3613,6 @@ cdef class FMUModelBase2(ModelBase):
         return_values = []
         for i in range(nref):
             return_values.append((<FMIL.fmi2_boolean_t*> output_value)[i]==1)
-            #print (<FMIL.fmi1_boolean_t*>val)[i], (<FMIL.fmi1_boolean_t*>val)[i]==1
-
-        #print return_values
 
         #Dealloc
         FMIL.free(output_value)
@@ -6874,7 +6863,7 @@ cdef class FMUModelME2(FMUModelBase2):
 #Temporary should be removed! (after a period)
 cdef class FMUModel(FMUModelME1):
     def __init__(self, fmu, path='.', enable_logging=True):
-        print "WARNING: This class is deprecated and has been superseded with FMUModelME1. The recommended entry-point for loading an FMU is now the function load_fmu."
+        print("WARNING: This class is deprecated and has been superseded with FMUModelME1. The recommended entry-point for loading an FMU is now the function load_fmu.")
         FMUModelME1.__init__(self,fmu,path,enable_logging)
 
 def load_fmu_deprecated(fmu, path='.', enable_logging=True, log_file_name=""):
@@ -6992,7 +6981,7 @@ def _handle_load_fmu_exception(fmu, log_file):
             log.append(line.strip("\n"))
 
     for i in range(len(log)):
-        print log[i]
+        print(log[i])
 
 def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 'auto', log_level=FMI_DEFAULT_LOG_LEVEL):
     """

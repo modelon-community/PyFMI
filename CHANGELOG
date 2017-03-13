@@ -1,5 +1,13 @@
 --- CHANGELOG ---
 
+--- PyFMI-2.4 ---
+    * Fixed a missed encoding of strings, used for Python 3 (ticket:5163)
+    * Added timeout option for when simulating CS FMUs (ticket:5313)
+    * Added option to specify if the stop time is fixed or not (ticket:5298)
+    * Fixed bug where setting the maximum order had no impact (ticket:5212)
+    * Added option to use central difference instead of forward differences (ticket:5204)
+    * Minor bugfixes and documentation improvements.
+
 --- PyFMI-2.3.1 ---
     * Added caching of model variables when retriving the variables lists (ticket:5007)
     * Added more information about where time is spent in a simulation (ticket:4983)

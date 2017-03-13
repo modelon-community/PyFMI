@@ -294,6 +294,12 @@ else:# If it does not, check if the file exists and if not, create the file!
         with open(version_txt, 'w') as f:
             f.write(VERSION+'\n')
             f.write("unknown")
+            
+try:
+    shutil.copy2('LICENSE', 'src'+O.path.sep+'pyfmi'+O.path.sep+'LICENSE')
+    shutil.copy2('CHANGELOG', 'src'+O.path.sep+'pyfmi'+O.path.sep+'CHANGELOG')
+except:
+    pass
 
 from numpy.distutils.core import setup
 setup(name=NAME,
@@ -312,7 +318,7 @@ setup(name=NAME,
       packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting'],
       package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'ME1.0'+O.path.sep+'*',
                                'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS1.0'+O.path.sep+'*',
-                               'version.txt',
+                               'version.txt', 'LICENSE', 'CHANGELOG',
                                'util'+O.path.sep+'*']+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])+(['libgcc_s_dw2-1.dll'] if copy_gcc_lib else [])},
       script_args=copy_args
       )
