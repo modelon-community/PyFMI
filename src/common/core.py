@@ -30,12 +30,10 @@ import numpy.ctypeslib as Nct
 
 # location for temporary JModelica files
 def get_temp_location():
-    if sys.platform == 'win32':
-        return os.path.join(tempfile._get_default_tempdir(),'JModelica.org')
-    elif sys.platform == 'darwin':
-        return os.path.join(tempfile._get_default_tempdir(),'JModelica.org')
-    else:
+    if "USER" in os.environ:
         return os.path.join(tempfile._get_default_tempdir(),os.environ['USER'],'JModelica.org')
+    else:
+        return os.path.join(tempfile._get_default_tempdir(),'JModelica.org')
 
 tmp_location = get_temp_location()
 
