@@ -419,22 +419,41 @@ cdef class FMUModelME1Extended(FMUModelME1):
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
-    def initialize(self, tStart=0.0, tStop=1.0, StopTimeDefined=False):
+    def initialize(self, start_time=0.0, stop_time=1.0, stop_time_defined=False, tStart=None, tStop=None, StopTimeDefined=None):
         """
         Initializes the slave.
 
         Parameters::
 
-            tStart -
-            tSTop --
-            StopTimeDefined --
+            start_time --
+                Start time of the simulation.
+                Default: The start time defined in the model description.
+            
+            stop_time --
+                Stop time of the simulation.
+                Default: The stop time defined in the model description.
+            
+            stop_time_defined --
+                Defines if a fixed stop time is defined or not. If this is
+                set the simulation cannot go past the defined stop time.
+                Default: False
 
         Calls the low-level FMU function: fmiInstantiateSlave
         """
         cdef char tolerance_controlled
         cdef FMIL.fmi1_real_t tolerance
+        
+        if tStart is not None:
+            logging.warning("The attribute 'tStart' is deprecated and will be removed. Please use 'start_time' instead.")
+            start_time = tStart #If the user has used this, use it!
+        if tStop is not None:
+            logging.warning("The attribute 'tStop' is deprecated and will be removed. Please use 'stop_time' instead.")
+            stop_time = tStop #If the user has used this, use it!
+        if StopTimeDefined is not None:
+            logging.warning("The attribute 'StopTimeDefined' is deprecated and will be removed. Please use 'stop_time_defined' instead.")
+            stop_time_defined = StopTimeDefined #If the user has used this, use it!
 
-        self.time = tStart
+        self.time = start_time
 
         tolerance_controlled = 1
         if self._relativeTolerance == None:
@@ -466,7 +485,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
         
         #Create an assimulo problem
         self._explicit_problem = FMIODE(self, input=None, result_file_name = '',
-                                        with_jacobian=False, start_time=tStart)
+                                        with_jacobian=False, start_time=start_time)
         
         #Import the solvers
         from assimulo import solvers
@@ -492,8 +511,8 @@ cdef class FMUModelME1Extended(FMUModelME1):
         #self._solver.initialize_options()
     
         #Store the start and stop time
-        self._current_time = tStart
-        self._stop_time = tStop
+        self._current_time = start_time
+        self._stop_time = stop_time
 
     def instantiate_slave(self, name='Slave', logging=False):
         """
