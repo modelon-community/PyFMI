@@ -2518,24 +2518,44 @@ cdef class FMUModelCS1(FMUModelBase):
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
-    def initialize(self, tStart=0.0, tStop=1.0, StopTimeDefined=False):
+    def initialize(self, start_time=0.0, stop_time=1.0, stop_time_defined=False, tStart=None, tStop=None, StopTimeDefined=None):
         """
         Initializes the slave.
 
         Parameters::
 
-            tStart -
-            tSTop --
-            StopTimeDefined --
+            start_time --
+                Start time of the simulation.
+                Default: The start time defined in the model description.
+            
+            stop_time --
+                Stop time of the simulation.
+                Default: The stop time defined in the model description.
+            
+            stop_time_defined --
+                Defines if a fixed stop time is defined or not. If this is
+                set the simulation cannot go past the defined stop time.
+                Default: False
 
         Calls the low-level FMU function: fmiInstantiateSlave
         """
         cdef int status
-        cdef FMIL.fmi1_boolean_t stopDefined = 1 if StopTimeDefined else 0
+        cdef FMIL.fmi1_boolean_t stop_defined
 
-        self.time = tStart
+        if tStart is not None:
+            logging.warning("The attribute 'tStart' is deprecated and will be removed. Please use 'start_time' instead.")
+            start_time = tStart #If the user has used this, use it!
+        if tStop is not None:
+            logging.warning("The attribute 'tStop' is deprecated and will be removed. Please use 'stop_time' instead.")
+            stop_time = tStop #If the user has used this, use it!
+        if StopTimeDefined is not None:
+            logging.warning("The attribute 'StopTimeDefined' is deprecated and will be removed. Please use 'stop_time_defined' instead.")
+            stop_time_defined = StopTimeDefined #If the user has used this, use it!
 
-        status = FMIL.fmi1_import_initialize_slave(self._fmu, tStart, stopDefined, tStop)
+        self.time = start_time
+        stop_defined = 1 if stop_time_defined else 0
+
+        status = FMIL.fmi1_import_initialize_slave(self._fmu, start_time, stop_defined, stop_time)
 
         if status != FMIL.fmi1_status_ok:
             raise FMUException("The slave failed to initialize. See the log for possibly more information.")
@@ -3024,7 +3044,7 @@ cdef class FMUModelME1(FMUModelBase):
             return False
 
 
-    def initialize(self, tolControlled=True, relativeTolerance=None):
+    def initialize(self, tolerance_defined=True, tolerance="Default", tolControlled=None, relativeTolerance=None):
         """
         Initializes the model and computes initial values for all variables,
         including setting the start values of variables defined with a the start
@@ -3032,10 +3052,12 @@ cdef class FMUModelME1(FMUModelBase):
 
         Parameters::
 
-            tolControlled --
+            tolerance_defined --
                 If the model are going to be called by numerical solver using
                 step-size control. Boolean flag.
-            relativeTolerance --
+                Default: True
+                
+            tolerance --
                 If the model are controlled by a numerical solver using
                 step-size control, the same tolerance should be provided here.
                 Else the default tolerance from the XML-file are used.
@@ -3043,23 +3065,30 @@ cdef class FMUModelME1(FMUModelBase):
         Calls the low-level FMI function: fmiInitialize.
         """
         cdef char tolerance_controlled
-        cdef FMIL.fmi1_real_t tolerance
+        cdef FMIL.fmi1_real_t c_tolerance
 
         #Trying to set the initial time from the xml file, else 0.0
         if self.time == None:
             self.time = FMIL.fmi1_import_get_default_experiment_start(self._fmu)
-
-        if tolControlled:
+        
+        if tolControlled is not None:
+            logging.warning("The attribute 'tolControlled' is deprecated and will be removed. Please use 'tolerance_defined' instead.")
+            tolerance_defined = tolControlled #If the user has used this, use it!
+        if relativeTolerance is not None:
+            logging.warning("The attribute 'relativeTolerance' is deprecated and will be removed. Please use 'tolerance' instead.")
+            tolerance = relativeTolerance #If the user has used this, use it!
+        
+        if tolerance_defined:
             tolerance_controlled = 1
-            if relativeTolerance == None:
-                tolerance = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
+            if tolerance == "Default":
+                c_tolerance = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
             else:
-                tolerance = relativeTolerance
+                c_tolerance = tolerance
         else:
             tolerance_controlled = 0
-            tolerance = 0.0
+            c_tolerance = 0.0
 
-        status = FMIL.fmi1_import_initialize(self._fmu, tolerance_controlled, tolerance, &self._eventInfo)
+        status = FMIL.fmi1_import_initialize(self._fmu, tolerance_controlled, c_tolerance, &self._eventInfo)
 
         if status == 1:
             if self._enable_logging:
@@ -3834,10 +3863,26 @@ cdef class FMUModelBase2(ModelBase):
         Parameters::
         
             tolerance_defined --
+                Specifies that the model is used together with an external
+                algorithm that is error controlled.
+                Default: True
+                
             tolerance --
+                Tolerance used in the simulation.
+                Default: The tolerance defined in the model description.
+                
             start_time --
+                Start time of the simulation.
+                Default: The start time defined in the model description.
+                
             stop_time_defined --
+                Defines if a fixed stop time is defined or not. If this is
+                set the simulation cannot go past the defined stop time.
+                Default: False
+                
             stop_time --
+                Stop time of the simulation.
+                Default: The stop time defined in the model description.
             
         """
         cdef int status
@@ -3964,13 +4009,18 @@ cdef class FMUModelBase2(ModelBase):
                     
         return status
     
-    def initialize(self):
+    def initialize(self, tolerance_defined=True, tolerance="Default", start_time="Default", stop_time_defined=False, stop_time="Default"):
         """
         Initializes the model and computes initial values for all variables.
+        Additionally calls the setup experiment, if not already called.
 
-        Calls the low-level FMI functions: fmi2EnterInitializationMode,
+        Calls the low-level FMI functions: fmi2_import_setup_experiment (optionally)
+                                           fmi2EnterInitializationMode,
                                            fmi2ExitInitializationMode
         """
+        if self.time == None:
+            self.setup_experiment(tolerance_defined, tolerance, start_time, stop_time_defined, stop_time)
+        
         self.enter_initialization_mode()
         self.exit_initialization_mode()
 

@@ -1,5 +1,10 @@
 --- CHANGELOG ---
 
+--- PyFMI-X.X ---
+    * Updated attributes to the initialize methods to be consistent between
+      FMI1 and FMI2. Also added so that setup_experiment is called through
+      FMI2.initialze() if not already called (ticket:5322).
+
 --- PyFMI-2.4 ---
     * Fixed a missed encoding of strings, used for Python 3 (ticket:5163)
     * Added timeout option for when simulating CS FMUs (ticket:5313)

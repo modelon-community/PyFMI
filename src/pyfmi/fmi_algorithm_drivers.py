@@ -526,7 +526,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                 
             if isinstance(self.model, fmi.FMUModelME1):
                 self.model.time = start_time #Set start time before initialization
-                self.model.initialize(relativeTolerance=rtol)
+                self.model.initialize(tolerance=rtol)
                 
             elif isinstance(self.model, fmi.FMUModelME2):
                 self.model.setup_experiment(tolerance=rtol, start_time=self.start_time, stop_time=self.final_time)
@@ -953,7 +953,7 @@ class FMICSAlg(AlgorithmBase):
         # Initialize?
         if self.options['initialize']:
             if isinstance(self.model, fmi.FMUModelCS1) or isinstance(self.model, fmi_extended.FMUModelME1Extended):
-                self.model.initialize(start_time, final_time, StopTimeDefined=self.options["stop_time_defined"])
+                self.model.initialize(start_time, final_time, stop_time_defined=self.options["stop_time_defined"])
 
             elif isinstance(self.model, fmi.FMUModelCS2):
                 self.model.setup_experiment(start_time=start_time, stop_time_defined=self.options["stop_time_defined"], stop_time=final_time)
