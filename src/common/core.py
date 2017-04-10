@@ -102,8 +102,8 @@ class ModelBase(object):
 
         Example::
         
-            (FMU/JMU)Model.set('damper.d', 1.1)
-            (FMU/JMU)Model.set(['damper.d','gear.a'], [1.1, 10])
+            (FMU)Model.set('damper.d', 1.1)
+            (FMU)Model.set(['damper.d','gear.a'], [1.1, 10])
         """
         if isinstance(variable_name, basestring):
             self._set(variable_name, value) #Scalar case
@@ -128,9 +128,9 @@ class ModelBase(object):
         Example::
             
             # Returns the variable d
-            (FMU/JMU)Model.get('damper.d') 
+            (FMU)Model.get('damper.d') 
             # Returns a list of the variables
-            (FMU/JMU)Model.get(['damper.d','gear.a'])
+            (FMU)Model.get(['damper.d','gear.a'])
         """
         if isinstance(variable_name, basestring):
             return self._get(variable_name) #Scalar case
@@ -440,7 +440,7 @@ def delete_temp_dir(tmp_dir):
         shutil.rmtree(tmp_dir)
 
         
-def get_unit_name(class_name, unit_type='JMU'):
+def get_unit_name(class_name, unit_type='FMU'):
     """
     Computes the unit name from a class name.
     
@@ -450,16 +450,14 @@ def get_unit_name(class_name, unit_type='JMU'):
             The name of the model.
             
         unit_type --
-            The unit type. Possible values: JMU, FMU, FMUX.
-            Default: 'JMU'
+            The unit type. Possible values: FMU, FMUX.
+            Default: 'FMU'
         
     Returns::
     
         The unit name (replaced dots with underscores).
     """
-    if unit_type == 'JMU':
-        return class_name.replace('.','_')+'.jmu' 
-    elif unit_type == 'FMU':
+    if unit_type == 'FMU':
         return class_name.replace('.','_')+'.fmu' 
     elif unit_type == 'FMUX':
         return class_name.replace('.','_')+'.fmux'
