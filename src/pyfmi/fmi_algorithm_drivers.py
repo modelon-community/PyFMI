@@ -685,13 +685,13 @@ class AssimuloFMIAlg(AlgorithmBase):
         #If usejac is not set, try to set it according to if directional derivatives
         #exists. Also verifies that the option "usejac" exists for the solver.
         #(Only check for FMI2)
-        if not "usejac" in solver_options and isinstance(self.model, fmi.FMUModelME2):
-            try:
-                getattr(self.simulator, "usejac")
-                solver_options["usejac"] = not self.model.get_capability_flags()['providesDirectionalDerivatives']
-            except AttributeError:
-                pass
-        
+        # if not "usejac" in solver_options and isinstance(self.model, fmi.FMUModelME2):
+            # try:
+                # getattr(self.simulator, "usejac")
+                # solver_options["usejac"] = not self.model.get_capability_flags()['providesDirectionalDerivatives']
+            # except AttributeError:
+                # pass
+        solver_options["usejac"] = False
         #Override usejac if there are no states
         fnbr, gnbr = self.model.get_ode_sizes()
         if "usejac" in solver_options and fnbr == 0:
