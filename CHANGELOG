@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Removed deprecated FMUModel (ticket:5315)
     * Updated attributes to the initialize methods to be consistent between
       FMI1 and FMI2. Also added so that setup_experiment is called through
       FMI2.initialze() if not already called (ticket:5322).
