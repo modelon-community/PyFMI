@@ -1255,6 +1255,10 @@ cdef class Master:
             return step_size*min(fac1,max(fac2,alpha*(1.0/error)**one_over_p))
             
     cdef reset_statistics(self):
+        for key in self.elapsed_time: 
+            self.elapsed_time[key] = 0.0
+        for key in self.elapsed_time_init: 
+            self.elapsed_time_init[key] = 0.0
         for key in self.statistics.keys():
             self.statistics[key] = 0
     
@@ -1316,6 +1320,8 @@ cdef class Master:
             pass
             IF WITH_OPENMP: 
                 openmp.omp_set_num_threads(options["num_threads"])
+        if options["step_size"] <= 0.0:
+            raise fmi.FMUException("The step-size must be greater than zero.")
         
         self.opts = options #Store the options
             
@@ -1383,7 +1389,7 @@ cdef class Master:
     
     def print_statistics(self, opts):
         print('Master Algorithm options:')
-        print(' Algorithm             :  Jacobi ' + ("(variable-step)" if self.error_controlled else "(fixed-step)"))
+        print(' Algorithm             : Jacobi ' + ("(variable-step)" if self.error_controlled else "(fixed-step)"))
         print('  Execution            : ' + ("Parallel" if self.opts["execution"] == "parallel" else "Serial"))
         print(' Extrapolation Order   : ' + str(opts["extrapolation_order"]) + ("(with smoothing)" if opts["smooth_coupling"] and opts["extrapolation_order"] > 0  else ""))
         if self.error_controlled:
