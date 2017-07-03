@@ -285,6 +285,11 @@ class MasterAlgOptions(OptionBase):
             Defines the relative tolerance used when an error controlled
             simulation is performed.
             Default: 1e-4
+            
+        maxh --
+            Defines the maximum step-size allowed to be used together
+            with an error controlled simulation.
+            Default: 0.0 (i.e. inactive)
 
         result_file_name --
             Specifies the name of the file where the simulation result is
@@ -323,6 +328,7 @@ class MasterAlgOptions(OptionBase):
         "rtol"       : 1e-4,
         "atol"       : 1e-4,
         "step_size"  : 0.01,
+        "maxh"       : 0.0,
         "filter"     : dict((model,None) for model in master.models),
         "result_handling"     : "file",
         "result_handler"      : None,
@@ -1129,6 +1135,8 @@ cdef class Master:
                 
                 error = self.estimate_error(y_half, y_full)
                 step_size = self.adapt_stepsize(step_size, error)
+                if opts["maxh"] > 0: #Adjust for the maximum step-size (if set)
+                    step_size = min(step_size, opts["maxh"])
                 
                 if opts["logging"]:
                     self._error_data["time"].append(tcur)
@@ -1146,6 +1154,9 @@ cdef class Master:
                 
                     self.statistics["nsteps"] += 1
                     y_old = y_half.copy()
+                    
+                    if tcur+step_size > final_time: #Make sure that we don't step over the final time
+                        step_size = final_time - tcur
                 else:
                     #Restore FMU states
                     set_fmu_states(states)
@@ -1322,6 +1333,8 @@ cdef class Master:
                 openmp.omp_set_num_threads(options["num_threads"])
         if options["step_size"] <= 0.0:
             raise fmi.FMUException("The step-size must be greater than zero.")
+        if options["maxh"] < 0.0:
+            raise fmi.FMUException("The maximum step-size must be greater than zero (or equal to zero, i.e inactive).")
         
         self.opts = options #Store the options
             

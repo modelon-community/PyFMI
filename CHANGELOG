@@ -5,6 +5,8 @@
     * Updated attributes to the initialize methods to be consistent between
       FMI1 and FMI2. Also added so that setup_experiment is called through
       FMI2.initialze() if not already called (ticket:5322).
+    * Added option "maxh" (maximum step-size) to the Master algorithm (ticket:5396)
+    * Fixed bug with step outside simulation region for the Master algorithm (ticket:5397)
 
 --- PyFMI-2.4 ---
     * Fixed a missed encoding of strings, used for Python 3 (ticket:5163)
