@@ -26,6 +26,7 @@ import numpy as N
 
 import pyfmi
 import pyfmi.fmi as fmi
+import pyfmi.fmi_coupled as fmi_coupled
 import pyfmi.fmi_extended as fmi_extended
 from pyfmi.common.algorithm_drivers import AlgorithmBase, AssimuloSimResult, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
 from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerMemory, ResultHandler, ResultHandlerDummy, ResultHandlerCSV, ResultCSVTextual
@@ -300,7 +301,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.model.time = start_time #Set start time before initialization
                 self.model.initialize(tolerance=rtol)
                 
-            elif isinstance(self.model, fmi.FMUModelME2):
+            elif isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2):
                 self.model.setup_experiment(tolerance=rtol, start_time=self.start_time, stop_time=self.final_time)
                 self.model.initialize()
                 self.model.event_update()
@@ -352,18 +353,18 @@ class AssimuloFMIAlg(AlgorithmBase):
             #else there will be an exception
             self.model.get(self.options["sensitivities"])
 
-        if not self.input and isinstance(self.model, fmi.FMUModelME2):
+        if not self.input and (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
             if self.options["sensitivities"]:
-                self.probl = FMIODESENS2(self.model, result_file_name=self.result_file_name, start_time=self.start_time, parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
+                self.probl = FMIODESENS2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time, parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
             else:
-                self.probl = FMIODE2(self.model, result_file_name=self.result_file_name, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler,extra_equations=self.options["extra_equations"])
-        elif isinstance(self.model, fmi.FMUModelME2):
+                self.probl = FMIODE2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler,extra_equations=self.options["extra_equations"])
+        elif isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(
-                self.model, input_traj, result_file_name=self.result_file_name, start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
+                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
             else:
                 self.probl = FMIODE2(
-                self.model, input_traj, result_file_name=self.result_file_name, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler, extra_equations=self.options["extra_equations"])
+                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler, extra_equations=self.options["extra_equations"])
 
         elif not self.input:
             if self.options["sensitivities"]:
@@ -457,7 +458,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         #If usejac is not set, try to set it according to if directional derivatives
         #exists. Also verifies that the option "usejac" exists for the solver.
         #(Only check for FMI2)
-        if not "usejac" in solver_options and isinstance(self.model, fmi.FMUModelME2):
+        if not "usejac" in solver_options and (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
             try:
                 getattr(self.simulator, "usejac")
                 solver_options["usejac"] = not self.model.get_capability_flags()['providesDirectionalDerivatives']

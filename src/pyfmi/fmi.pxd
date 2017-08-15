@@ -60,7 +60,7 @@ cdef class ScalarVariable2:
     """
     Class defining data structure based on the XML element ScalarVariable.
     """
-    cdef FMIL.fmi2_value_reference_t         _value_reference
+    cdef object         _value_reference
     cdef FMIL.fmi2_base_type_enu_t           _type
     cdef FMIL.fmi2_variability_enu_t         _variability
     cdef FMIL.fmi2_causality_enu_t           _causality
@@ -144,7 +144,6 @@ cdef class FMUModelBase2(ModelBase):
     cdef FMIL.jm_string                 last_error
     cdef FMIL.size_t                    _nEventIndicators
     cdef FMIL.size_t                    _nContinuousStates
-    cdef FMIL.size_t                    _nCategories
     cdef FMIL.fmi2_event_info_t         _eventInfo
 
     #Internal values
@@ -153,7 +152,6 @@ cdef class FMUModelBase2(ModelBase):
     cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
     cdef object         _modelId
     cdef object         _modelName
-    cdef list           _categories
     cdef public list    _save_real_variables_val
     cdef public list    _save_int_variables_val
     cdef public list    _save_bool_variables_val

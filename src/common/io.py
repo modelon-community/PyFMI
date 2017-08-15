@@ -1873,10 +1873,10 @@ class ResultHandlerFile(ResultHandler):
         #f.write('%s,%d)\n' % (' '*14, self._nvariables))
         
         self._file = f
-        self._data_order  = N.array(valueref_of_continuous_states, dtype=N.int32)
-        self.real_var_ref = N.array(self.real_var_ref, dtype=N.uint32)
-        self.int_var_ref  = N.array(self.int_var_ref, dtype=N.uint32)
-        self.bool_var_ref = N.array(self.bool_var_ref, dtype=N.uint32)
+        self._data_order  = N.array(valueref_of_continuous_states)
+        self.real_var_ref = N.array(self.real_var_ref)
+        self.int_var_ref  = N.array(self.int_var_ref)
+        self.bool_var_ref = N.array(self.bool_var_ref)
 
     def integration_point(self, solver = None):#parameter_data=[]):
         """ 

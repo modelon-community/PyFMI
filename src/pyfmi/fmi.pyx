@@ -3313,7 +3313,6 @@ cdef class FMUModelBase2(ModelBase):
         #Contains the log information
         self._log               = []
         self._enable_logging    = enable_logging
-        self._categories        = []
 
         #Used for deallocation
         self._allocated_context = 0
@@ -3463,7 +3462,6 @@ cdef class FMUModelBase2(ModelBase):
         self._modelName         = decode(FMIL.fmi2_import_get_model_name(self._fmu))
         self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
-        self._nCategories       = FMIL.fmi2_import_get_log_categories_num(self._fmu)
         fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
         self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_log_name, fmu_log_name)
@@ -4086,19 +4084,16 @@ cdef class FMUModelBase2(ModelBase):
         Method used to retrieve the logging categories.
 
         Returns::
-            A list with two objects. The first is the number of log categories
-            and the second is a list with the categories available for logging.
+        
+            A list with the categories available for logging.
         """
-        cdef FMIL.size_t i
+        cdef FMIL.size_t i, nbr_categories = FMIL.fmi2_import_get_log_categories_num(self._fmu)
+        cdef list categories = []
+        
+        for i in range(nbr_categories):
+            categories.append(FMIL.fmi2_import_get_log_category(self._fmu, i))
 
-        if self._categories == []:
-            for i in range(self._nCategories):
-                (self._categories).append(FMIL.fmi2_import_get_log_category(self._fmu, i))
-            output = [self._nCategories, self._categories]
-        else:
-            output = [self._nCategories, self._categories]
-
-        return output
+        return categories
 
 
     def get_variable_nominal(self, variable_name=None, valueref=None):
@@ -5155,8 +5150,12 @@ cdef class FMUModelBase2(ModelBase):
             if start_indexp == NULL:
                 logging.warning(
                         'No dependency information for the outputs was found in the model description.' \
-                        ' Assuming complete dependency.')
+                        ' Assuming complete dependency with the exception if the output is a state by itself.')
                 for i in range(0,len(outputs)):
+                    if outputs[i] in states_list: #The output is a state in itself
+                        states[outputs[i]]  = [outputs[i]]
+                        inputs[outputs[i]]  = []
+                    else:
                         states[outputs[i]]  = states_list.keys()
                         inputs[outputs[i]]  = inputs_list.keys()
             else:
@@ -5583,7 +5582,7 @@ cdef class FMUModelBase2(ModelBase):
         
     def get_model_version(self):
         """
-        Returns the version fo the FMU.
+        Returns the version of the FMU.
         """
         cdef char* version
         version = FMIL.fmi2_import_get_model_version(self._fmu)
@@ -6501,24 +6500,24 @@ cdef class FMUModelME2(FMUModelBase2):
             if status != 0:
                 raise FMUException('Failed to update the events at time: %E.'%self.time)
         else:
-            tmpValuesOfContinuousStatesChanged = False
-            tmpNominalsOfContinuousStatesChanged = False
+            tmp_values_continuous_states_changed   = False
+            tmp_nominals_continuous_states_changed = False
             
             self._eventInfo.newDiscreteStatesNeeded = FMI2_TRUE
             while self._eventInfo.newDiscreteStatesNeeded:
                 status = FMIL.fmi2_import_new_discrete_states(self._fmu, &self._eventInfo)
                 
                 if self._eventInfo.nominalsOfContinuousStatesChanged:
-                    tmpNominalsOfContinuousStatesChanged = True
+                    tmp_nominals_continuous_states_changed = True
                 if self._eventInfo.valuesOfContinuousStatesChanged:
-                    tmpValuesOfContinuousStatesChanged = True
+                    tmp_values_continuous_states_changed = True
                 if status != 0:
                     raise FMUException('Failed to update the events at time: %E.'%self.time)
             
             # If the values in the event struct have been overwritten.
-            if tmpNominalsOfContinuousStatesChanged:
+            if tmp_values_continuous_states_changed:
                 self._eventInfo.nominalsOfContinuousStatesChanged = True
-            if tmpValuesOfContinuousStatesChanged:
+            if tmp_nominals_continuous_states_changed:
                 self._eventInfo.valuesOfContinuousStatesChanged = True
 
     def get_tolerances(self):
