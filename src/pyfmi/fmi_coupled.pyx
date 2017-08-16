@@ -1470,6 +1470,11 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
                 var = self._convert_local_scalar_variable(i, local_inputs[key])
                 inputs_list[var.name] = var
                 
+        #Remove the connected inputs from the inputs lists (they should not be able to be set externally)
+        for i, model in enumerate(self.models):
+            for local_input in self.models_dict[model]["local_input"]:
+                inputs_list.pop(self._get_global_name(i, local_input))
+                
         return inputs_list
         
     def get_output_list(self):
@@ -1731,7 +1736,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
 
         Returns::
 
-            The size of teh vector.
+            The size of the vector.
         """
         raise NotImplementedError
         
@@ -1934,11 +1939,15 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 
                 u = np.array(u).ravel()
                 
+                success = False
                 if USE_ROOT:
                     res = sopt.root(init_f_block, u, args=(self,block))
+                    success = res["success"]
                 else:
-                    res = sopt.fsolve(init_f_block, u, args=(self,block))
-                if not res["success"]:
+                    [res, info, ier, msg] = sopt.fsolve(init_f_block, u, args=(self,block), full_output=True)
+                    success = True if ier == 1 else False
+                
+                if not success:
                     raise fmi.FMUException("Failed to converge the block.")
                 
                 """

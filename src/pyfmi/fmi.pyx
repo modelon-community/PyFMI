@@ -202,8 +202,8 @@ cdef class ModelBase:
 
         Example::
 
-            (FMU/JMU)Model.set('damper.d', 1.1)
-            (FMU/JMU)Model.set(['damper.d','gear.a'], [1.1, 10])
+            model.set('damper.d', 1.1)
+            model.set(['damper.d','gear.a'], [1.1, 10])
         """
         if isinstance(variable_name, basestring):
             self._set(variable_name, value) #Scalar case
@@ -228,9 +228,9 @@ cdef class ModelBase:
         Example::
 
             # Returns the variable d
-            (FMU/JMU)Model.get('damper.d')
+            model.get('damper.d')
             # Returns a list of the variables
-            (FMU/JMU)Model.get(['damper.d','gear.a'])
+            model.get(['damper.d','gear.a'])
         """
         if isinstance(variable_name, basestring):
             return self._get(variable_name) #Scalar case
@@ -5000,7 +5000,7 @@ cdef class FMUModelBase2(ModelBase):
 
         Returns::
 
-            The size of teh vector.
+            The size of the vector.
         """
         raise NotImplementedError
 
