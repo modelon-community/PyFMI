@@ -127,7 +127,8 @@ cdef class CoupledModelBase:
             " must be a subclass of common.algorithm_drivers.AlgorithmBase")
         
         #open log file
-        #self._open_log_file()
+        for model in self.models:
+            model._open_log_file()
         
         try:
             # initialize algorithm
@@ -136,11 +137,13 @@ cdef class CoupledModelBase:
             alg.solve()
         except:
             #close log file
-            #self._close_log_file()
+            for model in self.models:
+                model._close_log_file()
             raise #Reraise the exception
         
         #close log file
-        #self._close_log_file()
+        for model in self.models:
+            model._close_log_file()
         
         # get and return result
         return alg.get_result()
@@ -1901,6 +1904,15 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 y.append(model.get(var))
                 
         return np.array(y).ravel()
+        
+    def _get_connected_inputs(self):
+        u = []
+        
+        for model in self.models:
+            for var in self.models_dict[model]["local_input"]:
+                u.append(model.get(var))
+                
+        return np.array(u).ravel()
     
     def _update_coupling_equations(self):
         
@@ -2029,6 +2041,8 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
             evInd = model.get_event_indicators()
 
         """
+        self._update_coupling_equations()
+        
         values = []
         for model in self.models:
             values.append(model.get_event_indicators())
@@ -2233,7 +2247,8 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 #Check if any used output has changed! If so, recompute the inputs and run again
                 y_new = self._get_connected_outputs()
                 new_discrete_states_needed = self._compare_connected_outputs(y, y_new)
-                #print "Events: ", self.time, self.continuous_states, y, y_new, new_discrete_states_needed
+                #print "Events: ", self.time, self.continuous_states 
+                #print " Data: ", y, y_new, new_discrete_states_needed
                 y = y_new
                 
                 event_info = self.get_event_info()
@@ -2241,7 +2256,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 new_discrete_states_needed |= event_info.newDiscreteStatesNeeded
                 
                 if new_discrete_states_needed:
-                    self._update_coupling_equations()
+                    self._update_coupling_equations() #Do we need to call the derivatives?
                 if event_info.nominalsOfContinuousStatesChanged:
                     tmp_nominals_continuous_states_changed = True
                 if event_info.valuesOfContinuousStatesChanged:
