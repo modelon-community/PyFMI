@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Added a prototype of a Master algorithm for coupled ME FMUs (ticket:5438)
     * Fixed so that a "none" result handler can be used for CS (ticket:5403)
     * Removed deprecated FMUModel (ticket:5315)
     * Updated attributes to the initialize methods to be consistent between
