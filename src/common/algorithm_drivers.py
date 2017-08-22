@@ -304,7 +304,7 @@ class OptionBase(dict):
         if self._keys:
             if not key in self._keys:
                 raise UnrecognizedOptionError(
-                    "The key: %s, is not a valid algorithm option" %str(key))
+                    "The key: %s, is not a valid option" %str(key))
             
         super(OptionBase,self).__setitem__(key, value)
     
@@ -337,7 +337,7 @@ class OptionBase(dict):
             for key in other:
                 if not key in self._keys:
                     raise UnrecognizedOptionError(
-                        "The key: %s, is not a valid algorithm option" %str(key))
+                        "The key: %s, is not a valid option" %str(key))
                 if isinstance(self[key], dict):
                     self[key].update(other[key])
                 else:
@@ -346,7 +346,7 @@ class OptionBase(dict):
         for key in kw:
             if not key in self._keys:
                 raise UnrecognizedOptionError(
-                    "The key: %s, is not a valid algorithm option" %str(key))
+                    "The key: %s, is not a valid option" %str(key))
             if isinstance(self[key], dict):
                 self[key].update(kw[key])
             else:
