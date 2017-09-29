@@ -1745,10 +1745,10 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException("The variable type does not have a minimum value.")
 
     @enable_caching
-    def get_model_variables(self,type=None, include_alias=True,
+    def get_model_variables(self,type=None, int include_alias=True,
                             causality=None,   variability=None,
-                            only_start=False,  only_fixed=False,
-                            filter=None):
+                            int only_start=False,  int only_fixed=False,
+                            filter=None, int _as_list = False):
         """
         Extract the names of the variables in a model.
 
@@ -1793,7 +1793,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
         cdef char* desc
         cdef dict variable_dict = {}
-        cdef list filter_list = []
+        cdef list filter_list = [], variable_return_list = []
         cdef int  selected_type = 0 #If a type has been selected
         cdef int  selected_variability = 0 #If a variability has been selected
         cdef int  selected_causality = 0 #If a causality has been selected
@@ -1858,21 +1858,36 @@ cdef class FMUModelBase(ModelBase):
                     continue
 
             if include_alias:
-                variable_dict[name] = ScalarVariable(name,
+                if _as_list:
+                    variable_return_list.append(ScalarVariable(name,
+                                       value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
+                                       data_variability, data_causality,
+                                       alias_kind))
+                else:
+                    variable_dict[name] = ScalarVariable(name,
                                        value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind)
 
             elif alias_kind ==FMIL.fmi1_variable_is_not_alias:
-                variable_dict[name] = ScalarVariable(name,
+                if _as_list:
+                    variable_return_list.append(ScalarVariable(name,
+                                       value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
+                                       data_variability, data_causality,
+                                       alias_kind))
+                else:
+                    variable_dict[name] = ScalarVariable(name,
                                        value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind)
 
         #Free the variable list
         FMIL.fmi1_import_free_variable_list(variable_list)
-
-        return variable_dict
+        
+        if _as_list:
+            return variable_return_list
+        else:
+            return variable_dict
     
     @enable_caching
     def get_model_time_varying_value_references(self, filter=None):
@@ -1903,9 +1918,9 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
         cdef dict variable_dict = {}
         cdef list filter_list = []
-        cdef dict real_var_ref = {}
-        cdef dict int_var_ref = {}
-        cdef dict bool_var_ref = {}
+        cdef list real_var_ref = []
+        cdef list int_var_ref = []
+        cdef list bool_var_ref = []
         cdef int  selected_variability = 0 #If a variability has been selected
         cdef int  selected_filter = 1 if filter else 0
         cdef int  length_filter = 0
@@ -1926,10 +1941,10 @@ cdef class FMUModelBase(ModelBase):
             data_variability = FMIL.fmi1_import_get_variability(variable)
             data_type  = FMIL.fmi1_import_get_variable_base_type(variable)
 
-            if data_type != FMI_REAL and data_type != FMI_INTEGER and data_type != FMI_BOOLEAN and data_type != FMI_ENUMERATION:
+            if data_type != FMIL.fmi1_base_type_real and data_type != FMIL.fmi1_base_type_int and data_type != FMIL.fmi1_base_type_bool and data_type != FMIL.fmi1_base_type_enum:
                 continue
 
-            if data_variability != FMI_CONTINUOUS and data_variability != FMI_DISCRETE:
+            if data_variability != FMIL.fmi1_variability_enu_continuous and data_variability != FMIL.fmi1_variability_enu_discrete:
                 continue
 
             if selected_filter:
@@ -1949,17 +1964,17 @@ cdef class FMUModelBase(ModelBase):
                 base_variable = FMIL.fmi1_import_get_variable_alias_base(self._fmu, variable)
                 value_ref  = FMIL.fmi1_import_get_variable_vr(base_variable)
 
-            if data_type == FMI_REAL:
-                real_var_ref[value_ref] = 1
-            if data_type == FMI_INTEGER or data_type == FMI_ENUMERATION:
-                int_var_ref[value_ref] = 1
-            if data_type == FMI_BOOLEAN:
-                bool_var_ref[value_ref] = 1
+            if data_type == FMIL.fmi1_base_type_real:
+                real_var_ref.append(value_ref)
+            if data_type == FMIL.fmi1_base_type_int or data_type == FMIL.fmi1_base_type_enum:
+                int_var_ref.append(value_ref)
+            if data_type == FMIL.fmi1_base_type_bool:
+                bool_var_ref.append(value_ref)
 
         #Free the variable list
         FMIL.fmi1_import_free_variable_list(variable_list)
 
-        return list(real_var_ref.keys()) if python3_flag else real_var_ref.keys(), list(int_var_ref.keys()) if python3_flag else int_var_ref.keys(), list(bool_var_ref.keys()) if python3_flag else bool_var_ref.keys()
+        return real_var_ref, int_var_ref, bool_var_ref
 
     def get_variable_alias_base(self, variable_name):
         """
@@ -4281,9 +4296,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef int   i
         cdef int  selected_filter = 1 if filter else 0
         cdef int  length_filter = 0
-        cdef dict real_var_ref = {}
-        cdef dict int_var_ref = {}
-        cdef dict bool_var_ref = {}
+        cdef list real_var_ref = []
+        cdef list int_var_ref = []
+        cdef list bool_var_ref = []
 
         variable_list      = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
         variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
@@ -4302,11 +4317,10 @@ cdef class FMUModelBase2(ModelBase):
             data_type        = FMIL.fmi2_import_get_variable_base_type(variable)
             data_variability = FMIL.fmi2_import_get_variability(variable)
 
-
-            if data_type != FMI2_REAL and data_type != FMI2_INTEGER and data_type != FMI2_BOOLEAN and data_type != FMI2_ENUMERATION:
+            if data_type != FMIL.fmi2_base_type_real and data_type != FMIL.fmi2_base_type_int and data_type != FMIL.fmi2_base_type_bool and data_type != FMIL.fmi2_base_type_enum:
                 continue
 
-            if data_variability != FMI2_CONTINUOUS and data_variability != FMI2_DISCRETE and data_variability != FMI2_TUNABLE:
+            if data_variability != FMIL.fmi2_variability_enu_continuous and data_variability != FMIL.fmi2_variability_enu_discrete and data_variability != FMIL.fmi2_variability_enu_tunable:
                 continue
 
             if selected_filter:
@@ -4320,23 +4334,23 @@ cdef class FMUModelBase2(ModelBase):
                 if alias_kind != FMIL.fmi2_variable_is_not_alias:
                     continue
 
-            if data_type == FMI2_REAL:
-                real_var_ref[value_ref] = 1
-            if data_type == FMI2_INTEGER or data_type == FMI2_ENUMERATION:
-                int_var_ref[value_ref] = 1
-            if data_type == FMI2_BOOLEAN:
-                bool_var_ref[value_ref] = 1
+            if data_type == FMIL.fmi2_base_type_real:
+                real_var_ref.append(value_ref)
+            if data_type == FMIL.fmi2_base_type_int or data_type == FMIL.fmi2_base_type_enum:
+                int_var_ref.append(value_ref)
+            if data_type == FMIL.fmi2_base_type_bool:
+                bool_var_ref.append(value_ref)
 
         #Free the variable list
         FMIL.fmi2_import_free_variable_list(variable_list)
 
-        return list(real_var_ref.keys()) if python3_flag else real_var_ref.keys(), list(int_var_ref.keys()) if python3_flag else int_var_ref.keys(), list(bool_var_ref.keys()) if python3_flag else bool_var_ref.keys()
+        return real_var_ref, int_var_ref, bool_var_ref
 
     @enable_caching
-    def get_model_variables(self, type = None, include_alias = True,
+    def get_model_variables(self, type = None, int include_alias = True,
                              causality = None,   variability = None,
-                            only_start = False,   only_fixed = False,
-                            filter = None):
+                            int only_start = False,  int only_fixed = False,
+                            filter = None, int _as_list = False):
         """
         Extract the names of the variables in a model.
 
@@ -4400,7 +4414,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef int   i, j
         cdef int  selected_filter = 1 if filter else 0
         cdef int  length_filter = 0
-        cdef list filter_list
+        cdef list filter_list, variable_return_list = []
         variable_dict = OrderedDict()
 
         variable_list      = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
@@ -4460,23 +4474,36 @@ cdef class FMUModelBase2(ModelBase):
                     continue
 
             if include_alias:
-                #variable_dict[name] = value_ref
-                variable_dict[name] = ScalarVariable2(name,
+                if _as_list:
+                    variable_return_list.append(ScalarVariable2(name,
+                                       value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
+                                       data_variability, data_causality,
+                                       alias_kind, initial))
+                else:
+                    variable_dict[name] = ScalarVariable2(name,
                                        value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind, initial)
             elif alias_kind == FMIL.fmi2_variable_is_not_alias:
                 #Exclude alias
-                #variable_dict[name] = value_ref
-                variable_dict[name] = ScalarVariable2(name,
+                if _as_list:
+                    variable_return_list.append(ScalarVariable2(name,
+                                       value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
+                                       data_variability, data_causality,
+                                       alias_kind, initial))
+                else:
+                    variable_dict[name] = ScalarVariable2(name,
                                        value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                        data_variability, data_causality,
                                        alias_kind, initial)
 
         #Free the variable list
         FMIL.fmi2_import_free_variable_list(variable_list)
-
-        return variable_dict
+        
+        if _as_list:
+            return variable_return_list
+        else:
+            return variable_dict
 
     def get_variable_references(self):
         """
@@ -5439,9 +5466,6 @@ cdef class FMUModelBase2(ModelBase):
 
             An ordered dictionary with the (real) (continuous) output variables.
         """
-        #variable_dict = self.get_model_variables(type=FMI2_REAL, include_alias = False,
-        #                     causality = FMI2_OUTPUT,   variability = FMI2_CONTINUOUS)
-                            
         cdef FMIL.fmi2_import_variable_list_t*   variable_list
         cdef FMIL.size_t                         variable_list_size
         cdef FMIL.fmi2_import_variable_t*        variable

@@ -792,6 +792,7 @@ cdef extern from 'fmilib.h':
     void jm_clear_last_error(jm_callbacks *)
     void jm_log(jm_callbacks *, char *, int, char *)
     void * mempcpy(void *, void *, size_t)
+    void * memcpy(void *, void *, size_t)
     void * memset(void *, int, size_t)
     char * strcat(char *, char *)
     char * strcpy(char *, char *)

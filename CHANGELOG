@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Improved method to retrieve model variables (ticket:5469)
     * Added a prototype of a Master algorithm for coupled ME FMUs (ticket:5438)
     * Fixed so that a "none" result handler can be used for CS (ticket:5403)
     * Removed deprecated FMUModel (ticket:5315)
