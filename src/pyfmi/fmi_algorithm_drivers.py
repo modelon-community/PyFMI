@@ -29,7 +29,7 @@ import pyfmi.fmi as fmi
 import pyfmi.fmi_coupled as fmi_coupled
 import pyfmi.fmi_extended as fmi_extended
 from pyfmi.common.algorithm_drivers import AlgorithmBase, AssimuloSimResult, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
-from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerMemory, ResultHandler, ResultHandlerDummy, ResultHandlerCSV, ResultCSVTextual
+from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerBinaryFile, ResultHandlerMemory, ResultHandler, ResultHandlerDummy, ResultHandlerCSV, ResultCSVTextual
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
@@ -107,8 +107,9 @@ class AssimuloFMIAlgOptions(OptionBase):
 
         result_handling --
             Specifies how the result should be handled. Either stored to
-            file or stored in memory. One can also use a custom handler.
-            Available options: "file", "memory", "csv", "custom"
+            file (txt or binary) or stored in memory. One can also use a 
+            custom handler.
+            Available options: "file", "binary", "memory", "csv", "custom"
             Default: "file"
 
         result_handler --
@@ -268,6 +269,8 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         if self.options["result_handling"] == "file":
             self.result_handler = ResultHandlerFile(self.model)
+        elif self.options["result_handling"] == "binary":
+            self.result_handler = ResultHandlerBinaryFile(self.model)
         elif self.options["result_handling"] == "memory":
             self.result_handler = ResultHandlerMemory(self.model)
         elif self.options["result_handling"] == "csv":
@@ -572,8 +575,9 @@ class FMICSAlgOptions(OptionBase):
 
         result_handling --
             Specifies how the result should be handled. Either stored to
-            file or stored in memory. One can also use a custom handler.
-            Available options: "file", "memory", "csv", "custom"
+            file (txt or binary) or stored in memory. One can also use a 
+            custom handler.
+            Available options: "file", "binary", "memory", "csv", "custom"
             Default: "file"
 
         result_handler --
@@ -703,6 +707,8 @@ class FMICSAlg(AlgorithmBase):
 
         if self.options["result_handling"] == "file":
             self.result_handler = ResultHandlerFile(self.model)
+        elif self.options["result_handling"] == "binary":
+            self.result_handler = ResultHandlerBinaryFile(self.model)
         elif self.options["result_handling"] == "memory":
             self.result_handler = ResultHandlerMemory(self.model)
         elif self.options["result_handling"] == "csv":

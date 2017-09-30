@@ -17,17 +17,22 @@
 """
 Module for writing optimization and simulation results to file.
 """
-from operator import itemgetter
+from operator import itemgetter, attrgetter
 import array
 import codecs
 import re
+import sys
 
 import numpy as N
+import numpy as np
 import scipy.io
 
 from . import xmlparser
 import pyfmi.fmi as fmi
+import pyfmi.fmi_util as fmi_util
 from . import python3_flag
+
+SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
 
 class Trajectory:
     """
@@ -1102,26 +1107,33 @@ class ResultDymolaBinary(ResultDymola):
             fname --
                 Name of file.
         """
-        self.raw = scipy.io.loadmat(fname,chars_as_strings=False)
+        self._fname = fname
+        self.raw = scipy.io.loadmat(fname,chars_as_strings=False, variable_names=["name", "dataInfo", "data_1", "data_2"])
         name = self.raw['name']
-        self.name = [
-            array.array(
-                'u',
-                name[:,i].tolist()).tounicode().rstrip().replace(" ","") \
-                for i in range(0,name[0,:].size)]
+        #self.name = ["".join(name[:,i]).rstrip() for i in range(name[0,:].size)]
+        #self.name = fmi_util.convert_array_names_list_names(name)
+        self.name = fmi_util.convert_array_names_list_names_int(name.view(int))
+        
+        #self.name = [
+        #    array.array(
+        #        'u',
+        #        name[:,i].tolist()).tounicode().rstrip().replace(" ","") \
+        #        for i in range(0,name[0,:].size)]
         self.name_lookup = {key:ind for ind,key in enumerate(self.name)}
-
-        self._loaded_description = False
-                
+        
+        self._description = None
+        
     def _get_description(self):
-        if self._loaded_description == False:
-            description = self.raw['description']
-            self._description = [
-            array.array(
-                'u',
-                description[:,i].tolist()).tounicode().rstrip() \
-                for i in range(0,description[0,:].size)]
-            self._loaded_description = True
+        if not self._description:
+            self.name = ["".join(name[:,i]).rstrip() for i in range(name[0,:].size)]
+            description = scipy.io.loadmat(fname,chars_as_strings=False, variable_names=["description"])
+            self._description = ["".join(description[:,i]).rstrip() for i in range(description[0,:].size)]
+            #self._description = [
+            #array.array(
+            #    'u',
+            #    description[:,i].tolist()).tounicode().rstrip() \
+            #    for i in range(0,description[0,:].size)]
+        
         return self._description
 
     description = property(_get_description, doc = 
@@ -1156,8 +1168,6 @@ class ResultDymolaBinary(ResultDymola):
             dataInd = -dataInd -1
         else:
             dataInd = dataInd - 1
-        
-        
             
         if dataMat == 0:
             # Take into account that the 'Time' variable has data matrix index 0
@@ -2016,3 +2026,221 @@ def robust_float(value):
             return float(N.nan)
         else:
             raise ValueError
+
+mat4_template = {'header': [('type', 'i4'),
+                            ('mrows', 'i4'),
+                            ('ncols', 'i4'),
+                            ('imagf', 'i4'),
+                            ('namlen', 'i4')]}
+
+class ResultHandlerBinaryFile(ResultHandler):
+    """ 
+    Export an optimization or simulation result to file in Dymola's binary result file 
+    format (MATLAB v4 format).
+    """
+    def __init__(self, model):
+        self.model = model
+    
+    def _data_header(self, name, nbr_rows, nbr_cols, data_type):
+        if data_type == "int":
+            t = 10*2
+        elif data_type == "double":
+            t = 10*0
+        elif data_type == "char":
+            t = 10*5 + 1
+        header = np.empty((), mat4_template["header"])
+        header["type"] = (not SYS_LITTLE_ENDIAN) * 1000 + t
+        header["mrows"] = nbr_rows
+        header["ncols"] = nbr_cols
+        header["imagf"] = 0
+        header["namlen"] = len(name) + 1
+        
+        return header
+        
+    def _write_header(self, name, nbr_rows, nbr_cols, data_type):
+        header = self._data_header(name, nbr_rows, nbr_cols, data_type)
+        
+        self._file.write(header.tostring(order="F"))
+        self._file.write(np.compat.asbytes(name +"\0"))
+    
+    def convert_char_array(self, data):
+        data = np.array(data)
+        dtype = data.dtype
+        dims = [data.shape[0], int(data.dtype.str[2:])]
+        
+        data = np.ndarray(shape=(dims[0], int(dtype.str[2:])), dtype=dtype.str[:2]+"1", buffer=data)
+        data[data == ""] = " "
+        
+        if dtype.kind == "U": 
+            tmp = np.ndarray(shape=(), dtype=(dtype.str[:2] + str(np.product(dims))), buffer=data)
+            buf = tmp.item().encode('latin-1')
+            data = np.ndarray(shape=dims, dtype="S1", buffer=buf)
+        
+        return data
+        
+    def dump_data(self, data):
+        self._file.write(data.tostring(order="F"))
+        
+    def dump_native_data(self, data):
+        self._file.write(data)
+    
+    def initialize_complete(self):
+        pass 
+    
+    def simulation_start(self):
+        """
+        Opens the file and writes the header. This includes the information 
+        about the variables and a table determining the link between variables 
+        and data.
+        """
+        opts = self.options
+        model = self.model
+        
+        #Internal values
+        self.file_open = False
+        self.nbr_points = 0
+        
+        self.file_name = opts["result_file_name"]
+        try:
+            self.parameters = opts["sensitivities"]
+        except KeyError:
+            self.parameters = False
+            
+        if self.parameters:
+            raise fmi.FMUException("Storing sensitivity results are not supported using this format. Use the file format instead.")
+        
+        if self.file_name == "":
+            self.file_name=self.model.get_identifier() + '_result.mat'
+            
+        #Store the continuous and discrete variables for result writing
+        real_var_ref, int_var_ref, bool_var_ref = model.get_model_time_varying_value_references(filter=opts["filter"])
+        
+        sorted_vars_real_vref = sorted(real_var_ref)
+        sorted_vars_int_vref  = sorted(int_var_ref)
+        sorted_vars_bool_vref = sorted(bool_var_ref)
+        
+        file_name = self.file_name
+        parameters = self.parameters
+        self._file = open(file_name,'wb')
+        
+        aclass_data = ["Atrajectory", "1.1", " ", "binTrans"]
+        aclass_data = self.convert_char_array(aclass_data)
+        self._write_header("Aclass", aclass_data.shape[0], aclass_data.shape[1], "char")
+        self.dump_data(aclass_data)
+        
+        # Open file
+        vars_real = self.model.get_model_variables(type=fmi.FMI_REAL,    filter=self.options["filter"], _as_list=True)#.values()
+        vars_int  = self.model.get_model_variables(type=fmi.FMI_INTEGER, filter=self.options["filter"], _as_list=True)#.values()
+        vars_bool = self.model.get_model_variables(type=fmi.FMI_BOOLEAN, filter=self.options["filter"], _as_list=True)#.values()
+        vars_enum = self.model.get_model_variables(type=fmi.FMI_ENUMERATION, filter=self.options["filter"], _as_list=True)#.values()
+        
+        sorted_vars_real = sorted(vars_real, key=attrgetter("value_reference"))
+        sorted_vars_int  = sorted(vars_int,  key=attrgetter("value_reference"))
+        sorted_vars_bool = sorted(vars_bool, key=attrgetter("value_reference"))
+        sorted_vars_enum = sorted(vars_enum, key=attrgetter("value_reference"))
+        
+        sorted_vars = sorted_vars_real+sorted_vars_int+sorted_vars_enum+sorted_vars_bool
+        self._sorted_vars = sorted_vars
+        len_name_items = len(sorted_vars)+1
+        len_desc_items = len_name_items
+        
+        name_data = ["time"] + [var.name for var in sorted_vars]
+        desc_data = ["Time in [s]"] + [var.description for var in sorted_vars]
+        
+        len_name_data, name_data = fmi_util.convert_str_list(name_data)
+        len_desc_data, desc_data = fmi_util.convert_str_list(desc_data)
+        
+        self._write_header("name", len_name_data, len_name_items, "char")
+        self.dump_native_data(name_data)
+        self._write_header("description", len_desc_data, len_desc_items, "char")
+        self.dump_native_data(desc_data)
+        
+        #Create the data info structure (and return parameters)
+        data_info = np.zeros((4, len_name_items), dtype=int)
+        parameter_data = fmi_util.prepare_data_info(data_info, sorted_vars, self.model)
+        
+        self._write_header("dataInfo", data_info.shape[0], data_info.shape[1], "int")
+        self.dump_data(data_info)
+
+        #Dump parameters to file
+        self._write_header("data_1", len(parameter_data), 2, "double")
+        self.dump_data(parameter_data)
+        
+        #Record the position so that we can later modify the end time
+        self.data_1_header_position = self._file.tell()
+        self.dump_data(parameter_data)
+        
+        #Record the position so that we can later modify the number of result points stored
+        self.data_2_header_position = self._file.tell()
+        self._write_header("data_2", len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref)+1, 1, "double")
+        
+        self.real_var_ref = np.array(sorted_vars_real_vref)
+        self.int_var_ref  = np.array(sorted_vars_int_vref)
+        self.bool_var_ref = np.array(sorted_vars_bool_vref)
+        self.nbr_points = 0
+
+    def integration_point(self, solver = None):
+        """ 
+        Writes the current status of the model to file. If the header has not 
+        been written previously it is written now. If data is specified it is 
+        written instead of the current status.
+        
+        Parameters::
+            
+                data --
+                    A one dimensional array of variable trajectory data. data 
+                    should consist of information about the status in the order 
+                    specified by FMUModel.save_time_point()
+                    Default: None
+        """
+        f = self._file
+        model = self.model
+
+        #Retrieves the time-point
+        r = model.get_real(self.real_var_ref)
+        i = model.get_integer(self.int_var_ref).astype(float)
+        b = model.get_boolean(self.bool_var_ref).astype(float)
+        
+        #self._write_data(data)
+        self.dump_data(np.array(model.time))
+        self.dump_data(r)
+        self.dump_data(i)
+        self.dump_data(b)
+        
+        #Increment number of points
+        self.nbr_points += 1
+
+    def simulation_end(self):
+        """ 
+        Finalize the writing by filling in the blanks in the created file. The 
+        blanks consists of the number of points and the final time (in data set 
+        1). Also closes the file.
+        """
+        #If open, finalize and close
+        f = self._file
+        
+        if f:
+            f.seek(self.data_1_header_position)
+            t = np.array([self.model.time])
+            self.dump_data(t)
+            
+            f.seek(self.data_2_header_position)
+            self._write_header("data_2", len(self.real_var_ref)+len(self.int_var_ref)+len(self.bool_var_ref)+1, self.nbr_points, "double")
+            
+            f.close()
+            self._file = None
+            
+    def get_result(self):
+        """
+        Method for retrieving the result. This method should return a 
+        result of an instance of ResultBase or of an instance of a 
+        subclass of ResultBase.
+        """
+        return ResultDymolaBinary(self.file_name)
+        
+    def set_options(self, options):
+        """
+        Options are the options dictionary provided to the simulation
+        method.
+        """
+        self.options = options

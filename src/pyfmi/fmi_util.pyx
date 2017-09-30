@@ -20,13 +20,18 @@ Module containing the FMI interface Python wrappers.
 import collections
 from collections import OrderedDict
 import itertools
+from operator import attrgetter
 import numpy as np
-cimport numpy as np
+from numpy.compat import asbytes
 
+cimport numpy as np
 cimport fmil_import as FMIL
+from cpython cimport array
 
 import functools
 import marshal
+import fmi
+import sys
 
 def enable_caching(obj):
     @functools.wraps(obj, ('__name__', '__doc__'))
@@ -111,6 +116,168 @@ cpdef parameter_estimation_f(y, parameters, measurments, model, input, options):
         err += quad_err(res[parameter], measurments[1][:,i+1], n)
 
     return 1.0/n*err**(0.5)
+    
+cpdef list convert_array_names_list_names(np.ndarray names):
+    cdef int max_length = names.shape[0]
+    cdef int nbr_items  = len(names[0])
+    cdef int i,j
+    cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
+    cdef list output = []
+    cdef bytes py_str
+
+    for i in range(nbr_items):
+        for j in range(max_length):
+            try:
+                tmp[j] = ord(names[j,i])
+            except ValueError:
+                break
+
+        py_str = tmp[:j]
+        output.append(py_str)
+    
+    FMIL.free(tmp)
+    
+    return output
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
+    cdef int max_length = names.shape[0]
+    cdef int nbr_items  = names.shape[1]
+    cdef int i,j,ch
+    cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
+    cdef list output = []
+    cdef bytes py_str
+
+    for i in range(nbr_items):
+        for j in range(max_length):
+            ch = names[j,i]
+            if ch==0:
+                break
+            else:
+                tmp[j] = ch
+                
+        py_str = tmp[:j]
+        output.append(py_str)
+    
+    FMIL.free(tmp)
+    
+    return output
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, model):
+    cdef int index_fixed    = 1
+    cdef int index_variable = 1
+    cdef int i, alias, data_type, variability
+    cdef int FMI_NEGATED_ALIAS = fmi.FMI_NEGATED_ALIAS
+    cdef int FMI_PARAMETER = fmi.FMI_PARAMETER, FMI_CONSTANT = fmi.FMI_CONSTANT
+    cdef int FMI_REAL = fmi.FMI_REAL, FMI_INTEGER = fmi.FMI_INTEGER
+    cdef int FMI_ENUMERATION = fmi.FMI_ENUMERATION, FMI_BOOLEAN = fmi.FMI_BOOLEAN 
+    cdef list param_real = [], param_int = [], param_bool = []
+    last_fixed     = -1
+    last_variable  = -1
+    
+    for i in range(1, len(sorted_vars)+1):
+        var = sorted_vars[i-1]
+        data_info[2,i] = 0
+        data_info[3,i] = -1
+        
+        alias = -1 if var.alias == FMI_NEGATED_ALIAS else 1
+        variability = var.variability
+        
+        if variability == FMI_PARAMETER or variability == FMI_CONSTANT:
+            data_info[0,i] = 1
+            if last_fixed == var.value_reference:
+                data_info[1,i] = alias*index_fixed
+            else:
+                last_fixed = var.value_reference
+                data_type  = var.type
+                index_fixed = index_fixed + 1
+                data_info[1,i] = alias*index_fixed
+                
+                if data_type == FMI_REAL:
+                    param_real.append(last_fixed)
+                elif data_type == FMI_INTEGER or data_type == FMI_ENUMERATION:
+                    param_int.append(last_fixed)
+                elif data_type == FMI_BOOLEAN:
+                    param_bool.append(last_fixed)
+                else:
+                    raise fmi.FMUException("Unknown type detected for variable %s when writing the results."%var.name)
+        else:
+            data_info[0,i] = 2
+            if last_variable == var.value_reference:
+                data_info[1,i] = alias*index_variable
+            else:
+                last_variable = var.value_reference
+                index_variable = index_variable + 1
+                data_info[1,i] = alias*index_variable
+    
+    data_info[0,0] = 0; data_info[1, 0] = 1; data_info[2, 0] = 0; data_info[3, 0] = -1
+    
+    data = np.append(np.append(np.append(model.time, model.get_real(param_real)),model.get_real(param_int)),model.get_real(param_bool))
+    
+    return data
+
+cpdef convert_str_list(list data):
+    cdef int length = 0
+    cdef int items = len(data)
+    cdef int i,j, tmp_length, k
+    cdef char *output
+    cdef char *tmp
+    cdef bytes py_string
+    
+    for i in range(items):
+        j = len(data[i])
+        if j+1 > length:
+            length = j+1
+    
+    output = <char*>FMIL.calloc(items*length,sizeof(char))
+    
+    for i in range(items):
+        py_byte_string = data[i]#.encode("latin-1")
+        tmp = py_byte_string
+        tmp_length = len(tmp)
+        k = i*length
+        
+        FMIL.memcpy(&output[k], tmp, tmp_length)
+        #FMIL.memset(&output[k+tmp_length], ' ', length-tmp_length) #Adding padding, seems to be necessary :(
+    
+    py_string = output[:items*length]
+    
+    FMIL.free(output)
+    
+    return length, py_string#.encode("latin-1")
+
+cpdef convert_scalarvariable_name_to_str(list data):
+    cdef int length = 0
+    cdef int items = len(data)
+    cdef int i,j, tmp_length, k
+    cdef char *output
+    cdef char *tmp
+    cdef bytes py_string
+    
+    for i in range(items):
+        j = len(data[i].name)
+        if j+1 > length:
+            length = j+1
+    
+    output = <char*>FMIL.calloc(items*length,sizeof(char))
+    
+    for i in range(items):
+        py_byte_string = data[i].name#.encode("latin-1")
+        tmp = py_byte_string
+        tmp_length = len(tmp)
+        k = i*length
+        
+        FMIL.memcpy(&output[k], tmp, tmp_length)
+        #FMIL.memset(&output[k+tmp_length], ' ', length-tmp_length) #Adding padding, seems to be necessary :(
+    
+    py_string = output[:items*length]
+    
+    FMIL.free(output)
+    
+    return length, py_string#.encode("latin-1")
 
 """
 class Graph:
@@ -709,3 +876,5 @@ cdef class FastPointSave:
         
         
 """
+
+
