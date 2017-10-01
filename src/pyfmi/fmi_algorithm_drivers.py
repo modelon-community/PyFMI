@@ -170,7 +170,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'result_file_name':'',
             'with_jacobian':False,
             'logging':False,
-            'result_handling':"file",
+            'result_handling':"binary",
             'result_handler': None,
             'return_result': True,
             'filter':None,
@@ -270,7 +270,11 @@ class AssimuloFMIAlg(AlgorithmBase):
         if self.options["result_handling"] == "file":
             self.result_handler = ResultHandlerFile(self.model)
         elif self.options["result_handling"] == "binary":
-            self.result_handler = ResultHandlerBinaryFile(self.model)
+            if self.options["sensitivities"]:
+                logging.warning('The binary result file do not currently support storing of sensitivity results. Switching to textual result format.')
+                self.result_handler = ResultHandlerFile(self.model)
+            else:
+                self.result_handler = ResultHandlerBinaryFile(self.model)
         elif self.options["result_handling"] == "memory":
             self.result_handler = ResultHandlerMemory(self.model)
         elif self.options["result_handling"] == "csv":
@@ -618,7 +622,7 @@ class FMICSAlgOptions(OptionBase):
             'stop_time_defined': False,
             'write_scaled_result':False,
             'result_file_name':'',
-            'result_handling':"file",
+            'result_handling':"binary",
             'result_handler': None,
             'return_result': True,
             'time_limit': None,

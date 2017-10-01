@@ -740,7 +740,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
     def get_model_variables(self, type = None, include_alias = True,
                              causality = None,   variability = None,
                             only_start = False,   only_fixed = False,
-                            filter = None):
+                            filter = None, int _as_list = False):
         """
         Extract the names of the variables in a model.
 
@@ -803,8 +803,11 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
                 variable_dict[self._get_global_name(i, key)] = fmi.ScalarVariable2(global_name, global_vr, 
                                             var.type, var.description, var.variability, 
                                             var.causality, var.alias, var.initial)
-
-        return variable_dict
+        
+        if _as_list:
+            return variable_dict.values()
+        else:
+            return variable_dict
         
     def _convert_local_scalar_variable(self, model_ind, scalar_variable):
         global_name = self._get_global_name(model_ind, scalar_variable.name)
