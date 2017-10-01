@@ -2156,7 +2156,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.dump_native_data(desc_data)
         
         #Create the data info structure (and return parameters)
-        data_info = np.zeros((4, len_name_items), dtype=int)
+        data_info = np.zeros((4, len_name_items), dtype=np.int32)
         parameter_data = fmi_util.prepare_data_info(data_info, sorted_vars, self.model)
         
         self._write_header("dataInfo", data_info.shape[0], data_info.shape[1], "int")
