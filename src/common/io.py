@@ -756,7 +756,7 @@ class ResultStorageMemory(ResultDymola):
             factor = -1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1 
                 
             if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER: 
-                return Trajectory([self.time[0],self.time[-1]],[self.model.get(name),self.model.get(name)]) 
+                return Trajectory([self.time[0],self.time[-1]],N.array([self.model.get(name),self.model.get(name)]).ravel()) 
             else: 
                 return Trajectory(self.time,factor*self.data[var.value_reference]) 
     
