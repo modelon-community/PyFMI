@@ -829,6 +829,197 @@ cdef class ScalarVariable2:
         return self._initial
     initial = property(_get_initial)
 
+cdef class DeclaredType2:
+    """
+    Class defining data structure based on the XML element Type.
+    """
+    def __init__(self, name, description = "", quantity = ""):
+        self._name        = name
+        self._description = description
+        self._quantity = quantity
+    
+    def _get_name(self):
+        """
+        Get the value of the name attribute.
+
+        Returns::
+
+            The name attribute value as string.
+        """
+        return self._name
+    name = property(_get_name)
+    
+    def _get_description(self):
+        """
+        Get the value of the description attribute.
+
+        Returns::
+
+            The description attribute value as string (empty string if
+            not set).
+        """
+        return self._description
+    description = property(_get_description)
+
+cdef class EnumerationType2(DeclaredType2):
+    """
+    Class defining data structure based on the XML element Enumeration.
+    """
+    def __init__(self, name, description = "", quantity = "", items = None):
+        DeclaredType2.__init__(self, name, description, quantity)
+        
+        self._items    = items
+    
+    def _get_quantity(self):
+        """
+        Get the quantity of the enumeration type.
+
+        Returns::
+
+            The quantity as string (empty string if
+            not set).
+        """
+        return self._quantity
+    quantity = property(_get_quantity)
+    
+    def _get_items(self):
+        """
+        Get the items of the enumeration type.
+        
+        Returns::
+        
+            The items of the enumeration type as a dict. The key is the
+            enumeration value and the dict value is a tuple containing
+            the name and description of the enumeration item.
+        """
+        return self._items
+    items = property(_get_items)
+
+cdef class IntegerType2(DeclaredType2):
+    """
+    Class defining data structure based on the XML element Enumeration.
+    """
+    def __init__(self, name, description = "", quantity = "", min = -N.inf, max = N.inf):
+        DeclaredType2.__init__(self, name, description, quantity)
+        
+        self._min = min
+        self._max = max
+        
+    def _get_max(self):
+        """
+        Get the max value for the type.
+        
+        Returns::
+        
+            The max value.
+        """
+        return self._max
+    max = property(_get_max)
+    
+    def _get_min(self):
+        """
+        Get the min value for the type.
+        
+        Returns::
+        
+            The min value.
+        """
+        return self._min
+    min = property(_get_min)
+
+cdef class RealType2(DeclaredType2):
+    """
+    Class defining data structure based on the XML element Enumeration.
+    """
+    def __init__(self, name, description = "", quantity = "", min = -N.inf, max = N.inf, nominal = 1.0, unbounded = False,
+                relative_quantity = False, display_unit = "", unit = ""):
+        DeclaredType2.__init__(self, name, description, quantity)
+        
+        self._min = min
+        self._max = max
+        self._nominal = nominal
+        self._unbounded = unbounded
+        self._relative_quantity = relative_quantity
+        self._display_unit = display_unit
+        self._unit = unit
+    
+    def _get_max(self):
+        """
+        Get the max value for the type.
+        
+        Returns::
+        
+            The max value.
+        """
+        return self._max
+    max = property(_get_max)
+    
+    def _get_min(self):
+        """
+        Get the min value for the type.
+        
+        Returns::
+        
+            The min value.
+        """
+        return self._min
+    min = property(_get_min)
+    
+    def _get_nominal(self):
+        """
+        Get the nominal value for the type.
+        
+        Returns::
+        
+            The nominal value.
+        """
+        return self._nominal
+    nominal = property(_get_nominal)
+    
+    def _get_unbounded(self):
+        """
+        Get the unbounded value for the type.
+        
+        Returns::
+        
+            The unbounded value.
+        """
+        return self._unbounded
+    unbounded = property(_get_unbounded)
+    
+    def _get_relative_quantity(self):
+        """
+        Get the relative quantity value for the type.
+        
+        Returns::
+        
+            The relative quantity value.
+        """
+        return self._relative_quantity
+    relative_quantity = property(_get_relative_quantity)
+    
+    def _get_display_unit(self):
+        """
+        Get the display unit value for the type.
+        
+        Returns::
+        
+            The display unit value.
+        """
+        return self._display_unit
+    display_unit = property(_get_display_unit)
+    
+    def _get_unit(self):
+        """
+        Get the unit value for the type.
+        
+        Returns::
+        
+            The unit value.
+        """
+        return self._unit
+    unit = property(_get_unit)
+    
 cdef class FMUState2:
     """
     Class containing a pointer to a FMU-state.
@@ -4568,6 +4759,109 @@ cdef class FMUModelBase2(ModelBase):
         vr =  FMIL.fmi2_import_get_variable_vr(variable)
 
         return vr
+        
+    def get_variable_declared_type(self, variable_name):
+        """
+        Return the given variables declared type.
+        
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The name of the declared type.
+        """
+        cdef FMIL.fmi2_import_variable_t* variable
+        cdef FMIL.fmi2_value_reference_t  vr
+        cdef FMIL.fmi2_import_variable_typedef_t* variable_type
+        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_import_enumeration_typedef_t * enumeration_type
+        cdef FMIL.fmi2_import_integer_typedef_t * integer_type
+        cdef FMIL.fmi2_import_real_typedef_t * real_type
+        cdef FMIL.fmi2_import_unit_t * type_unit
+        cdef FMIL.fmi2_import_display_unit_t * type_display_unit
+        cdef char * type_name
+        cdef char * type_desc
+        cdef object ret_type, min_val, max_val, unbounded, nominal_val
+        cdef char * type_quantity
+        cdef unsigned int enum_size
+        cdef int item_value
+        cdef char * item_desc
+        cdef char * item_name
+        cdef char * type_unit_name
+        cdef char * type_display_unit_name
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
+
+        variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+            
+        variable_type = FMIL.fmi2_import_get_variable_declared_type(variable)
+        if variable_type == NULL:
+            raise FMUException("The variable %s does not have a declared type."%variablename)
+        
+        type_name = FMIL.fmi2_import_get_type_name(variable_type)
+        type_desc = FMIL.fmi2_import_get_type_description(variable_type)
+        type_quantity = FMIL.fmi2_import_get_type_quantity(variable_type)
+        
+        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        
+        if type == FMIL.fmi2_base_type_enum:
+            enumeration_type  = FMIL.fmi2_import_get_type_as_enum(variable_type)
+            enum_size = FMIL.fmi2_import_get_enum_type_size(enumeration_type)
+            items = OrderedDict()
+            
+            for i in range(1,enum_size+1):
+                item_value = FMIL.fmi2_import_get_enum_type_item_value(enumeration_type, i)
+                item_name  = FMIL.fmi2_import_get_enum_type_item_name(enumeration_type, i)
+                item_desc  = FMIL.fmi2_import_get_enum_type_item_description(enumeration_type, i)
+                
+                items[item_value] = (item_name if item_name != NULL else "",
+                                     item_desc if item_desc != NULL else "")
+                                     
+            ret_type = EnumerationType2(type_name if type_name != NULL else "",
+                                         type_desc if type_desc != NULL else "",
+                                         type_quantity if type_quantity != NULL else "", items)
+                                         
+                                         
+        elif type == FMIL.fmi2_base_type_int:
+            integer_type = FMIL.fmi2_import_get_type_as_int(variable_type)
+            
+            min_val = FMIL.fmi2_import_get_integer_type_min(integer_type)
+            max_val = FMIL.fmi2_import_get_integer_type_max(integer_type)
+            
+            ret_type = IntegerType2(type_name if type_name != NULL else "",
+                                         type_desc if type_desc != NULL else "",
+                                         type_quantity if type_quantity != NULL else "",
+                                         min_val, max_val)
+        elif type == FMIL.fmi2_base_type_real:
+            real_type = FMIL.fmi2_import_get_type_as_real(variable_type)
+            
+            min_val = FMIL.fmi2_import_get_real_type_min(real_type)
+            max_val = FMIL.fmi2_import_get_real_type_max(real_type)
+            nominal_val = FMIL.fmi2_import_get_real_type_nominal(real_type)
+            unbounded = FMIL.fmi2_import_get_real_type_is_unbounded(real_type)
+            relative_quantity = FMIL.fmi2_import_get_real_type_is_relative_quantity(real_type)
+            
+            type_display_unit = FMIL.fmi2_import_get_type_display_unit(real_type)
+            type_unit = FMIL.fmi2_import_get_real_type_unit(real_type)
+            
+            type_unit_name = FMIL.fmi2_import_get_unit_name(type_unit)
+            type_display_unit_name = FMIL.fmi2_import_get_display_unit_name(type_display_unit)
+            
+            ret_type = RealType2(type_name if type_name != NULL else "",
+                                         type_desc if type_desc != NULL else "",
+                                         type_quantity if type_quantity != NULL else "",
+                                         min_val, max_val, nominal_val, unbounded, relative_quantity,
+                                         type_display_unit_name if type_display_unit_name != NULL else "", type_unit_name if type_unit_name != NULL else "")
+        else:
+            raise NotImplementedError
+        
+        return ret_type
 
     cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, variable_name) except *:
         """

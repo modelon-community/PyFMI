@@ -69,6 +69,21 @@ cdef class ScalarVariable2:
     cdef object _name
     cdef object _description #A characater pointer but we need an own reference and this is sufficient
 
+cdef class DeclaredType2:
+    cdef object _name
+    cdef object _description
+    cdef object _quantity
+    
+cdef class EnumerationType2(DeclaredType2):
+    cdef object _items
+
+cdef class IntegerType2(DeclaredType2):
+    cdef int _min, _max
+    
+cdef class RealType2(DeclaredType2):
+    cdef float _min, _max, _nominal
+    cdef object _unbounded, _relativeQuantity, _unit, _display_unit
+
 cdef class FMUState2:
     """
     Class containing a pointer to a FMU-state.
