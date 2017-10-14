@@ -110,7 +110,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             file (txt or binary) or stored in memory. One can also use a 
             custom handler.
             Available options: "file", "binary", "memory", "csv", "custom"
-            Default: "file"
+            Default: "binary"
 
         result_handler --
             The handler for the result. Depending on the option in
@@ -170,7 +170,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'result_file_name':'',
             'with_jacobian':False,
             'logging':False,
-            'result_handling':"file",
+            'result_handling':"binary",
             'result_handler': None,
             'return_result': True,
             'filter':None,
@@ -582,7 +582,7 @@ class FMICSAlgOptions(OptionBase):
             file (txt or binary) or stored in memory. One can also use a 
             custom handler.
             Available options: "file", "binary", "memory", "csv", "custom"
-            Default: "file"
+            Default: "binary"
 
         result_handler --
             The handler for the result. Depending on the option in
@@ -622,7 +622,7 @@ class FMICSAlgOptions(OptionBase):
             'stop_time_defined': False,
             'write_scaled_result':False,
             'result_file_name':'',
-            'result_handling':"file",
+            'result_handling':"binary",
             'result_handler': None,
             'return_result': True,
             'time_limit': None,
