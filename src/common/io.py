@@ -1113,6 +1113,7 @@ class ResultDymolaBinary(ResultDymola):
         #self.name = ["".join(name[:,i]).rstrip() for i in range(name[0,:].size)]
         #self.name = fmi_util.convert_array_names_list_names(name)
         self.name = fmi_util.convert_array_names_list_names_int(name.view(np.int32))
+        self.dataInfo = self.raw['dataInfo'].transpose()
         
         #self.name = [
         #    array.array(
