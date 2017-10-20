@@ -1098,7 +1098,8 @@ class FMIODESENS2(FMIODE2):
             self.param_valref = [model.get_variable_valueref(x) for x in parameters]
             
             for param in parameters:
-                if model.get_variable_causality(param) != fmi.FMI2_INPUT and model.get_generation_tool() != "JModelica.org":
+                if model.get_variable_causality(param) != fmi.FMI2_INPUT and \
+                   (model.get_generation_tool() != "JModelica.org" and model.get_generation_tool() != "Optimica Compiler Toolkit"):
                     raise FMIModel_Exception("The sensitivity parameters must be specified as inputs!")
             
         self.parameters = parameters
@@ -1110,9 +1111,10 @@ class FMIODESENS2(FMIODE2):
         if self._model.get_capability_flags()['providesDirectionalDerivatives']:
             use_rhs_sens = True
             for param in parameters:
-                if model.get_variable_causality(param) != fmi.FMI2_INPUT and model.get_generation_tool() == "JModelica.org":
+                if model.get_variable_causality(param) != fmi.FMI2_INPUT and \
+                  (model.get_generation_tool() == "JModelica.org" or model.get_generation_tool() == "Optimica Compiler Toolkit"):
                     use_rhs_sens = False
-                    logging_module.warning("The sensitivity parameters must be specified as inputs inorder to set up the sensitivity " \
+                    logging_module.warning("The sensitivity parameters must be specified as inputs in order to set up the sensitivity " \
                             "equations using directional derivatives. Disabling and using finite differences instead.")
             
             if use_rhs_sens:

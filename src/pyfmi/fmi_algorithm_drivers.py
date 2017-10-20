@@ -344,7 +344,8 @@ class AssimuloFMIAlg(AlgorithmBase):
             
         # Sensitivities?
         if self.options["sensitivities"]:
-            if self.model.get_generation_tool() != "JModelica.org":
+            if self.model.get_generation_tool() != "JModelica.org" and \
+               self.model.get_generation_tool() != "Optimica Compiler Toolkit":
                 if isinstance(self.model, fmi.FMUModelME2):
                     for var in self.options["sensitivities"]:
                         causality = self.model.get_variable_causality(var)
