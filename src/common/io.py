@@ -957,7 +957,7 @@ class ResultDymolaTextual(ResultDymola):
             A Trajectory object containing the time vector and the data vector 
             of the variable.
         """
-        if name == 'time':
+        if name == 'time' or name== 'Time':
             varInd = 0
         else:
             varInd  = self.get_variable_index(name)
@@ -992,7 +992,7 @@ class ResultDymolaTextual(ResultDymola):
         
             True if the variable is time-varying.
         """
-        if name == 'time':
+        if name == 'time' or name== 'Time':
             return True
         varInd  = self.get_variable_index(name)
         dataMat = self.dataInfo[varInd][0]-1
@@ -1038,7 +1038,7 @@ class ResultDymolaTextual(ResultDymola):
         
             The column number.
         """
-        if name == 'time':
+        if name == 'time' or name== 'Time':
             return 0
 
         if not self.is_variable(name):
@@ -1156,7 +1156,7 @@ class ResultDymolaBinary(ResultDymola):
             A Trajectory object containing the time vector and the data vector 
             of the variable.
         """
-        if name == 'time':
+        if name == 'time' or name== 'Time':
             varInd = 0;
         else:
             varInd  = self.get_variable_index(name)
@@ -1190,7 +1190,7 @@ class ResultDymolaBinary(ResultDymola):
         
             True if the variable is time-varying.
         """
-        if name == 'time':
+        if name == 'time' or name== 'Time':
             return True
         varInd  = self.get_variable_index(name)
         dataMat = self.raw['dataInfo'][0][varInd]
@@ -1236,7 +1236,7 @@ class ResultDymolaBinary(ResultDymola):
         
             The column number.
         """
-        if name == 'time':
+        if name == 'time' or name== 'Time':
             return 0
         
         if not self.is_variable(name):

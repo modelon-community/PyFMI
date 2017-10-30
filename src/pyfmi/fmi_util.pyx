@@ -156,8 +156,11 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
                 break
             else:
                 tmp[j] = ch
-                
+        
         py_str = tmp[:j]
+        if j == max_length - 1:
+            py_str = py_str.replace(" ", "")
+        
         output.append(py_str)
     
     FMIL.free(tmp)
