@@ -3494,13 +3494,18 @@ cdef class FMUModelBase2(ModelBase):
                 Path to the fmu-directory.
                 Default: '.' (working directory)
 
-            enable_logging --
-                Boolean for acesss to logging-messages.
-                Default: True
+            enable_logging [DEPRECATED] --
+                This option is DEPRECATED and will be removed. Please 
+                use the option "log_level" instead.
 
             log_file_name --
                 Filename for file used to save logmessages.
                 Default: "" (Generates automatically)
+                
+            log_level --
+                Determines the logging output. Can be set between 0 
+                (no logging) and 7 (everything).
+                Default: 2 (log error messages)
 
         Returns::
 
@@ -6012,13 +6017,18 @@ cdef class FMUModelCS2(FMUModelBase2):
                 Path to the fmu-directory.
                 Default: '.' (working directory)
 
-            enable_logging --
-                Boolean for acesss to logging-messages.
-                Default: True
+            enable_logging [DEPRECATED] --
+                This option is DEPRECATED and will be removed. Please 
+                use the option "log_level" instead.
 
             log_file_name --
                 Filename for file used to save log messages.
                 Default: "" (Generates automatically)
+                
+            log_level --
+                Determines the logging output. Can be set between 0 
+                (no logging) and 7 (everything).
+                Default: 2 (log error messages)
 
         Returns::
 
@@ -6611,13 +6621,18 @@ cdef class FMUModelME2(FMUModelBase2):
                 Path to the fmu-directory.
                 Default: '.' (working directory)
 
-            enable_logging --
-                Boolean for acesss to logging-messages.
-                Default: True
+            enable_logging [DEPRECATED] --
+                This option is DEPRECATED and will be removed. Please 
+                use the option "log_level" instead.
 
             log_file_name --
                 Filename for file used to save logmessages.
                 Default: "" (Generates automatically)
+                
+            log_level --
+                Determines the logging output. Can be set between 0 
+                (no logging) and 7 (everything).
+                Default: 2 (log error messages)
 
         Returns::
 
@@ -7363,9 +7378,9 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             Path to the fmu-directory.
             Default: '.' (working directory)
 
-        enable_logging --
-            Boolean for acesss to logging-messages.
-            Default: True
+        enable_logging [DEPRECATED] --
+            This option is DEPRECATED and will be removed. Please use
+            the option "log_level" instead.
 
         log_file_name --
             Filename for file used to save logmessages.
@@ -7379,7 +7394,12 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
                 - 'CS'
                 - 'auto'
             Default: 'auto' (Chooses ME before CS if both available)
-
+        
+        log_level --
+            Determines the logging output. Can be set between 0 
+            (no logging) and 7 (everything).
+            Default: 2 (log error messages)
+        
     Returns::
 
         A model instance corresponding to the loaded FMU.

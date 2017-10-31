@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Updated the interactive info on the load_fmu method (ticket:5495)
     * Changed default file storing method to binary (ticket:5479)
     * Fixed issue with getting parameters when using memory storage option (ticket:5476)
     * Added support for getting the declared type for FMI2 (ticket:5475)
