@@ -2203,7 +2203,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         b = model.get_boolean(self.bool_var_ref).astype(float)
         
         #self._write_data(data)
-        self.dump_data(np.array(model.time))
+        self.dump_data(np.array(float(model.time)))
         self.dump_data(r)
         self.dump_data(i)
         self.dump_data(b)
@@ -2222,7 +2222,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         
         if f:
             f.seek(self.data_1_header_position)
-            t = np.array([self.model.time])
+            t = np.array([float(self.model.time)])
             self.dump_data(t)
             
             f.seek(self.data_2_header_position)
