@@ -6849,9 +6849,9 @@ cdef class FMUModelME2(FMUModelBase2):
             
             # If the values in the event struct have been overwritten.
             if tmp_values_continuous_states_changed:
-                self._eventInfo.nominalsOfContinuousStatesChanged = True
-            if tmp_nominals_continuous_states_changed:
                 self._eventInfo.valuesOfContinuousStatesChanged = True
+            if tmp_nominals_continuous_states_changed:
+                self._eventInfo.nominalsOfContinuousStatesChanged = True
 
     def get_tolerances(self):
         """
