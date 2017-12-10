@@ -133,6 +133,7 @@ cdef class FMUModelBase(ModelBase):
     cpdef get_variable_min(self, variablename)
     cpdef FMIL.fmi1_variability_enu_t get_variable_variability(self, variablename) except *
     cpdef FMIL.fmi1_causality_enu_t get_variable_causality(self, variablename) except *
+    cdef _add_scalar_variable(self, FMIL.fmi1_import_variable_t* variable)
 
 cdef class FMUModelCS1(FMUModelBase):
     

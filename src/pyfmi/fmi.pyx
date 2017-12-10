@@ -624,6 +624,21 @@ cdef class ScalarVariable:
                        variability=FMIL.fmi1_variability_enu_continuous,
                        causality=FMIL.fmi1_causality_enu_internal,
                        alias=FMIL.fmi1_variable_is_not_alias):
+        """
+        Class collecting information about a scalar variable and its
+        attributes. The following attributes can be retrieved::
+        
+            name
+            value_reference
+            type
+            description
+            variability
+            causality
+            alias
+            
+        For further information about the attributes, see the info on a
+        specific attribute.
+        """
 
         self._name            = name
         self._value_reference = value_reference
@@ -724,6 +739,22 @@ cdef class ScalarVariable2:
                        causality   = FMIL.fmi2_causality_enu_unknown,
                        alias       = FMIL.fmi2_variable_is_not_alias,
                        initial     = FMIL.fmi2_initial_enu_unknown):
+        """
+        Class collecting information about a scalar variable and its
+        attributes. The following attributes can be retrieved::
+        
+            name
+            value_reference
+            type
+            description
+            variability
+            causality
+            alias
+            initial
+            
+        For further information about the attributes, see the info on a
+        specific attribute.
+        """
 
         self._name            = name
         self._value_reference = value_reference
@@ -762,8 +793,8 @@ cdef class ScalarVariable2:
 
         Returns::
 
-            The data type attribute value as enumeration: FMI_REAL,
-            FMI_INTEGER, FMI_BOOLEAN, FMI_ENUMERATION or FMI_STRING.
+            The data type attribute value as enumeration: FMI2_REAL,
+            FMI2_INTEGER, FMI2_BOOLEAN, FMI2_ENUMERATION or FMI2_STRING.
         """
         return self._type
     type = property(_get_type)
@@ -786,8 +817,8 @@ cdef class ScalarVariable2:
 
         Returns::
 
-            The variability attribute value as enumeration:
-            FMI_CONTINUOUS, FMI_CONSTANT, FMI_PARAMETER or FMI_DISCRETE.
+            The variability of the variable: FMI2_CONSTANT(0), FMI2_FIXED(1),
+            FMI2_TUNABLE(2), FMI2_DISCRETE(3), FMI2_CONTINUOUS(4) or FMI2_UNKNOWN(5)
         """
         return self._variability
     variability = property(_get_variability)
@@ -798,8 +829,8 @@ cdef class ScalarVariable2:
 
         Returns::
 
-            The causality attribute value as enumeration: FMI_INTERNAL,
-            FMI_INPUT, FMI_OUTPUT or FMI_NONE.
+            The causality of the variable, FMI2_PARAMETER(0), FMI2_CALCULATED_PARAMETER(1), FMI2_INPUT(2),
+            FMI2_OUTPUT(3), FMI2_LOCAL(4), FMI2_INDEPENDENT(5), FMI2_UNKNOWN(6)
         """
         return self._causality
     causality = property(_get_causality)
@@ -1660,6 +1691,47 @@ cdef class FMUModelBase(ModelBase):
         desc = FMIL.fmi1_import_get_variable_description(variable)
 
         return desc if desc != NULL else ""
+    
+    cdef _add_scalar_variable(self, FMIL.fmi1_import_variable_t* variable):
+        
+        if variable == NULL:
+            raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
+        
+        alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
+        name       = decode(FMIL.fmi1_import_get_variable_name(variable))
+        value_ref  = FMIL.fmi1_import_get_variable_vr(variable)
+        data_type  = FMIL.fmi1_import_get_variable_base_type(variable)
+        has_start  = FMIL.fmi1_import_get_variable_has_start(variable)
+        data_variability = FMIL.fmi1_import_get_variability(variable)
+        data_causality   = FMIL.fmi1_import_get_causality(variable)
+        desc       = FMIL.fmi1_import_get_variable_description(variable)
+
+        return ScalarVariable(name,value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
+                            data_variability, data_causality, alias_kind)
+    
+    def get_scalar_variable(self, variable_name):
+        """
+        Get the variable as a scalar variable instance.
+
+        Parameter::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            Instance of ScalarVariable.
+        """
+        cdef FMIL.fmi1_import_variable_t* variable
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
+
+        variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+            
+        return self._add_scalar_variable(variable)
 
     cpdef FMIL.fmi1_base_type_enu_t get_variable_data_type(self, variable_name) except *:
         """
@@ -4867,6 +4939,30 @@ cdef class FMUModelBase2(ModelBase):
             raise NotImplementedError
         
         return ret_type
+    
+    def get_scalar_variable(self, variable_name):
+        """
+        The variable as a scalar variable.
+        
+        Parameter::
+        
+            variable_name --
+                The name of the variable
+                
+        Returns::
+            
+            Instance of a ScalarVariable2
+        """
+        cdef FMIL.fmi2_import_variable_t* variable
+
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
+
+        variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+            
+        return self._add_scalar_variable(variable)
 
     cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, variable_name) except *:
         """
@@ -4987,7 +5083,7 @@ cdef class FMUModelBase2(ModelBase):
 
         Returns::
 
-            The variability of the variable, PARAMETER(0), CALCULATED_PARAMETER(1), INPUT(2),
+            The causality of the variable, PARAMETER(0), CALCULATED_PARAMETER(1), INPUT(2),
             OUTPUT(3), LOCAL(4), INDEPENDENT(5), UNKNOWN(6)
         """
         cdef FMIL.fmi2_import_variable_t* variable
