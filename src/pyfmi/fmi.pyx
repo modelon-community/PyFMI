@@ -676,8 +676,8 @@ cdef class ScalarVariable:
 
         Returns::
 
-            The data type attribute value as enumeration: FMI_REAL,
-            FMI_INTEGER, FMI_BOOLEAN, FMI_ENUMERATION or FMI_STRING.
+            The data type attribute value as enumeration: FMI_REAL(0),
+            FMI_INTEGER(1), FMI_BOOLEAN(2), FMI_STRING(3) or FMI_ENUMERATION(4).
         """
         return self._type
     type = property(_get_type)
@@ -701,7 +701,7 @@ cdef class ScalarVariable:
         Returns::
 
             The variability attribute value as enumeration:
-            FMI_CONTINUOUS, FMI_CONSTANT, FMI_PARAMETER or FMI_DISCRETE.
+            FMI_CONSTANT(0), FMI_PARAMETER(1), FMI_DISCRETE(2) or FMI_CONTINUOUS(3).
         """
         return self._variability
     variability = property(_get_variability)
@@ -712,8 +712,8 @@ cdef class ScalarVariable:
 
         Returns::
 
-            The causality attribute value as enumeration: FMI_INTERNAL,
-            FMI_INPUT, FMI_OUTPUT or FMI_NONE.
+            The causality attribute value as enumeration: FMI_INPUT(0),
+            FMI_OUTPUT(1), FMI_INTERNAL(2) or FMI_NONE(3).
         """
         return self._causality
     causality = property(_get_causality)
@@ -724,8 +724,8 @@ cdef class ScalarVariable:
 
         Returns::
 
-            The alias attribute value as enumeration: FMI_NO_ALIAS,
-            FMI_ALIAS or FMI_NEGATED_ALIAS.
+            The alias attribute value as enumeration: FMI_NO_ALIAS(0),
+            FMI_ALIAS(1) or FMI_NEGATED_ALIAS(-1).
         """
         return self._alias
     alias = property(_get_alias)
@@ -793,8 +793,8 @@ cdef class ScalarVariable2:
 
         Returns::
 
-            The data type attribute value as enumeration: FMI2_REAL,
-            FMI2_INTEGER, FMI2_BOOLEAN, FMI2_ENUMERATION or FMI2_STRING.
+            The data type attribute value as enumeration: FMI2_REAL(0),
+            FMI2_INTEGER(1), FMI2_BOOLEAN(2), FMI2_STRING(3) or FMI2_ENUMERATION(4).
         """
         return self._type
     type = property(_get_type)
@@ -2331,8 +2331,8 @@ cdef class FMUModelBase(ModelBase):
 
         Returns::
 
-            The variability of the variable, CONTINUOUS(3), CONSTANT(0),
-            PARAMETER(1) or DISCRETE(2)
+            The variability of the variable, CONSTANT(0), PARAMETER(1), 
+            DISCRETE(2) or CONTINUOUS(3)
         """
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_variability_enu_t variability
