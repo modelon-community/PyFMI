@@ -400,8 +400,6 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         self.write_scaled_result = self.options['write_scaled_result']
 
-        self.with_jacobian = self.options['with_jacobian']
-
         # result file name
         if self.options['result_file_name'] == '':
             self.result_file_name = self.model.get_identifier()+'_result.txt'
@@ -453,6 +451,11 @@ class AssimuloFMIAlg(AlgorithmBase):
                     self.solver_options['atol'] = atol
         except KeyError:
             pass
+            
+        self.with_jacobian = self.options['with_jacobian']
+        if (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
+            if self.model.get_capability_flags()['providesDirectionalDerivatives']:
+                self.with_jacobian = True
 
     def _set_solver_options(self):
         """
@@ -466,7 +469,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         #If usejac is not set, try to set it according to if directional derivatives
         #exists. Also verifies that the option "usejac" exists for the solver.
         #(Only check for FMI2)
-        if self.with_jacobian:
+        if self.with_jacobian and not "usejac" in solver_options:
             try:
                 getattr(self.simulator, "usejac")
                 solver_options["usejac"] = True
