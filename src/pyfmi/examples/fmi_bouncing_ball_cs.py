@@ -23,13 +23,18 @@ from pyfmi import load_fmu
 
 curr_dir = O.path.dirname(O.path.abspath(__file__));
 path_to_fmus = O.path.join(curr_dir, 'files', 'FMUs', 'CS1.0')
+path_to_fmus2 = O.path.join(curr_dir, 'files', 'FMUs', 'CS2.0')
 
-def run_demo(with_plots=True):
+def run_demo(with_plots=True, version='2.0'):
     """
     Demonstrates how to use PyFMI for simulation of 
-    Co-Simulation FMUs (version 1.0).
+    Co-Simulation FMUs (version 1.0 or 2.0).
     """
-    fmu_name = O.path.join(path_to_fmus,'bouncingBall.fmu')
+    
+    if version == '1.0':
+        fmu_name = O.path.join(path_to_fmus,'bouncingBall.fmu')
+    else:
+        fmu_name = O.path.join(path_to_fmus2,'bouncingBall.fmu')
     model = load_fmu(fmu_name)
     
     res = model.simulate(final_time=2.)
