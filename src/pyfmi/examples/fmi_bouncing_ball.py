@@ -23,12 +23,18 @@ from pyfmi import load_fmu
 
 curr_dir = O.path.dirname(O.path.abspath(__file__));
 path_to_fmus = O.path.join(curr_dir, 'files', 'FMUs','ME1.0')
+path_to_fmus2 = O.path.join(curr_dir, 'files', 'FMUs','ME2.0')
 
-def run_demo(with_plots=True):
+def run_demo(with_plots=True, version="2.0"):
     """
-    Demonstrates how to use JModelica.org for simulation of FMUs.
+    Demonstrates how to use JModelica.org for simulation of 
+    ME FMUs version 1.0 and 2.0.
     """
-    fmu_name = O.path.join(path_to_fmus,'bouncingBall.fmu')
+    if version == '1.0':
+        fmu_name = O.path.join(path_to_fmus,'bouncingBall.fmu')
+    else:
+        fmu_name = O.path.join(path_to_fmus2,'bouncingBall.fmu')
+        
     model = load_fmu(fmu_name)
     
     res = model.simulate(final_time=2.)
