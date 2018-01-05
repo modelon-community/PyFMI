@@ -302,6 +302,8 @@ setup(name=NAME,
       packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting'],
       package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'ME1.0'+O.path.sep+'*',
                                'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS1.0'+O.path.sep+'*',
+                               'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'ME2.0'+O.path.sep+'*',
+                               'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS2.0'+O.path.sep+'*',
                                'version.txt', 'LICENSE', 'CHANGELOG',
                                'util'+O.path.sep+'*']+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])+(['libgcc_s_dw2-1.dll'] if copy_gcc_lib else [])},
       script_args=copy_args
