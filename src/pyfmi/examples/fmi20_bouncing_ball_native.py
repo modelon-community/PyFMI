@@ -116,12 +116,12 @@ def run_demo(with_plots=True):
             eInfo = bouncing_fmu.get_event_info()
             eInfo.newDiscreteStatesNeeded = True
             #Event iteration
-            while eInfo.newDiscreteStatesNeeded == True:
+            while eInfo.newDiscreteStatesNeeded:
                 bouncing_fmu.event_update(intermediateResult=True) #Stops after each event iteration
                 eInfo = bouncing_fmu.get_event_info()
 
                 #Retrieve solutions (if needed)
-                if eInfo.newDiscreteStatesNeeded== True:
+                if eInfo.newDiscreteStatesNeeded:
                     #bouncing_fmu.get_real, get_integer, get_boolean, 
                     # get_string(valueref)
                     pass
