@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Added the possibility to retrieve unit and display unit name for FMI2 (ticket:5537)
     * Added possibility to get a scalar variable directly (ticket:5521)
     * Fixed problem with binary saving (integer start time) (ticket:5496)
     * Updated the interactive info on the load_fmu method (ticket:5495)

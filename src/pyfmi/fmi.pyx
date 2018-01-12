@@ -5071,6 +5071,86 @@ cdef class FMUModelBase2(ModelBase):
         initial = FMIL.fmi2_import_get_initial(variable)
         
         return initial
+    
+    def get_variable_unit(self, variable_name):
+        """
+        Get the unit of the variable.
+        
+        Parameters::
+        
+            variable_name --
+                The name of the variable.
+                
+        Returns::
+        
+            String representing the unit of the variable.
+        """
+        cdef FMIL.fmi2_import_variable_t* variable
+        cdef FMIL.fmi2_import_real_variable_t* real_variable
+        cdef FMIL.fmi2_import_unit_t* unit
+        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef char* unit_description
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
+        
+        variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+            
+        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        if type != FMIL.fmi2_base_type_real:
+            raise FMUException("The variable %s is not a Real variable. Units only exists for Real variables."%variablename)
+            
+        real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
+        
+        unit = FMIL.fmi2_import_get_real_variable_unit(real_variable)
+        if unit == NULL:
+            raise FMUException("No unit was found for the variable %s."%variablename)
+        
+        unit_description = FMIL.fmi2_import_get_unit_name(unit)
+        
+        return unit_description if unit_description != NULL else ""
+        
+    def get_variable_display_unit(self, variable_name):
+        """
+        Get the display unit of the variable.
+        
+        Parameters::
+        
+            variable_name --
+                The name of the variable.
+                
+        Returns::
+        
+            String representing the display unit of the variable.
+        """
+        cdef FMIL.fmi2_import_variable_t* variable
+        cdef FMIL.fmi2_import_real_variable_t* real_variable
+        cdef FMIL.fmi2_import_display_unit_t* display_unit
+        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef char* display_unit_description
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
+        
+        variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+            
+        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        if type != FMIL.fmi2_base_type_real:
+            raise FMUException("The variable %s is not a Real variable. Display units only exists for Real variables."%variablename)
+            
+        real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
+        
+        display_unit = FMIL.fmi2_import_get_real_variable_display_unit(real_variable)
+        if display_unit == NULL:
+            raise FMUException("No display unit was found for the variable %s."%variablename)
+        
+        display_unit_description = FMIL.fmi2_import_get_display_unit_name(display_unit)
+        
+        return display_unit_description if display_unit_description != NULL else ""
 
     cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, variable_name) except *:
         """
