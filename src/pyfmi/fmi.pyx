@@ -5151,6 +5151,64 @@ cdef class FMUModelBase2(ModelBase):
         display_unit_description = FMIL.fmi2_import_get_display_unit_name(display_unit)
         
         return display_unit_description if display_unit_description != NULL else ""
+        
+    def get_variable_display_value(self, variable_name):
+        """
+        Get the display value of the variable. This value takes into account
+        the display unit (i.e. converts the value in its base unit to the
+        value in its display unit.)
+        
+        Parameters::
+        
+            variable_name --
+                The name of the variable.
+                
+        Returns::
+        
+            Variable value in its display unit (raises exception if no display unit).
+        """
+        cdef FMIL.fmi2_import_variable_t* variable
+        cdef FMIL.fmi2_import_display_unit_t* display_unit
+        cdef FMIL.fmi2_import_variable_typedef_t* variable_typedef
+        cdef FMIL.fmi2_import_real_typedef_t* variable_real_typedef
+        cdef FMIL.fmi2_real_t display_value, value
+        cdef FMIL.fmi2_value_reference_t  vr
+        cdef int relative_quantity
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
+        
+        variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+            
+        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        if type != FMIL.fmi2_base_type_real:
+            raise FMUException("The variable %s is not a Real variable. Display units only exists for Real variables."%variablename)
+        
+        real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
+        display_unit  = FMIL.fmi2_import_get_real_variable_display_unit(real_variable)
+        if display_unit == NULL:
+            raise FMUException("No display unit was found for the variable %s."%variablename)
+        
+        variable_typedef = FMIL.fmi2_import_get_variable_declared_type(variable)
+        if variable_typedef == NULL:
+            #Use the default value for relative quantity (False)
+            relative_quantity = 0
+        else:
+            variable_real_typedef = FMIL.fmi2_import_get_type_as_real(variable_typedef)
+            if variable_real_typedef == NULL:
+                #Use the default value for relative quantity (False)
+                relative_quantity = 0
+            else:
+                relative_quantity = FMIL.fmi2_import_get_real_type_is_relative_quantity(variable_real_typedef)
+        
+        vr = FMIL.fmi2_import_get_variable_vr(variable)
+        value = self.get_real(vr)
+        
+        display_value = FMIL.fmi2_import_convert_to_display_unit(value, display_unit, relative_quantity)
+        
+        return display_value
 
     cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, variable_name) except *:
         """
