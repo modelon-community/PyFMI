@@ -173,7 +173,7 @@ class FMIODE(Explicit_Problem):
         self._jm_fmu = self._model.get_generation_tool() == "JModelica.org"
 
         if with_jacobian:
-            self.jac = self.j #Activates the jacobian
+            raise fmi.FMUException("Jacobians are not supported using FMI 1.0, please use FMI 2.0")
     
     def _adapt_input(self, input):
         if input != None:
@@ -215,33 +215,6 @@ class FMIODE(Explicit_Problem):
             rhs = N.array([0.0])
 
         return rhs
-
-    def j(self, t, y, sw=None):
-        """
-        The jacobian function for an ODE problem.
-        """
-        #Moving data to the model
-        self._model.time = t
-        #Check if there are any states
-        if self._f_nbr != 0:
-            self._model.continuous_states = y
-
-        #Sets the inputs, if any
-        if self.input!=None:
-            self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
-
-        #Evaluating the jacobian
-
-        #-Evaluating
-        Jac = N.zeros(len(y)**2) #Matrix that holds the information
-
-        #Compute Jac
-        self._model.get_jacobian(1, 1, Jac)
-
-        #-Vector manipulation
-        Jac = Jac.reshape(len(y),len(y)).transpose() #Reshape to a matrix
-
-        return Jac
 
     def g(self, t, y, sw):
         """
