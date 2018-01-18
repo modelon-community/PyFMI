@@ -186,6 +186,7 @@ cdef class ModelBase:
     def __init__(self):
         self.cache = {}
         self.file_object = None
+        self._additional_logger = None
     
     def set(self, variable_name, value):
         """
@@ -533,6 +534,9 @@ cdef class ModelBase:
             self.file_object = None
 
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil:
+        if self._additional_logger:
+            self._additional_logger(module, log_level, message)
+            
         if self._fmu_log_name != NULL:
             if self.file_object:
                 self.file_object.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
@@ -543,6 +547,9 @@ cdef class ModelBase:
             self._log.append([module,log_level,message])
             
     def append_log_message(self, module, log_level, message):
+        if self._additional_logger:
+            self._additional_logger(module, log_level, message)
+                
         if self._fmu_log_name != NULL:
             if self.file_object:
                 self.file_object.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
@@ -574,6 +581,20 @@ cdef class ModelBase:
         if level < FMIL.jm_log_level_nothing or level > FMIL.jm_log_level_all:
             raise FMUException("Invalid log level for FMI Library (0-7).")
         self.callbacks.log_level = level
+
+    def set_additional_logger(self, additional_logger):
+        """
+        Set an additional logger function that will, an addition to
+        the normal FMU log file, also be fed with all model log
+        messages.
+
+        Parameter::
+
+            additional_logger --
+                The callback function that should accept three arguments:
+                module(str), log_level(int), message(str)
+        """
+        self._additional_logger = additional_logger
         
     def _convert_filter(self, expression):
         """
