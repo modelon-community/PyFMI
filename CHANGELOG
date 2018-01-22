@@ -1,8 +1,9 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Deprecated get_log_file_name in favour of get_log_filename (ticket:5548)
     * Implemented support for injecting custom logging functionality (ticket:5545)
-    * Added the possibility to retrieve unit/display unit name for FMI2 
+    * Added the possibility to retrieve unit/display unit name for FMI2
       and its value in the display unit (ticket:5537)
     * Added possibility to get a scalar variable directly (ticket:5521)
     * Fixed problem with binary saving (integer start time) (ticket:5496)

@@ -460,9 +460,13 @@ cdef class ModelBase:
             Options class for the algorithm specified with default values.
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
-        
-    def get_log_file_name(self):
+
+    def get_log_filename(self):
         return self._fmu_log_name
+    
+    def get_log_file_name(self):
+        logging.warning("The method 'get_log_file_name()' is deprecated and will be removed. Please use 'get_log_filename()' instead.")
+        return self.get_log_filename()
         
     def get_number_of_lines_log(self):
         """
