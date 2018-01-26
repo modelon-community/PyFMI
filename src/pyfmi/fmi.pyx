@@ -1,3 +1,4 @@
+#cython: profile=True
 #!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
@@ -166,8 +167,7 @@ cdef void  importlogger_fmi2(FMIL.fmi2_component_environment_t c, FMIL.fmi2_stri
 
 #CALLBACKS
 cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
-    with open(<char*>c.context,'a') as file:
-        file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+    (<list>c.context).append("FMIL: module = %s, log level = %d: %s"%(module, log_level, message))
 
 #Old, use FMIL.fmi#_log_forwarding instead
 cdef void fmilogger(FMIL.fmi1_component_t c, FMIL.fmi1_string_t instanceName, FMIL.fmi1_status_t status, FMIL.fmi1_string_t category, FMIL.fmi1_string_t message, ...):
@@ -3660,12 +3660,10 @@ cdef class FMUModelBase2(ModelBase):
         self.callbacks.realloc          = FMIL.realloc
         self.callbacks.free             = FMIL.free
         self.callbacks.logger           = importlogger2
-        self.callbacks.context          = <void*> self
+        self.callbacks.context          = <void*>self
 
         #Specify FMI2 related callbacks
         self.callBackFunctions.logger               = FMIL.fmi2_log_forwarding
-        #self.callBackFunctions.logger               = importlogger_fmi2
-        #self.callBackFunctions.logger               = FMIL.fmi2_default_callback_logger
         self.callBackFunctions.allocateMemory       = FMIL.calloc
         self.callBackFunctions.freeMemory           = FMIL.free
         self.callBackFunctions.stepFinished         = NULL
@@ -3729,7 +3727,6 @@ cdef class FMUModelBase2(ModelBase):
                 raise FMUException('The XML-could not be read. Enable logging for possible nore information.')
 
         self.callBackFunctions.componentEnvironment = <FMIL.fmi2_component_environment_t>self._fmu
-        #self.callBackFunctions.componentEnvironment = <FMIL.fmi2_component_environment_t>self
         self._fmu_kind      = FMIL.fmi2_import_get_fmu_kind(self._fmu)
         self._allocated_xml = 1
 
@@ -7506,123 +7503,10 @@ cdef class FMUModel(FMUModelME1):
     def __init__(self, fmu, path='.', enable_logging=True):
         print("WARNING: This class is deprecated and has been superseded with FMUModelME1. The recommended entry-point for loading an FMU is now the function load_fmu.")
         FMUModelME1.__init__(self,fmu,path,enable_logging)
-
-def load_fmu_deprecated(fmu, path='.', enable_logging=True, log_file_name=""):
-    """
-    Helper function for loading FMUs of different kinds.
-    """
-    #NOTE: This method can be made more efficient by providing
-    #the unzipped part and the already read XML object to the different
-    #FMU classes.
-
-    #FMIL related variables
-    cdef FMIL.fmi1_callback_functions_t callBackFunctions
-    cdef FMIL.jm_callbacks callbacks
-    cdef FMIL.fmi_import_context_t* context
-    cdef FMIL.fmi1_import_t* _fmu
-    cdef FMIL.jm_string last_error
-
-    #Used for deallocation
-    allocated_context = False
-    allocated_xml = False
-    fmu_temp_dir = None
-
-    fmu_full_path = os.path.abspath(os.path.join(path,fmu))
-    fmu_temp_dir  = create_temp_dir()
-
-    # Check that the file referenced by fmu has the correct file-ending
-    if not fmu_full_path.endswith(".fmu"):
-        raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
-
-    #Specify the general callback functions
-    callbacks.malloc    = FMIL.malloc
-    callbacks.calloc    = FMIL.calloc
-    callbacks.realloc   = FMIL.realloc
-    callbacks.free      = FMIL.free
-    callbacks.logger    = importlogger_load_fmu
-    callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
-    #callbacks.errMessageBuffer = NULL
-
-    #Specify FMI related callbacks
-    callBackFunctions.logger = FMIL.fmi1_log_forwarding;
-    callBackFunctions.allocateMemory = FMIL.calloc;
-    callBackFunctions.freeMemory = FMIL.free;
-
-    context = FMIL.fmi_import_allocate_context(&callbacks)
-    allocated_context = True
-
-    #Get the FMI version of the provided model
-    version = FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
-
-    if version == FMIL.fmi_version_unknown_enu:
-        last_error = FMIL.jm_get_last_error(&callbacks)
-
-        #Delete the context
-        if allocated_context:
-            FMIL.fmi_import_free_context(context)
-
-        if enable_logging:
-            raise FMUException("The FMU version could not be determined. "+decode(last_error))
-        else:
-            raise FMUException("The FMU version could not be determined. Enable logging for possibly more information.")
-    if version != 1:
-        #Delete the context
-        if allocated_context:
-            FMIL.fmi_import_free_context(context)
-
-        raise FMUException("PyFMI currently only supports FMI 1.0.")
-
-    #Parse the XML
-    _fmu = FMIL.fmi1_import_parse_xml(context, fmu_temp_dir)
-    if _fmu == NULL:
-        last_error = FMIL.jm_get_last_error(&callbacks)
-        if enable_logging:
-            raise FMUException("The XML file could not be parsed. "+decode(last_error))
-        else:
-            raise FMUException("The XML file could not be parsed. Enable logging for possibly more information.")
-    allocated_xml = True
-
-    #Check the FMU kind
-    fmu_kind = FMIL.fmi1_import_get_fmu_kind(_fmu)
-    if fmu_kind == FMI_ME:
-        model = FMUModelME1(fmu, path, enable_logging, log_file_name)
-    elif fmu_kind == FMI_CS_STANDALONE or fmu_kind == FMI_CS_TOOL:
-        model = FMUModelCS1(fmu, path, enable_logging, log_file_name)
-    else:
-        #Delete the XML
-        if allocated_xml:
-            FMIL.fmi1_import_free(_fmu)
-
-        #Delete the context
-        if allocated_context:
-            FMIL.fmi_import_free_context(context)
-
-        raise FMUException("PyFMI currently only supports FMI 1.0.")
-
-    #Delete the XML
-    if allocated_xml:
-        FMIL.fmi1_import_free(_fmu)
-
-    #Delete the context
-    if allocated_context:
-        FMIL.fmi_import_free_context(context)
-
-    #Delete the created directory
-    delete_temp_dir(fmu_temp_dir)
-
-    return model
-    
-def _handle_load_fmu_exception(fmu, log_file):    
-    log = []
-    with open(log_file,'r') as file:
-        while True:
-            line = file.readline()
-            if line == "":
-                break
-            log.append(line.strip("\n"))
-
-    for i in range(len(log)):
-        print(log[i])
+        
+def _handle_load_fmu_exception(fmu, log_data):
+    for log in log_data:
+        print(log)
 
 def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 'auto', log_level=FMI_DEFAULT_LOG_LEVEL):
     """
@@ -7680,14 +7564,11 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     cdef FMIL.fmi2_import_t*            fmu_2
     cdef FMIL.fmi1_fmu_kind_enu_t       fmu_1_kind
     cdef FMIL.fmi2_fmu_kind_enu_t       fmu_2_kind
-    cdef char*                          log_file_c
+    cdef list                           log_data = []
 
     #Variables for deallocation
     fmu_temp_dir = None
     model        = None
-    log_file     = encode(create_temp_file())
-    log_file_c = <char*>FMIL.malloc((FMIL.strlen(log_file)+1)*sizeof(char))
-    FMIL.strcpy(log_file_c, log_file)
 
     # Check that the file referenced by fmu has the correct file-ending
     fmu_full_path = os.path.abspath(os.path.join(path,fmu))
@@ -7703,15 +7584,14 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         if (kind.upper() != 'ME' and kind.upper() != 'CS'):
             raise FMUException('Input-argument "kind" can only be "ME", "CS" or "auto" (default) and not: ' + kind)
 
-
     #Specify FMI related callbacks
     callbacks.malloc    = FMIL.malloc
     callbacks.calloc    = FMIL.calloc
     callbacks.realloc   = FMIL.realloc
     callbacks.free      = FMIL.free
     callbacks.logger    = importlogger_load_fmu
-    callbacks.context   = <void*>log_file_c
-    #callbacks.log_level = FMIL.jm_log_level_warning if enable_logging else FMIL.jm_log_level_nothing
+    callbacks.context   = <void*>log_data
+    
     original_enable_logging = enable_logging
     
     if enable_logging==None:
@@ -7727,12 +7607,6 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         logging.warning("The attribute 'enable_logging' is deprecated. Please use 'log_level' instead. Setting 'log_level' to INFO...")
         callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
 
-    #Specify the xml_callbacks for FMU2
-    #xml_callbacks.startHandle = None
-    #xml_callbacks.dataHandle  = None
-    #xml_callbacks.endHandle   = None
-    #xml_callbacks.context     = None
-
     #Specify the general FMU1 callback functions
     callBackFunctions_1.logger         = FMIL.fmi1_log_forwarding
     callBackFunctions_1.allocateMemory = FMIL.calloc
@@ -7743,7 +7617,6 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     callBackFunctions_2.allocateMemory       = FMIL.calloc
     callBackFunctions_2.freeMemory           = FMIL.free
 
-
     # Create a struct for allocation
     context = FMIL.fmi_import_allocate_context(&callbacks)
 
@@ -7752,7 +7625,6 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     fmu_full_path = encode(fmu_full_path)
     version = FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
 
-
     #Check the version
     if version == FMIL.fmi_version_unknown_enu:
         #Delete context
@@ -7760,10 +7632,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         FMIL.fmi_import_free_context(context)
         FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_file)
+            _handle_load_fmu_exception(fmu, log_data)
             raise FMUException("The FMU version could not be determined. "+decode(last_error))
         else:
-            _handle_load_fmu_exception(fmu, log_file)
+            _handle_load_fmu_exception(fmu, log_data)
             raise FMUException("The FMU version could not be determined. Enable logging for possibly more information.")
 
     if version > 2:
@@ -7772,12 +7644,11 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         FMIL.fmi_import_free_context(context)
         FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_file)
+            _handle_load_fmu_exception(fmu, log_data)
             raise FMUException("The FMU version is unsupported. "+decode(last_error))
         else:
-            _handle_load_fmu_exception(fmu, log_file)
+            _handle_load_fmu_exception(fmu, log_data)
             raise FMUException("The FMU version is unsupported. Enable logging for possibly more information.")
-
 
     #Parse the xml
     if version == FMIL.fmi_version_1_enu:
@@ -7790,10 +7661,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if callbacks.log_level >= FMIL.jm_log_level_error:
-                _handle_load_fmu_exception(fmu, log_file)
+                _handle_load_fmu_exception(fmu, log_data)
                 raise FMUException("The XML-could not be read. "+decode(last_error))
             else:
-                _handle_load_fmu_exception(fmu, log_file)
+                _handle_load_fmu_exception(fmu, log_data)
                 raise FMUException('The XML-could not be read. Enable logging for possible nore information.')
 
         fmu_1_kind = FMIL.fmi1_import_get_fmu_kind(fmu_1)
@@ -7807,7 +7678,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi1_import_free(fmu_1)
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
-            _handle_load_fmu_exception(fmu, log_file)
+            _handle_load_fmu_exception(fmu, log_data)
             raise FMUException('FMU is a ' + FMIL.fmi1_fmu_kind_to_string(fmu_1_kind) + ' and not a ' + kind.upper())
 
     elif version == FMIL.fmi_version_2_0_enu:
@@ -7820,10 +7691,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if callbacks.log_level >= FMIL.jm_log_level_error:
-                _handle_load_fmu_exception(fmu, log_file)
+                _handle_load_fmu_exception(fmu, log_data)
                 raise FMUException("The XML-could not be read. "+decode(last_error))
             else:
-                _handle_load_fmu_exception(fmu, log_file)
+                _handle_load_fmu_exception(fmu, log_data)
                 raise FMUException('The XML-could not be read. Enable logging for possible nore information.')
 
         fmu_2_kind = FMIL.fmi2_import_get_fmu_kind(fmu_2)
@@ -7835,10 +7706,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if callbacks.log_level >= FMIL.jm_log_level_error:
-                _handle_load_fmu_exception(fmu, log_file)
+                _handle_load_fmu_exception(fmu, log_data)
                 raise FMUException("The FMU kind could not be determined. "+decode(last_error))
             else:
-                _handle_load_fmu_exception(fmu, log_file)
+                _handle_load_fmu_exception(fmu, log_data)
                 raise FMUException("The FMU kind could not be determined. Enable logging for possibly more information.")
 
         #FMU kind is known
@@ -7859,7 +7730,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi2_import_free(fmu_2)
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
-            _handle_load_fmu_exception(fmu, log_file)
+            _handle_load_fmu_exception(fmu, log_data)
             raise FMUException('FMU is a ' + FMIL.fmi2_fmu_kind_to_string(fmu_2_kind) + ' and not a ' + kind.upper())
 
     else:
@@ -7870,10 +7741,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         FMIL.fmi_import_free_context(context)
         FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_file)
+            _handle_load_fmu_exception(fmu, log_data)
             raise FMUException("The FMU version is not found. "+decode(last_error))
         else:
-            _handle_load_fmu_exception(fmu, log_file)
+            _handle_load_fmu_exception(fmu, log_data)
             raise FMUException("The FMU version is not found. Enable logging for possibly more information.")
 
     #Delete
@@ -7886,10 +7757,6 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         FMIL.fmi2_import_free(fmu_2)
         FMIL.fmi_import_free_context(context)
         FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
-    
-    #Delete log file
-    delete_temp_file(log_file)
-    FMIL.free(log_file_c)
 
     return model
 
