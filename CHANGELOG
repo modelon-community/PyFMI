@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Fixed memory leak when getting the dependency information (ticket:5553)
     * Deprecated get_log_file_name in favour of get_log_filename (ticket:5548)
     * Implemented support for injecting custom logging functionality (ticket:5545)
     * Added the possibility to retrieve unit/display unit name for FMI2

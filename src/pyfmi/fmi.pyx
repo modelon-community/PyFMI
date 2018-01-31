@@ -5718,7 +5718,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef size_t *start_indexp
         cdef char   *factor_kindp
         cdef FMIL.fmi2_import_variable_t *variable
-        cdef FMIL.fmi2_import_variable_list_t *variable_list = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
+        cdef FMIL.fmi2_import_variable_list_t *variable_list
 
         if python3_flag:
             outputs = list(self.get_output_list().keys())
@@ -5746,6 +5746,10 @@ cdef class FMUModelBase2(ModelBase):
                         states[outputs[i]]  = states_list.keys()
                         inputs[outputs[i]]  = inputs_list.keys()
             else:
+                variable_list = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
+                if variable_list == NULL:
+                    raise FMUException("The returned variable list is NULL.")
+                
                 for i in range(0,len(outputs)):
                     states[outputs[i]]  = []
                     inputs[outputs[i]] = []
@@ -5759,7 +5763,10 @@ cdef class FMUModelBase2(ModelBase):
                                 states[outputs[i]].append(name)
                             elif name in inputs_list:
                                 inputs[outputs[i]].append(name)                        
-                     
+                
+                #Free the variable list
+                FMIL.fmi2_import_free_variable_list(variable_list)
+                
         #Caching
         self._outputs_states_dependencies = states
         self._outputs_inputs_dependencies = inputs
@@ -5780,7 +5787,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef size_t *start_indexp
         cdef char   *factor_kindp
         cdef FMIL.fmi2_import_variable_t *variable
-        cdef FMIL.fmi2_import_variable_list_t *variable_list = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
+        cdef FMIL.fmi2_import_variable_list_t *variable_list
 
         if python3_flag:
             derivatives = list(self.get_derivatives_list().keys())
@@ -5803,6 +5810,10 @@ cdef class FMUModelBase2(ModelBase):
                     states[derivatives[i]]  = states_list.keys()
                     inputs[derivatives[i]]  = inputs_list.keys()
             else:
+                variable_list = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
+                if variable_list == NULL:
+                    raise FMUException("The returned variable list is NULL.")
+                
                 for i in range(0,len(derivatives)):
                     states[derivatives[i]]  = []
                     inputs[derivatives[i]] = []
@@ -5816,7 +5827,10 @@ cdef class FMUModelBase2(ModelBase):
                                 states[derivatives[i]].append(name)
                             elif name in inputs_list:
                                 inputs[derivatives[i]].append(name)                        
-            
+                
+                #Free the variable list
+                FMIL.fmi2_import_free_variable_list(variable_list)
+                
         #Caching
         self._derivatives_states_dependencies = states
         self._derivatives_inputs_dependencies = inputs
