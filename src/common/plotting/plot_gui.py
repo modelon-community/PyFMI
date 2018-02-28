@@ -630,6 +630,16 @@ class VariableTree(wxCustom.CustomTreeCtrl):
             if child.IsSelected():
                 self.RefreshLine(child)
     
+    # Workaround for bug in customtreectrl in wx making
+    # this function not work there
+    def SortChildren(self, child):
+        children = item.GetChildren()
+
+        if len(children) > 1:
+            self._dirty = True
+            from functools import cmp_to_key
+            children.sort(key=cmp_to_key(self.OnCompareItems))
+    
     def AddTreeNode(self, resultObject, name,timeVarying=None,parametersConstants=None,filter=None):
         #Freeze the window temporarely
         self.Freeze()
