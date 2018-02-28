@@ -41,6 +41,7 @@ cdef class ModelBase:
     cdef public dict cache
     cdef public object file_object
     cdef public object _additional_logger
+    cdef public object _max_log_size_msg_sent, _max_log_size, _current_log_size
     
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
 

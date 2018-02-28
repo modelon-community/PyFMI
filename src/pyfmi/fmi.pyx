@@ -172,6 +172,9 @@ cdef class ModelBase:
         self.cache = {}
         self.file_object = None
         self._additional_logger = None
+        self._current_log_size = 0
+        self._max_log_size = 1024**3*2 #About 2GB limit
+        self._max_log_size_msg_sent = False
     
     def set(self, variable_name, value):
         """
@@ -526,19 +529,29 @@ cdef class ModelBase:
         if self._additional_logger:
             self._additional_logger(module, log_level, message)
             
+        msg = "FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message)
+        
+        self._current_log_size = self._current_log_size + len(msg)
+        if self._current_log_size > self._max_log_size:
+            if self._max_log_size_msg_sent:
+                return
+            
+            msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method."
+            self._max_log_size_msg_sent = True
+            
         if self._fmu_log_name != NULL:
             if self.file_object:
-                self.file_object.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+                self.file_object.write(msg)
             else:
                 with open(self._fmu_log_name,'a') as file:
-                    file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+                    file.write(msg)
         else:
             self._log.append([module,log_level,message])
             
     def append_log_message(self, module, log_level, message):
         if self._additional_logger:
             self._additional_logger(module, log_level, message)
-                
+        
         if self._fmu_log_name != NULL:
             if self.file_object:
                 self.file_object.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
@@ -547,6 +560,26 @@ cdef class ModelBase:
                     file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
         else:
             self._log.append([module,log_level,message])
+    
+    def set_max_log_size(self, number_of_characters):
+        """
+        Specifies the maximum number of characters to be written to the
+        log file.
+        
+            Parameters::
+            
+                number_of_characters --
+                    The maximum number of characters in the log.
+                    Default: 1024^3 (about 1GB)
+        """
+        self._max_log_size = number_of_characters
+        
+    def get_max_log_size(self):
+        """
+        Returns the limit (in characters) of the log file.
+        """
+        return self._max_log_size
+    
             
     def set_log_level(self, FMIL.jm_log_level_enu_t level):
         """
