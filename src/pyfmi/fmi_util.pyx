@@ -37,10 +37,9 @@ def enable_caching(obj):
     @functools.wraps(obj, ('__name__', '__doc__'))
     def memoizer(*args, **kwargs):
         cache = args[0].cache #First argument is the self object
-        #key = str(args) + str(kwargs)
         key = (obj, marshal.dumps(args[1:]), marshal.dumps(kwargs))
         
-        if len(cache) > 10: #Remove items from cache in case it grows large
+        if len(cache) > 1000: #Remove items from cache in case it grows large
             cache.popitem()
 
         if key not in cache:

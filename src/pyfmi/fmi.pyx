@@ -138,6 +138,10 @@ FMI2_INITIAL_APPROX     = 1
 FMI2_INITIAL_CALCULATED = 2
 FMI2_INITIAL_UNKNOWN    = 3
 
+DEF FORWARD_DIFFERENCE = 1
+DEF CENTRAL_DIFFERENCE = 2
+FORWARD_DIFFERENCE_EPS = (N.finfo(float).eps)**0.5
+CENTRAL_DIFFERENCE_EPS = (N.finfo(float).eps)**(1/3.0)
 
 """Flags for evaluation of FMI Jacobians"""
 """Evaluate Jacobian w.r.t. states."""
@@ -4438,7 +4442,7 @@ cdef class FMUModelBase2(ModelBase):
 
         return categories
 
-
+    @enable_caching
     def get_variable_nominal(self, variable_name=None, valueref=None):
         """
         Returns the nominal value from a real variable determined by
@@ -7463,11 +7467,12 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef int len_v = len(var_ref)
         cdef int len_f = len(func_ref)
         cdef double nominal
-        cdef double RUROUND = (N.finfo(float).eps)**0.5 if self.force_finite_differences is True or self.force_finite_differences == 1 else (N.finfo(float).eps)**(1/3.0)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v       = N.zeros(len_v, dtype = N.double)
+        cdef int method = FORWARD_DIFFERENCE if self.force_finite_differences is True or self.force_finite_differences == 0 else CENTRAL_DIFFERENCE
+        cdef double RUROUND = FORWARD_DIFFERENCE_EPS if method == FORWARD_DIFFERENCE else CENTRAL_DIFFERENCE_EPS
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] eps     = N.zeros(len_v, dtype = N.double)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] df      = N.zeros(len_f, dtype = N.double)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert  = N.zeros(len_f, dtype = N.double)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] df
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.array(var_ref, dtype = N.uint32)
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.array(func_ref, dtype = N.uint32) 
         
@@ -7483,17 +7488,17 @@ cdef class FMUModelME2(FMUModelBase2):
             row.extend(range(dim))
             col.extend(range(dim))
         
-        df = self.get_real(func_ref)
-        v  = self.get_real(var_ref)
+        df = self.get_real(z_ref)
+        v  = self.get_real(v_ref)
         for i in range(len_v):
-            nominal = self.get_variable_nominal(valueref = var_ref[i])
+            nominal = self.get_variable_nominal(valueref = v_ref[i])
             eps[i] = RUROUND*(max(abs(v[i]), nominal))
         
         if group is not None:
             for key in group.keys():
                 self.set_real(v_ref[group[key][0]], v[group[key][0]]+eps[group[key][0]])
                 
-                if self.force_finite_differences is True or self.force_finite_differences == 1: #Forward and Backward difference    
+                if method == FORWARD_DIFFERENCE: #Forward and Backward difference    
                     try:
                         data.extend((self.get_real(z_ref[group[key][2]]) - df[group[key][2]])/eps[group[key][3]])
                     except FMUException: #Try backward difference (for all variables)
@@ -7520,27 +7525,28 @@ cdef class FMUModelME2(FMUModelBase2):
                 return sp.csc_matrix((data, (row, col)), (len_f,len_v))
         else:
             A = N.zeros((len_f,len_v))
+            dfpert = N.zeros(len_f, dtype = N.double)
             for i in range(len_v):
                 tmp = v[i]
                 
                 v[i] += eps[i]
                 self.set_real(v_ref, v)
                         
-                if self.force_finite_differences is True or self.force_finite_differences == 1: #Forward and Backward difference
+                if method == FORWARD_DIFFERENCE: #Forward and Backward difference
                     try:
-                        dfpert = self.get_real(func_ref)
+                        dfpert = self.get_real(z_ref)
                         A[:, i] = (dfpert - df)/eps[i]
                     except FMUException: #Try backward difference
                         v[i] = tmp - eps[i]
                         self.set_real(v_ref, v)
-                        dfpert = self.get_real(func_ref)
+                        dfpert = self.get_real(z_ref)
                         A[:, i] = (df - dfpert)/eps[i]
                 
                 else: #Central difference
-                    dfpertp = self.get_real(func_ref)
+                    dfpertp = self.get_real(z_ref)
                     v[i] = tmp - eps[i]
                     self.set_real(v_ref, v)
-                    dfpertm = self.get_real(func_ref)
+                    dfpertm = self.get_real(z_ref)
                     A[:, i] = (dfpertp - dfpertm)/(2*eps[i])
                 
                 #Reset values
