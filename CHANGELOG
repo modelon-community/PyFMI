@@ -1,6 +1,8 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Changed so that the FMU is only unzipped once (for performance) (ticket:5551)
+    * Changed so that the log is stored in memory during load_fmu call (ticket:5550)
     * Added option to limit the maximum size of the log file (ticket:5089)
     * Fixed memory leak when getting the dependency information (ticket:5553)
     * Deprecated get_log_file_name in favour of get_log_filename (ticket:5548)
