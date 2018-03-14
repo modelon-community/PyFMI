@@ -632,7 +632,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
     
     # Workaround for bug in customtreectrl in wx making
     # this function not work there
-    def SortChildren(self, child):
+    def SortChildren(self, item):
         children = item.GetChildren()
 
         if len(children) > 1:
