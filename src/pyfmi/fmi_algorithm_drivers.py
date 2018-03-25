@@ -96,9 +96,13 @@ class AssimuloFMIAlgOptions(OptionBase):
             Default: Empty string
 
         with_jacobian --
-            Set to True if an FMU Jacobian for the ODE is available or
-            False otherwise.
-            Default: False
+            Determines if the Jacobian should be computed from PyFMI (using 
+            either the directional derivatives, if available, or estimed using
+            finite differences) or if the Jacobian should be computed by the
+            choosen solver. The default is to use PyFMI if directional
+            derivatives are available, otherwise computed by the choosen
+            solver.
+            Default: "Default"
 
         logging --
             If True, creates a logfile from the solver in the current
@@ -168,7 +172,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'sensitivities':None,
             'write_scaled_result':False,
             'result_file_name':'',
-            'with_jacobian':False,
+            'with_jacobian':"Default",
             'logging':False,
             'result_handling':"binary",
             'result_handler': None,
@@ -453,9 +457,13 @@ class AssimuloFMIAlg(AlgorithmBase):
             pass
             
         self.with_jacobian = self.options['with_jacobian']
-        if (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
+        if not (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
+            self.with_jacobian = False #Force false flag in this case as it is not supported
+        elif self.with_jacobian == "Default" and (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
             if self.model.get_capability_flags()['providesDirectionalDerivatives']:
                 self.with_jacobian = True
+            else:
+                self.with_jacobian = False
 
     def _set_solver_options(self):
         """
@@ -473,12 +481,6 @@ class AssimuloFMIAlg(AlgorithmBase):
             try:
                 getattr(self.simulator, "usejac")
                 solver_options["usejac"] = True
-            except AttributeError:
-                pass
-        elif not "usejac" in solver_options and (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
-            try:
-                getattr(self.simulator, "usejac")
-                solver_options["usejac"] = self.model.get_capability_flags()['providesDirectionalDerivatives']
             except AttributeError:
                 pass
         
