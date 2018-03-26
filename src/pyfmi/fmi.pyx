@@ -4132,8 +4132,18 @@ cdef class FMUModelBase2(ModelBase):
 
         if type == FMIL.fmi2_base_type_real:  #REAL
             self.set_real([ref], [value])
-        elif type == FMIL.fmi2_base_type_int or type == FMIL.fmi2_base_type_enum: #INTEGER
+        elif type == FMIL.fmi2_base_type_int:
             self.set_integer([ref], [value])
+        elif type == FMIL.fmi2_base_type_enum:
+            if isinstance(value, str):
+                enum_type = self.get_variable_declared_type(variable_name)
+                enum_values = {v[0]: k for k, v in enum_type.items.items()}
+                try:
+                    self.set_integer([ref], [enum_values[value]])
+                except KeyError:
+                    raise FMUException("The value '%s' is not in the list of allowed enumeration items for variable '%s'. Allowed values: %s'"%(value, variable_name, ", ".join(enum_values.keys())))
+            else:
+                self.set_integer([ref], [value])
         elif type == FMIL.fmi2_base_type_str: #STRING
             self.set_string([ref], [value])
         elif type == FMIL.fmi2_base_type_bool: #BOOLEAN

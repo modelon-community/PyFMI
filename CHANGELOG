@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Added functionality to set enumerations with strings (ticket:5587)
     * Changed so that the FMU is only unzipped once (for performance) (ticket:5551)
     * Changed so that the log is stored in memory during load_fmu call (ticket:5550)
     * Added option to limit the maximum size of the log file (ticket:5089)
