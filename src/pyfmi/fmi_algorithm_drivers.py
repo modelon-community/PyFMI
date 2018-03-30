@@ -172,7 +172,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'sensitivities':None,
             'write_scaled_result':False,
             'result_file_name':'',
-            'with_jacobian':"Default",
+            'with_jacobian':True,
             'logging':False,
             'result_handling':"binary",
             'result_handler': None,
