@@ -7468,7 +7468,7 @@ cdef class FMUModelME2(FMUModelBase2):
             return FMUModelBase2._get_directional_proxy(self, var_ref, func_ref, group, add_diag)
         else:
             return self._estimate_directional_derivative(var_ref, func_ref, group, add_diag)
-
+    
     def _estimate_directional_derivative(self, var_ref, func_ref, group=None, add_diag=False):
         cdef list data = []
         cdef list row = []
@@ -7503,27 +7503,36 @@ cdef class FMUModelME2(FMUModelBase2):
         for i in range(len_v):
             nominal = self.get_variable_nominal(valueref = v_ref[i])
             eps[i] = RUROUND*(max(abs(v[i]), nominal))
-        
+
         if group is not None:
             for key in group.keys():
-                self.set_real(v_ref[group[key][0]], v[group[key][0]]+eps[group[key][0]])
+                for fac in [1.0, 0.1, 0.01]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
+                    self.set_real(v_ref[group[key][0]], v[group[key][0]]+fac*eps[group[key][0]])
+                    
+                    if method == FORWARD_DIFFERENCE: #Forward and Backward difference    
+                        try:
+                            data.extend((self.get_real(z_ref[group[key][2]]) - df[group[key][2]])/(fac*eps[group[key][3]]))
+                            break
+                        except FMUException: #Try backward difference (for all variables)
+                            self.set_real(v_ref[group[key][0]], v[group[key][0]]-fac*eps[group[key][0]])
+                            try:
+                                data.extend((df[group[key][2]] - self.get_real(z_ref[group[key][2]]))/(fac*eps[group[key][3]]))
+                                break
+                            except FMUException:
+                                pass
+                    
+                    else: #Central difference
+                        dfpertp = self.get_real(z_ref[group[key][2]])
+                        
+                        self.set_real(v_ref[group[key][0]], v[group[key][0]]-fac*eps[group[key][0]])
+                        
+                        dfpertm = self.get_real(z_ref[group[key][2]])
+                        
+                        data.extend((dfpertp - dfpertm)/(2*fac*eps[group[key][3]]))
+                        break
+                else:
+                    raise FMUException("Failed to estimate the directional derivative at time %g."%self.time)
                 
-                if method == FORWARD_DIFFERENCE: #Forward and Backward difference    
-                    try:
-                        data.extend((self.get_real(z_ref[group[key][2]]) - df[group[key][2]])/eps[group[key][3]])
-                    except FMUException: #Try backward difference (for all variables)
-                        self.set_real(v_ref[group[key][0]], v[group[key][0]]-eps[group[key][0]])
-                        data.extend((df[group[key][2]] - self.get_real(z_ref[group[key][2]]))/eps[group[key][3]])
-
-                else: #Central difference
-                    dfpertp = self.get_real(z_ref[group[key][2]])
-                    
-                    self.set_real(v_ref[group[key][0]], v[group[key][0]]-eps[group[key][0]])
-                    
-                    dfpertm = self.get_real(z_ref[group[key][2]])
-                    
-                    data.extend((dfpertp - dfpertm)/(2*eps[group[key][3]]))
-
                 row.extend(group[key][2])
                 col.extend(group[key][3])
                     
@@ -7538,27 +7547,36 @@ cdef class FMUModelME2(FMUModelBase2):
             dfpert = N.zeros(len_f, dtype = N.double)
             for i in range(len_v):
                 tmp = v[i]
-                
-                v[i] += eps[i]
-                self.set_real(v_ref, v)
-                        
-                if method == FORWARD_DIFFERENCE: #Forward and Backward difference
-                    try:
-                        dfpert = self.get_real(z_ref)
-                        A[:, i] = (dfpert - df)/eps[i]
-                    except FMUException: #Try backward difference
-                        v[i] = tmp - eps[i]
-                        self.set_real(v_ref, v)
-                        dfpert = self.get_real(z_ref)
-                        A[:, i] = (df - dfpert)/eps[i]
-                
-                else: #Central difference
-                    dfpertp = self.get_real(z_ref)
-                    v[i] = tmp - eps[i]
+                for fac in [1.0, 0.1, 0.01]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
+                    v[i] = tmp+fac*eps[i]
                     self.set_real(v_ref, v)
-                    dfpertm = self.get_real(z_ref)
-                    A[:, i] = (dfpertp - dfpertm)/(2*eps[i])
+                            
+                    if method == FORWARD_DIFFERENCE: #Forward and Backward difference
+                        try:
+                            dfpert = self.get_real(z_ref)
+                            A[:, i] = (dfpert - df)/(fac*eps[i])
+                            break
+                        except FMUException: #Try backward difference
+                            v[i] = tmp - fac*eps[i]
+                            self.set_real(v_ref, v)
+                            try:
+                                dfpert = self.get_real(z_ref)
+                                A[:, i] = (df - dfpert)/(fac*eps[i])
+                                break
+                            except FMUException:
+                                pass
+                            
+                    else: #Central difference
+                        dfpertp = self.get_real(z_ref)
+                        v[i] = tmp - fac*eps[i]
+                        self.set_real(v_ref, v)
+                        dfpertm = self.get_real(z_ref)
+                        A[:, i] = (dfpertp - dfpertm)/(2*fac*eps[i])
+                        break
+                else:
+                    raise FMUException("Failed to estimate the directional derivative at time %g."%self.time)
                 
+                    
                 #Reset values
                 v[i] = tmp
                 self.set_real(v_ref, v)
