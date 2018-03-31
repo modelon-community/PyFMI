@@ -7506,7 +7506,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         if group is not None:
             for key in group.keys():
-                for fac in [1.0, 0.1, 0.01]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
+                for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
                     self.set_real(v_ref[group[key][0]], v[group[key][0]]+fac*eps[group[key][0]])
                     
                     if method == FORWARD_DIFFERENCE: #Forward and Backward difference    
@@ -7547,7 +7547,7 @@ cdef class FMUModelME2(FMUModelBase2):
             dfpert = N.zeros(len_f, dtype = N.double)
             for i in range(len_v):
                 tmp = v[i]
-                for fac in [1.0, 0.1, 0.01]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
+                for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
                     v[i] = tmp+fac*eps[i]
                     self.set_real(v_ref, v)
                             
