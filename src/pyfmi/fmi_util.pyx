@@ -55,6 +55,7 @@ cpdef cpr_seed(dependencies, list column_keys):
     cdef dict groups = {}
     cdef dict column_dict = {}
     cdef dict column_keys_dict = {}
+    cdef dict data_index = {}
 
     row_keys_dict    = {s:i for i,s in enumerate(dependencies.keys())}
     column_keys_dict = {s:i for i,s in enumerate(column_keys)}
@@ -63,13 +64,41 @@ cpdef cpr_seed(dependencies, list column_keys):
         for x in dependencies[dx]:
             column_dict[column_keys_dict[x]].append(dx)
     columns_taken = {key: 1 for key in column_dict.keys() if len(column_dict[key]) == 0}
-
+    
+    k = 0
+    kd = 0
+    data_index = {}
+    data_index_with_diag = {}
+    for i in range(n_col):
+        data_index[i] = range(k, k + len(column_dict[i]))
+        k = k + len(column_dict[i])
+        
+        data_index_with_diag[i] = []
+        diag_added = False
+        for x in column_dict[i]:
+            ind = row_keys_dict[x]
+            if ind < i:
+                data_index_with_diag[i].append(kd)
+                kd = kd + 1
+            else:
+                if ind == i:
+                    diag_added = True
+                if not diag_added:
+                    kd = kd + 1
+                    diag_added = True
+                data_index_with_diag[i].append(kd)
+                kd = kd + 1
+    
+    nnz = k
+    nnz_with_diag = kd
+    
+    k = 0
     for i in range(n_col):
         if columns_taken.has_key(i):
             continue
             
         # New group
-        groups[k] = ([i], column_dict[i][:], [row_keys_dict[x] for x in column_dict[i]], [i]*len(column_dict[i]))
+        groups[k] = ([i], column_dict[i][:], [row_keys_dict[x] for x in column_dict[i]], [i]*len(column_dict[i]), data_index[i], data_index_with_diag[i])
         
         for j in range(i+1, n_col):
             if columns_taken.has_key(j):
@@ -77,14 +106,29 @@ cpdef cpr_seed(dependencies, list column_keys):
             
             intersect = frozenset(groups[k][1]).intersection(column_dict[j])
             if not intersect:
+                
+                #structure
+                # - [0] - variable indexes
+                # - [1] - variable names
+                # - [2] - matrix rows
+                # - [3] - matrix columns
+                # - [4] - position in data vector (CSC format)
+                # - [5] - position in data vector (with diag) (CSC format)
+                
                 groups[k][0].append(j)
                 groups[k][1].extend(column_dict[j])
                 groups[k][2].extend([row_keys_dict[x] for x in column_dict[j]])
                 groups[k][3].extend([j]*len(column_dict[j]))
+                groups[k][4].extend(data_index[j])
+                groups[k][5].extend(data_index_with_diag[j])
                 columns_taken[j] = 1
             
         k = k + 1
-        
+    
+    groups["groups"] = groups.keys()
+    groups["nnz"] = nnz
+    groups["nnz_with_diag"] = nnz_with_diag
+    
     return groups
 
 cimport cython

@@ -5903,7 +5903,7 @@ cdef class FMUModelBase2(ModelBase):
                 row.extend(range(dim))
                 col.extend(range(dim))
             
-            for key in group.keys():
+            for key in group["groups"]:
                 v[group[key][0]] = 1.0
                 
                 data.extend(self.get_directional_derivative(var_ref, func_ref, v)[group[key][2]])
@@ -5925,7 +5925,7 @@ cdef class FMUModelBase2(ModelBase):
                 v[i] = 0.0
             return A
         
-    def _get_A(self, use_structure_info=True):
+    def _get_A(self, use_structure_info=True, add_diag=True):
         if self._group_A is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
             if python3_flag:
@@ -5939,14 +5939,14 @@ cdef class FMUModelBase2(ModelBase):
             derivatives                  = self.get_derivatives_list()
             self._derivatives_references = [s.value_reference for s in derivatives.values()]
         
-        A = self._get_directional_proxy(self._states_references, self._derivatives_references, self._group_A if use_structure_info else None, add_diag=True)
+        A = self._get_directional_proxy(self._states_references, self._derivatives_references, self._group_A if use_structure_info else None, add_diag=add_diag)
         
         if self._A is None:
             self._A = A
         
         return A
         
-    def _get_B(self, use_structure_info=True):
+    def _get_B(self, use_structure_info=True, add_diag=False):
         if self._group_B is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
             if python3_flag:
@@ -5960,14 +5960,14 @@ cdef class FMUModelBase2(ModelBase):
             derivatives                  = self.get_derivatives_list()
             self._derivatives_references = [s.value_reference for s in derivatives.values()]
         
-        B = self._get_directional_proxy(self._inputs_references, self._derivatives_references, self._group_B if use_structure_info else None)
+        B = self._get_directional_proxy(self._inputs_references, self._derivatives_references, self._group_B if use_structure_info else None, add_diag=add_diag)
         
         if self._B is None:
             self._B = B
         
         return B
         
-    def _get_C(self, use_structure_info=True):
+    def _get_C(self, use_structure_info=True, add_diag=False):
         if self._group_C is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
             if python3_flag:
@@ -5981,14 +5981,14 @@ cdef class FMUModelBase2(ModelBase):
             outputs                      = self.get_output_list()
             self._outputs_references     = [s.value_reference for s in outputs.values()]
             
-        C = self._get_directional_proxy(self._states_references, self._outputs_references, self._group_C if use_structure_info else None)
+        C = self._get_directional_proxy(self._states_references, self._outputs_references, self._group_C if use_structure_info else None, add_diag=add_diag)
         
         if self._C is None:
             self._C = C
         
         return C
         
-    def _get_D(self, use_structure_info=True):
+    def _get_D(self, use_structure_info=True, add_diag=False):
         if self._group_D is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
             if python3_flag:
@@ -6002,7 +6002,7 @@ cdef class FMUModelBase2(ModelBase):
             outputs                      = self.get_output_list()
             self._outputs_references     = [s.value_reference for s in outputs.values()]
             
-        D = self._get_directional_proxy(self._inputs_references, self._outputs_references, self._group_D if use_structure_info else None)
+        D = self._get_directional_proxy(self._inputs_references, self._outputs_references, self._group_D if use_structure_info else None, add_diag=add_diag)
         
         if self._D is None:
             self._D = D
@@ -7505,7 +7505,7 @@ cdef class FMUModelME2(FMUModelBase2):
             eps[i] = RUROUND*(max(abs(v[i]), nominal))
 
         if group is not None:
-            for key in group.keys():
+            for key in group["groups"]:
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
                     self.set_real(v_ref[group[key][0]], v[group[key][0]]+fac*eps[group[key][0]])
                     

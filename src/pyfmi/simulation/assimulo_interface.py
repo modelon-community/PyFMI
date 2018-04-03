@@ -605,6 +605,7 @@ class FMIODE2(Explicit_Problem):
 
         self._f_nbr = f_nbr
         self._g_nbr = g_nbr
+        self._A = None
 
         if g_nbr > 0:
             self.state_events = self.g
@@ -722,9 +723,9 @@ class FMIODE2(Explicit_Problem):
         if self._f_nbr == 0:
             return N.array([[0.0]])
         
-        [A, B, C, D] = self._model.get_state_space_representation(A=True, B=False, C=False, D=False)
-        if not self._sparse_representation:
-            A = A.toarray()
+        A = self._model._get_A(add_diag=True) #, output_matrix=self._A
+        if self._A is None:
+            self._A = A
 
         if self._extra_f_nbr > 0:
             if hasattr(self._extra_equations, "jac"):
@@ -746,7 +747,7 @@ class FMIODE2(Explicit_Problem):
                     Jac = Jac.tocsc()
                 else:
                     Jac = N.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
-                    Jac[:self._f_nbr,:self._f_nbr] = A
+                    Jac[:self._f_nbr,:self._f_nbr] = A if isinstance(A, N.ndarray) else A.toarray()
                     Jac[self._f_nbr:,self._f_nbr:] = self._extra_equations.jac(y_extra)
             else:
                 raise Exception("No Jacobian provided for the extra equations")
