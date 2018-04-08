@@ -723,7 +723,7 @@ class FMIODE2(Explicit_Problem):
         if self._f_nbr == 0:
             return N.array([[0.0]])
         
-        A = self._model._get_A(add_diag=True) #, output_matrix=self._A
+        A = self._model._get_A(add_diag=True, output_matrix=self._A)
         if self._A is None:
             self._A = A
 

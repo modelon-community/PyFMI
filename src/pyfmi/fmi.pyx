@@ -5884,48 +5884,70 @@ cdef class FMUModelBase2(ModelBase):
             
         return states, inputs
         
-    def _get_directional_proxy(self, var_ref, func_ref, group=None, add_diag=False):
-        cdef list data = []
-        cdef list row = []
-        cdef list col = []
-        cdef int nbr_var_ref = len(var_ref)
+    def _get_directional_proxy(self, var_ref, func_ref, group=None, add_diag=False, output_matrix=None):
+        cdef list data = [], row = [], col = [], local_group
+        cdef int nbr_var_ref  = len(var_ref), nbr_func_ref = len(func_ref)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v = N.zeros(nbr_var_ref, dtype = N.double)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] data_local
+        cdef int ind_local = 5 if add_diag else 4
         
         if not self._has_entered_init_mode:
             raise FMUException("The FMU has not entered initialization mode and thus the directional " \
                                "derivatives cannot be computed. Call enter_initialization_mode to start the initialization.")
-        
-        v = N.zeros(nbr_var_ref)
-        
+
         if group is not None:
-            if add_diag:
-                dim = min(nbr_var_ref,len(func_ref))
+            if output_matrix is not None:
+                if not isinstance(output_matrix, sp.csc_matrix):
+                    output_matrix = None
+                else:
+                    data_local = output_matrix.data
+                
+            if add_diag and output_matrix is None:
+                dim = min(nbr_var_ref,nbr_func_ref)
                 data.extend([0.0]*dim)
                 row.extend(range(dim))
                 col.extend(range(dim))
             
             for key in group["groups"]:
-                v[group[key][0]] = 1.0
+                local_group = group[key]
                 
-                data.extend(self.get_directional_derivative(var_ref, func_ref, v)[group[key][2]])
-                row.extend(group[key][2])
-                col.extend(group[key][3])
+                v[local_group[0]] = 1.0
                 
-                v[group[key][0]] = 0.0
+                column_data = self.get_directional_derivative(var_ref, func_ref, v)[local_group[2]]
+                
+                if output_matrix is None:
+                    data.extend(column_data)
+                    row.extend(local_group[2])
+                    col.extend(local_group[3])
+                else:
+                    data_local[local_group[ind_local]] = column_data
+                
+                v[local_group[0]] = 0.0
             
-            if len(data) == 0:
-                return sp.csc_matrix((len(func_ref),nbr_var_ref))
+            if output_matrix is not None:
+                A = output_matrix 
             else:
-                return sp.csc_matrix((data, (row, col)), (len(func_ref),nbr_var_ref))
+                if len(data) == 0:
+                    A = sp.csc_matrix((nbr_func_ref,nbr_var_ref))
+                else:
+                    A = sp.csc_matrix((data, (row, col)), (nbr_func_ref,nbr_var_ref))
+                
+            return A
         else:
+            if output_matrix is None or \
+                (not isinstance(output_matrix, N.ndarray)) or \
+                (isinstance(output_matrix, N.ndarray) and (output_matrix.shape[0] != nbr_func_ref or output_matrix.shape[1] != nbr_var_ref)):
+                    A = N.zeros((nbr_func_ref,nbr_var_ref))
+            else:
+                A = output_matrix
             
-            A = N.zeros((len(func_ref),nbr_var_ref))
             for i in range(nbr_var_ref):
                 v[i] = 1.0
                 A[:, i] = self.get_directional_derivative(var_ref, func_ref, v)
                 v[i] = 0.0
             return A
         
-    def _get_A(self, use_structure_info=True, add_diag=True):
+    def _get_A(self, use_structure_info=True, add_diag=True, output_matrix=None):
         if self._group_A is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
             if python3_flag:
@@ -5939,14 +5961,14 @@ cdef class FMUModelBase2(ModelBase):
             derivatives                  = self.get_derivatives_list()
             self._derivatives_references = [s.value_reference for s in derivatives.values()]
         
-        A = self._get_directional_proxy(self._states_references, self._derivatives_references, self._group_A if use_structure_info else None, add_diag=add_diag)
+        A = self._get_directional_proxy(self._states_references, self._derivatives_references, self._group_A if use_structure_info else None, add_diag=add_diag, output_matrix=output_matrix)
         
         if self._A is None:
             self._A = A
         
         return A
         
-    def _get_B(self, use_structure_info=True, add_diag=False):
+    def _get_B(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_B is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
             if python3_flag:
@@ -5960,14 +5982,14 @@ cdef class FMUModelBase2(ModelBase):
             derivatives                  = self.get_derivatives_list()
             self._derivatives_references = [s.value_reference for s in derivatives.values()]
         
-        B = self._get_directional_proxy(self._inputs_references, self._derivatives_references, self._group_B if use_structure_info else None, add_diag=add_diag)
+        B = self._get_directional_proxy(self._inputs_references, self._derivatives_references, self._group_B if use_structure_info else None, add_diag=add_diag, output_matrix=output_matrix)
         
         if self._B is None:
             self._B = B
         
         return B
         
-    def _get_C(self, use_structure_info=True, add_diag=False):
+    def _get_C(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_C is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
             if python3_flag:
@@ -5981,14 +6003,14 @@ cdef class FMUModelBase2(ModelBase):
             outputs                      = self.get_output_list()
             self._outputs_references     = [s.value_reference for s in outputs.values()]
             
-        C = self._get_directional_proxy(self._states_references, self._outputs_references, self._group_C if use_structure_info else None, add_diag=add_diag)
+        C = self._get_directional_proxy(self._states_references, self._outputs_references, self._group_C if use_structure_info else None, add_diag=add_diag, output_matrix=output_matrix)
         
         if self._C is None:
             self._C = C
         
         return C
         
-    def _get_D(self, use_structure_info=True, add_diag=False):
+    def _get_D(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_D is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
             if python3_flag:
@@ -6002,7 +6024,7 @@ cdef class FMUModelBase2(ModelBase):
             outputs                      = self.get_output_list()
             self._outputs_references     = [s.value_reference for s in outputs.values()]
             
-        D = self._get_directional_proxy(self._inputs_references, self._outputs_references, self._group_D if use_structure_info else None, add_diag=add_diag)
+        D = self._get_directional_proxy(self._inputs_references, self._outputs_references, self._group_D if use_structure_info else None, add_diag=add_diag, output_matrix=output_matrix)
         
         if self._D is None:
             self._D = D
@@ -7460,23 +7482,19 @@ cdef class FMUModelME2(FMUModelBase2):
         """
         return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
 
-    def _get_directional_proxy(self, var_ref, func_ref, group, add_diag=False):
+    def _get_directional_proxy(self, var_ref, func_ref, group, add_diag=False, output_matrix=None):
         if not self._has_entered_init_mode:
             raise FMUException("The FMU has not entered initialization mode and thus the directional " \
                                "derivatives cannot be computed. Call enter_initialization_mode to start the initialization.")
         if self._provides_directional_derivatives() and not self.force_finite_differences:
-            return FMUModelBase2._get_directional_proxy(self, var_ref, func_ref, group, add_diag)
+            return FMUModelBase2._get_directional_proxy(self, var_ref, func_ref, group, add_diag, output_matrix)
         else:
-            return self._estimate_directional_derivative(var_ref, func_ref, group, add_diag)
+            return self._estimate_directional_derivative(var_ref, func_ref, group, add_diag, output_matrix)
     
-    def _estimate_directional_derivative(self, var_ref, func_ref, group=None, add_diag=False):
-        cdef list data = []
-        cdef list row = []
-        cdef list col = []
-        cdef int dim = 0, i, j
-        cdef int len_v = len(var_ref)
-        cdef int len_f = len(func_ref)
-        cdef double nominal
+    def _estimate_directional_derivative(self, var_ref, func_ref, group=None, add_diag=False, output_matrix=None):
+        cdef list data = [], row = [], col = []
+        cdef int sol_found = 0, dim = 0, i, j, len_v = len(var_ref), len_f = len(func_ref)
+        cdef double nominal, fac
         cdef int method = FORWARD_DIFFERENCE if self.force_finite_differences is True or self.force_finite_differences == 0 else CENTRAL_DIFFERENCE
         cdef double RUROUND = FORWARD_DIFFERENCE_EPS if method == FORWARD_DIFFERENCE else CENTRAL_DIFFERENCE_EPS
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v
@@ -7485,18 +7503,16 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.array(var_ref, dtype = N.uint32)
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.array(func_ref, dtype = N.uint32) 
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] data_local
+        cdef int ind_local = 5 if add_diag else 4
         
         #structure
         # - [0] - variable indexes
         # - [1] - variable names
         # - [2] - matrix rows
         # - [3] - matrix columns
-        
-        if add_diag:
-            dim = min(len_v,len_f)
-            data.extend([0.0]*dim)
-            row.extend(range(dim))
-            col.extend(range(dim))
+        # - [4] - position in data vector (CSC format)
+        # - [5] - position in data vector (with diag) (CSC format)
         
         df = self.get_real(z_ref)
         v  = self.get_real(v_ref)
@@ -7505,19 +7521,32 @@ cdef class FMUModelME2(FMUModelBase2):
             eps[i] = RUROUND*(max(abs(v[i]), nominal))
 
         if group is not None:
+            if output_matrix is not None:
+                if not isinstance(output_matrix, sp.csc_matrix):
+                    output_matrix = None
+                else:
+                    data_local = output_matrix.data
+            
+            if add_diag and output_matrix is None:
+                dim = min(len_v,len_f)
+                data.extend([0.0]*dim)
+                row.extend(range(dim))
+                col.extend(range(dim))
+                
             for key in group["groups"]:
+                sol_found = 0
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
                     self.set_real(v_ref[group[key][0]], v[group[key][0]]+fac*eps[group[key][0]])
                     
                     if method == FORWARD_DIFFERENCE: #Forward and Backward difference    
                         try:
-                            data.extend((self.get_real(z_ref[group[key][2]]) - df[group[key][2]])/(fac*eps[group[key][3]]))
-                            break
+                            column_data = (self.get_real(z_ref[group[key][2]]) - df[group[key][2]])/(fac*eps[group[key][3]])
+                            sol_found = 1
                         except FMUException: #Try backward difference (for all variables)
                             self.set_real(v_ref[group[key][0]], v[group[key][0]]-fac*eps[group[key][0]])
                             try:
-                                data.extend((df[group[key][2]] - self.get_real(z_ref[group[key][2]]))/(fac*eps[group[key][3]]))
-                                break
+                                column_data = (df[group[key][2]] - self.get_real(z_ref[group[key][2]]))/(fac*eps[group[key][3]])
+                                sol_found = 1
                             except FMUException:
                                 pass
                     
@@ -7528,22 +7557,41 @@ cdef class FMUModelME2(FMUModelBase2):
                         
                         dfpertm = self.get_real(z_ref[group[key][2]])
                         
-                        data.extend((dfpertp - dfpertm)/(2*fac*eps[group[key][3]]))
+                        column_data = (dfpertp - dfpertm)/(2*fac*eps[group[key][3]])
+                        sol_found = 1
+                    
+                    if sol_found:
+                        if output_matrix is not None:
+                            data_local[group[key][ind_local]] = column_data
+                        else:
+                            data.extend(column_data)
                         break
                 else:
                     raise FMUException("Failed to estimate the directional derivative at time %g."%self.time)
                 
-                row.extend(group[key][2])
-                col.extend(group[key][3])
+                if output_matrix is None:
+                    row.extend(group[key][2])
+                    col.extend(group[key][3])
                     
                 self.set_real(v_ref[group[key][0]], v[group[key][0]])
             
-            if len(data) == 0:
-                return sp.csc_matrix((len_f,len_v))
+            if output_matrix is not None:
+                A = output_matrix 
             else:
-                return sp.csc_matrix((data, (row, col)), (len_f,len_v))
+                if len(data) == 0:
+                    A = sp.csc_matrix((len_f,len_v))
+                else:
+                    A = sp.csc_matrix((data, (row, col)), (len_f,len_v))
+                    
+            return A
         else:
-            A = N.zeros((len_f,len_v))
+            if output_matrix is None or \
+                (not isinstance(output_matrix, N.ndarray)) or \
+                (isinstance(output_matrix, N.ndarray) and (output_matrix.shape[0] != len_f or output_matrix.shape[1] != len_v)):
+                    A = N.zeros((len_f,len_v))
+            else:
+                A = output_matrix
+            
             dfpert = N.zeros(len_f, dtype = N.double)
             for i in range(len_v):
                 tmp = v[i]

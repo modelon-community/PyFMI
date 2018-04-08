@@ -457,9 +457,9 @@ class AssimuloFMIAlg(AlgorithmBase):
             pass
             
         self.with_jacobian = self.options['with_jacobian']
-        if not (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
+        if not (isinstance(self.model, fmi.FMUModelME2)): # or isinstance(self.model, fmi_coupled.CoupledFMUModelME2) For coupled FMUs, currently not supported
             self.with_jacobian = False #Force false flag in this case as it is not supported
-        elif self.with_jacobian == "Default" and (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
+        elif self.with_jacobian == "Default" and (isinstance(self.model, fmi.FMUModelME2)): #or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)
             if self.model.get_capability_flags()['providesDirectionalDerivatives']:
                 self.with_jacobian = True
             else:
