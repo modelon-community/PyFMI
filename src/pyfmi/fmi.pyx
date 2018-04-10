@@ -2266,16 +2266,16 @@ cdef class FMUModelBase(ModelBase):
 
             if data_variability != FMIL.fmi1_variability_enu_continuous and data_variability != FMIL.fmi1_variability_enu_discrete:
                 continue
-
+            
+            if alias_kind != FMIL.fmi1_variable_is_not_alias:
+                continue
+            
             if selected_filter:
                 for j in range(length_filter):
                     #if re.match(filter_list[j], name):
                     if filter_list[j].match(name):
                         break
                 else:
-                    continue
-            else:
-                if alias_kind != FMIL.fmi1_variable_is_not_alias:
                     continue
 
             if alias_kind == FMIL.fmi1_variable_is_not_alias:
@@ -4664,16 +4664,16 @@ cdef class FMUModelBase2(ModelBase):
 
             if data_variability != FMIL.fmi2_variability_enu_continuous and data_variability != FMIL.fmi2_variability_enu_discrete and data_variability != FMIL.fmi2_variability_enu_tunable:
                 continue
-
+            
+            if alias_kind != FMIL.fmi2_variable_is_not_alias:
+                continue
+            
             if selected_filter:
                 for j in range(length_filter):
                     #if re.match(filter_list[j], name):
                     if filter_list[j].match(name):
                         break
                 else:
-                    continue
-            else:
-                if alias_kind != FMIL.fmi2_variable_is_not_alias:
                     continue
 
             if data_type == FMIL.fmi2_base_type_real:
