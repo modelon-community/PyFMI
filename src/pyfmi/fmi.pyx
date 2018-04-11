@@ -2236,7 +2236,6 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_base_type_enu_t data_type
         cdef FMIL.fmi1_variability_enu_t data_variability
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
-        cdef dict variable_dict = {}
         cdef list filter_list = []
         cdef list real_var_ref = []
         cdef list int_var_ref = []
@@ -2244,6 +2243,7 @@ cdef class FMUModelBase(ModelBase):
         cdef int  selected_variability = 0 #If a variability has been selected
         cdef int  selected_filter = 1 if filter else 0
         cdef int  length_filter = 0
+        cdef dict added_vars = {}
 
         variable_list = FMIL.fmi1_import_get_variable_list(self._fmu)
         variable_list_size = FMIL.fmi1_import_get_variable_list_size(variable_list)
@@ -2267,15 +2267,18 @@ cdef class FMUModelBase(ModelBase):
             if data_variability != FMIL.fmi1_variability_enu_continuous and data_variability != FMIL.fmi1_variability_enu_discrete:
                 continue
             
-            if alias_kind != FMIL.fmi1_variable_is_not_alias:
-                continue
-            
             if selected_filter:
                 for j in range(length_filter):
-                    #if re.match(filter_list[j], name):
                     if filter_list[j].match(name):
                         break
                 else:
+                    continue
+                if added_vars.has_key(value_ref):
+                    continue
+                else:
+                    added_vars[value_ref] = 1
+            else:
+                if alias_kind != FMIL.fmi1_variable_is_not_alias:
                     continue
 
             if alias_kind == FMIL.fmi1_variable_is_not_alias:
@@ -4637,10 +4640,12 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_variable_alias_kind_enu_t alias_kind
         cdef int   i
         cdef int  selected_filter = 1 if filter else 0
+        cdef list filter_list = []
         cdef int  length_filter = 0
         cdef list real_var_ref = []
         cdef list int_var_ref = []
         cdef list bool_var_ref = []
+        cdef dict added_vars = {}
 
         variable_list      = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
         variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
@@ -4665,15 +4670,18 @@ cdef class FMUModelBase2(ModelBase):
             if data_variability != FMIL.fmi2_variability_enu_continuous and data_variability != FMIL.fmi2_variability_enu_discrete and data_variability != FMIL.fmi2_variability_enu_tunable:
                 continue
             
-            if alias_kind != FMIL.fmi2_variable_is_not_alias:
-                continue
-            
             if selected_filter:
                 for j in range(length_filter):
-                    #if re.match(filter_list[j], name):
                     if filter_list[j].match(name):
                         break
                 else:
+                    continue
+                if added_vars.has_key(value_ref):
+                    continue
+                else:
+                    added_vars[value_ref] = 1
+            else:
+                if alias_kind != FMIL.fmi2_variable_is_not_alias:
                     continue
 
             if data_type == FMIL.fmi2_base_type_real:
