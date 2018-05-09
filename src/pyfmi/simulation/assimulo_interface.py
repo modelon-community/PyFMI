@@ -296,8 +296,9 @@ class FMIODE(Explicit_Problem):
             for i in self._model.get_event_indicators():
                 str_ind += " %.14E"%i
             str_states = ""
-            for i in solver.y:
-                str_states += " %.14E"%i
+            if self._f_nbr != 0:
+                for i in solver.y:
+                    str_states += " %.14E"%i
             str_der = ""
             for i in self._model.get_derivatives():
                 str_der += " %.14E"%i
@@ -346,8 +347,9 @@ class FMIODE(Explicit_Problem):
             for i in self._model.get_event_indicators():
                 str_ind2 += " %.14E"%i
             str_states2 = ""
-            for i in solver.y:
-                str_states2 += " %.14E"%i
+            if self._f_nbr != 0:
+                for i in solver.y:
+                    str_states2 += " %.14E"%i
             str_der2 = ""
             for i in self._model.get_derivatives():
                 str_der2 += " %.14E"%i
@@ -478,13 +480,12 @@ class FMIODE(Explicit_Problem):
             f.write("State variables: "+names+ "\n")
 
             str_y = ""
-            for i in solver.y:
-                str_y += " %.14E"%i
+            if self._f_nbr != 0:
+                for i in solver.y:
+                    str_y += " %.14E"%i
 
             f.write("Initial values: t = %.14E \n"%solver.t)
             f.write("Initial values: y ="+str_y+"\n\n")
-
-
 
             header = "Time (simulated) | Time (real) | "
             if solver.__class__.__name__=="CVode": #Only available for CVode
@@ -750,7 +751,7 @@ class FMIODE2(Explicit_Problem):
                     Jac[:self._f_nbr,:self._f_nbr] = A if isinstance(A, N.ndarray) else A.toarray()
                     Jac[self._f_nbr:,self._f_nbr:] = self._extra_equations.jac(y_extra)
             else:
-                raise Exception("No Jacobian provided for the extra equations")
+                raise fmi.FMUException("No Jacobian provided for the extra equations")
         else:
             Jac = A
 
@@ -852,8 +853,9 @@ class FMIODE2(Explicit_Problem):
             for i in self._model.get_event_indicators():
                 str_ind += " %.14E"%i
             str_states = ""
-            for i in y:
-                str_states += " %.14E"%i
+            if self._f_nbr != 0:
+                for i in y:
+                    str_states += " %.14E"%i
             str_der = ""
             for i in self._model.get_derivatives():
                 str_der += " %.14E"%i
@@ -895,8 +897,9 @@ class FMIODE2(Explicit_Problem):
             for i in self._model.get_event_indicators():
                 str_ind2 += " %.14E"%i
             str_states2 = ""
-            for i in solver.y:
-                str_states2 += " %.14E"%i
+            if self._f_nbr != 0:
+                for i in solver.y:
+                    str_states2 += " %.14E"%i
             str_der2 = ""
             for i in self._model.get_derivatives():
                 str_der2 += " %.14E"%i
@@ -1013,15 +1016,16 @@ class FMIODE2(Explicit_Problem):
             f = self.debug_file_object
             
             names = ""
-            for i in range(len(solver.y)):
+            for i in range(self._f_nbr):
                 names += self._model.get_states_list().keys()[i] + ", "
             
             f.write("Solver: %s \n"%solver.__class__.__name__)
             f.write("State variables: "+names+ "\n")
 
             str_y = ""
-            for i in solver.y:
-                str_y += " %.14E"%i
+            if self._f_nbr != 0:
+                for i in solver.y:
+                    str_y += " %.14E"%i
 
             f.write("Initial values: t = %.14E \n"%solver.t)
             f.write("Initial values: y ="+str_y+"\n\n")

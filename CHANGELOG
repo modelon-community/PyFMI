@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Fixed simulation logging when there are no states (ticket:5613)
     * Fixed issue with wrong return of time varying variables (ticket:5597)
     * Added functionality to set enumerations with strings (ticket:5587)
     * Changed so that the FMU is only unzipped once (for performance) (ticket:5551)
