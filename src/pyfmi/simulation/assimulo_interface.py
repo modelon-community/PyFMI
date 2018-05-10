@@ -572,7 +572,7 @@ class FMIODE2(Explicit_Problem):
         Initialize the problem.
         """
         self._model = model
-        self.input = input
+        self._adapt_input(input)
         self.input_names = []
         self.timings = {"handle_result": 0.0}
 
@@ -638,6 +638,43 @@ class FMIODE2(Explicit_Problem):
                     self.jac_nnz += len(self._extra_f_nbr)*len(self._extra_f_nbr)
         else:
             self._extra_f_nbr = 0
+    
+    def _adapt_input(self, input):
+        if input != None:
+            input_names = input[0]
+            self.input_len_names = len(input_names)
+            self.input_real_value_refs = []
+            self.input_real_mask = []
+            self.input_other = []
+            self.input_other_mask = []
+            
+            if isinstance(input_names,str):
+                input_names = [input_names]
+                
+            for i,name in enumerate(input_names):
+                if self._model.get_variable_causality(name) != fmi.FMI2_INPUT:
+                    raise fmi.FMUException("Variable '%s' is not an input. Only variables specified to be inputs are allowed."%name)
+                
+                if self._model.get_variable_data_type(name) == fmi.FMI2_REAL:
+                    self.input_real_value_refs.append(self._model.get_variable_valueref(name))
+                    self.input_real_mask.append(i)
+                else:
+                    self.input_other.append(name)
+                    self.input_other_mask.append(i)
+            
+            self.input_real_mask  = N.array(self.input_real_mask)
+            self.input_other_mask = N.array(self.input_other_mask)
+
+        self.input = input
+        
+    def _set_input_values(self, t):
+        if self.input is not None:
+            values = self.input[1].eval(t)[0,:]
+            
+            if self.input_real_value_refs:
+                self._model.set_real(self.input_real_value_refs, values[self.input_real_mask])
+            if self.input_other:
+                self._model.set(self.input_other, values[self.input_other_mask])
 
     def rhs(self, t, y, sw=None):
         """
@@ -654,9 +691,8 @@ class FMIODE2(Explicit_Problem):
             self._model.continuous_states = y
 
         #Sets the inputs, if any
-        if self.input!=None:
-            self._model.set(self.input[0], self.input[1].eval(t)[0,:])
-
+        self._set_input_values(t)
+        
         #Evaluating the rhs
         try:
             rhs = self._model.get_derivatives()
@@ -687,9 +723,8 @@ class FMIODE2(Explicit_Problem):
             self._model.continuous_states = y
 
         #Sets the inputs, if any
-        if self.input!=None:
-            self._model.set(self.input[0], self.input[1].eval(t)[0,:])
-
+        self._set_input_values(t)
+        
         #Evaluating the jacobian
         
         #If there are no states return a dummy jacobian.
@@ -740,9 +775,8 @@ class FMIODE2(Explicit_Problem):
             self._model.continuous_states = y
 
         #Sets the inputs, if any
-        if self.input!=None:
-            self._model.set(self.input[0], self.input[1].eval(t)[0,:])
-
+        self._set_input_values(t)
+        
         #Evaluating the event indicators
         eventInd = self._model.get_event_indicators()
 
@@ -779,9 +813,8 @@ class FMIODE2(Explicit_Problem):
                 self._model.continuous_states = y
 
             #Sets the inputs, if any
-            if self.input!=None:
-                self._model.set(self.input[0], self.input[1].eval(t)[0,:])
-
+            self._set_input_values(t)
+        
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
@@ -809,10 +842,8 @@ class FMIODE2(Explicit_Problem):
                 self._model.continuous_states = y
 
             #Sets the inputs, if any
-            if self.input!=None:
-                self._model.set(self.input[0],
-                    self.input[1].eval(N.array([solver.t]))[0,:])
-
+            self._set_input_values(solver.t)
+        
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
@@ -902,10 +933,8 @@ class FMIODE2(Explicit_Problem):
                 self._model.continuous_states = y
 
             #Sets the inputs, if any
-            if self.input!=None:
-                self._model.set(self.input[0],
-                    self.input[1].eval(N.array([solver.t]))[0,:])
-
+            self._set_input_values(solver.t)
+        
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
             

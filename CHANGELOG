@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Improved input handling for FMI2 (ticket:5615)
     * Cleanup of simulation logging (ticket:5614)
     * Fixed simulation logging when there are no states (ticket:5613)
     * Fixed issue with wrong return of time varying variables (ticket:5597)

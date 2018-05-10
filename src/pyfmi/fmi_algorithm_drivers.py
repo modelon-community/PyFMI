@@ -269,7 +269,13 @@ class AssimuloFMIAlg(AlgorithmBase):
                         TrajectoryLinearInterpolation(self.input[1][:,0],
                                                       self.input[1][:,1:]))
             #Sets the inputs, if any
-            self.model.set(input_traj[0], input_traj[1].eval(self.start_time)[0,:])
+            input_names  = [input_traj[0]] if isinstance(input_traj[0],str) else input_traj[0]
+            input_values = input_traj[1].eval(self.start_time)[0,:]
+            
+            if len(input_names) != len(input_values):
+                raise fmi.FMUException("The number of input variables is not equal to the number of input values, please verify the input object.")
+            
+            self.model.set(input_names, input_values)
 
         if self.options["result_handling"] == "file":
             self.result_handler = ResultHandlerFile(self.model)
