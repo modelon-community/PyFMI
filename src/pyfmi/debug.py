@@ -133,10 +133,7 @@ class ImplicitEulerDebugInformation(DebugInformation):
     
 class ExplicitEulerDebugInformation(DebugInformation):
     pass
-    
-class Radau5ODEDebugInformation(DebugInformation):
-    pass
-    
+        
 class CVodeDebugInformation(DebugInformation):
     
     def __init__(self, file_name):
@@ -217,4 +214,5 @@ class CVodeDebugInformation(DebugInformation):
         P.grid()
         P.show()
 
-    
+class Radau5ODEDebugInformation(CVodeDebugInformation):
+    pass

@@ -303,15 +303,10 @@ class FMIODE(Explicit_Problem):
             for i in self._model.get_derivatives():
                 str_der += " %.14E"%i
                 
-            if self.debug_file_object:
-                self.debug_file_object.write("\nDetected event at t = %.14E \n"%solver.t)
-                self.debug_file_object.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
-                self.debug_file_object.write(" Time  event info:  "+str(event_info[1])+ "\n")
-            else:
-                with open (self.debug_file_name, 'a') as f:
-                    f.write("\nDetected event at t = %.14E \n"%solver.t)
-                    f.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
-                    f.write(" Time  event info:  "+str(event_info[1])+ "\n")
+            fwrite = self._get_debug_file_object()
+            fwrite.write("\nDetected event at t = %.14E \n"%solver.t)
+            fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
+            fwrite.write(" Time  event info:  "+str(event_info[1])+ "\n")
 
         eInfo = self._model.get_event_info()
         eInfo.iterationConverged = False
@@ -354,37 +349,20 @@ class FMIODE(Explicit_Problem):
             for i in self._model.get_derivatives():
                 str_der2 += " %.14E"%i
                 
-            if self.debug_file_object:
-                f = self.debug_file_object
-                f.write(" Indicators (pre) : "+str_ind + "\n")
-                f.write(" Indicators (post): "+str_ind2+"\n")
-                f.write(" States (pre) : "+str_states + "\n")
-                f.write(" States (post): "+str_states2 + "\n")
-                f.write(" Derivatives (pre) : "+str_der + "\n")
-                f.write(" Derivatives (post): "+str_der2 + "\n\n")
+            fwrite.write(" Indicators (pre) : "+str_ind + "\n")
+            fwrite.write(" Indicators (post): "+str_ind2+"\n")
+            fwrite.write(" States (pre) : "+str_states + "\n")
+            fwrite.write(" States (post): "+str_states2 + "\n")
+            fwrite.write(" Derivatives (pre) : "+str_der + "\n")
+            fwrite.write(" Derivatives (post): "+str_der2 + "\n\n")
 
-                header = "Time (simulated) | Time (real) | "
-                if solver.__class__.__name__=="CVode": #Only available for CVode
-                    header += "Order | Error (Weighted)"
-                if self._g_nbr > 0:
-                    header += "Indicators"
-                f.write(header+"\n")
-            else:
-                with open (self.debug_file_name, 'a') as f:
-                    f.write(" Indicators (pre) : "+str_ind + "\n")
-                    f.write(" Indicators (post): "+str_ind2+"\n")
-                    f.write(" States (pre) : "+str_states + "\n")
-                    f.write(" States (post): "+str_states2 + "\n")
-                    f.write(" Derivatives (pre) : "+str_der + "\n")
-                    f.write(" Derivatives (post): "+str_der2 + "\n\n")
-
-                    header = "Time (simulated) | Time (real) | "
-                    if solver.__class__.__name__=="CVode": #Only available for CVode
-                        header += "Order | Error (Weighted)"
-                    if self._g_nbr > 0:
-                        header += "Indicators"
-                    f.write(header+"\n")
-
+            header = "Time (simulated) | Time (real) | "
+            if solver.__class__.__name__=="CVode": #Only available for CVode
+                header += "Order | Error (Weighted)"
+            if self._g_nbr > 0:
+                header += "Indicators"
+            fwrite.write(header+"\n")
+            
     def step_events(self, solver):
         """
         Method which is called at each successful step.
@@ -441,12 +419,9 @@ class FMIODE(Explicit_Problem):
                 for i in self._model.get_event_indicators():
                     str_ev += " %.14E"%i
                 data_line += str_ev
-                
-            if self.debug_file_object:
-                self.debug_file_object.write(data_line+"\n")
-            else:
-                with open (self.debug_file_name, 'a') as f:
-                    f.write(data_line+"\n")
+            
+            fwrite = self._get_debug_file_object()
+            fwrite.write(data_line+"\n")
 
         if self._model.completed_integrator_step():
             self._logg_step_event += [solver.t]
@@ -465,7 +440,13 @@ class FMIODE(Explicit_Problem):
         for i in range(len(self._logg_step_event)):
             print('Event at time: %e'%self._logg_step_event[i])
         print('\nNumber of events: ',len(self._logg_step_event))
-
+    
+    def _get_debug_file_object(self):
+        if not self.debug_file_object:
+            self.debug_file_object = open(self.debug_file_name, 'a')
+            
+        return self.debug_file_object
+    
     def initialize(self, solver):
         if self._logging:
             self.debug_file_object = open(self.debug_file_name, 'w')
@@ -637,15 +618,6 @@ class FMIODE2(Explicit_Problem):
         self._logging = logging
         self._sparse_representation = False
         
-        #Stores the first time point
-        #[r,i,b] = self._model.save_time_point()
-
-        #self._sol_time += [self._model.t]
-        #self._sol_real += [r]
-        #self._sol_int  += [i]
-        #self._sol_bool += b
-
-        #if self._model.get_capability_flags()['providesDirectionalDerivatives'] and f_nbr > 0:
         if f_nbr > 0 and with_jacobian:
             self.jac = self.j #Activates the jacobian
             
@@ -735,10 +707,6 @@ class FMIODE2(Explicit_Problem):
                     Jac = A.tocoo() #Convert to COOrdinate
                     A2 = self._extra_equations.jac(y_extra).tocoo()
                     
-                    #Jac.data = N.append(Jac.data, [0.0]*len(y))
-                    #Jac.row  = N.append(Jac.row, range(len(y)))
-                    #Jac.col  = N.append(Jac.col, range(len(y)))
-                    
                     data = N.append(Jac.data, A2.data)
                     row  = N.append(Jac.row, A2.row+self._f_nbr)
                     col  = N.append(Jac.col, A2.col+self._f_nbr)
@@ -793,9 +761,9 @@ class FMIODE2(Explicit_Problem):
 
 
     def handle_result(self, solver, t, y):
-        #
-        #Post processing (stores the time points).
-        #
+        """
+        Post processing (stores the time points).
+        """
         time_start = timer()
         
         if self._extra_f_nbr > 0:
@@ -859,18 +827,12 @@ class FMIODE2(Explicit_Problem):
             str_der = ""
             for i in self._model.get_derivatives():
                 str_der += " %.14E"%i
-                
-            if self.debug_file_object:
-                f = self.debug_file_object
-                f.write("\nDetected event at t = %.14E \n"%solver.t)
-                f.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
-                f.write(" Time  event info:  "+str(event_info[1])+ "\n")
-            else:
-                with open (self.debug_file_name, 'a') as f:
-                    f.write("\nDetected event at t = %.14E \n"%solver.t)
-                    f.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
-                    f.write(" Time  event info:  "+str(event_info[1])+ "\n")
-
+            
+            fwrite = self._get_debug_file_object()
+            fwrite.write("\nDetected event at t = %.14E \n"%solver.t)
+            fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
+            fwrite.write(" Time  event info:  "+str(event_info[1])+ "\n")
+            
         #Enter event mode
         self._model.enter_event_mode()
         
@@ -904,37 +866,21 @@ class FMIODE2(Explicit_Problem):
             for i in self._model.get_derivatives():
                 str_der2 += " %.14E"%i
             
-            if self.debug_file_object:
-                f = self.debug_file_object
-                f.write(" Indicators (pre) : "+str_ind + "\n")
-                f.write(" Indicators (post): "+str_ind2+"\n")
-                f.write(" States (pre) : "+str_states + "\n")
-                f.write(" States (post): "+str_states2 + "\n")
-                f.write(" Derivatives (pre) : "+str_der + "\n")
-                f.write(" Derivatives (post): "+str_der2 + "\n\n")
+            fwrite = self._get_debug_file_object()
+            fwrite.write(" Indicators (pre) : "+str_ind + "\n")
+            fwrite.write(" Indicators (post): "+str_ind2+"\n")
+            fwrite.write(" States (pre) : "+str_states + "\n")
+            fwrite.write(" States (post): "+str_states2 + "\n")
+            fwrite.write(" Derivatives (pre) : "+str_der + "\n")
+            fwrite.write(" Derivatives (post): "+str_der2 + "\n\n")
 
-                header = "Time (simulated) | Time (real) | "
-                if solver.__class__.__name__=="CVode": #Only available for CVode
-                    header += "Order | Error (Weighted)"
-                if self._g_nbr > 0:
-                    header += "Indicators"
-                f.write(header+"\n")
-            else:
-                with open (self.debug_file_name, 'a') as f:
-                    f.write(" Indicators (pre) : "+str_ind + "\n")
-                    f.write(" Indicators (post): "+str_ind2+"\n")
-                    f.write(" States (pre) : "+str_states + "\n")
-                    f.write(" States (post): "+str_states2 + "\n")
-                    f.write(" Derivatives (pre) : "+str_der + "\n")
-                    f.write(" Derivatives (post): "+str_der2 + "\n\n")
-
-                    header = "Time (simulated) | Time (real) | "
-                    if solver.__class__.__name__=="CVode": #Only available for CVode
-                        header += "Order | Error (Weighted)"
-                    if self._g_nbr > 0:
-                        header += "Indicators"
-                    f.write(header+"\n")
-        
+            header = "Time (simulated) | Time (real) | "
+            if solver.__class__.__name__=="CVode" or solver.__class__.__name__=="Radau5ODE": #Only available for CVode
+                header += "Order | Error (Weighted)"
+            if self._g_nbr > 0:
+                header += "Indicators"
+            fwrite.write(header+"\n")
+            
         #Enter continuous mode again
         self._model.enter_continuous_time_mode()
 
@@ -966,27 +912,25 @@ class FMIODE2(Explicit_Problem):
         if self._logging:
             data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
                 
-            if solver.__class__.__name__=="CVode": #Only available for CVode
-                ele = solver.get_local_errors()
-                eweight = solver.get_error_weights()
-                err = ele*eweight
+            if solver.__class__.__name__=="CVode" or solver.__class__.__name__=="Radau5ODE":
+                err = solver.get_weighted_local_errors()
                 str_err = " |"
                 for i in err:
                     str_err += " %.14E"%i
-                data_line += " | %d"%solver.get_last_order()+str_err
+                if solver.__class__.__name__=="CVode":
+                    data_line += " | %d"%solver.get_last_order()+str_err
+                else:
+                    data_line += " | 5"+str_err
             
             if self._g_nbr > 0:
                 str_ev = " |"
                 for i in self._model.get_event_indicators():
                     str_ev += " %.14E"%i
                 data_line += str_ev
-                
-            if self.debug_file_object:
-                self.debug_file_object.write(data_line+"\n")
-            else:
-                with open (self.debug_file_name, 'a') as f:
-                    f.write(data_line+"\n")
-        
+            
+            fwrite = self._get_debug_file_object()
+            fwrite.write(data_line+"\n")
+            
         enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
         if enter_event_mode:
             self._logg_step_event += [solver.t]
@@ -995,7 +939,13 @@ class FMIODE2(Explicit_Problem):
             return 1 #Tell to reinitiate the solver.
         else:
             return 0
-
+    
+    def _get_debug_file_object(self):
+        if not self.debug_file_object:
+            self.debug_file_object = open(self.debug_file_name, 'a')
+            
+        return self.debug_file_object
+    
     def print_step_info(self):
         """
         Prints the information about step events.
@@ -1031,7 +981,7 @@ class FMIODE2(Explicit_Problem):
             f.write("Initial values: y ="+str_y+"\n\n")
 
             header = "Time (simulated) | Time (real) | "
-            if solver.__class__.__name__=="CVode": #Only available for CVode
+            if solver.__class__.__name__=="CVode" or solver.__class__.__name__=="Radau5ODE": #Only available for CVode
                 header += "Order | Error (Weighted)"
             f.write(header+"\n")
 
