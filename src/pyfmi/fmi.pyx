@@ -3369,14 +3369,14 @@ cdef class FMUModelME1(FMUModelBase):
         Calls the low-level FMI function: fmiCompletedIntegratorStep.
         """
         cdef int status
-        cdef FMIL.fmi1_boolean_t callEventUpdate
+        cdef FMIL.fmi1_boolean_t call_event_update
 
-        status = FMIL.fmi1_import_completed_integrator_step(self._fmu, &callEventUpdate)
+        status = FMIL.fmi1_import_completed_integrator_step(self._fmu, &call_event_update)
 
         if status != 0:
-            raise FMUException('Failed to call FMI Completed Step.')
+            raise FMUException('Failed to call FMI completed step at time: %E.'%self.time)
 
-        if callEventUpdate == 1:
+        if call_event_update == 1:
             return True
         else:
             return False
@@ -3685,6 +3685,7 @@ cdef class FMUModelBase2(ModelBase):
         self._outputs_states_dependencies = None
         self._outputs_inputs_dependencies = None
         self._has_entered_init_mode = False
+        self._last_accepted_time = 0.0
 
         #Internal values
         self._pyEventInfo = PyEventInfo()
@@ -4256,6 +4257,8 @@ cdef class FMUModelBase2(ModelBase):
             stop_time = self.get_default_experiment_stop_time()
         
         self.__t = start_time
+        self._last_accepted_time = start_time
+        self._relative_tolerance = tolerance
         
         status = FMIL.fmi2_import_setup_experiment(self._fmu,
                 tol_defined, tolerance, start_time, stop_defined, stop_time)
@@ -6048,9 +6051,37 @@ cdef class FMUModelBase2(ModelBase):
             der(x) = Ax + Bu
                 y  = Cx + Du
                 
-        Which of the matrices to be returned can be choosen by the arguments. The argument 'use_structure_info'
-        determines if the structure should be taken into account or not. If so, a sparse representation is
-        returned, otherwise a dense.
+        Which of the matrices to be returned can be choosen by the 
+        arguments.
+        
+        Parameters::
+        
+            A --
+                If the 'A' matrix should be computed or not.
+                Default: True
+                
+            B --
+                If the 'B' matrix should be computed or not.
+                Default: True
+                
+            C --
+                If the 'C' matrix should be computed or not.
+                Default: True
+                
+            D --
+                If the 'D' matrix should be computed or not.
+                Default: True
+                
+            use_structure_info --
+                Determines if the structure should be taken into account 
+                or not. If so, a sparse representation is returned, 
+                otherwise a dense.
+                Default: True
+                
+        Returns::
+            The A,B,C,D matrices. If not all are computed, the ones that
+            are not computed will be represented by a boolean flag.
+
         """
         if A:
             A = self._get_A(use_structure_info)
@@ -7251,9 +7282,11 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef FMIL.fmi2_boolean_t terminateSimulation        
 
         status = FMIL.fmi2_import_completed_integrator_step(self._fmu, noSetFMUStatePriorToCurrentPoint, &enterEventMode, &terminateSimulation)
-
+        
+        self._last_accepted_time = self.time
+        
         if status != 0:
-            raise FMUException('Failed to call FMI Completed Step.')
+            raise FMUException('Failed to call FMI completed step at time: %E.'%self.time)
         
         return enterEventMode==FMI2_TRUE, terminateSimulation==FMI2_TRUE
 

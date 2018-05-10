@@ -166,6 +166,7 @@ cdef class FMUModelBase2(ModelBase):
     cdef FMIL.fmi2_event_info_t         _eventInfo
 
     #Internal values
+    cdef public float  _last_accepted_time, _relative_tolerance
     cdef object         _fmu_full_path
     cdef public object  _enable_logging
     cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
