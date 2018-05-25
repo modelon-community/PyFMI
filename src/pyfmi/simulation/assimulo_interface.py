@@ -25,7 +25,6 @@ import logging as logging_module
 import numpy as N
 import numpy.linalg as LIN
 import scipy.sparse as sp
-import pylab as P
 import time
 
 from pyfmi.common.io import ResultWriterDymola
