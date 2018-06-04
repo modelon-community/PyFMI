@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Fixed issue with using the result filter together with FMI1 (ticket:5623)
     * Improved input handling for FMI2 (ticket:5615)
     * Cleanup of simulation logging (ticket:5614)
     * Fixed simulation logging when there are no states (ticket:5613)

@@ -2266,6 +2266,12 @@ cdef class FMUModelBase(ModelBase):
 
             if data_variability != FMIL.fmi1_variability_enu_continuous and data_variability != FMIL.fmi1_variability_enu_discrete:
                 continue
+                
+            if alias_kind == FMIL.fmi1_variable_is_not_alias:
+                value_ref = FMIL.fmi1_import_get_variable_vr(variable)
+            else:
+                base_variable = FMIL.fmi1_import_get_variable_alias_base(self._fmu, variable)
+                value_ref  = FMIL.fmi1_import_get_variable_vr(base_variable)
             
             if selected_filter:
                 for j in range(length_filter):
@@ -2280,12 +2286,6 @@ cdef class FMUModelBase(ModelBase):
             else:
                 if alias_kind != FMIL.fmi1_variable_is_not_alias:
                     continue
-
-            if alias_kind == FMIL.fmi1_variable_is_not_alias:
-                value_ref = FMIL.fmi1_import_get_variable_vr(variable)
-            else:
-                base_variable = FMIL.fmi1_import_get_variable_alias_base(self._fmu, variable)
-                value_ref  = FMIL.fmi1_import_get_variable_vr(base_variable)
 
             if data_type == FMIL.fmi1_base_type_real:
                 real_var_ref.append(value_ref)
