@@ -2112,13 +2112,6 @@ class ResultHandlerBinaryFile(ResultHandler):
         
         if self.file_name == "":
             self.file_name=self.model.get_identifier() + '_result.mat'
-            
-        #Store the continuous and discrete variables for result writing
-        real_var_ref, int_var_ref, bool_var_ref = model.get_model_time_varying_value_references(filter=opts["filter"])
-        
-        sorted_vars_real_vref = sorted(real_var_ref)
-        sorted_vars_int_vref  = sorted(int_var_ref)
-        sorted_vars_bool_vref = sorted(bool_var_ref)
         
         file_name = self.file_name
         parameters = self.parameters
@@ -2158,7 +2151,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         
         #Create the data info structure (and return parameters)
         data_info = np.zeros((4, len_name_items), dtype=np.int32)
-        parameter_data = fmi_util.prepare_data_info(data_info, sorted_vars, self.model)
+        [parameter_data, sorted_vars_real_vref, sorted_vars_int_vref, sorted_vars_bool_vref]  = fmi_util.prepare_data_info(data_info, sorted_vars, self.model)
         
         self._write_header("dataInfo", data_info.shape[0], data_info.shape[1], "int")
         self.dump_data(data_info)

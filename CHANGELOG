@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Made the binary result saving robust to handle incorrect model descriptions (ticket:5624)
     * Fixed issue with using the result filter together with FMI1 (ticket:5623)
     * Improved input handling for FMI2 (ticket:5615)
     * Cleanup of simulation logging (ticket:5614)

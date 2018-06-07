@@ -216,13 +216,14 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, mod
     cdef int index_fixed    = 1
     cdef int index_variable = 1
     cdef int i, alias, data_type, variability
+    cdef int last_data_matrix = -1, last_index = -1
     cdef int FMI_NEGATED_ALIAS = fmi.FMI_NEGATED_ALIAS
     cdef int FMI_PARAMETER = fmi.FMI_PARAMETER, FMI_CONSTANT = fmi.FMI_CONSTANT
     cdef int FMI_REAL = fmi.FMI_REAL, FMI_INTEGER = fmi.FMI_INTEGER
     cdef int FMI_ENUMERATION = fmi.FMI_ENUMERATION, FMI_BOOLEAN = fmi.FMI_BOOLEAN 
     cdef list param_real = [], param_int = [], param_bool = []
-    last_fixed     = -1
-    last_variable  = -1
+    cdef list varia_real = [], varia_int = [], varia_bool = []
+    last_vref = -1
     
     for i in range(1, len(sorted_vars)+1):
         var = sorted_vars[i-1]
@@ -230,40 +231,50 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, mod
         data_info[3,i] = -1
         
         alias = -1 if var.alias == FMI_NEGATED_ALIAS else 1
-        variability = var.variability
         
-        if variability == FMI_PARAMETER or variability == FMI_CONSTANT:
-            data_info[0,i] = 1
-            if last_fixed == var.value_reference:
-                data_info[1,i] = alias*index_fixed
-            else:
-                last_fixed = var.value_reference
-                data_type  = var.type
+        if last_vref == var.value_reference:
+            data_info[0,i] = last_data_matrix
+            data_info[1,i] = alias*last_index
+        else:
+            variability = var.variability
+            last_vref   = var.value_reference
+            data_type   = var.type
+            
+            if variability == FMI_PARAMETER or variability == FMI_CONSTANT:
+                last_data_matrix = 1
                 index_fixed = index_fixed + 1
-                data_info[1,i] = alias*index_fixed
+                last_index = index_fixed
                 
                 if data_type == FMI_REAL:
-                    param_real.append(last_fixed)
+                    param_real.append(last_vref)
                 elif data_type == FMI_INTEGER or data_type == FMI_ENUMERATION:
-                    param_int.append(last_fixed)
+                    param_int.append(last_vref)
                 elif data_type == FMI_BOOLEAN:
-                    param_bool.append(last_fixed)
+                    param_bool.append(last_vref)
                 else:
                     raise fmi.FMUException("Unknown type detected for variable %s when writing the results."%var.name)
-        else:
-            data_info[0,i] = 2
-            if last_variable == var.value_reference:
-                data_info[1,i] = alias*index_variable
             else:
-                last_variable = var.value_reference
+                last_data_matrix = 2
                 index_variable = index_variable + 1
-                data_info[1,i] = alias*index_variable
-    
+                last_index = index_variable
+                
+                if data_type == FMI_REAL:
+                    varia_real.append(last_vref)
+                elif data_type == FMI_INTEGER or data_type == FMI_ENUMERATION:
+                    varia_int.append(last_vref)
+                elif data_type == FMI_BOOLEAN:
+                    varia_bool.append(last_vref)
+                else:
+                    raise fmi.FMUException("Unknown type detected for variable %s when writing the results."%var.name)
+            
+            data_info[1,i] = alias*last_index
+            data_info[0,i] = last_data_matrix
+        
     data_info[0,0] = 0; data_info[1, 0] = 1; data_info[2, 0] = 0; data_info[3, 0] = -1
     
     data = np.append(np.append(np.append(model.time, model.get_real(param_real)),model.get_real(param_int)),model.get_real(param_bool))
     
-    return data
+    return data, varia_real, varia_int, varia_bool
 
 cpdef convert_str_list(list data):
     cdef int length = 0
