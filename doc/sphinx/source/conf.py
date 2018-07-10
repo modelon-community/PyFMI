@@ -108,7 +108,7 @@ html_theme_options = {
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = "PyFMI 1.2 documentation"
+html_title = "PyFMI 2.4 documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
@@ -234,7 +234,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('content', 'PyFMI', u'PyFMI Documentation',
-   u'Modelon AB', 'PyFMI', 'One line description of project.',
+   u'Modelon AB', 'PyFMI', 'Working with FMI from Python.',
    'Miscellaneous'),
 ]
 

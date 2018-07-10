@@ -266,32 +266,32 @@ class OptionBase(dict):
     overriding __init__ or when instantiating the extended class and thereby not 
     allow any other keys to be added to the dict.
     
-     * Example overriding __init__:
+    Example overriding __init__::
     
-    class MyOptionsClass(OptionBase):
-        def __init__(self, *args, **kw):
-            mydefaults = {'def1':1, 'def2':2}
-            super(MyOptionsClass,self).__init__(mydefaults)
+        class MyOptionsClass(OptionBase):
+            def __init__(self, *args, **kw):
+                mydefaults = {'def1':1, 'def2':2}
+                super(MyOptionsClass,self).__init__(mydefaults)
+            
+                self.update(*args, **kw)
+                
+        >> opts = MyOptionsClass()
+        >> opts['def1'] = 3   // ok
+        >> opts.update({'def2':4})   // ok
+        >> opts['def3']= 5   // not ok
         
-            self.update(*args, **kw)
-            
-    >> opts = MyOptionsClass()
-    >> opts['def1'] = 3   // ok
-    >> opts.update({'def2':4})   // ok
-    >> opts['def3']= 5   // not ok
-    
-            
-     * Example setting defaults in constructor:
-     
-     class MyOptionsClass(OptionBase):pass
-     
-    >> opts = MyOptionsClass(def1=1, def2=2)
-    >> opts['def1'] = 3   // ok
-    >> opts.update({'def2':4})   // ok
-    >> opts['def3']= 5   // not ok
-    
-    >> opts2 = MyOptionsClass()   // this class has no restrictions on keys
-    >> opts2['def5'] = 'hello'   //ok
+                
+         * Example setting defaults in constructor:
+         
+         class MyOptionsClass(OptionBase):pass
+         
+        >> opts = MyOptionsClass(def1=1, def2=2)
+        >> opts['def1'] = 3   // ok
+        >> opts.update({'def2':4})   // ok
+        >> opts['def3']= 5   // not ok
+        
+        >> opts2 = MyOptionsClass()   // this class has no restrictions on keys
+        >> opts2['def5'] = 'hello'   //ok
     """
     
     def __init__(self, *args, **kw):

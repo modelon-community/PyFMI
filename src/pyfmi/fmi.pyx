@@ -1849,11 +1849,12 @@ cdef class FMUModelBase(ModelBase):
         either its value reference or its variable name.
 
         Parameters::
-
+            
+            variable_name --
+                The name of the variable.
+                
             valueref --
                 The value reference of the variable.
-            variablename --
-                The name of the variable.
 
         Returns::
 
@@ -6526,15 +6527,10 @@ cdef class FMUModelCS2(FMUModelBase2):
     def cancel_step(self):
         """
         Cancel a current integrator step. Can only be called if the
-        status from do_step returns FMI_PENDING.
-        After this function has been called, only calls to the low-level
-        functions:
-            -fmi2Terminate
-            -fmi2Reset
-            -fmi2FreeInstance
-        are allowed
+        status from do_step returns FMI_PENDING. After this function has
+        been called it is only allowed to reset the model (i.e. start
+        over).
         """
-
         cdef int status
 
         status = FMIL.fmi2_import_cancel_step(self._fmu)

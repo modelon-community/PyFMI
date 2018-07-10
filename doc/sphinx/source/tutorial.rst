@@ -4,7 +4,7 @@ Tutorial
 
 This tutorial is intended to give a short introduction on how to use the PyFMI package to load an FMU into Python and to simulate the given model.
 
-For a more detailed description on how to use PyFMI, see the user's documentation in `JModelica.org <http://www.jmodelica.org/page/236>`_
+For a more detailed description on how to use PyFMI, see the user's documentation in `JModelica.org <https://jmodelica.org>`_
 
 Loading an FMU into Python
 ============================
@@ -19,7 +19,7 @@ Loading of an FMU is performed by simply importing the necessary object (*load_f
     #Load the FMU
     model = load_fmu('myFMU.fmu')
 
-Note that this will either return an instance of a class consistent with the FMI for Model Exchange definition or for the Co-Simulation definition.
+Note that this will either return an instance of a class consistent with the FMI for Model Exchange definition or for the Co-Simulation definition (and of the correct FMI version).
 
 Simulating an FMU
 ========================
@@ -31,7 +31,7 @@ Simulation of an FMU exported as Model Exchange requires that the additional pac
     #Simulate an FMU
     res = model.simulate(final_time=10)
 
-This will simulate the model from its default starting time 0.0 to 10.0 by using default options. The result is returned and stored in *res*.
+This will simulate the model from its default starting time 0.0 to 10.0 using default options. The result is returned and stored in *res*.
 
 Information about the arguments to *simulate* is best viewed interactively from for example an IPython shell:
 
@@ -71,9 +71,6 @@ To use the options in an simulation, pass them in the call to the *simulate* met
 .. code-block:: python
 
     res = model.simulate(final_time=10, options=opts)
-
-
-Currently the only solver that supports fully the `FMI <http://www.modelisar.com>`_ specification is *CVode*.
 
 Options (for Co-Simulation)
 -----------------------------

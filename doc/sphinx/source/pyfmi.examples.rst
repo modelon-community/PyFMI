@@ -9,6 +9,15 @@ Base :mod:`examples`
     :undoc-members:
     :show-inheritance:
 
+Module :mod:`fmi_bouncing_ball_cs` 
+----------------------------------
+
+.. automodule:: pyfmi.examples.fmi_bouncing_ball_cs
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
 Module :mod:`fmi_bouncing_ball` 
 -------------------------------
 
@@ -21,6 +30,14 @@ Module :mod:`fmi_bouncing_ball_native`
 --------------------------------------
 
 .. automodule:: pyfmi.examples.fmi_bouncing_ball_native
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Module :mod:`fmi20_bouncing_ball_native` 
+-----------------------------------------
+
+.. automodule:: pyfmi.examples.fmi20_bouncing_ball_native
     :members:
     :undoc-members:
     :show-inheritance:
@@ -40,12 +57,3 @@ Module :mod:`fmu_with_input_function`
     :members:
     :undoc-members:
     :show-inheritance:
-
-Module :mod:`log_analysis` 
---------------------------
-
-.. automodule:: pyfmi.examples.log_analysis
-    :members:
-    :undoc-members:
-    :show-inheritance:
-

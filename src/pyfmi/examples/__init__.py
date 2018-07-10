@@ -19,4 +19,4 @@
 The pyfmi example package.
 """
 __all__ = ['fmi_bouncing_ball_native', 'fmi20_bouncing_ball_native', 'fmi_bouncing_ball', 'fmu_with_input',
-           'fmu_with_input_function', 'log_analysis','fmi_bouncing_ball_cs']
+           'fmu_with_input_function','fmi_bouncing_ball_cs']
