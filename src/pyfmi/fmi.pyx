@@ -608,6 +608,13 @@ cdef class ModelBase:
             raise FMUException("Invalid log level for FMI Library (0-7).")
         self.callbacks.log_level = level
 
+    def get_log_level(self):
+        """
+        Returns the log level for PyFMI, i.e., as set in set_log_level.
+        Type: int
+        """
+        return self.callbacks.log_level
+
     def set_additional_logger(self, additional_logger):
         """
         Set an additional logger function that will, an addition to

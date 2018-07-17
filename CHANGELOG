@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Added a method to retrieve the PyFMI log level to support a steadystate issue (ticket:5639)
     * Made the binary result saving robust to handle incorrect model descriptions (ticket:5624)
     * Fixed issue with using the result filter together with FMI1 (ticket:5623)
     * Improved input handling for FMI2 (ticket:5615)
