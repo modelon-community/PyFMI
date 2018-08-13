@@ -6396,7 +6396,7 @@ cdef class FMUModelCS2(FMUModelBase2):
     """
     Co-simulation model loaded from a dll
     """
-    def __init__(self, fmu, path = '.', enable_logging = True, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
         """
         Constructor of the model.
 
@@ -6995,7 +6995,7 @@ cdef class FMUModelME2(FMUModelBase2):
     Model-exchange model loaded from a dll
     """
 
-    def __init__(self, fmu, path = '.', enable_logging = True, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
         """
         Constructor of the model.
 
