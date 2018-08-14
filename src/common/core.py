@@ -400,7 +400,11 @@ def create_temp_dir():
     """
     # create JModelica directory for temporary files (if not already created)
     if not os.path.exists(tmp_location):
-        os.makedirs(tmp_location)
+        try: #Account for race conditions
+            os.makedirs(tmp_location)
+        except OSError:
+            if not os.path.exists(tmp_location):
+                raise
 
     # create temporary directory
     tmpdir = tempfile.mkdtemp(prefix='jm_tmp', dir=tmp_location)

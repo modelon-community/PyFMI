@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Fixed potential race condition when creating temp directories (ticket:5660)
     * Added a method to retrieve the PyFMI log level (ticket:5639)
     * Made the binary result saving robust to handle incorrect model descriptions (ticket:5624)
     * Fixed issue with using the result filter together with FMI1 (ticket:5623)
