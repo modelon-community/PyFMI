@@ -88,6 +88,8 @@ cpdef cpr_seed(dependencies, list column_keys):
                     diag_added = True
                 data_index_with_diag[i].append(kd)
                 kd = kd + 1
+        if not diag_added:
+            kd = kd + 1 
     
     nnz = k
     nnz_with_diag = kd
