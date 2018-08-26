@@ -181,7 +181,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'extra_equations':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
                             'atol':"Default",'rtol':"Default",'external_event_detection':False},
-            'Radau5ODE_options':{'atol':"Default",'rtol':"Default"},
+            'Radau5ODE_options':{'atol':"Default",'rtol':"Default", "newt":12},
             'RungeKutta34_options':{'atol':"Default",'rtol':"Default"},
             'Dopri5_options':{'atol':"Default",'rtol':"Default"},
             'RodasODE_options':{'atol':"Default",'rtol':"Default"},
