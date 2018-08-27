@@ -172,7 +172,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'sensitivities':None,
             'write_scaled_result':False,
             'result_file_name':'',
-            'with_jacobian':True,
+            'with_jacobian':"Default",
             'logging':False,
             'result_handling':"binary",
             'result_handler': None,
@@ -466,7 +466,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         if not (isinstance(self.model, fmi.FMUModelME2)): # or isinstance(self.model, fmi_coupled.CoupledFMUModelME2) For coupled FMUs, currently not supported
             self.with_jacobian = False #Force false flag in this case as it is not supported
         elif self.with_jacobian == "Default" and (isinstance(self.model, fmi.FMUModelME2)): #or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)
-            if self.model.get_capability_flags()['providesDirectionalDerivatives']:
+            if self.model.get_capability_flags()['providesDirectionalDerivatives'] or solver == "CVode":
                 self.with_jacobian = True
             else:
                 self.with_jacobian = False
