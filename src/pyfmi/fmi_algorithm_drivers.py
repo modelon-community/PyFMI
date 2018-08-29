@@ -181,7 +181,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'extra_equations':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
                             'atol':"Default",'rtol':"Default",'external_event_detection':False},
-            'Radau5ODE_options':{'atol':"Default",'rtol':"Default", "newt":12},
+            'Radau5ODE_options':{'atol':"Default",'rtol':"Default"},
             'RungeKutta34_options':{'atol':"Default",'rtol':"Default"},
             'Dopri5_options':{'atol':"Default",'rtol':"Default"},
             'RodasODE_options':{'atol':"Default",'rtol':"Default"},
@@ -373,16 +373,16 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         if not self.input and (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
             if self.options["sensitivities"]:
-                self.probl = FMIODESENS2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time, parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
+                self.probl = FMIODESENS2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time, parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler, solver=self.options["solver"])
             else:
-                self.probl = FMIODE2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler,extra_equations=self.options["extra_equations"])
+                self.probl = FMIODE2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler,extra_equations=self.options["extra_equations"], solver=self.options["solver"])
         elif isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(
-                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
+                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler, solver=self.options["solver"])
             else:
                 self.probl = FMIODE2(
-                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler, extra_equations=self.options["extra_equations"])
+                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler, extra_equations=self.options["extra_equations"], solver=self.options["solver"])
 
         elif not self.input:
             if self.options["sensitivities"]:

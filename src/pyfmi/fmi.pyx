@@ -5903,7 +5903,7 @@ cdef class FMUModelBase2(ModelBase):
             
         return states, inputs
         
-    def _get_directional_proxy(self, var_ref, func_ref, group=None, add_diag=False, output_matrix=None):
+    def _get_directional_proxy(self, var_ref, func_ref, group=None, add_diag=False, output_matrix=None, perturbation=None):
         cdef list data = [], row = [], col = []
         cdef tuple local_group
         cdef int nbr_var_ref  = len(var_ref), nbr_func_ref = len(func_ref)
@@ -5967,7 +5967,7 @@ cdef class FMUModelBase2(ModelBase):
                 v[i] = 0.0
             return A
         
-    def _get_A(self, use_structure_info=True, add_diag=True, output_matrix=None):
+    def _get_A(self, use_structure_info=True, add_diag=True, output_matrix=None, perturbation=None):
         if self._group_A is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
             if python3_flag:
@@ -5981,7 +5981,7 @@ cdef class FMUModelBase2(ModelBase):
             derivatives                  = self.get_derivatives_list()
             self._derivatives_references = [s.value_reference for s in derivatives.values()]
         
-        A = self._get_directional_proxy(self._states_references, self._derivatives_references, self._group_A if use_structure_info else None, add_diag=add_diag, output_matrix=output_matrix)
+        A = self._get_directional_proxy(self._states_references, self._derivatives_references, self._group_A if use_structure_info else None, add_diag=add_diag, output_matrix=output_matrix, perturbation=perturbation)
         
         if self._A is None:
             self._A = A
@@ -7527,16 +7527,16 @@ cdef class FMUModelME2(FMUModelBase2):
         """
         return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
 
-    def _get_directional_proxy(self, var_ref, func_ref, group, add_diag=False, output_matrix=None):
+    def _get_directional_proxy(self, var_ref, func_ref, group, add_diag=False, output_matrix=None, perturbation=None):
         if not self._has_entered_init_mode:
             raise FMUException("The FMU has not entered initialization mode and thus the directional " \
                                "derivatives cannot be computed. Call enter_initialization_mode to start the initialization.")
         if self._provides_directional_derivatives() and not self.force_finite_differences:
             return FMUModelBase2._get_directional_proxy(self, var_ref, func_ref, group, add_diag, output_matrix)
         else:
-            return self._estimate_directional_derivative(var_ref, func_ref, group, add_diag, output_matrix)
+            return self._estimate_directional_derivative(var_ref, func_ref, group, add_diag, output_matrix, perturbation)
     
-    def _estimate_directional_derivative(self, var_ref, func_ref, group=None, add_diag=False, output_matrix=None):
+    def _estimate_directional_derivative(self, var_ref, func_ref, group=None, add_diag=False, output_matrix=None, perturbation=None):
         cdef list data = [], row = [], col = []
         cdef int sol_found = 0, dim = 0, i, j, len_v = len(var_ref), len_f = len(func_ref)
         cdef double nominal, fac
@@ -7561,9 +7561,13 @@ cdef class FMUModelME2(FMUModelBase2):
         
         df = self.get_real(z_ref)
         v  = self.get_real(v_ref)
-        for i in range(len_v):
-            nominal = self.get_variable_nominal(valueref = v_ref[i])
-            eps[i] = RUROUND*(max(abs(v[i]), nominal))
+        
+        if perturbation is None:
+            for i in range(len_v):
+                nominal = self.get_variable_nominal(valueref = v_ref[i])
+                eps[i] = RUROUND*(max(abs(v[i]), nominal))
+        else:
+            eps = perturbation
 
         if group is not None:
             if output_matrix is not None:

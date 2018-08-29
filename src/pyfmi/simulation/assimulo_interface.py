@@ -566,7 +566,7 @@ class FMIODE2(Explicit_Problem):
     """
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False, 
-                 result_handler=None, extra_equations=None):
+                 result_handler=None, extra_equations=None, solver=None):
         """
         Initialize the problem.
         """
@@ -587,6 +587,7 @@ class FMIODE2(Explicit_Problem):
         self._f_nbr = f_nbr
         self._g_nbr = g_nbr
         self._A = None
+        self._solver = solver
 
         if g_nbr > 0:
             self.state_events = self.g
@@ -616,6 +617,8 @@ class FMIODE2(Explicit_Problem):
         self._write_header = True
         self._logging = logging
         self._sparse_representation = False
+        self._UROUND  = (N.finfo(float).eps)
+        self._RUROUND = self._UROUND**0.5
         
         if f_nbr > 0 and with_jacobian:
             self.jac = self.j #Activates the jacobian
@@ -730,7 +733,22 @@ class FMIODE2(Explicit_Problem):
         if self._f_nbr == 0:
             return N.array([[0.0]])
         
-        A = self._model._get_A(add_diag=True, output_matrix=self._A)
+        #Mimic the epsilon computation from the respective solver
+        if self._solver == "CVode":
+            h = t - self._model._last_accepted_time
+            w = 1.0/(self._model._relative_tolerance*abs(v)+self._model.nominal_continuous_states*self._model._relative_tolerance)
+            fnorm = (sum((y*w)**2)/self._f_nbr)**0.5
+            inc = (1000 * abs(h) * self._RUROUND * self._f_nbr * fnorm) if (fnorm != 0.0 and h != 0.0) else 1.0
+
+            for i in range(self._f_nbr):
+                w[i] = max(self._RUROUND*abs(y[i]), inc/w[i])
+            eps = w
+        elif self._solver == "Radau5ODE":
+            eps = (self._UROUND*max(1e-5,abs(y)))**0.5
+        else:
+            eps = None
+        
+        A = self._model._get_A(add_diag=True, output_matrix=self._A, perturbation=eps)
         if self._A is None:
             self._A = A
 
