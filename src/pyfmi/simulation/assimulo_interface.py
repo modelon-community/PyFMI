@@ -744,7 +744,7 @@ class FMIODE2(Explicit_Problem):
                 w[i] = max(self._RUROUND*abs(y[i]), inc/w[i])
             eps = w
         elif self._solver == "Radau5ODE":
-            eps = (self._UROUND*max(1e-5,abs(y)))**0.5
+            eps = (self._UROUND*N.maximum(1e-5,abs(y)))**0.5
         else:
             eps = None
         
