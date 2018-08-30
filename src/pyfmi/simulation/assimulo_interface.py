@@ -736,7 +736,7 @@ class FMIODE2(Explicit_Problem):
         #Mimic the epsilon computation from the respective solver
         if self._solver == "CVode":
             h = t - self._model._last_accepted_time
-            w = 1.0/(self._model._relative_tolerance*abs(v)+self._model.nominal_continuous_states*self._model._relative_tolerance)
+            w = 1.0/(self._model._relative_tolerance*abs(y)+self._model.nominal_continuous_states*self._model._relative_tolerance)
             fnorm = (sum((y*w)**2)/self._f_nbr)**0.5
             inc = (1000 * abs(h) * self._RUROUND * self._f_nbr * fnorm) if (fnorm != 0.0 and h != 0.0) else 1.0
 
