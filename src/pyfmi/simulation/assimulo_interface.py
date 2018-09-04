@@ -1057,11 +1057,11 @@ class FMIODESENS2(FMIODE2):
     """
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False, 
-                 result_handler=None, extra_equations=None, parameters=None):
+                 result_handler=None, extra_equations=None, parameters=None, solver=None):
 
         #Call FMIODE init method
         FMIODE2.__init__(self, model, input, result_file_name, with_jacobian,
-                start_time,logging, result_handler, extra_equations)
+                start_time,logging, result_handler, extra_equations, solver)
 
         #Store the parameters
         if parameters != None:
