@@ -17,8 +17,8 @@
 
 #from distutils.core import setup, Extension
 #from distutils.ccompiler import new_compiler
-from distutils.core import setup
-
+# from distutils.core import setup
+from setuptools import setup
 import distutils
 import os as O
 import sys as S
