@@ -734,6 +734,7 @@ class FMIODE2(Explicit_Problem):
             return N.array([[0.0]])
         
         #Mimic the epsilon computation from the respective solver
+        """
         if self._solver == "CVode":
             h = t - self._model._last_accepted_time
             w = 1.0/(self._model._relative_tolerance*abs(y)+self._model.nominal_continuous_states*self._model._relative_tolerance)
@@ -747,6 +748,8 @@ class FMIODE2(Explicit_Problem):
             eps = (self._UROUND*N.maximum(1e-5,abs(y)))**0.5
         else:
             eps = None
+        """
+        eps = None
         
         A = self._model._get_A(add_diag=True, output_matrix=self._A, perturbation=eps)
         if self._A is None:
