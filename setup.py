@@ -17,8 +17,8 @@
 
 #from distutils.core import setup, Extension
 #from distutils.ccompiler import new_compiler
-# from distutils.core import setup
-from setuptools import setup
+
+
 import distutils
 import os as O
 import sys as S
@@ -26,6 +26,13 @@ import shutil
 import numpy as N
 import ctypes.util
 import sys
+
+#If prefix is set, we want to allow installation in a directory that is not on PYTHONPATH
+#and this is only possible with distutils, not setuptools
+if str(sys.argv[1:]).find("--prefix") == -1:
+    from setuptools import setup  
+else:
+    from distutils.core import setup
 
 try:
     from Cython.Distutils import build_ext
