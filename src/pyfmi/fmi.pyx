@@ -1870,6 +1870,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_import_variable_t *variable
         cdef FMIL.fmi1_import_real_variable_t *real_variable
         cdef char* variablename
+        cdef FMIL.fmi1_real_t value
 
         if valueref != None:
             variable = FMIL.fmi1_import_get_variable_by_vr(self._fmu, FMIL.fmi1_base_type_real, <FMIL.fmi1_value_reference_t>valueref)
@@ -1888,8 +1889,19 @@ cdef class FMUModelBase(ModelBase):
         real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
         if real_variable == NULL:
             raise FMUException("The variable is not a real variable.")
-
-        return  FMIL.fmi1_import_get_real_variable_nominal(real_variable)
+        
+        value = FMIL.fmi1_import_get_real_variable_nominal(real_variable) 
+        
+        if value == 0.0:
+            if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
+            value = 1.0
+        elif value < 0.0:
+            if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)"%(variablename, value))
+            value = abs(value)
+            
+        return value
 
     cpdef get_variable_fixed(self, variable_name):
         """
@@ -4486,6 +4498,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t*      variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
+        cdef FMIL.fmi2_real_t value
         cdef char* variablename
 
         if valueref != None:
@@ -4505,8 +4518,19 @@ cdef class FMUModelBase2(ModelBase):
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
         if real_variable == NULL:
             raise FMUException("The variable is not a real variable.")
-
-        return  FMIL.fmi2_import_get_real_variable_nominal(real_variable)
+        
+        value = FMIL.fmi2_import_get_real_variable_nominal(real_variable) 
+        
+        if value == 0.0:
+            if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
+            value = 1.0
+        elif value < 0.0:
+            if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)"%(variablename, value))
+            value = abs(value)
+            
+        return value
 
     def get_variable_by_valueref(self, valueref, type = 0):
         """

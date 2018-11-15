@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Added check on the nominal values (ticket:5706)
     * Fixed issue with reusing the FD computed Jacobian (ticket:5668)
     * Fixed potential race condition when creating temp directories (ticket:5660)
     * Added a method to retrieve the PyFMI log level (ticket:5639)
