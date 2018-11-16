@@ -1850,7 +1850,7 @@ cdef class FMUModelBase(ModelBase):
 
         return vr
 
-    def get_variable_nominal(self, variable_name=None, valueref=None):
+    def get_variable_nominal(self, variable_name=None, valueref=None, _override_erroneous_nominal=True):
         """
         Returns the nominal value from a real variable determined by
         either its value reference or its variable name.
@@ -1890,16 +1890,17 @@ cdef class FMUModelBase(ModelBase):
         if real_variable == NULL:
             raise FMUException("The variable is not a real variable.")
         
-        value = FMIL.fmi1_import_get_real_variable_nominal(real_variable) 
+        value = FMIL.fmi1_import_get_real_variable_nominal(real_variable)
         
-        if value == 0.0:
-            if self.callbacks.log_level >= FMIL.jm_log_level_warning:
-                logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
-            value = 1.0
-        elif value < 0.0:
-            if self.callbacks.log_level >= FMIL.jm_log_level_warning:
-                logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)"%(variablename, value))
-            value = abs(value)
+        if _override_erroneous_nominal:
+            if value == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
+                value = 1.0
+            elif value < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)"%(variablename, value))
+                value = abs(value)
             
         return value
 
@@ -4479,7 +4480,7 @@ cdef class FMUModelBase2(ModelBase):
         return categories
 
     @enable_caching
-    def get_variable_nominal(self, variable_name=None, valueref=None):
+    def get_variable_nominal(self, variable_name=None, valueref=None, _override_erroneous_nominal=True):
         """
         Returns the nominal value from a real variable determined by
         either its value reference or its variable name.
@@ -4521,15 +4522,16 @@ cdef class FMUModelBase2(ModelBase):
         
         value = FMIL.fmi2_import_get_real_variable_nominal(real_variable) 
         
-        if value == 0.0:
-            if self.callbacks.log_level >= FMIL.jm_log_level_warning:
-                logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
-            value = 1.0
-        elif value < 0.0:
-            if self.callbacks.log_level >= FMIL.jm_log_level_warning:
-                logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)"%(variablename, value))
-            value = abs(value)
-            
+        if _override_erroneous_nominal:
+            if value == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
+                value = 1.0
+            elif value < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)"%(variablename, value))
+                value = abs(value)
+                
         return value
 
     def get_variable_by_valueref(self, valueref, type = 0):
