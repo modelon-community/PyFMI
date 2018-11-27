@@ -4395,6 +4395,30 @@ cdef class FMUModelBase2(ModelBase):
         """
         Initializes the model and computes initial values for all variables.
         Additionally calls the setup experiment, if not already called.
+        
+        Parameters::
+            
+            tolerance_defined --
+                Specifies if the model is to be solved with an error
+                controlled algorithm.
+                Default: True
+                
+            tolerance --
+                The tolerance used by the error controlled algorithm.
+                Default: The tolerance defined in the model description
+            
+            start_time --
+                Start time of the simulation.
+                Default: The start time defined in the model description.
+            
+            stop_time_defined --
+                Defines if a fixed stop time is defined or not. If this is
+                set the simulation cannot go past the defined stop time.
+                Default: False
+            
+            stop_time --
+                Stop time of the simulation.
+                Default: The stop time defined in the model description.
 
         Calls the low-level FMI functions: fmi2_import_setup_experiment (optionally)
                                            fmi2EnterInitializationMode,
