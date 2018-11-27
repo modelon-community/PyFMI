@@ -1893,6 +1893,10 @@ cdef class FMUModelBase(ModelBase):
         value = FMIL.fmi1_import_get_real_variable_nominal(real_variable)
         
         if _override_erroneous_nominal:
+            if variable_name == None:
+                variable_name = self.get_variable_by_valueref(valueref)
+                variablename = variable_name
+                
             if value == 0.0:
                 if self.callbacks.log_level >= FMIL.jm_log_level_warning:
                     logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
@@ -4547,6 +4551,9 @@ cdef class FMUModelBase2(ModelBase):
         value = FMIL.fmi2_import_get_real_variable_nominal(real_variable) 
         
         if _override_erroneous_nominal:
+            if variable_name == None:
+                variable_name = self.get_variable_by_valueref(valueref)
+                variablename = variable_name
             if value == 0.0:
                 if self.callbacks.log_level >= FMIL.jm_log_level_warning:
                     logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
