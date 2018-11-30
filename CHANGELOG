@@ -1,6 +1,8 @@
 --- CHANGELOG ---
 
 --- PyFMI-X.X ---
+    * Fixed issue with atol not being updated when rtol is set (ticket:5709)
+    * Added check on the nominal values (ticket:5706)
     * Fixed issue with reusing the FD computed Jacobian (ticket:5668)
     * Fixed potential race condition when creating temp directories (ticket:5660)
     * Added a method to retrieve the PyFMI log level (ticket:5639)
