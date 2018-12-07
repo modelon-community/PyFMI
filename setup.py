@@ -40,6 +40,7 @@ try:
 except ImportError:
     raise Exception("Please upgrade to a newer Cython version, >= 0.15.")
 
+
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
@@ -154,6 +155,10 @@ for x in sys.argv[1:]:
     if not x.find('--with-openmp'):
         with_openmp = True
         copy_args.remove(x)
+    if not x.find('--version'):
+        VERSION = x[10:]
+        copy_args.remove(x)
+    
 
 if not incdirs:
     raise Exception("FMI Library cannot be found. Please specify its location, either using the flag to the setup script '--fmil-home' or specify it using the environment variable FMIL_HOME.")
