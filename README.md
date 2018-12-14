@@ -4,7 +4,7 @@ PyFMI
 PyFMI is a package for loading and interacting with Functional Mock-Up Units
 (FMUs) both for Model Exchange and Co-Simulation, which are compiled dynamic
 models compliant with the Functional Mock-Up Interface (FMI). See
-http://jmodelica.org/page/4924 and https://www.fmi-standard.org/ for more
+http://jmodelica.org/page/4924 and https://fmi-standard.org/ for more
 information.
 
 The latest version is available for download at

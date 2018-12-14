@@ -46,8 +46,8 @@ AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
 VERSION = "trunk"
 LICENSE = "LGPL"
-URL = "http://www.jmodelica.org"
-DOWNLOAD_URL = "http://www.jmodelica.org/page/12"
+URL = "https://jmodelica.org/pyfmi"
+DOWNLOAD_URL = "https://jmodelica.org/pyfmi/installation.html"
 DESCRIPTION = "A package for working with dynamic models compliant with the Functional Mock-Up Interface standard."
 PLATFORMS = ["Linux", "Windows", "MacOS X"]
 CLASSIFIERS = [ 'Programming Language :: Python',
@@ -83,7 +83,7 @@ Requirements:
 - `Numpy (recommended 1.6.2) <http://pypi.python.org/pypi/numpy>`_
 - `Scipy (recommended 0.10.1) <http://pypi.python.org/pypi/scipy>`_
 - `lxml (at least 2.3) <http://pypi.python.org/pypi/lxml>`_
-- `Assimulo (at least 2.6) <http://pypi.python.org/pypi/Assimulo>`_
+- `Assimulo (at least 3.0) <http://pypi.python.org/pypi/Assimulo>`_
 - `Cython (at least 0.18) <http://cython.org/>`_
 - Python-headers (usually included on Windows, python-dev on Ubuntu)
 
