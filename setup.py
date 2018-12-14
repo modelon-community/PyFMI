@@ -17,7 +17,7 @@
 
 #from distutils.core import setup, Extension
 #from distutils.ccompiler import new_compiler
-from distutils.core import setup
+
 
 import distutils
 import os as O
@@ -27,11 +27,19 @@ import numpy as N
 import ctypes.util
 import sys
 
+#If prefix is set, we want to allow installation in a directory that is not on PYTHONPATH
+#and this is only possible with distutils, not setuptools
+if str(sys.argv[1:]).find("--prefix") == -1:
+    from setuptools import setup  
+else:
+    from distutils.core import setup
+
 try:
     from Cython.Distutils import build_ext
     from Cython.Build import cythonize
 except ImportError:
     raise Exception("Please upgrade to a newer Cython version, >= 0.15.")
+
 
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
@@ -147,6 +155,10 @@ for x in sys.argv[1:]:
     if not x.find('--with-openmp'):
         with_openmp = True
         copy_args.remove(x)
+    if not x.find('--version'):
+        VERSION = x[10:]
+        copy_args.remove(x)
+    
 
 if not incdirs:
     raise Exception("FMI Library cannot be found. Please specify its location, either using the flag to the setup script '--fmil-home' or specify it using the environment variable FMIL_HOME.")
