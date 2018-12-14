@@ -299,7 +299,6 @@ except:
 
 from numpy.distutils.core import setup
 setup(name=NAME,
-      version=VERSION,
       license=LICENSE,
       description=DESCRIPTION,
       long_description=LONG_DESCRIPTION,
