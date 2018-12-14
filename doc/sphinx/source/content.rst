@@ -19,6 +19,7 @@ Contents
    examples
    installation
    code
+   changelog
 
 
 
