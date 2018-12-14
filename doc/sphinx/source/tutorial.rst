@@ -40,7 +40,6 @@ Information about the arguments to *simulate* is best viewed interactively from 
     #View the documentation for simulate
     model.simulate?
 
-
 Options (for Model Exchange)
 ------------------------------
 

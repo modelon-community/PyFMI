@@ -23,8 +23,7 @@ Changelog
     * Fixed memory leak when getting the dependency information (ticket:5553)
     * Deprecated get_log_file_name in favour of get_log_filename (ticket:5548)
     * Implemented support for injecting custom logging functionality (ticket:5545)
-    * Added the possibility to retrieve unit/display unit name for FMI2
-      and its value in the display unit (ticket:5537)
+    * Added the possibility to retrieve unit/display unit name for FMI2 and its value in the display unit (ticket:5537)
     * Added possibility to get a scalar variable directly (ticket:5521)
     * Fixed problem with binary saving (integer start time) (ticket:5496)
     * Updated the interactive info on the load_fmu method (ticket:5495)
@@ -36,9 +35,7 @@ Changelog
     * Added a prototype of a Master algorithm for coupled ME FMUs (ticket:5438)
     * Fixed so that a "none" result handler can be used for CS (ticket:5403)
     * Removed deprecated FMUModel (ticket:5315)
-    * Updated attributes to the initialize methods to be consistent between
-      FMI1 and FMI2. Also added so that setup_experiment is called through
-      FMI2.initialze() if not already called (ticket:5322).
+    * Updated attributes to the initialize methods to be consistent between FMI1 and FMI2. Also added so that setup_experiment is called through FMI2.initialze() if not already called (ticket:5322).
     * Added option "maxh" (maximum step-size) to the Master algorithm (ticket:5396)
     * Fixed bug with step outside simulation region for the Master algorithm (ticket:5397)
 
@@ -56,14 +53,16 @@ Changelog
     * Improved performance when using filters (ticket:4984)
 
 --- PyFMI-2.3 ---
-    * Implemented a Master algorithm for simulation of CS FMUS
-                            (ticket:4918)
+    * Implemented a Master algorithm for simulation of CS FMUS (ticket:4918)
     * Information from the integrator to the log (ticket:4101)
     * Parameter estimation of FMUs (ticket:4461, ticket:4809)
-    * Bug fixes: plot gui (ticket:4472), pyfmi without assimulo (ticket:4509)
-                 handle result (ticket:4658), enum definition (ticket:4740)
-                 log name (ticket:4792), enum get/set (ticket:4941)
-                 malformed xml (ticket:4888)
+    * Bug fix, plot gui (ticket:4472)
+    * Bug fix, pyfmi without assimulo (ticket:4509)
+    * Bug fix, handle result (ticket:4658)
+    * Bug fix, enum definition (ticket:4740)
+    * Bug fix, log name (ticket:4792)
+    * Bug fix, enum get/set (ticket:4941)
+    * Bug fix, malformed xml (ticket:4888)
     * Allow do steps to be performed in parallel (ticket:4541)
     * Direct acces to low-level FMIL methods (ticket:4542)
     * Performance improvements for get/set (ticket:4566)
@@ -94,12 +93,9 @@ Changelog
 --- PyFMI-2.0 ---
     * Support for FMI2
     * Added initial to scalar variable (ticket:4146)
-    * Support for handling time events directly after intialize
-                        (ticket:4122)
+    * Support for handling time events directly after intialize (ticket:4122)
     * Fixed saving of enumeration variables (ticket:3778)
-    * Added a plot GUI (ticket:1657, ticket:1658, 
-                        ticket:3703, ticket:4047,
-                        ticket:4121)
+    * Added a plot GUI (ticket:1657, ticket:1658, ticket:3703, ticket:4047, ticket:4121)
     * Bug fixes (ticket:3778, ticket:4054, ticket:4053)
     
 --- PyFMI-1.5 ---
@@ -140,8 +136,6 @@ Changelog
     * Option to get the default experiment data (ticket:2564)
     * Bug fixes (ticket:2489, ticket:2569, ticket:2877, ticket:2916)
 
---- PyFMI-1.2.1 ---
-    * -
     
 --- PyFMI-1.2 ---
     * Added check for empty last error (ticket:2474)
