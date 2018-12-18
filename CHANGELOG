@@ -1,6 +1,6 @@
 --- CHANGELOG ---
 
---- PyFMI-X.X ---
+--- PyFMI-2.5 ---
     * Fixed issue with atol not being updated when rtol is set (ticket:5709)
     * Added check on the nominal values (ticket:5706)
     * Fixed issue with reusing the FD computed Jacobian (ticket:5668)
