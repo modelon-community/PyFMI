@@ -2141,8 +2141,8 @@ class ResultHandlerBinaryFile(ResultHandler):
         name_data = ["time"] + [var.name for var in sorted_vars]
         desc_data = ["Time in [s]"] + [var.description for var in sorted_vars]
         
-        len_name_data, name_data = fmi_util.convert_str_list(name_data)
-        len_desc_data, desc_data = fmi_util.convert_str_list(desc_data)
+        len_name_data, name_data = fmi_util.convert_str_list(list(map(str.encode, name_data)))
+        len_desc_data, desc_data = fmi_util.convert_str_list(list(map(str.encode, desc_data)))
         
         self._write_header("name", len_name_data, len_name_items, "char")
         self.dump_native_data(name_data)
