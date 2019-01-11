@@ -878,8 +878,9 @@ class FMICSAlg(AlgorithmBase):
             print('Simulation terminated prematurely. See the log for possibly more information. Return flag %d.'%status)
         
         #Log elapsed time
-        print('Simulation interval    : ' + str(self.start_time) + ' - ' + str(final_time) + ' seconds.')
-        print('Elapsed simulation time: ' + str(time_stop-time_start) + ' seconds.')
+        logger = logging.getLogger(__name__)
+        logger.info('Simulation interval    : ' + str(self.start_time) + ' - ' + str(final_time) + ' seconds.')
+        logger.info('Elapsed simulation time: ' + str(time_stop-time_start) + ' seconds.')
         
         self.timings["computing_solution"] = time_stop - time_start - self.timings["storing_result"]
 
