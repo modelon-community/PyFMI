@@ -130,8 +130,12 @@ class ResultDymola:
             In integer index.
         """
         #Strip name of spaces, for instace a[2, 1] to a[2,1]
-        name = name.replace(" ", "")
-        
+        try:
+            name = name.decode()
+        except AttributeError:
+            pass
+        name = name.replace(" ", "").encode()
+
         try:
             #return self.name.index(name)
             return self.name_lookup[name]
