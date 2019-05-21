@@ -17,7 +17,7 @@
 
 #from distutils.core import setup, Extension
 #from distutils.ccompiler import new_compiler
-from distutils.core import setup
+
 
 import distutils
 import os as O
@@ -27,19 +27,27 @@ import numpy as N
 import ctypes.util
 import sys
 
+#If prefix is set, we want to allow installation in a directory that is not on PYTHONPATH
+#and this is only possible with distutils, not setuptools
+if str(sys.argv[1:]).find("--prefix") == -1:
+    from setuptools import setup  
+else:
+    from distutils.core import setup
+
 try:
     from Cython.Distutils import build_ext
     from Cython.Build import cythonize
 except ImportError:
     raise Exception("Please upgrade to a newer Cython version, >= 0.15.")
 
+
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
 VERSION = "trunk"
 LICENSE = "LGPL"
-URL = "http://www.jmodelica.org"
-DOWNLOAD_URL = "http://www.jmodelica.org/page/12"
+URL = "https://jmodelica.org/pyfmi"
+DOWNLOAD_URL = "https://jmodelica.org/pyfmi/installation.html"
 DESCRIPTION = "A package for working with dynamic models compliant with the Functional Mock-Up Interface standard."
 PLATFORMS = ["Linux", "Windows", "MacOS X"]
 CLASSIFIERS = [ 'Programming Language :: Python',
@@ -75,7 +83,7 @@ Requirements:
 - `Numpy (recommended 1.6.2) <http://pypi.python.org/pypi/numpy>`_
 - `Scipy (recommended 0.10.1) <http://pypi.python.org/pypi/scipy>`_
 - `lxml (at least 2.3) <http://pypi.python.org/pypi/lxml>`_
-- `Assimulo (at least 2.6) <http://pypi.python.org/pypi/Assimulo>`_
+- `Assimulo (at least 3.0) <http://pypi.python.org/pypi/Assimulo>`_
 - `Cython (at least 0.18) <http://cython.org/>`_
 - Python-headers (usually included on Windows, python-dev on Ubuntu)
 
@@ -147,6 +155,10 @@ for x in sys.argv[1:]:
     if not x.find('--with-openmp'):
         with_openmp = True
         copy_args.remove(x)
+    if not x.find('--version'):
+        VERSION = x[10:]
+        copy_args.remove(x)
+    
 
 if not incdirs:
     raise Exception("FMI Library cannot be found. Please specify its location, either using the flag to the setup script '--fmil-home' or specify it using the environment variable FMIL_HOME.")
@@ -298,8 +310,8 @@ setup(name=NAME,
       platforms=PLATFORMS,
       classifiers=CLASSIFIERS,
       ext_modules = ext_list,
-      package_dir = {'pyfmi':'src'+O.path.sep+'pyfmi','pyfmi.common':'src'+O.path.sep+'common'},
-      packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting'],
+      package_dir = {'pyfmi':'src'+O.path.sep+'pyfmi','pyfmi.common':'src'+O.path.sep+'common', 'pyfmi.tests':'tests'},
+      packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting', 'pyfmi.tests'],
       package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'ME1.0'+O.path.sep+'*',
                                'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS1.0'+O.path.sep+'*',
                                'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'ME2.0'+O.path.sep+'*',

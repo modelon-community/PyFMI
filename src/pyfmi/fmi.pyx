@@ -1850,7 +1850,7 @@ cdef class FMUModelBase(ModelBase):
 
         return vr
 
-    def get_variable_nominal(self, variable_name=None, valueref=None):
+    def get_variable_nominal(self, variable_name=None, valueref=None, _override_erroneous_nominal=True):
         """
         Returns the nominal value from a real variable determined by
         either its value reference or its variable name.
@@ -1870,6 +1870,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_import_variable_t *variable
         cdef FMIL.fmi1_import_real_variable_t *real_variable
         cdef char* variablename
+        cdef FMIL.fmi1_real_t value
 
         if valueref != None:
             variable = FMIL.fmi1_import_get_variable_by_vr(self._fmu, FMIL.fmi1_base_type_real, <FMIL.fmi1_value_reference_t>valueref)
@@ -1888,8 +1889,24 @@ cdef class FMUModelBase(ModelBase):
         real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
         if real_variable == NULL:
             raise FMUException("The variable is not a real variable.")
-
-        return  FMIL.fmi1_import_get_real_variable_nominal(real_variable)
+        
+        value = FMIL.fmi1_import_get_real_variable_nominal(real_variable)
+        
+        if _override_erroneous_nominal:
+            if variable_name == None:
+                variable_name = self.get_variable_by_valueref(valueref)
+                variablename = variable_name
+                
+            if value == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
+                value = 1.0
+            elif value < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)"%(variablename, value))
+                value = abs(value)
+            
+        return value
 
     cpdef get_variable_fixed(self, variable_name):
         """
@@ -4382,6 +4399,30 @@ cdef class FMUModelBase2(ModelBase):
         """
         Initializes the model and computes initial values for all variables.
         Additionally calls the setup experiment, if not already called.
+        
+        Parameters::
+            
+            tolerance_defined --
+                Specifies if the model is to be solved with an error
+                controlled algorithm.
+                Default: True
+                
+            tolerance --
+                The tolerance used by the error controlled algorithm.
+                Default: The tolerance defined in the model description
+            
+            start_time --
+                Start time of the simulation.
+                Default: The start time defined in the model description.
+            
+            stop_time_defined --
+                Defines if a fixed stop time is defined or not. If this is
+                set the simulation cannot go past the defined stop time.
+                Default: False
+            
+            stop_time --
+                Stop time of the simulation.
+                Default: The stop time defined in the model description.
 
         Calls the low-level FMI functions: fmi2_import_setup_experiment (optionally)
                                            fmi2EnterInitializationMode,
@@ -4467,7 +4508,7 @@ cdef class FMUModelBase2(ModelBase):
         return categories
 
     @enable_caching
-    def get_variable_nominal(self, variable_name=None, valueref=None):
+    def get_variable_nominal(self, variable_name=None, valueref=None, _override_erroneous_nominal=True):
         """
         Returns the nominal value from a real variable determined by
         either its value reference or its variable name.
@@ -4486,6 +4527,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t*      variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
+        cdef FMIL.fmi2_real_t value
         cdef char* variablename
 
         if valueref != None:
@@ -4505,8 +4547,23 @@ cdef class FMUModelBase2(ModelBase):
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
         if real_variable == NULL:
             raise FMUException("The variable is not a real variable.")
-
-        return  FMIL.fmi2_import_get_real_variable_nominal(real_variable)
+        
+        value = FMIL.fmi2_import_get_real_variable_nominal(real_variable) 
+        
+        if _override_erroneous_nominal:
+            if variable_name == None:
+                variable_name = self.get_variable_by_valueref(valueref)
+                variablename = variable_name
+            if value == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
+                value = 1.0
+            elif value < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)"%(variablename, value))
+                value = abs(value)
+                
+        return value
 
     def get_variable_by_valueref(self, valueref, type = 0):
         """

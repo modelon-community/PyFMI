@@ -453,12 +453,11 @@ class AssimuloFMIAlg(AlgorithmBase):
         #Check absolute tolerance
         try:
             if isinstance(self.solver_options["atol"], str) and self.solver_options["atol"] == "Default":
-                rtol, atol = self.model.get_tolerances()
                 fnbr, gnbr = self.model.get_ode_sizes()
                 if fnbr == 0:
-                    self.solver_options['atol'] = 0.01*rtol
+                    self.solver_options['atol'] = 0.01*self.solver_options['rtol']
                 else:
-                    self.solver_options['atol'] = atol
+                    self.solver_options['atol'] = 0.01*self.solver_options['rtol']*self.model.nominal_continuous_states
         except KeyError:
             pass
             

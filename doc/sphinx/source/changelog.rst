@@ -1,0 +1,159 @@
+
+==========
+Changelog
+==========
+
+
+--- PyFMI-2.5 ---
+    * Fixed issue with atol not being updated when rtol is set (ticket:5709)
+    * Added check on the nominal values (ticket:5706)
+    * Fixed issue with reusing the FD computed Jacobian (ticket:5668)
+    * Fixed potential race condition when creating temp directories (ticket:5660)
+    * Added a method to retrieve the PyFMI log level (ticket:5639)
+    * Made the binary result saving robust to handle incorrect model descriptions (ticket:5624)
+    * Fixed issue with using the result filter together with FMI1 (ticket:5623)
+    * Improved input handling for FMI2 (ticket:5615)
+    * Cleanup of simulation logging (ticket:5614)
+    * Fixed simulation logging when there are no states (ticket:5613)
+    * Fixed issue with wrong return of time varying variables (ticket:5597)
+    * Added functionality to set enumerations with strings (ticket:5587)
+    * Changed so that the FMU is only unzipped once (for performance) (ticket:5551)
+    * Changed so that the log is stored in memory during load_fmu call (ticket:5550)
+    * Added option to limit the maximum size of the log file (ticket:5089)
+    * Fixed memory leak when getting the dependency information (ticket:5553)
+    * Deprecated get_log_file_name in favour of get_log_filename (ticket:5548)
+    * Implemented support for injecting custom logging functionality (ticket:5545)
+    * Added the possibility to retrieve unit/display unit name for FMI2 and its value in the display unit (ticket:5537)
+    * Added possibility to get a scalar variable directly (ticket:5521)
+    * Fixed problem with binary saving (integer start time) (ticket:5496)
+    * Updated the interactive info on the load_fmu method (ticket:5495)
+    * Changed default file storing method to binary (ticket:5479)
+    * Fixed issue with getting parameters when using memory storage option (ticket:5476)
+    * Added support for getting the declared type for FMI2 (ticket:5475)
+    * Added option to store result files on binary format (ticket:5470)
+    * Improved method to retrieve model variables (ticket:5469)
+    * Added a prototype of a Master algorithm for coupled ME FMUs (ticket:5438)
+    * Fixed so that a "none" result handler can be used for CS (ticket:5403)
+    * Removed deprecated FMUModel (ticket:5315)
+    * Updated attributes to the initialize methods to be consistent between FMI1 and FMI2. Also added so that setup_experiment is called through FMI2.initialze() if not already called (ticket:5322).
+    * Added option "maxh" (maximum step-size) to the Master algorithm (ticket:5396)
+    * Fixed bug with step outside simulation region for the Master algorithm (ticket:5397)
+
+--- PyFMI-2.4 ---
+    * Fixed a missed encoding of strings, used for Python 3 (ticket:5163)
+    * Added timeout option for when simulating CS FMUs (ticket:5313)
+    * Added option to specify if the stop time is fixed or not (ticket:5298)
+    * Fixed bug where setting the maximum order had no impact (ticket:5212)
+    * Added option to use central difference instead of forward differences (ticket:5204)
+    * Minor bugfixes and documentation improvements.
+
+--- PyFMI-2.3.1 ---
+    * Added caching of model variables when retriving the variables lists (ticket:5007)
+    * Added more information about where time is spent in a simulation (ticket:4983)
+    * Improved performance when using filters (ticket:4984)
+
+--- PyFMI-2.3 ---
+    * Implemented a Master algorithm for simulation of CS FMUS (ticket:4918)
+    * Information from the integrator to the log (ticket:4101)
+    * Parameter estimation of FMUs (ticket:4461, ticket:4809)
+    * Bug fix, plot gui (ticket:4472)
+    * Bug fix, pyfmi without assimulo (ticket:4509)
+    * Bug fix, handle result (ticket:4658)
+    * Bug fix, enum definition (ticket:4740)
+    * Bug fix, log name (ticket:4792)
+    * Bug fix, enum get/set (ticket:4941)
+    * Bug fix, malformed xml (ticket:4888)
+    * Allow do steps to be performed in parallel (ticket:4541)
+    * Direct acces to low-level FMIL methods (ticket:4542)
+    * Performance improvements for get/set (ticket:4566)
+    * Fixed output dependencies (ticket:4728, ticket:4762)
+    * Fixed derivative dependencies (ticket:4729, ticket:4765)
+    * Add option to use finite differences if directional derivatives are not available (ticket:4733)
+    * Add support for get/set string (ticket:4798)
+    * Added option to disable reloading of simulation results (ticket:4930)
+
+--- PyFMI-2.2 ---
+    * Support for sparse representation of matrices (ticket:4306)
+    * Update methods for getting variable lists (ticket:4370)
+    * Fix for Python 3 (ticket:4386, ticket:4470)
+    * Support for get/set FMU state (ticket:4455)
+    * Bug fix for result storage (ticket:4460)
+    * Bug fix for simulating FMU without states (ticket:4462)
+    * Exposed enter/exit initialization mode (ticket:4436)
+    * Using PyFMI without Assimulo (ticket:4393)
+
+--- PyFMI-2.1 ---
+    * PyFMI Python 3 compliant (ticket:4147)
+    * Fix for assert fails in CS simulation (ticket:4244)
+    * Methods for retrieving dependency information (ticket:4260)
+    * Bug fixes (ticket:4264, ticket:4281)
+    * Fix for discard of CS FMUs (ticket:4234)
+    * Method for getting real status (ticket:4233)
+    
+--- PyFMI-2.0 ---
+    * Support for FMI2
+    * Added initial to scalar variable (ticket:4146)
+    * Support for handling time events directly after intialize (ticket:4122)
+    * Fixed saving of enumeration variables (ticket:3778)
+    * Added a plot GUI (ticket:1657, ticket:1658, ticket:3703, ticket:4047, ticket:4121)
+    * Bug fixes (ticket:3778, ticket:4054, ticket:4053)
+    
+--- PyFMI-1.5 ---
+    * Added dummy result handler (ticket:3521)
+    * Option to implicit euler (ticket:3614)
+    * Support for FMI2 RC2 (ticket:3680)
+    
+--- PyFMI-1.4.1 ---
+    * Improved base result (ticket:3534)
+    
+--- PyFMI-1.4 ---
+    * Fixed seg fault on Windows (ticket:1947)
+    * Added CS example (ticket:2363)
+    * Performance improvement when setting inputs (ticket:3032)
+    * Changed calling sequence for result handler (ticket:3115)
+    * Added option to store result as CSV (ticket:3126)
+
+--- PyFMI-1.3.2 ---
+    * Changed the log output from load_fmu (ticket:3030)
+    * Fixed enumeration access (ticket:3038)
+    * Control of logging (ticket:3013)
+
+--- PyFMI-1.3.1 ---
+    * Minor fix in setup script (ticket:2983)
+
+--- PyFMI-1.3 ---
+    * Improved result handling (ticket:2864)
+    * Changed default values for logging (ticket:2970)
+    * Support for LSODAR from Assimulo (ticket:2945)
+    * Changed default simulation time (ticket:2910)
+    * Added filtering of model variables (ticket:2819)
+    * Option to store simulation result in memory (ticket:2813)
+    * Added reset method for CS1 (ticket:2724)
+    * Fixed get/set negated values (ticket:2758)
+    * Improved reset method (ticket:2270)
+    * Decode description string to UTF-8 (ticket:2652)
+    * Option to store log to file (ticket:2403)
+    * Option to get the default experiment data (ticket:2564)
+    * Bug fixes (ticket:2489, ticket:2569, ticket:2877, ticket:2916)
+
+    
+--- PyFMI-1.2 ---
+    * Added check for empty last error (ticket:2474)
+    * Updated bouncingball example (ticket:2478)
+    
+--- PyFMI-1.2b1 ---
+    * Import and simulation of co-simulation FMUs (ticket:2230)
+    * Updated setup script (ticket:2293, ticket:2336)
+    * Changed license to LGPL (ticket:2361)
+    * Added convenience method getting variable by value ref (ticket:2480)
+    * Minor improvements (ticket:2294, ticket:2453)
+    * Minor bug fixes (ticket:2314, ticket:2412, ticket:2336)
+    
+--- PyFMI-1.1 ---
+    * Included FMIL in setup (ticket:1940)
+    * Fixed static / shared linking (ticket:2216)
+    
+--- PyFMI-1.1b1 ---
+    * Changed internals to use FMI Library (FMIL) (ticket:1920)
+    * Minor bug fixes (ticket:2203, ticket:1952)
+
