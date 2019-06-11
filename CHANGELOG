@@ -1,5 +1,9 @@
 --- CHANGELOG ---
 
+--- PyFMI-2.5.1 ---
+    * Added (hidden) option to only load the XML from an FMU, for testing
+      purposes (ticket:5778)
+
 --- PyFMI-2.5 ---
     * Fixed issue with atol not being updated when rtol is set (ticket:5709)
     * Added check on the nominal values (ticket:5706)
@@ -34,7 +38,7 @@
     * Removed deprecated FMUModel (ticket:5315)
     * Updated attributes to the initialize methods to be consistent between
       FMI1 and FMI2. Also added so that setup_experiment is called through
-      FMI2.initialze() if not already called (ticket:5322).
+      FMI2.initialize() if not already called (ticket:5322).
     * Added option "maxh" (maximum step-size) to the Master algorithm (ticket:5396)
     * Fixed bug with step outside simulation region for the Master algorithm (ticket:5397)
 
@@ -47,7 +51,7 @@
     * Minor bugfixes and documentation improvements.
 
 --- PyFMI-2.3.1 ---
-    * Added caching of model variables when retriving the variables lists (ticket:5007)
+    * Added caching of model variables when retrieving the variables lists (ticket:5007)
     * Added more information about where time is spent in a simulation (ticket:4983)
     * Improved performance when using filters (ticket:4984)
 
@@ -90,7 +94,7 @@
 --- PyFMI-2.0 ---
     * Support for FMI2
     * Added initial to scalar variable (ticket:4146)
-    * Support for handling time events directly after intialize
+    * Support for handling time events directly after initialize
                         (ticket:4122)
     * Fixed saving of enumeration variables (ticket:3778)
     * Added a plot GUI (ticket:1657, ticket:1658, 
@@ -100,14 +104,14 @@
     
 --- PyFMI-1.5 ---
     * Added dummy result handler (ticket:3521)
-    * Option to implicit euler (ticket:3614)
+    * Option to implicit Euler (ticket:3614)
     * Support for FMI2 RC2 (ticket:3680)
     
 --- PyFMI-1.4.1 ---
     * Improved base result (ticket:3534)
     
 --- PyFMI-1.4 ---
-    * Fixed seg fault on Windows (ticket:1947)
+    * Fixed segfault on Windows (ticket:1947)
     * Added CS example (ticket:2363)
     * Performance improvement when setting inputs (ticket:3032)
     * Changed calling sequence for result handler (ticket:3115)

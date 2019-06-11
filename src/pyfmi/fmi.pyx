@@ -1118,7 +1118,7 @@ cdef class FMUModelBase(ModelBase):
     """
     An FMI Model loaded from a DLL.
     """
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         """
         Constructor.
         """
@@ -1221,16 +1221,17 @@ cdef class FMUModelBase(ModelBase):
         self._fmu_kind = fmu_kind
 
         #Connect the DLL
-        global FMI_REGISTER_GLOBALLY
-        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
-        if status == FMIL.jm_status_error:
-            last_error = decode(FMIL.fmi1_import_get_last_error(self._fmu))
-            if self.callbacks.log_level >= FMIL.jm_log_level_error:
-                raise FMUException(last_error)
-            else:
-                raise FMUException("Error loading the binary. Enable logging for possibly more information.")
-        self._allocated_dll = 1
-        FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
+        if _connect_dll:
+            global FMI_REGISTER_GLOBALLY
+            status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
+            if status == FMIL.jm_status_error:
+                last_error = decode(FMIL.fmi1_import_get_last_error(self._fmu))
+                if self.callbacks.log_level >= FMIL.jm_log_level_error:
+                    raise FMUException(last_error)
+                else:
+                    raise FMUException("Error loading the binary. Enable logging for possibly more information.")
+            self._allocated_dll = 1
+            FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
 
         #Default values
         self.__t = None
@@ -2553,14 +2554,15 @@ cdef class FMUModelCS1(FMUModelBase):
     #First step only support fmi1_fmu_kind_enu_cs_standalone
     #stepFinished not supported
 
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir)
+        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll)
 
         if self._fmu_kind != FMI_CS_STANDALONE and self._fmu_kind != FMI_CS_TOOL:
             raise FMUException("This class only supports FMI 1.0 for Co-simulation.")
-
-        self.instantiate_slave(logging = self._enable_logging)
+        
+        if _connect_dll:
+            self.instantiate_slave(logging = self._enable_logging)
         
     cpdef _get_time(self):
         return self.__t
@@ -3044,14 +3046,15 @@ cdef class FMUModelME1(FMUModelBase):
     An FMI Model loaded from a DLL.
     """
 
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir)
+        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll)
 
         if self._fmu_kind != FMI_ME:
             raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
 
-        self.instantiate_model(logging = self._enable_logging)
+        if _connect_dll:
+            self.instantiate_model(logging = self._enable_logging)
 
     def _get_model_types_platform(self):
         """
@@ -3638,7 +3641,7 @@ cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
     """
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         """
         Constructor of the model.
 
@@ -3817,14 +3820,15 @@ cdef class FMUModelBase2(ModelBase):
                 raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
 
         #Connect the DLL
-        status = FMIL.fmi2_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
-        if status == FMIL.jm_status_error:
-            last_error = decode(FMIL.fmi2_import_get_last_error(self._fmu))
-            if enable_logging:
-                raise FMUException("Error loading the binary. " + last_error)
-            else:
-                raise FMUException("Error loading the binary. Enable logging for possibly more information.")
-        self._allocated_dll = 1
+        if _connect_dll:
+            status = FMIL.fmi2_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
+            if status == FMIL.jm_status_error:
+                last_error = decode(FMIL.fmi2_import_get_last_error(self._fmu))
+                if enable_logging:
+                    raise FMUException("Error loading the binary. " + last_error)
+                else:
+                    raise FMUException("Error loading the binary. Enable logging for possibly more information.")
+            self._allocated_dll = 1
 
         #Load information from model
         if isinstance(self,FMUModelME2):
@@ -6453,7 +6457,7 @@ cdef class FMUModelCS2(FMUModelBase2):
     """
     Co-simulation model loaded from a dll
     """
-    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         """
         Constructor of the model.
 
@@ -6485,7 +6489,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
 
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, _unzipped_dir)
+        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, _unzipped_dir, _connect_dll)
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_cs:
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
@@ -6495,7 +6499,9 @@ cdef class FMUModelCS2(FMUModelBase2):
             raise FMUException('Models that need an execution tool are not supported')
 
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
-        self.instantiate()
+        
+        if _connect_dll:
+            self.instantiate()
 
     def __dealloc__(self):
         """
@@ -7052,7 +7058,7 @@ cdef class FMUModelME2(FMUModelBase2):
     Model-exchange model loaded from a dll
     """
 
-    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         """
         Constructor of the model.
 
@@ -7083,7 +7089,7 @@ cdef class FMUModelME2(FMUModelBase2):
             A model as an object from the class FMUModelME2
         """
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, _unzipped_dir)
+        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, _unzipped_dir, _connect_dll)
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_me:
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
@@ -7102,7 +7108,9 @@ cdef class FMUModelME2(FMUModelBase2):
         self.force_finite_differences = 0
         
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
-        self.instantiate()
+        
+        if _connect_dll:
+            self.instantiate()
 
     def __dealloc__(self):
         """
