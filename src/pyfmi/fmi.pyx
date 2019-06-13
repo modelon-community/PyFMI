@@ -154,17 +154,17 @@ FMI_DERIVATIVES = 1
 FMI_OUTPUTS = 2
 
 #CALLBACKS
-cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
+cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     if c.context != NULL:
         (<FMUModelBase>c.context)._logger(module,log_level,message)
  
 #CALLBACKS
-cdef void importlogger2(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
+cdef void importlogger2(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     if c.context != NULL:
         (<FMUModelBase2>c.context)._logger(module, log_level, message)
 
 #CALLBACKS
-cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
+cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     (<list>c.context).append("FMIL: module = %s, log level = %d: %s"%(module, log_level, message))
 
 cdef class ModelBase:
@@ -1870,7 +1870,7 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef FMIL.fmi1_import_variable_t *variable
         cdef FMIL.fmi1_import_real_variable_t *real_variable
-        cdef char* variablename
+        cdef char* variablename = NULL
         cdef FMIL.fmi1_real_t value
 
         if valueref != None:
@@ -4532,7 +4532,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t*      variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
         cdef FMIL.fmi2_real_t value
-        cdef char* variablename
+        cdef char* variablename = NULL
 
         if valueref != None:
             variable = FMIL.fmi2_import_get_variable_by_vr(self._fmu, FMIL.fmi2_base_type_real, <FMIL.fmi2_value_reference_t>valueref)
@@ -6766,8 +6766,8 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
 
         cdef int status
-        cdef int fmi_status_kind
-        cdef int status_value
+        cdef FMIL.fmi2_status_kind_t fmi_status_kind
+        cdef FMIL.fmi2_status_t status_value
 
         if status_kind >= 0 and status_kind <= 3:
             fmi_status_kind = status_kind
@@ -7798,8 +7798,8 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     cdef FMIL.jm_callbacks              callbacks
     cdef FMIL.jm_string                 last_error
     cdef FMIL.fmi_version_enu_t         version
-    cdef FMIL.fmi1_import_t*            fmu_1
-    cdef FMIL.fmi2_import_t*            fmu_2
+    cdef FMIL.fmi1_import_t*            fmu_1 = NULL
+    cdef FMIL.fmi2_import_t*            fmu_2 = NULL
     cdef FMIL.fmi1_fmu_kind_enu_t       fmu_1_kind
     cdef FMIL.fmi2_fmu_kind_enu_t       fmu_2_kind
     cdef list                           log_data = []

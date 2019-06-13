@@ -165,7 +165,7 @@ cpdef parameter_estimation_f(y, parameters, measurments, model, input, options):
 cpdef list convert_array_names_list_names(np.ndarray names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = len(names[0])
-    cdef int i,j
+    cdef int i,j = 0
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str
@@ -189,7 +189,7 @@ cpdef list convert_array_names_list_names(np.ndarray names):
 cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = names.shape[1]
-    cdef int i,j,ch
+    cdef int i,j = 0,ch
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str

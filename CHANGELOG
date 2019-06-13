@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-2.5.1 ---
+    * Removed a number of C compiler warnings (ticket:5782)
     * Fixed issue with corrupt result files after failed simulations (ticket:5784)
     * Added (hidden) option to only load the XML from an FMU, for testing
       purposes (ticket:5778)

@@ -25,10 +25,6 @@ cdef extern from "stdlib.h":
     void free(void *ptr)
     void *calloc(size_t, size_t)
     void *realloc(void *, size_t)
-    
-#cdef extern from "stdio.h":
-#    int sprintf(char *s,  char *form, ...)
-#    int snprintf(char *s, size_t n, char *format, ...)
 
 #SEE http://wiki.cython.org/FAQ#HowdoIusevariableargs.
 cdef extern from "stdarg.h":
@@ -107,7 +103,6 @@ cdef extern from 'fmilib.h':
     cdef enum fmi2_variable_alias_kind_enu_t:
         fmi2_variable_is_not_alias = 0
         fmi2_variable_is_alias = 1
-    ctypedef fmi2_variable_alias_kind_enu_t fmi2_variable_alias_kind_enu_t
 
     cdef enum fmi1_base_type_enu_t:
         fmi1_base_type_real = 0
@@ -122,7 +117,6 @@ cdef extern from 'fmilib.h':
         fmi2_base_type_bool = 2
         fmi2_base_type_str = 3
         fmi2_base_type_enum = 4
-    ctypedef fmi2_base_type_enu_t fmi2_base_type_enu_t
 
     ctypedef enum jm_status_enu_t:
         jm_status_error = -1
@@ -149,7 +143,6 @@ cdef extern from 'fmilib.h':
         fmi2_causality_enu_local  = 4
         fmi2_causality_enu_independent = 5
         fmi2_causality_enu_unknown = 6
-    ctypedef fmi2_causality_enu_t fmi2_causality_enu_t
 
     cdef enum fmi1_fmu_kind_enu_t:
         fmi1_fmu_kind_enu_me = 0
@@ -161,7 +154,6 @@ cdef extern from 'fmilib.h':
         fmi2_fmu_kind_me = 1
         fmi2_fmu_kind_cs = 2
         fmi2_fmu_kind_me_and_cs = 3
-    ctypedef fmi2_fmu_kind_enu_t fmi2_fmu_kind_enu_t
 
     cdef enum fmi1_variability_enu_t:
         fmi1_variability_enu_constant = 0
@@ -176,7 +168,6 @@ cdef extern from 'fmilib.h':
         fmi2_variability_enu_discrete = 3
         fmi2_variability_enu_continuous = 4
         fmi2_variability_enu_unknown = 5
-    ctypedef fmi2_variability_enu_t fmi2_variability_enu_t
 
     cdef enum fmi1_variable_naming_convension_enu_t:
         fmi1_naming_enu_flat = 0
@@ -186,7 +177,6 @@ cdef extern from 'fmilib.h':
         fmi2_naming_enu_flat = 0
         fmi2_naming_enu_structured = 1
         fmi2_naming_enu_unknown = 2
-    ctypedef fmi2_variable_naming_convension_enu_t fmi2_variable_naming_convension_enu_t
 
     ctypedef enum fmi1_status_kind_t:
         fmi1_do_step_status = 0
@@ -220,14 +210,12 @@ cdef extern from 'fmilib.h':
         fmi2_dependency_factor_kind_fixed = 1
         fmi2_dependency_factor_kind_discrete = 2
         fmi2_dependency_factor_kind_num = 3
-    ctypedef fmi2_dependency_factor_kind_enu_t fmi2_dependency_factor_kind_enu_t
 
     cdef enum fmi2_initial_enu_t:
         fmi2_initial_enu_exact = 0
         fmi2_initial_enu_approx = 1
         fmi2_initial_enu_calculated = 2
         fmi2_initial_enu_unknown = 3
-    ctypedef fmi2_initial_enu_t fmi2_initial_enu_t
 
     cdef enum fmi2_capabilities_enu_t:
         fmi2_me_needsExecutionTool = 0
@@ -249,7 +237,6 @@ cdef extern from 'fmilib.h':
         fmi2_cs_canSerializeFMUstate = 16
         fmi2_cs_providesDirectionalDerivatives = 17
         fmi2_capabilities_Num = 18
-    ctypedef fmi2_capabilities_enu_t fmi2_capabilities_enu_t
 
     cdef enum fmi2_SI_base_units_enu_t:
         fmi2_SI_base_unit_kg = 0
@@ -261,7 +248,6 @@ cdef extern from 'fmilib.h':
         fmi2_SI_base_unit_cd = 6
         fmi2_SI_base_unit_rad = 7
         fmi2_SI_base_units_Num = 8
-    ctypedef fmi2_SI_base_units_enu_t fmi2_SI_base_units_enu_t
 
     cdef struct fmi2_import_model_counts_t:
         unsigned int num_constants
@@ -295,8 +281,7 @@ cdef extern from 'fmilib.h':
     ctypedef void(*fmi2_callback_logger_ft)(fmi2_component_environment_t c,fmi2_string_t instanceName, fmi2_status_t status, fmi2_string_t category,fmi2_string_t message,...)
     ctypedef void(*fmi1_step_finished_ft)(fmi1_component_t c, fmi1_status_t status)
     ctypedef void(*fmi2_step_finished_ft)(fmi2_component_environment_t env, fmi2_status_t status)
-    #ctypedef void (*jm_logger_f)(jm_callbacks* c, jm_string module, jm_log_level_enu_t log_level, jm_string message)
-    ctypedef void (*jm_logger_f)(jm_callbacks* c, jm_string module, int log_level, jm_string message)
+    ctypedef void (*jm_logger_f)(jm_callbacks* c, jm_string module, jm_log_level_enu_t log_level, jm_string message)
     ctypedef void *(*fmi2_callback_allocate_memory_ft)(size_t, size_t)
     ctypedef void(*fmi2_callback_free_memory_ft)(void *)
     ctypedef int(*fmi2_xml_element_start_handle_ft)(void *, char *, void *, char *, char * *)
@@ -309,7 +294,6 @@ cdef extern from 'fmilib.h':
         fmi2_xml_element_data_handle_ft dataHandle
         fmi2_xml_element_end_handle_ft endHandle
         void * context
-    ctypedef fmi2_xml_callbacks_t fmi2_xml_callbacks_t
 
     cdef struct jm_callbacks:
         jm_malloc_f malloc
@@ -343,11 +327,9 @@ cdef extern from 'fmilib.h':
 
     cdef struct fmi1_import_t:
         pass
-    ctypedef fmi1_import_t fmi1_import_t
 
     cdef struct fmi2_import_t:
         pass
-    ctypedef fmi2_import_t fmi2_import_t
 
     cdef struct fmi1_xml_vendor_t:
         pass
@@ -359,7 +341,6 @@ cdef extern from 'fmilib.h':
 
     cdef struct fmi_xml_context_t:
         pass
-    ctypedef fmi_xml_context_t fmi_xml_context_t
 
     ctypedef fmi_xml_context_t fmi_import_context_t
 
@@ -397,7 +378,6 @@ cdef extern from 'fmilib.h':
         pass
     cdef struct fmi2_import_variable_list_t:
         pass
-    ctypedef fmi2_import_variable_list_t fmi2_import_variable_list_t
 
     cdef struct fmi1_xml_variable_typedef_t:
         pass
@@ -807,7 +787,6 @@ cdef extern from 'fmilib.h':
     #UNSORTED!!!
     size_t fmi2_import_get_derivative_index(fmi2_import_variable_t *)
     
-    #void fmi2_default_callback_logger(fmi2_component_t, fmi2_string_t, int, fmi2_string_t, fmi2_string_t)
     void  fmi2_default_callback_logger(fmi2_component_t c, fmi2_string_t instanceName, fmi2_status_t status, fmi2_string_t category, fmi2_string_t message, ...)
 
 
@@ -967,7 +946,7 @@ cdef extern from 'fmilib.h':
 
     void fmi2_import_collect_model_counts(fmi2_import_t *, fmi2_import_model_counts_t *)
 
-    int fmi2_import_get_status(fmi2_import_t *, int, int *)
+    int fmi2_import_get_status(fmi2_import_t* fmu, const fmi2_status_kind_t s, fmi2_status_t*  value)
 
     void fmi2_import_free(fmi2_import_t *)
     size_t fmi2_import_get_log_categories_num(fmi2_import_t *)
