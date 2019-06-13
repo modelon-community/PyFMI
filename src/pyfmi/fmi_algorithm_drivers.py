@@ -516,9 +516,13 @@ class AssimuloFMIAlg(AlgorithmBase):
         Runs the simulation.
         """
         time_start = timer()
-            
-        self.simulator.simulate(self.final_time, self.ncp)
-                
+        
+        try:
+            self.simulator.simulate(self.final_time, self.ncp)
+        except:
+            self.result_handler.simulation_end() #Close the potentially open result files
+            raise #Reraise the exception
+        
         self.timings["storing_result"] = self.probl.timings["handle_result"]
         self.timings["computing_solution"] = timer() - time_start - self.timings["storing_result"]
         

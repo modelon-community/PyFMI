@@ -76,6 +76,44 @@ class Dummy_FMUModelME1(FMUModelME1):
     def get_boolean(self, vref):
         return self.get_real(vref)
 
+class Dummy_FMUModelCS1(FMUModelCS1):
+    #Override properties
+    time = None
+    
+    def __init__(self, states_vref, *args,**kwargs):
+        FMUModelCS1.__init__(self, *args, **kwargs)
+    
+        self.time = 0.0
+        self.variables = self.get_model_variables(include_alias=False)
+        self.states_vref = states_vref
+        
+        self.values = {}
+        for var in self.variables:
+            try:
+                start = self.get_variable_start(var)
+            except FMUException:
+                start = 0.0
+            self.values[self.variables[var].value_reference] = start
+    
+    def initialize(self, *args, **kwargs):
+        pass
+    
+    def do_step(self, t, h, new_step=True):
+        self.time = t+h
+        return 0
+    
+    def get_real(self, vref):
+        vals = []
+        for v in vref:
+            vals.append(self.values[v])
+        return np.array(vals)
+    
+    def get_integer(self, vref):
+        return self.get_real(vref)
+    
+    def get_boolean(self, vref):
+        return self.get_real(vref)
+
 class Dummy_FMUModelME2(FMUModelME2):
     #Override properties
     time = None
@@ -144,6 +182,41 @@ class Dummy_FMUModelME2(FMUModelME2):
         return np.ones(self.get_ode_sizes()[1])
 
 class TestResultFileText:
+    
+    @testattr(stddist = True)
+    def test_correct_file_after_simulation_failure(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        def f(*args, **kwargs):
+            if simple_alias.time > 0.5:
+                raise Exception
+            return -simple_alias.continuous_states
+        
+        simple_alias.get_derivatives = f
+        
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "file"
+        opts["solver"] = "ExplicitEuler"
+        
+        successful_simulation = False
+        try:
+            res = simple_alias.simulate(options=opts)
+            successful_simulation = True #The above simulation should fail...
+        except:
+            pass
+        
+        if successful_simulation:
+            raise Exception
+            
+        result = ResultDymolaTextual("NegatedAlias_result.txt")
+        
+        x = result.get_variable_data("x").x
+        y = result.get_variable_data("y").x
+        
+        assert len(x) > 2
+        
+        for i in range(len(x)):
+            nose.tools.assert_equal(x[i], -y[i])
     
     @testattr(stddist = True)
     def test_work_flow_me1(self):
@@ -267,6 +340,41 @@ class TestResultFileBinary:
         for var in res.name:
             res.get_variable_data(var)
     
+    @testattr(stddist = True)
+    def test_correct_file_after_simulation_failure(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        def f(*args, **kwargs):
+            if simple_alias.time > 0.5:
+                raise Exception
+            return -simple_alias.continuous_states
+        
+        simple_alias.get_derivatives = f
+        
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "binary"
+        opts["solver"] = "ExplicitEuler"
+        
+        successful_simulation = False
+        try:
+            res = simple_alias.simulate(options=opts)
+            successful_simulation = True #The above simulation should fail...
+        except:
+            pass
+        
+        if successful_simulation:
+            raise Exception
+            
+        result = ResultDymolaBinary("NegatedAlias_result.mat")
+        
+        x = result.get_variable_data("x").x
+        y = result.get_variable_data("y").x
+        
+        assert len(x) > 2
+        
+        for i in range(len(x)):
+            nose.tools.assert_equal(x[i], -y[i])
+
     @testattr(stddist = True)
     def test_variable_alias_custom_handler(self):
         simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
