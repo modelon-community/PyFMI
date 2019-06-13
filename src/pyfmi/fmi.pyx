@@ -6188,9 +6188,6 @@ cdef class FMUModelBase2(ModelBase):
             
             scalar_variable = self._add_scalar_variable(<FMIL.fmi2_import_variable_t*>variable)
             variable_dict[scalar_variable.name] = scalar_variable
-            
-
-        #variable_dict = self._add_scalar_variables(variable_list)
 
         #Free the variable list
         FMIL.fmi2_import_free_variable_list(variable_list)
