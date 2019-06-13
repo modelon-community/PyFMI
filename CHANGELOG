@@ -1,6 +1,8 @@
 --- CHANGELOG ---
 
 --- PyFMI-2.5.1 ---
+    * Forced no copy if the provided array is already correct, minor 
+      performance improvement (ticket:5785)
     * Removed a number of C compiler warnings (ticket:5782)
     * Fixed issue with corrupt result files after failed simulations (ticket:5784)
     * Added (hidden) option to only load the XML from an FMU, for testing
