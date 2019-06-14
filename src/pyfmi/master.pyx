@@ -43,7 +43,9 @@ from cpython cimport bool
 cimport fmil_import as FMIL
 from fmi_util import Graph
 from cython.parallel import prange, parallel
-cimport openmp
+
+IF WITH_OPENMP:
+    cimport openmp
 
 DEF SERIAL   = 0
 DEF PARALLEL = 1
