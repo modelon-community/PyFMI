@@ -24,10 +24,65 @@ from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
+from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2
+from pyfmi.common.io import ResultHandler
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 
 class Test_FMUModelME1:
+    
+    @testattr(stddist = True)
+    def test_simulate_with_debug_option_no_state(self):
+        model = Dummy_FMUModelME1([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+
+        opts=model.simulate_options()
+        opts["logging"] = True
+        
+        #Verify that a simulation is successful
+        res=model.simulate(options=opts)
+        
+        from pyfmi.debug import CVodeDebugInformation
+        debug = CVodeDebugInformation("NoState_Example1_debug.txt")
+    
+    @testattr(stddist = True)
+    def test_get_time_varying_variables(self):
+        model = FMUModelME1("RLC_Circuit.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        
+        [r,i,b] = model.get_model_time_varying_value_references()
+        [r_f, i_f, b_f] = model.get_model_time_varying_value_references(filter="*")
+        
+        assert len(r) == len(r_f)
+        assert len(i) == len(i_f)
+        assert len(b) == len(b_f)
+    
+    @testattr(stddist = True)
+    def test_get_time_varying_variables_with_alias(self):
+        model = FMUModelME1("Alias1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        
+        [r,i,b] = model.get_model_time_varying_value_references(filter="y*")
+        
+        assert len(r) == 1
+        assert r[0] == model.get_variable_valueref("y")
+    
+    @testattr(stddist = True)
+    def test_custom_result_handler(self):
+        model = Dummy_FMUModelME1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+
+        class A:
+            pass
+        class B(ResultHandler):
+            def get_result(self):
+                return None
+
+        opts = model.simulate_options()
+        opts["result_handling"] = "hejhej"
+        nose.tools.assert_raises(Exception, model.simulate, options=opts)
+        opts["result_handling"] = "custom"
+        nose.tools.assert_raises(Exception, model.simulate, options=opts)
+        opts["result_handler"] = A()
+        nose.tools.assert_raises(Exception, model.simulate, options=opts)
+        opts["result_handler"] = B()
+        res = model.simulate(options=opts)
     
     @testattr(stddist = True)
     def test_get_variable_by_valueref(self):
@@ -91,6 +146,44 @@ class Test_FMUModelME1:
         assert isinstance(bounce.simulate_options(), fmi_algorithm_drivers.AssimuloFMIAlgOptions)
 
 class Test_FMUModelCS1:
+    
+    @testattr(stddist = True)
+    def test_custom_result_handler(self):
+        model = Dummy_FMUModelCS1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        
+        class A:
+            pass
+        class B(ResultHandler):
+            def get_result(self):
+                return None
+
+        opts = model.simulate_options()
+        opts["result_handling"] = "hejhej"
+        nose.tools.assert_raises(Exception, model.simulate, options=opts)
+        opts["result_handling"] = "custom"
+        nose.tools.assert_raises(Exception, model.simulate, options=opts)
+        opts["result_handler"] = A()
+        nose.tools.assert_raises(Exception, model.simulate, options=opts)
+        opts["result_handler"] = B()
+        res = model.simulate(options=opts)
+    
+    @testattr(stddist = True)
+    def test_result_name_file(self):
+        model = Dummy_FMUModelCS1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        
+        res = model.simulate(options={"result_handling":"file"})
+
+        #Default name
+        assert res.result_file == "CoupledClutches_result.txt"
+        assert os.path.exists(res.result_file)
+
+        model = Dummy_FMUModelCS1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        res = model.simulate(options={"result_file_name":
+                                    "CoupledClutches_result_test.txt"})
+
+        #User defined name
+        assert res.result_file == "CoupledClutches_result_test.txt"
+        assert os.path.exists(res.result_file)
     
     @testattr(stddist = True)
     def test_default_experiment(self):
