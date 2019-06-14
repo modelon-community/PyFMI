@@ -36,20 +36,8 @@ from pyfmi.common.core import create_temp_dir, delete_temp_dir
 from pyfmi.common.core import create_temp_file, delete_temp_file
 #from pyfmi.common.core cimport BaseModel
 
-from pyfmi.common import python3_flag
+from pyfmi.common import python3_flag, encode, decode
 from pyfmi.fmi_util import cpr_seed, enable_caching
-
-if python3_flag:
-    import codecs
-    def encode(x):
-        return codecs.latin_1_encode(x)[0]
-    def decode(x):
-        return x.decode()
-else:
-    def encode(x):
-        return x
-    def decode(x):
-        return x
 
 int   = N.int32
 N.int = N.int32
@@ -154,17 +142,17 @@ FMI_DERIVATIVES = 1
 FMI_OUTPUTS = 2
 
 #CALLBACKS
-cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
+cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     if c.context != NULL:
         (<FMUModelBase>c.context)._logger(module,log_level,message)
  
 #CALLBACKS
-cdef void importlogger2(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
+cdef void importlogger2(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     if c.context != NULL:
         (<FMUModelBase2>c.context)._logger(module, log_level, message)
 
 #CALLBACKS
-cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, int log_level, FMIL.jm_string message):
+cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     (<list>c.context).append("FMIL: module = %s, log level = %d: %s"%(module, log_level, message))
 
 cdef class ModelBase:
@@ -454,7 +442,7 @@ cdef class ModelBase:
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
     def get_log_filename(self):
-        return self._fmu_log_name
+        return decode(self._fmu_log_name)
     
     def get_log_file_name(self):
         logging.warning("The method 'get_log_file_name()' is deprecated and will be removed. Please use 'get_log_filename()' instead.")
@@ -1118,7 +1106,7 @@ cdef class FMUModelBase(ModelBase):
     """
     An FMI Model loaded from a DLL.
     """
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         """
         Constructor.
         """
@@ -1221,16 +1209,17 @@ cdef class FMUModelBase(ModelBase):
         self._fmu_kind = fmu_kind
 
         #Connect the DLL
-        global FMI_REGISTER_GLOBALLY
-        status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
-        if status == FMIL.jm_status_error:
-            last_error = decode(FMIL.fmi1_import_get_last_error(self._fmu))
-            if self.callbacks.log_level >= FMIL.jm_log_level_error:
-                raise FMUException(last_error)
-            else:
-                raise FMUException("Error loading the binary. Enable logging for possibly more information.")
-        self._allocated_dll = 1
-        FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
+        if _connect_dll:
+            global FMI_REGISTER_GLOBALLY
+            status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
+            if status == FMIL.jm_status_error:
+                last_error = decode(FMIL.fmi1_import_get_last_error(self._fmu))
+                if self.callbacks.log_level >= FMIL.jm_log_level_error:
+                    raise FMUException(last_error)
+                else:
+                    raise FMUException("Error loading the binary. Enable logging for possibly more information.")
+            self._allocated_dll = 1
+            FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
 
         #Default values
         self.__t = None
@@ -1339,9 +1328,9 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef int status
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
         nref = len(val_ref)
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref,dtype=N.float, ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref, dtype=N.float, ndmin=1)
 
 
         status = FMIL.fmi1_import_get_real(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_real_t*>val.data)
@@ -1371,8 +1360,8 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef int status
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=N.float, ndmin=1).ravel()
+        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, copy=False, dtype=N.float).ravel()
         nref = val_ref.size
 
         if val_ref.size != val.size:
@@ -1754,7 +1743,7 @@ cdef class FMUModelBase(ModelBase):
 
         desc = FMIL.fmi1_import_get_variable_description(variable)
 
-        return desc if desc != NULL else ""
+        return decode(desc) if desc != NULL else ""
     
     cdef _add_scalar_variable(self, FMIL.fmi1_import_variable_t* variable):
         
@@ -1869,7 +1858,7 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef FMIL.fmi1_import_variable_t *variable
         cdef FMIL.fmi1_import_real_variable_t *real_variable
-        cdef char* variablename
+        cdef char* variablename = NULL
         cdef FMIL.fmi1_real_t value
 
         if valueref != None:
@@ -2532,7 +2521,7 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef char* desc
         desc = FMIL.fmi1_import_get_description(self._fmu)
-        return desc if desc != NULL else ""
+        return decode(desc) if desc != NULL else ""
 
     def get_generation_tool(self):
         """
@@ -2540,7 +2529,7 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef char* gen
         gen = FMIL.fmi1_import_get_generation_tool(self._fmu)
-        return gen if gen != NULL else ""
+        return decode(gen) if gen != NULL else ""
 
     def get_guid(self):
         """
@@ -2553,14 +2542,15 @@ cdef class FMUModelCS1(FMUModelBase):
     #First step only support fmi1_fmu_kind_enu_cs_standalone
     #stepFinished not supported
 
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir)
+        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll)
 
         if self._fmu_kind != FMI_CS_STANDALONE and self._fmu_kind != FMI_CS_TOOL:
             raise FMUException("This class only supports FMI 1.0 for Co-simulation.")
-
-        self.instantiate_slave(logging = self._enable_logging)
+        
+        if _connect_dll:
+            self.instantiate_slave(logging = self._enable_logging)
         
     cpdef _get_time(self):
         return self.__t
@@ -2834,7 +2824,7 @@ cdef class FMUModelCS1(FMUModelBase):
                 The options that should be used in the algorithm. For details on
                 the options do:
 
-                    >> myModel = FMUModel(...)
+                    >> myModel = load_fmu(...)
                     >> opts = myModel.simulate_options()
                     >> opts?
 
@@ -3044,14 +3034,15 @@ cdef class FMUModelME1(FMUModelBase):
     An FMI Model loaded from a DLL.
     """
 
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir)
+        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll)
 
         if self._fmu_kind != FMI_ME:
             raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
 
-        self.instantiate_model(logging = self._enable_logging)
+        if _connect_dll:
+            self.instantiate_model(logging = self._enable_logging)
 
     def _get_model_types_platform(self):
         """
@@ -3457,19 +3448,19 @@ cdef class FMUModelME1(FMUModelBase):
             if self._enable_logging:
                 logging.warning(
                     'Initialize returned with a warning.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 logging.warning('Initialize returned with a warning.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
 
         if status > 1:
             if self._enable_logging:
                 raise FMUException(
                     'Initialize returned with an error.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 raise FMUException('Initialize returned with an error.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
 
         self._allocated_fmu = 1
 
@@ -3567,7 +3558,7 @@ cdef class FMUModelME1(FMUModelBase):
                 The options that should be used in the algorithm. For details on
                 the options do:
 
-                    >> myModel = FMUModel(...)
+                    >> myModel = load_fmu(...)
                     >> opts = myModel.simulate_options()
                     >> opts?
 
@@ -3638,7 +3629,7 @@ cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
     """
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         """
         Constructor of the model.
 
@@ -3817,14 +3808,15 @@ cdef class FMUModelBase2(ModelBase):
                 raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
 
         #Connect the DLL
-        status = FMIL.fmi2_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
-        if status == FMIL.jm_status_error:
-            last_error = decode(FMIL.fmi2_import_get_last_error(self._fmu))
-            if enable_logging:
-                raise FMUException("Error loading the binary. " + last_error)
-            else:
-                raise FMUException("Error loading the binary. Enable logging for possibly more information.")
-        self._allocated_dll = 1
+        if _connect_dll:
+            status = FMIL.fmi2_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
+            if status == FMIL.jm_status_error:
+                last_error = decode(FMIL.fmi2_import_get_last_error(self._fmu))
+                if enable_logging:
+                    raise FMUException("Error loading the binary. " + last_error)
+                else:
+                    raise FMUException("Error loading the binary. Enable logging for possibly more information.")
+            self._allocated_dll = 1
 
         #Load information from model
         if isinstance(self,FMUModelME2):
@@ -3870,7 +3862,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int         status
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            output_value   = N.zeros(input_valueref.size)
 
         status = FMIL.fmi2_import_get_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, input_valueref.size, <FMIL.fmi2_real_t*> output_value.data)
@@ -3900,8 +3892,8 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int status
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = N.array(values, dtype=N.float, ndmin=1).ravel()
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = N.array(values, copy=False, dtype=N.float).ravel()
 
         if input_valueref.size != set_value.size:
             raise FMUException('The length of valueref and values are inconsistent.')
@@ -4340,19 +4332,19 @@ cdef class FMUModelBase2(ModelBase):
             if self._enable_logging:
                 logging.warning(
                     'Exit Initialize returned with a warning.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 logging.warning('Exit Initialize returned with a warning.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
 
         if status > 1:
             if self._enable_logging:
                 raise FMUException(
                     'Exit Initialize returned with an error.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 raise FMUException('Exit Initialize returned with an error.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
                     
 
         self._allocated_fmu = 1
@@ -4377,19 +4369,19 @@ cdef class FMUModelBase2(ModelBase):
             if self._enable_logging:
                 logging.warning(
                     'Enter Initialize returned with a warning.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 logging.warning('Enter Initialize returned with a warning.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
 
         if status > 1:
             if self._enable_logging:
                 raise FMUException(
                     'Enter Initialize returned with an error.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 raise FMUException('Enter Initialize returned with an error.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
                     
         self._has_entered_init_mode = True
                     
@@ -4528,7 +4520,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t*      variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
         cdef FMIL.fmi2_real_t value
-        cdef char* variablename
+        cdef char* variablename = NULL
 
         if valueref != None:
             variable = FMIL.fmi2_import_get_variable_by_vr(self._fmu, FMIL.fmi2_base_type_real, <FMIL.fmi2_value_reference_t>valueref)
@@ -5166,7 +5158,7 @@ cdef class FMUModelBase2(ModelBase):
 
         desc = FMIL.fmi2_import_get_variable_description(variable)
 
-        return desc if desc != NULL else ""
+        return decode(desc) if desc != NULL else ""
 
     cpdef FMIL.fmi2_variability_enu_t get_variable_variability(self, variable_name) except *:
         """
@@ -5260,7 +5252,7 @@ cdef class FMUModelBase2(ModelBase):
         
         unit_description = FMIL.fmi2_import_get_unit_name(unit)
         
-        return unit_description if unit_description != NULL else ""
+        return decode(unit_description) if unit_description != NULL else ""
         
     def get_variable_display_unit(self, variable_name):
         """
@@ -5300,7 +5292,7 @@ cdef class FMUModelBase2(ModelBase):
         
         display_unit_description = FMIL.fmi2_import_get_display_unit_name(display_unit)
         
-        return display_unit_description if display_unit_description != NULL else ""
+        return decode(display_unit_description) if display_unit_description != NULL else ""
         
     def get_variable_display_value(self, variable_name):
         """
@@ -6184,9 +6176,6 @@ cdef class FMUModelBase2(ModelBase):
             
             scalar_variable = self._add_scalar_variable(<FMIL.fmi2_import_variable_t*>variable)
             variable_dict[scalar_variable.name] = scalar_variable
-            
-
-        #variable_dict = self._add_scalar_variables(variable_list)
 
         #Free the variable list
         FMIL.fmi2_import_free_variable_list(variable_list)
@@ -6350,7 +6339,7 @@ cdef class FMUModelBase2(ModelBase):
             model.get_version()
         """
         cdef char* version = FMIL.fmi2_import_get_version(self._fmu)
-        return version
+        return decode(version)
         
     def get_model_version(self):
         """
@@ -6358,7 +6347,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* version
         version = FMIL.fmi2_import_get_model_version(self._fmu)
-        return version if version != NULL else ""
+        return decode(version) if version != NULL else ""
 
     def get_name(self):
         """
@@ -6372,7 +6361,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* author
         author = FMIL.fmi2_import_get_author(self._fmu)
-        return author if author != NULL else ""
+        return decode(author) if author != NULL else ""
 
     def get_description(self):
         """
@@ -6380,7 +6369,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* desc
         desc = FMIL.fmi2_import_get_description(self._fmu)
-        return desc if desc != NULL else ""
+        return decode(desc) if desc != NULL else ""
         
     def get_copyright(self):
         """
@@ -6388,7 +6377,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* copyright
         copyright = FMIL.fmi2_import_get_copyright(self._fmu)
-        return copyright if copyright != NULL else ""
+        return decode(copyright) if copyright != NULL else ""
         
     def get_license(self):
         """
@@ -6396,7 +6385,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* license
         license = FMIL.fmi2_import_get_license(self._fmu)
-        return license if license != NULL else ""
+        return decode(license) if license != NULL else ""
 
     def get_generation_tool(self):
         """
@@ -6404,7 +6393,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* gen
         gen = FMIL.fmi2_import_get_generation_tool(self._fmu)
-        return gen if gen != NULL else ""
+        return decode(gen) if gen != NULL else ""
         
     def get_generation_date_and_time(self):
         """
@@ -6412,7 +6401,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* gen
         gen = FMIL.fmi2_import_get_generation_date_and_time(self._fmu)
-        return gen if gen != NULL else ""
+        return decode(gen) if gen != NULL else ""
 
     def get_guid(self):
         """
@@ -6453,7 +6442,7 @@ cdef class FMUModelCS2(FMUModelBase2):
     """
     Co-simulation model loaded from a dll
     """
-    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         """
         Constructor of the model.
 
@@ -6485,7 +6474,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
 
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, _unzipped_dir)
+        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, _unzipped_dir, _connect_dll)
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_cs:
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
@@ -6495,7 +6484,9 @@ cdef class FMUModelCS2(FMUModelBase2):
             raise FMUException('Models that need an execution tool are not supported')
 
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
-        self.instantiate()
+        
+        if _connect_dll:
+            self.instantiate()
 
     def __dealloc__(self):
         """
@@ -6763,8 +6754,8 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
 
         cdef int status
-        cdef int fmi_status_kind
-        cdef int status_value
+        cdef FMIL.fmi2_status_kind_t fmi_status_kind
+        cdef FMIL.fmi2_status_t status_value
 
         if status_kind >= 0 and status_kind <= 3:
             fmi_status_kind = status_kind
@@ -6957,7 +6948,7 @@ cdef class FMUModelCS2(FMUModelBase2):
                 The options that should be used in the algorithm. For details on
                 the options do:
 
-                    >> myModel = FMUModel(...)
+                    >> myModel = load_fmu(...)
                     >> opts = myModel.simulate_options()
                     >> opts?
 
@@ -7052,7 +7043,7 @@ cdef class FMUModelME2(FMUModelBase2):
     Model-exchange model loaded from a dll
     """
 
-    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None):
+    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
         """
         Constructor of the model.
 
@@ -7083,7 +7074,7 @@ cdef class FMUModelME2(FMUModelBase2):
             A model as an object from the class FMUModelME2
         """
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, _unzipped_dir)
+        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, _unzipped_dir, _connect_dll)
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_me:
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
@@ -7102,7 +7093,9 @@ cdef class FMUModelME2(FMUModelBase2):
         self.force_finite_differences = 0
         
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
-        self.instantiate()
+        
+        if _connect_dll:
+            self.instantiate()
 
     def __dealloc__(self):
         """
@@ -7498,7 +7491,7 @@ cdef class FMUModelME2(FMUModelBase2):
                 The options that should be used in the algorithm. For details on
                 the options do:
 
-                    >> myModel = FMUModel(...)
+                    >> myModel = load_fmu(...)
                     >> opts = myModel.simulate_options()
                     >> opts?
 
@@ -7793,8 +7786,8 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     cdef FMIL.jm_callbacks              callbacks
     cdef FMIL.jm_string                 last_error
     cdef FMIL.fmi_version_enu_t         version
-    cdef FMIL.fmi1_import_t*            fmu_1
-    cdef FMIL.fmi2_import_t*            fmu_2
+    cdef FMIL.fmi1_import_t*            fmu_1 = NULL
+    cdef FMIL.fmi2_import_t*            fmu_2 = NULL
     cdef FMIL.fmi1_fmu_kind_enu_t       fmu_1_kind
     cdef FMIL.fmi2_fmu_kind_enu_t       fmu_2_kind
     cdef list                           log_data = []

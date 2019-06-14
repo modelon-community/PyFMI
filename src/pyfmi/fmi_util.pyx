@@ -33,6 +33,8 @@ import marshal
 import fmi
 import sys
 
+from pyfmi.common import python3_flag, encode, decode
+
 def enable_caching(obj):
     @functools.wraps(obj, ('__name__', '__doc__'))
     def memoizer(*args, **kwargs):
@@ -70,7 +72,10 @@ cpdef cpr_seed(dependencies, list column_keys):
     data_index = {}
     data_index_with_diag = {}
     for i in range(n_col):
-        data_index[i] = range(k, k + len(column_dict[i]))
+        if python3_flag:
+            data_index[i] = list(range(k, k + len(column_dict[i])))
+        else:
+            data_index[i] = range(k, k + len(column_dict[i]))
         k = k + len(column_dict[i])
         
         data_index_with_diag[i] = []
@@ -165,7 +170,7 @@ cpdef parameter_estimation_f(y, parameters, measurments, model, input, options):
 cpdef list convert_array_names_list_names(np.ndarray names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = len(names[0])
-    cdef int i,j
+    cdef int i,j = 0
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str
@@ -189,10 +194,15 @@ cpdef list convert_array_names_list_names(np.ndarray names):
 cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = names.shape[1]
-    cdef int i,j,ch
+    cdef int i,j = 0,ch, py3
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str
+    
+    if python3_flag:
+        py3 = 1
+    else:
+        py3 = 0
 
     for i in range(nbr_items):
         for j in range(max_length):
@@ -204,8 +214,10 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
         
         py_str = tmp[:j]
         if j == max_length - 1:
-            py_str = py_str.replace(" ", "")
-        
+            if py3:
+                py_str = py_str.replace(b" ", b"")
+            else:
+                py_str = py_str.replace(" ", "")
         output.append(py_str)
     
     FMIL.free(tmp)
@@ -294,7 +306,7 @@ cpdef convert_str_list(list data):
     output = <char*>FMIL.calloc(items*length,sizeof(char))
     
     for i in range(items):
-        py_byte_string = data[i]#.encode("latin-1")
+        py_byte_string = encode(data[i])#.encode("latin-1")
         tmp = py_byte_string
         tmp_length = len(tmp)
         k = i*length

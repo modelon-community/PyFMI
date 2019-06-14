@@ -24,3 +24,18 @@ __all__ = ['algorithm_drivers', 'core', 'io', 'xmlparser', 'plotting']
 
 import sys
 python3_flag = True if sys.hexversion > 0x03000000 else False
+
+if python3_flag:
+    import codecs
+    def encode(x):
+        if isinstance(x, str):
+            return codecs.latin_1_encode(x)[0]
+        else:
+            return x
+    def decode(x):
+        return x.decode()
+else:
+    def encode(x):
+        return x
+    def decode(x):
+        return x

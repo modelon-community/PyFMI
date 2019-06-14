@@ -44,7 +44,7 @@ except ImportError:
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "2.5"
+VERSION = "2.5.1"
 LICENSE = "LGPL"
 URL = "https://jmodelica.org/pyfmi"
 DOWNLOAD_URL = "https://jmodelica.org/pyfmi/installation.html"
@@ -316,6 +316,11 @@ setup(name=NAME,
                                'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS1.0'+O.path.sep+'*',
                                'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'ME2.0'+O.path.sep+'*',
                                'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS2.0'+O.path.sep+'*',
+                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'ME1.0'+O.path.sep+'*',
+                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'CS1.0'+O.path.sep+'*',
+                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'ME2.0'+O.path.sep+'*',
+                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'CS2.0'+O.path.sep+'*',
+                               'tests'+O.path.sep+'files'+O.path.sep+'Results'+O.path.sep+'*',
                                'version.txt', 'LICENSE', 'CHANGELOG',
                                'util'+O.path.sep+'*']+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])+(['libgcc_s_dw2-1.dll'] if copy_gcc_lib else [])},
       script_args=copy_args
