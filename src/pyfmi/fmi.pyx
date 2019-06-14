@@ -36,20 +36,8 @@ from pyfmi.common.core import create_temp_dir, delete_temp_dir
 from pyfmi.common.core import create_temp_file, delete_temp_file
 #from pyfmi.common.core cimport BaseModel
 
-from pyfmi.common import python3_flag
+from pyfmi.common import python3_flag, encode, decode
 from pyfmi.fmi_util import cpr_seed, enable_caching
-
-if python3_flag:
-    import codecs
-    def encode(x):
-        return codecs.latin_1_encode(x)[0]
-    def decode(x):
-        return x.decode()
-else:
-    def encode(x):
-        return x
-    def decode(x):
-        return x
 
 int   = N.int32
 N.int = N.int32
@@ -454,7 +442,7 @@ cdef class ModelBase:
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
     def get_log_filename(self):
-        return self._fmu_log_name
+        return decode(self._fmu_log_name)
     
     def get_log_file_name(self):
         logging.warning("The method 'get_log_file_name()' is deprecated and will be removed. Please use 'get_log_filename()' instead.")
@@ -1755,7 +1743,7 @@ cdef class FMUModelBase(ModelBase):
 
         desc = FMIL.fmi1_import_get_variable_description(variable)
 
-        return desc if desc != NULL else ""
+        return decode(desc) if desc != NULL else ""
     
     cdef _add_scalar_variable(self, FMIL.fmi1_import_variable_t* variable):
         
@@ -2533,7 +2521,7 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef char* desc
         desc = FMIL.fmi1_import_get_description(self._fmu)
-        return desc if desc != NULL else ""
+        return decode(desc) if desc != NULL else ""
 
     def get_generation_tool(self):
         """
@@ -2541,7 +2529,7 @@ cdef class FMUModelBase(ModelBase):
         """
         cdef char* gen
         gen = FMIL.fmi1_import_get_generation_tool(self._fmu)
-        return gen if gen != NULL else ""
+        return decode(gen) if gen != NULL else ""
 
     def get_guid(self):
         """
@@ -2836,7 +2824,7 @@ cdef class FMUModelCS1(FMUModelBase):
                 The options that should be used in the algorithm. For details on
                 the options do:
 
-                    >> myModel = FMUModel(...)
+                    >> myModel = load_fmu(...)
                     >> opts = myModel.simulate_options()
                     >> opts?
 
@@ -3460,19 +3448,19 @@ cdef class FMUModelME1(FMUModelBase):
             if self._enable_logging:
                 logging.warning(
                     'Initialize returned with a warning.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 logging.warning('Initialize returned with a warning.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
 
         if status > 1:
             if self._enable_logging:
                 raise FMUException(
                     'Initialize returned with an error.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 raise FMUException('Initialize returned with an error.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
 
         self._allocated_fmu = 1
 
@@ -3570,7 +3558,7 @@ cdef class FMUModelME1(FMUModelBase):
                 The options that should be used in the algorithm. For details on
                 the options do:
 
-                    >> myModel = FMUModel(...)
+                    >> myModel = load_fmu(...)
                     >> opts = myModel.simulate_options()
                     >> opts?
 
@@ -4344,19 +4332,19 @@ cdef class FMUModelBase2(ModelBase):
             if self._enable_logging:
                 logging.warning(
                     'Exit Initialize returned with a warning.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 logging.warning('Exit Initialize returned with a warning.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
 
         if status > 1:
             if self._enable_logging:
                 raise FMUException(
                     'Exit Initialize returned with an error.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 raise FMUException('Exit Initialize returned with an error.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
                     
 
         self._allocated_fmu = 1
@@ -4381,19 +4369,19 @@ cdef class FMUModelBase2(ModelBase):
             if self._enable_logging:
                 logging.warning(
                     'Enter Initialize returned with a warning.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 logging.warning('Enter Initialize returned with a warning.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
 
         if status > 1:
             if self._enable_logging:
                 raise FMUException(
                     'Enter Initialize returned with an error.' \
-                    ' Check the log for information (FMUModel.get_log).')
+                    ' Check the log for information (model.get_log).')
             else:
                 raise FMUException('Enter Initialize returned with an error.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Enable logging for more information, (load_fmu(..., log_level=4)).')
                     
         self._has_entered_init_mode = True
                     
@@ -5170,7 +5158,7 @@ cdef class FMUModelBase2(ModelBase):
 
         desc = FMIL.fmi2_import_get_variable_description(variable)
 
-        return desc if desc != NULL else ""
+        return decode(desc) if desc != NULL else ""
 
     cpdef FMIL.fmi2_variability_enu_t get_variable_variability(self, variable_name) except *:
         """
@@ -5264,7 +5252,7 @@ cdef class FMUModelBase2(ModelBase):
         
         unit_description = FMIL.fmi2_import_get_unit_name(unit)
         
-        return unit_description if unit_description != NULL else ""
+        return decode(unit_description) if unit_description != NULL else ""
         
     def get_variable_display_unit(self, variable_name):
         """
@@ -5304,7 +5292,7 @@ cdef class FMUModelBase2(ModelBase):
         
         display_unit_description = FMIL.fmi2_import_get_display_unit_name(display_unit)
         
-        return display_unit_description if display_unit_description != NULL else ""
+        return decode(display_unit_description) if display_unit_description != NULL else ""
         
     def get_variable_display_value(self, variable_name):
         """
@@ -6351,7 +6339,7 @@ cdef class FMUModelBase2(ModelBase):
             model.get_version()
         """
         cdef char* version = FMIL.fmi2_import_get_version(self._fmu)
-        return version
+        return decode(version)
         
     def get_model_version(self):
         """
@@ -6359,7 +6347,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* version
         version = FMIL.fmi2_import_get_model_version(self._fmu)
-        return version if version != NULL else ""
+        return decode(version) if version != NULL else ""
 
     def get_name(self):
         """
@@ -6373,7 +6361,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* author
         author = FMIL.fmi2_import_get_author(self._fmu)
-        return author if author != NULL else ""
+        return decode(author) if author != NULL else ""
 
     def get_description(self):
         """
@@ -6381,7 +6369,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* desc
         desc = FMIL.fmi2_import_get_description(self._fmu)
-        return desc if desc != NULL else ""
+        return decode(desc) if desc != NULL else ""
         
     def get_copyright(self):
         """
@@ -6389,7 +6377,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* copyright
         copyright = FMIL.fmi2_import_get_copyright(self._fmu)
-        return copyright if copyright != NULL else ""
+        return decode(copyright) if copyright != NULL else ""
         
     def get_license(self):
         """
@@ -6397,7 +6385,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* license
         license = FMIL.fmi2_import_get_license(self._fmu)
-        return license if license != NULL else ""
+        return decode(license) if license != NULL else ""
 
     def get_generation_tool(self):
         """
@@ -6405,7 +6393,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* gen
         gen = FMIL.fmi2_import_get_generation_tool(self._fmu)
-        return gen if gen != NULL else ""
+        return decode(gen) if gen != NULL else ""
         
     def get_generation_date_and_time(self):
         """
@@ -6413,7 +6401,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef char* gen
         gen = FMIL.fmi2_import_get_generation_date_and_time(self._fmu)
-        return gen if gen != NULL else ""
+        return decode(gen) if gen != NULL else ""
 
     def get_guid(self):
         """
@@ -6960,7 +6948,7 @@ cdef class FMUModelCS2(FMUModelBase2):
                 The options that should be used in the algorithm. For details on
                 the options do:
 
-                    >> myModel = FMUModel(...)
+                    >> myModel = load_fmu(...)
                     >> opts = myModel.simulate_options()
                     >> opts?
 
@@ -7503,7 +7491,7 @@ cdef class FMUModelME2(FMUModelBase2):
                 The options that should be used in the algorithm. For details on
                 the options do:
 
-                    >> myModel = FMUModel(...)
+                    >> myModel = load_fmu(...)
                     >> opts = myModel.simulate_options()
                     >> opts?
 

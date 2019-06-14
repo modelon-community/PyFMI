@@ -3,6 +3,14 @@
 Changelog
 ==========
 
+--- PyFMI-2.5.1 ---
+    * Fixed a number of encode/decoding issues for Python3 (ticket:5786)
+    * Forced no copy if the provided array is already correct, minor 
+      performance improvement (ticket:5785)
+    * Removed a number of C compiler warnings (ticket:5782)
+    * Fixed issue with corrupt result files after failed simulations (ticket:5784)
+    * Added (hidden) option to only load the XML from an FMU, for testing
+      purposes (ticket:5778)
 
 --- PyFMI-2.5 ---
     * Fixed issue with atol not being updated when rtol is set (ticket:5709)

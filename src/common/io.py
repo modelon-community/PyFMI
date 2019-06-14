@@ -27,10 +27,9 @@ import numpy as N
 import numpy as np
 import scipy.io
 
-from . import xmlparser
 import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
-from . import python3_flag
+from pyfmi.common import python3_flag, encode, decode
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
 
@@ -133,19 +132,21 @@ class ResultDymola:
         name = name.replace(" ", "")
         
         try:
-            #return self.name.index(name)
-            return self.name_lookup[name]
+            if python3_flag and isinstance(self, ResultDymolaBinary):
+                return self.name_lookup[encode(name)]
+            else:
+                return self.name_lookup[name]
         except KeyError as ex:
-        #except ValueError as ex:
             #Variable was not found so check if it was a derivative variable
             #and check if there exists a variable with another naming
             #convention
             if self._check_if_derivative_variable(name):
                 try:
                     #First do a simple search for the other naming convention
-                    #return self.name.index(self._convert_dx_name(name))
-                    return self.name_lookup[self._convert_dx_name(name)]
-                #except ValueError as ex:
+                    if python3_flag and isinstance(self, ResultDymolaBinary):
+                        return self.name_lookup[encode(self._convert_dx_name(name))]
+                    else:
+                        return self.name_lookup[self._convert_dx_name(name)]
                 except KeyError as ex:
                     return self._exhaustive_search_for_derivatives(name)
             else:
@@ -181,18 +182,23 @@ class ResultDymola:
             trial_name = self.name[ind]
             
             #Create the derivative name
-            der_trial_name = self._create_derivative_from_state(trial_name)
+            if python3_flag and isinstance(self, ResultDymolaBinary): 
+                der_trial_name = self._create_derivative_from_state(decode(trial_name))
+            else:
+                der_trial_name = self._create_derivative_from_state(trial_name)
             
             try:
-                #return self.name.index(der_trial_name)
-                return self.name_lookup[der_trial_name]
-            #except ValueError as ex:
+                if python3_flag and isinstance(self, ResultDymolaBinary):
+                    return self.name_lookup[encode(der_trial_name)]
+                else:
+                    return self.name_lookup[der_trial_name]
             except KeyError as ex:
                 try:
-                    #return self.name.index(self._convert_dx_name(der_trial_name))
-                    return self.name_lookup[self._convert_dx_name(der_trial_name)]
+                    if python3_flag and isinstance(self, ResultDymolaBinary):
+                        return self.name_lookup[encode(self._convert_dx_name(der_trial_name))]
+                    else:
+                        return self.name_lookup[self._convert_dx_name(der_trial_name)]
                 except KeyError as ex:
-                #except ValueError as ex:
                     pass
         else:
             raise VariableNotFoundError("Cannot find variable " +
@@ -1110,30 +1116,18 @@ class ResultDymolaBinary(ResultDymola):
         self._fname = fname
         self.raw = scipy.io.loadmat(fname,chars_as_strings=False, variable_names=["name", "dataInfo", "data_1", "data_2"])
         name = self.raw['name']
-        #self.name = ["".join(name[:,i]).rstrip() for i in range(name[0,:].size)]
-        #self.name = fmi_util.convert_array_names_list_names(name)
+        self.raw_name = name
+
         self.name = fmi_util.convert_array_names_list_names_int(name.view(np.int32))
         self.dataInfo = self.raw['dataInfo'].transpose()
-        
-        #self.name = [
-        #    array.array(
-        #        'u',
-        #        name[:,i].tolist()).tounicode().rstrip().replace(" ","") \
-        #        for i in range(0,name[0,:].size)]
         self.name_lookup = {key:ind for ind,key in enumerate(self.name)}
         
         self._description = None
         
     def _get_description(self):
         if not self._description:
-            self.name = ["".join(name[:,i]).rstrip() for i in range(name[0,:].size)]
-            description = scipy.io.loadmat(fname,chars_as_strings=False, variable_names=["description"])
+            description = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["description"])["description"]
             self._description = ["".join(description[:,i]).rstrip() for i in range(description[0,:].size)]
-            #self._description = [
-            #array.array(
-            #    'u',
-            #    description[:,i].tolist()).tounicode().rstrip() \
-            #    for i in range(0,description[0,:].size)]
         
         return self._description
 
@@ -1156,6 +1150,9 @@ class ResultDymolaBinary(ResultDymola):
             A Trajectory object containing the time vector and the data vector 
             of the variable.
         """
+        if python3_flag and isinstance(name, bytes):
+            name = decode(name)
+            
         if name == 'time' or name== 'Time':
             varInd = 0;
         else:
@@ -1176,7 +1173,7 @@ class ResultDymolaBinary(ResultDymola):
             dataMat = 2 if len(self.raw['data_2'])> 0 else 1
                 
         return Trajectory(self.raw['data_%d'%dataMat][0,:],factor*self.raw['data_%d'%dataMat][dataInd,:])
-                
+
     def is_variable(self, name):
         """
         Returns True if the given name corresponds to a time-varying variable.

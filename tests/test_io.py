@@ -184,6 +184,49 @@ class Dummy_FMUModelME2(FMUModelME2):
 class TestResultFileText:
     
     @testattr(stddist = True)
+    def test_get_description(self):
+        model = Dummy_FMUModelME1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        
+        result_writer = ResultHandlerFile(model)
+        result_writer.set_options(model.simulate_options())
+        result_writer.simulation_start()
+        result_writer.initialize_complete()
+        result_writer.integration_point()
+        result_writer.simulation_end()
+        
+        res = ResultDymolaTextual('CoupledClutches_result.txt')
+        
+        assert res.description[res.get_variable_index("J1.phi")] == "Absolute rotation angle of component"
+    
+    @testattr(stddist = True)
+    def test_read_alias_derivative(self):
+        simple_alias = Dummy_FMUModelME2([], "Alias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "file"
+
+        res = simple_alias.simulate(options=opts)
+        
+        derx = res["der(x)"]
+        dery = res["der(y)"]
+        
+        for i in range(len(derx)):
+            nose.tools.assert_equal(derx[i], dery[i])
+    
+    @testattr(stddist = True)
+    def test_read_all_variables_using_model_variables(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerFile(simple_alias)
+        
+        res = simple_alias.simulate(options=opts)
+        
+        for var in simple_alias.get_model_variables():
+            res[var]
+    
+    @testattr(stddist = True)
     def test_correct_file_after_simulation_failure(self):
         simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         
@@ -249,6 +292,7 @@ class TestResultFileText:
         assert data_type == fmi.FMI2_ENUMERATION
         
         opts = model.simulate_options()
+        opts["result_handling"] = "file"
         
         res = model.simulate(options=opts)
         res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
@@ -334,11 +378,54 @@ class TestResultMemory:
 class TestResultFileBinary:
     
     @testattr(stddist = True)
+    def test_get_description(self):
+        model = Dummy_FMUModelME1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        
+        result_writer = ResultHandlerBinaryFile(model)
+        result_writer.set_options(model.simulate_options())
+        result_writer.simulation_start()
+        result_writer.initialize_complete()
+        result_writer.integration_point()
+        result_writer.simulation_end()
+        
+        res = ResultDymolaBinary('CoupledClutches_result.mat')
+        
+        assert res.description[res.get_variable_index("J1.phi")] == "Absolute rotation angle of component"
+    
+    @testattr(stddist = True)
+    def test_read_alias_derivative(self):
+        simple_alias = Dummy_FMUModelME2([], "Alias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "binary"
+
+        res = simple_alias.simulate(options=opts)
+        
+        derx = res["der(x)"]
+        dery = res["der(y)"]
+        
+        for i in range(len(derx)):
+            nose.tools.assert_equal(derx[i], dery[i])
+    
+    @testattr(stddist = True)
     def test_read_all_variables(self):
         res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
         
         for var in res.name:
             res.get_variable_data(var)
+    
+    @testattr(stddist = True)
+    def test_read_all_variables_using_model_variables(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerBinaryFile(simple_alias)
+        
+        res = simple_alias.simulate(options=opts)
+        
+        for var in simple_alias.get_model_variables():
+            res[var]
     
     @testattr(stddist = True)
     def test_correct_file_after_simulation_failure(self):
@@ -483,7 +570,7 @@ class TestResultFileBinary:
         nose.tools.assert_almost_equal(3.0, res["p2"][0])
     
     @testattr(stddist = True)
-    def test_enumeration_csv(self):
+    def test_enumeration_binary(self):
         
         model = Dummy_FMUModelME2([], "Friction2.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         data_type = model.get_variable_data_type("mode")

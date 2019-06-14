@@ -151,6 +151,11 @@ class Test_FMUModelBase:
         assert sc_x.alias == fmi.FMI_NO_ALIAS
 
         nose.tools.assert_raises(FMUException, negated_alias.get_scalar_variable, "not_existing")
+    
+    @testattr(stddist = True)
+    def test_get_variable_description(self):
+        model = FMUModelME1("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
         
 
 class Test_FMUModelCS2:
@@ -196,6 +201,25 @@ class Test_FMUModelME2:
 
 class Test_FMUModelBase2:
     
+    @testattr(stddist_full = True)
+    def test_get_time_varying_variables(self):
+        model = FMUModelME2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        [r,i,b] = model.get_model_time_varying_value_references()
+        [r_f, i_f, b_f] = model.get_model_time_varying_value_references(filter="*")
+        
+        assert len(r) == len(r_f)
+        assert len(i) == len(i_f)
+        assert len(b) == len(b_f)
+        
+        vars = model.get_variable_alias("J4.phi")
+        for var in vars:
+            [r,i,b] = model.get_model_time_varying_value_references(filter=var)
+            assert len(r) == 1
+        
+        [r,i,b] = model.get_model_time_varying_value_references(filter=list(vars.keys()))
+        assert len(r) == 1
+    
     @testattr(stddist = True)
     def test_caching(self):
         negated_alias = FMUModelME2("NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
@@ -237,6 +261,11 @@ class Test_FMUModelBase2:
         assert sc_x.causality == fmi.FMI2_LOCAL
 
         nose.tools.assert_raises(FMUException, negated_alias.get_scalar_variable, "not_existing")
+    
+    @testattr(stddist = True)
+    def test_get_variable_description(self):
+        model = FMUModelME2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
     
 
 class Test_load_fmu_only_XML:

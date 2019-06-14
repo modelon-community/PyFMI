@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 
 --- PyFMI-2.5.1 ---
+    * Fixed a number of encode/decoding issues for Python3 (ticket:5786)
     * Forced no copy if the provided array is already correct, minor 
       performance improvement (ticket:5785)
     * Removed a number of C compiler warnings (ticket:5782)
