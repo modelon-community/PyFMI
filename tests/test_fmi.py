@@ -110,6 +110,13 @@ class Test_FMUModelCS1:
 class Test_FMUModelBase:
     
     @testattr(stddist = True)
+    def test_get_erronous_nominals(self):
+        model = FMUModelME1("NominalTest4.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        
+        nose.tools.assert_almost_equal(model.get_variable_nominal("x"), 2.0)
+        nose.tools.assert_almost_equal(model.get_variable_nominal("y"), 1.0)
+    
+    @testattr(stddist = True)
     def test_caching(self):
         negated_alias = FMUModelME1("NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
 
@@ -168,6 +175,45 @@ class Test_FMUModelCS2:
         assert model.get_log_file_name() == file_name.replace(".","_")[:-4]+"_log.txt"
 
 class Test_FMUModelME2:
+    
+    @testattr(stddist = True)
+    def test_output_dependencies(self):
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "OutputTest2.fmu")
+        
+        model = FMUModelME2(full_path, _connect_dll=False)
+        
+        [state_dep, input_dep] = model.get_output_dependencies()
+        
+        assert state_dep["y1"][0] == "x1"
+        assert state_dep["y1"][1] == "x2"
+        assert state_dep["y2"][0] == "x2"
+        assert state_dep["y3"][0] == "x1"
+        assert input_dep["y1"][0] == "u1"
+        assert input_dep["y3"][0] == "u1"
+        assert len(input_dep["y2"]) == 0
+    
+    @testattr(stddist = True)
+    def test_output_dependencies_2(self):
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu")
+        
+        model = FMUModelME2(full_path, _connect_dll=False)
+        
+        [state_dep, input_dep] = model.get_output_dependencies()
+        
+        assert len(state_dep.keys()) == 0
+        assert len(input_dep.keys()) == 0
+    
+    @testattr(stddist = True)
+    def test_derivative_dependencies(self):
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu")
+        
+        model = FMUModelME2(full_path, _connect_dll=False)
+        
+        [state_dep, input_dep] = model.get_derivatives_dependencies()
+        
+        assert len(state_dep.keys()) == 0
+        assert len(input_dep.keys()) == 0
+    
     @testattr(stddist = True)
     def test_malformed_xml(self):
         nose.tools.assert_raises(FMUException, load_fmu, os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "MalFormed.fmu"))
@@ -201,7 +247,7 @@ class Test_FMUModelME2:
 
 class Test_FMUModelBase2:
     
-    @testattr(stddist_full = True)
+    @testattr(stddist = True)
     def test_get_time_varying_variables(self):
         model = FMUModelME2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         

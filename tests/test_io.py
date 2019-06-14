@@ -378,6 +378,16 @@ class TestResultMemory:
 class TestResultFileBinary:
     
     @testattr(stddist = True)
+    def test_integer_start_time(self):
+        model = Dummy_FMUModelME2([], "Alias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        opts = model.simulate_options()
+        opts["result_handling"] = "binary"
+
+        #Assert that there is no exception when reloading the file
+        res = model.simulate(start_time=0, options=opts)
+    
+    @testattr(stddist = True)
     def test_get_description(self):
         model = Dummy_FMUModelME1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
         
