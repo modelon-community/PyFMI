@@ -270,9 +270,87 @@ class Test_FMUModelCS2:
 class Test_FMUModelME2:
     
     @testattr(stddist = True)
+    def test_simulate_with_debug_option_no_state(self):
+        model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+
+        opts=model.simulate_options()
+        opts["logging"] = True
+        
+        #Verify that a simulation is successful
+        res=model.simulate(options=opts)
+        
+        from pyfmi.debug import CVodeDebugInformation
+        debug = CVodeDebugInformation("NoState_Example1_debug.txt")
+    
+    @testattr(stddist = True)
+    def test_relative_tolerance(self):
+        model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        opts = model.simulate_options()
+        opts["CVode_options"]["rtol"] = 1e-8
+        
+        res = model.simulate(options=opts)
+        
+        assert res.options["CVode_options"]["atol"] == 1e-10
+    
+    @testattr(stddist = True)
+    def test_estimate_directional_derivatives_BCD(self):
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "OutputTest2.fmu")
+        model = Dummy_FMUModelME2([], full_path, _connect_dll=False)
+        
+        def f(*args, **kwargs):
+            x1 = model.values[model.variables["x1"].value_reference]
+            x2 = model.values[model.variables["x2"].value_reference]
+            u1 = model.values[model.variables["u1"].value_reference]
+            
+            model.values[model.variables["y1"].value_reference] = x1*x2 - u1
+            model.values[model.variables["y2"].value_reference] = x2
+            model.values[model.variables["y3"].value_reference] = u1 + x1
+            
+            model.values[model.variables["der(x1)"].value_reference] = -1.0
+            model.values[model.variables["der(x2)"].value_reference] = -1.0
+        model.get_derivatives = f
+        
+        model.initialize()
+        model.event_update()
+        model.enter_continuous_time_mode()
+        
+        for func in [model._get_B, model._get_C, model._get_D]:
+            A = func(use_structure_info=True)
+            B = func(use_structure_info=True, output_matrix=A)
+            assert A is B #Test that the returned matrix is actually the same as the input
+            np.allclose(A.toarray(),B.toarray())
+            A = func(use_structure_info=False)
+            B = func(use_structure_info=False, output_matrix=A)
+            print(A)
+            assert A is B
+            np.allclose(A,B)
+            C = func(use_structure_info=True, output_matrix=A)
+            assert A is not C
+            np.allclose(C.toarray(), A)
+            D = func(use_structure_info=False, output_matrix=C)
+            assert D is not C
+            np.allclose(D, C.toarray())
+        
+        B = model._get_B(use_structure_info=True)
+        C = model._get_C(use_structure_info=True)
+        D = model._get_D(use_structure_info=True)
+        
+        np.allclose(B.toarray(), np.array([[0.0],[0.0]]))
+        np.allclose(C.toarray(), np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
+        np.allclose(D.toarray(), np.array([[-1.0],[0.0], [1.0]]))
+        
+        B = model._get_B(use_structure_info=False)
+        C = model._get_C(use_structure_info=False)
+        D = model._get_D(use_structure_info=False)
+        
+        np.allclose(B, np.array([[0.0],[0.0]]))
+        np.allclose(C, np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
+        np.allclose(D, np.array([[-1.0],[0.0], [1.0]]))
+        
+    @testattr(stddist = True)
     def test_output_dependencies(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "OutputTest2.fmu")
-        
         model = FMUModelME2(full_path, _connect_dll=False)
         
         [state_dep, input_dep] = model.get_output_dependencies()
@@ -339,6 +417,26 @@ class Test_FMUModelME2:
         nose.tools.assert_raises(FMUException, model.get_variable_display_unit, "J1.w")
 
 class Test_FMUModelBase2:
+    
+    @testattr(stddist = True)
+    def test_get_erronous_nominals(self):
+        model = FMUModelME2("NominalTests.NominalTest4.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        nose.tools.assert_almost_equal(model.get_variable_nominal("x"), 2.0)
+        nose.tools.assert_almost_equal(model.get_variable_nominal("y"), 1.0)
+        
+        nose.tools.assert_almost_equal(model.get_variable_nominal("x", _override_erroneous_nominal=False), -2.0)
+        nose.tools.assert_almost_equal(model.get_variable_nominal("y", _override_erroneous_nominal=False), 0.0)
+        
+        x_vref = model.get_variable_valueref("x")
+        y_vref = model.get_variable_valueref("y")
+        
+        nose.tools.assert_almost_equal(model.get_variable_nominal(valueref=x_vref), 2.0)
+        nose.tools.assert_almost_equal(model.get_variable_nominal(valueref=y_vref), 1.0)
+        
+        nose.tools.assert_almost_equal(model.get_variable_nominal(valueref=x_vref, _override_erroneous_nominal=False), -2.0)
+        nose.tools.assert_almost_equal(model.get_variable_nominal(valueref=y_vref, _override_erroneous_nominal=False), 0.0)
+        
     
     @testattr(stddist = True)
     def test_get_time_varying_variables(self):

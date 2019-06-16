@@ -4544,7 +4544,7 @@ cdef class FMUModelBase2(ModelBase):
         
         if _override_erroneous_nominal:
             if variable_name == None:
-                variable_name = self.get_variable_by_valueref(valueref)
+                variable_name = encode(self.get_variable_by_valueref(valueref))
                 variablename = variable_name
             if value == 0.0:
                 if self.callbacks.log_level >= FMIL.jm_log_level_warning:

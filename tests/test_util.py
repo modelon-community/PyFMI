@@ -146,7 +146,7 @@ class Dummy_FMUModelME2(FMUModelME2):
         pass
     
     def initialize(self, *args, **kwargs):
-        pass
+        self._has_entered_init_mode = True
     
     def event_update(self, *args, **kwargs):
         pass
@@ -166,10 +166,15 @@ class Dummy_FMUModelME2(FMUModelME2):
         return -self.continuous_states
         
     def get_real(self, vref):
+        self.get_derivatives()
         vals = []
         for v in vref:
             vals.append(self.values[v])
         return np.array(vals)
+    
+    def set_real(self, vref, values):
+        for i,v in enumerate(vref):
+            self.values[v] = values[i]
     
     def get_integer(self, vref):
         return self.get_real(vref)
