@@ -132,7 +132,7 @@ cpdef cpr_seed(dependencies, list column_keys):
             
         k = k + 1
     
-    groups["groups"] = groups.keys()
+    groups["groups"] = list(groups.keys())
     groups["nnz"] = nnz
     groups["nnz_with_diag"] = nnz_with_diag
     
