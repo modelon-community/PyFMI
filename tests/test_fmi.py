@@ -24,7 +24,7 @@ from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
-from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2
+from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
 from pyfmi.common.io import ResultHandler
 
 file_path = os.path.dirname(os.path.abspath(__file__))
@@ -456,6 +456,22 @@ class Test_FMUModelBase2:
         
         [r,i,b] = model.get_model_time_varying_value_references(filter=list(vars.keys()))
         assert len(r) == 1
+    
+    @testattr(stddist = True)
+    def test_get_directional_derivative_capability(self):
+        bounce = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        bounce.setup_experiment()
+        bounce.initialize()
+
+        # Bouncing ball don't have the capability, check that this is handled
+        nose.tools.assert_raises(FMUException, bounce.get_directional_derivative, [1], [1], [1])
+        
+        bounce = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        bounce.setup_experiment()
+        bounce.initialize()
+
+        # Bouncing ball don't have the capability, check that this is handled
+        nose.tools.assert_raises(FMUException, bounce.get_directional_derivative, [1], [1], [1])
     
     @testattr(stddist = True)
     def test_caching(self):

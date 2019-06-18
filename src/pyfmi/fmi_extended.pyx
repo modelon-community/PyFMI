@@ -46,17 +46,12 @@ cdef class FMUModelME1Extended(FMUModelME1):
     cdef public dict _input_derivatives, _options
     cdef public N.ndarray _input_tmp
 
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _connect_dll=False):
         #Instantiate the FMU
-        FMUModelME1.__init__(self, fmu, path, enable_logging,log_file_name, log_level)
+        FMUModelME1.__init__(self, fmu, path, enable_logging,log_file_name, log_level, _connect_dll=_connect_dll)
         
         nbr_f, nbr_g = self.get_ode_sizes()
 
-        #if self._fmu_kind != FMI_ME:
-        #    raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
-
-        #self.instantiate_slave(logging = self._enable_logging)
-        
         vars = self.get_model_variables(include_alias=False, causality=0)
         input_value_refs = []
         input_alias_type = []
