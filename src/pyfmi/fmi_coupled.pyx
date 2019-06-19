@@ -1942,7 +1942,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
             else: #Both (algebraic loop)
                 
                 #Assert models has entered initialization mode
-                for model in block["inputs"].keys()+block["outputs"].keys(): #Possible only need outputs?
+                for model in list(block["inputs"].keys())+list(block["outputs"].keys()): #Possible only need outputs?
                     if model._has_entered_init_mode is False:
                         model.enter_initialization_mode()
                         
