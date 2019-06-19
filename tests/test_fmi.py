@@ -27,23 +27,69 @@ import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
 from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
 from pyfmi.common.io import ResultHandler
 
+assimulo_installed = True
+try:
+    import assimulo
+except ImportError:
+    assimulo_installed = False
+
 file_path = os.path.dirname(os.path.abspath(__file__))
 
-class Test_FMUModelME1:
-    
-    @testattr(stddist = True)
-    def test_simulate_with_debug_option_no_state(self):
-        model = Dummy_FMUModelME1([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+if assimulo_installed:
+    class Test_FMUModelME1_Simulation:
+        @testattr(stddist = True)
+        def test_simulate_with_debug_option_no_state(self):
+            model = Dummy_FMUModelME1([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
 
-        opts=model.simulate_options()
-        opts["logging"] = True
+            opts=model.simulate_options()
+            opts["logging"] = True
+            
+            #Verify that a simulation is successful
+            res=model.simulate(options=opts)
+            
+            from pyfmi.debug import CVodeDebugInformation
+            debug = CVodeDebugInformation("NoState_Example1_debug.txt")
         
-        #Verify that a simulation is successful
-        res=model.simulate(options=opts)
+        @testattr(stddist = True)
+        def test_no_result(self):
+            model = Dummy_FMUModelME1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+
+            opts = model.simulate_options()
+            opts["result_handling"] = "none"
+            res = model.simulate(options=opts)
+
+            nose.tools.assert_raises(Exception,res._get_result_data)
+            
+            model = Dummy_FMUModelME1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+
+            opts = model.simulate_options()
+            opts["return_result"] = False
+            res = model.simulate(options=opts)
+
+            nose.tools.assert_raises(Exception,res._get_result_data)
         
-        from pyfmi.debug import CVodeDebugInformation
-        debug = CVodeDebugInformation("NoState_Example1_debug.txt")
-    
+        @testattr(stddist = True)
+        def test_custom_result_handler(self):
+            model = Dummy_FMUModelME1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+
+            class A:
+                pass
+            class B(ResultHandler):
+                def get_result(self):
+                    return None
+
+            opts = model.simulate_options()
+            opts["result_handling"] = "hejhej"
+            nose.tools.assert_raises(Exception, model.simulate, options=opts)
+            opts["result_handling"] = "custom"
+            nose.tools.assert_raises(Exception, model.simulate, options=opts)
+            opts["result_handler"] = A()
+            nose.tools.assert_raises(Exception, model.simulate, options=opts)
+            opts["result_handler"] = B()
+            res = model.simulate(options=opts)
+        
+
+class Test_FMUModelME1:
     @testattr(stddist = True)
     def test_get_time_varying_variables(self):
         model = FMUModelME1("RLC_Circuit.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
@@ -63,44 +109,6 @@ class Test_FMUModelME1:
         
         assert len(r) == 1
         assert r[0] == model.get_variable_valueref("y")
-    
-    @testattr(stddist = True)
-    def test_no_result(self):
-        model = Dummy_FMUModelME1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
-
-        opts = model.simulate_options()
-        opts["result_handling"] = "none"
-        res = model.simulate(options=opts)
-
-        nose.tools.assert_raises(Exception,res._get_result_data)
-        
-        model = Dummy_FMUModelME1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
-
-        opts = model.simulate_options()
-        opts["return_result"] = False
-        res = model.simulate(options=opts)
-
-        nose.tools.assert_raises(Exception,res._get_result_data)
-    
-    @testattr(stddist = True)
-    def test_custom_result_handler(self):
-        model = Dummy_FMUModelME1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
-
-        class A:
-            pass
-        class B(ResultHandler):
-            def get_result(self):
-                return None
-
-        opts = model.simulate_options()
-        opts["result_handling"] = "hejhej"
-        nose.tools.assert_raises(Exception, model.simulate, options=opts)
-        opts["result_handling"] = "custom"
-        nose.tools.assert_raises(Exception, model.simulate, options=opts)
-        opts["result_handler"] = A()
-        nose.tools.assert_raises(Exception, model.simulate, options=opts)
-        opts["result_handler"] = B()
-        res = model.simulate(options=opts)
     
     @testattr(stddist = True)
     def test_get_variable_by_valueref(self):
@@ -317,43 +325,44 @@ class Test_FMUModelCS2:
         path, file_name = os.path.split(full_path)
         assert model.get_log_file_name() == file_name.replace(".","_")[:-4]+"_log.txt"
 
-class Test_FMUModelME2:
-    
-    @testattr(stddist = True)
-    def test_maxord_is_set(self):
-        model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
-        opts = model.simulate_options()
-        opts["solver"] = "CVode"
-        opts["CVode_options"]["maxord"] = 1
+if assimulo_installed:
+    class Test_FMUModelME2_Simulation:
+        @testattr(stddist = True)
+        def test_relative_tolerance(self):
+            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            
+            opts = model.simulate_options()
+            opts["CVode_options"]["rtol"] = 1e-8
+            
+            res = model.simulate(options=opts)
+            
+            assert res.options["CVode_options"]["atol"] == 1e-10
         
-        res = model.simulate(final_time=1.5,options=opts)
-        
-        assert res.solver.maxord == 1
-    
-    @testattr(stddist = True)
-    def test_simulate_with_debug_option_no_state(self):
-        model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        @testattr(stddist = True)
+        def test_simulate_with_debug_option_no_state(self):
+            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
 
-        opts=model.simulate_options()
-        opts["logging"] = True
+            opts=model.simulate_options()
+            opts["logging"] = True
+            
+            #Verify that a simulation is successful
+            res=model.simulate(options=opts)
+            
+            from pyfmi.debug import CVodeDebugInformation
+            debug = CVodeDebugInformation("NoState_Example1_debug.txt")
         
-        #Verify that a simulation is successful
-        res=model.simulate(options=opts)
-        
-        from pyfmi.debug import CVodeDebugInformation
-        debug = CVodeDebugInformation("NoState_Example1_debug.txt")
-    
-    @testattr(stddist = True)
-    def test_relative_tolerance(self):
-        model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
-        
-        opts = model.simulate_options()
-        opts["CVode_options"]["rtol"] = 1e-8
-        
-        res = model.simulate(options=opts)
-        
-        assert res.options["CVode_options"]["atol"] == 1e-10
-    
+        @testattr(stddist = True)
+        def test_maxord_is_set(self):
+            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            opts = model.simulate_options()
+            opts["solver"] = "CVode"
+            opts["CVode_options"]["maxord"] = 1
+            
+            res = model.simulate(final_time=1.5,options=opts)
+            
+            assert res.solver.maxord == 1
+            
+class Test_FMUModelME2:
     @testattr(stddist = True)
     def test_estimate_directional_derivatives_BCD(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "OutputTest2.fmu")
