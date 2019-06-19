@@ -30,7 +30,6 @@ class Dummy_FMUModelME1(FMUModelME1):
     def __init__(self, states_vref, *args,**kwargs):
         FMUModelME1.__init__(self, *args, **kwargs)
     
-        self.time = 0.0
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
         self.nominal_continuous_states = np.ones(self.get_ode_sizes()[0])
         self.variables = self.get_model_variables(include_alias=False)
@@ -48,7 +47,7 @@ class Dummy_FMUModelME1(FMUModelME1):
             self.continuous_states[i] = self.values[vref]
     
     def initialize(self, *args, **kwargs):
-        pass
+        self.time = 0.0
     
     def completed_integrator_step(self, *args, **kwargs):
         for i,vref in enumerate(self.states_vref):
@@ -82,7 +81,6 @@ class Dummy_FMUModelCS1(FMUModelCS1):
     def __init__(self, states_vref, *args,**kwargs):
         FMUModelCS1.__init__(self, *args, **kwargs)
     
-        self.time = 0.0
         self.variables = self.get_model_variables(include_alias=False)
         self.states_vref = states_vref
         
@@ -95,7 +93,7 @@ class Dummy_FMUModelCS1(FMUModelCS1):
             self.values[self.variables[var].value_reference] = start
     
     def initialize(self, *args, **kwargs):
-        pass
+        self.time = 0.0
     
     def do_step(self, t, h, new_step=True):
         self.time = t+h
@@ -121,7 +119,7 @@ class Dummy_FMUModelCS2(FMUModelCS2):
     def __init__(self, negated_aliases, *args,**kwargs):
         FMUModelCS2.__init__(self, *args, **kwargs)
     
-        self.time = 0.0
+        
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
         self.variables = self.get_model_variables(include_alias=False)
         self.negated_aliases = negated_aliases
@@ -141,7 +139,7 @@ class Dummy_FMUModelCS2(FMUModelCS2):
             self.continuous_states[i] = self.values[states[state].value_reference]
     
     def setup_experiment(self, *args, **kwargs):
-        pass
+        self.time = 0.0
     
     def initialize(self, *args, **kwargs):
         pass
@@ -194,7 +192,6 @@ class Dummy_FMUModelME2(FMUModelME2):
         self.reset()
     
     def reset(self, *args, **kwargs):
-        self.time = 0.0
         self.values = {}
         for var in self.variables:
             try:
@@ -210,10 +207,18 @@ class Dummy_FMUModelME2(FMUModelME2):
             self.continuous_states[i] = self.values[states[state].value_reference]
     
     def setup_experiment(self, *args, **kwargs):
-        pass
+        self.time = 0.0
+    
+    def enter_initialization_mode(self, *args, **kwargs):
+        self._has_entered_init_mode = True
+        return 0
+    
+    def exit_initialization_mode(self, *args, **kwargs):
+        self._has_entered_init_mode = True
+        return 0
     
     def initialize(self, *args, **kwargs):
-        self._has_entered_init_mode = True
+        self.enter_initialization_mode()
     
     def event_update(self, *args, **kwargs):
         pass
@@ -235,6 +240,8 @@ class Dummy_FMUModelME2(FMUModelME2):
     def get_real(self, vref):
         self.get_derivatives()
         vals = []
+        if type(vref) == int:
+            vref = [vref]
         for v in vref:
             vals.append(self.values[v])
         return np.array(vals)

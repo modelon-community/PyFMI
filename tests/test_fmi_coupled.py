@@ -245,3 +245,53 @@ class Test_CoupledFMUModelME2:
         vars_2 = model_cc_2.get_model_variables(include_alias=False, type=fmi.FMI2_INTEGER)
         
         assert len(vars) == len(vars_1) + len(vars_2)
+    
+    @testattr(stddist = True)
+    def test_linear_example(self):
+        model_sub_1 = Dummy_FMUModelME2([], "LinearStability.SubSystem1.fmu", me2_xml_path, _connect_dll=False)
+        model_sub_2 = Dummy_FMUModelME2([], "LinearStability.SubSystem2.fmu", me2_xml_path, _connect_dll=False)
+
+        def sub1(*args, **kwargs):
+            u1 = model_sub_1.values[model_sub_1.get_variable_valueref("u1")]
+            a1 = model_sub_1.values[model_sub_1.get_variable_valueref("a1")]
+            b1 = model_sub_1.values[model_sub_1.get_variable_valueref("b1")]
+            c1 = model_sub_1.values[model_sub_1.get_variable_valueref("c1")]
+            d1 = model_sub_1.values[model_sub_1.get_variable_valueref("d1")]
+            x1 = model_sub_1.continuous_states[0]
+            model_sub_1.values[model_sub_1.get_variable_valueref("y1")] = c1*x1+d1*u1
+            model_sub_1.values[model_sub_1.get_variable_valueref("x1")] = x1
+            return np.array([a1*x1+b1*u1])
+        
+        def sub2(*args, **kwargs):
+            u2 = model_sub_2.values[model_sub_2.get_variable_valueref("u2")]
+            a2 = model_sub_2.values[model_sub_2.get_variable_valueref("a2")]
+            b2 = model_sub_2.values[model_sub_2.get_variable_valueref("b2")]
+            c2 = model_sub_2.values[model_sub_2.get_variable_valueref("c2")]
+            d2 = model_sub_2.values[model_sub_2.get_variable_valueref("d2")]
+            x2 = model_sub_2.continuous_states[0]
+            model_sub_2.values[model_sub_2.get_variable_valueref("y2")] = c2*x2+d2*u2
+            model_sub_2.values[model_sub_2.get_variable_valueref("x2")] = x2
+            return np.array([a2*x2+b2*u2])
+        
+        model_sub_1.get_derivatives = sub1
+        model_sub_2.get_derivatives = sub2
+        
+        models = [("First", model_sub_1), ("Second", model_sub_2)]
+        connections = [(model_sub_1,"y1",model_sub_2,"u2"),
+                       (model_sub_2,"y2",model_sub_1,"u1")]
+        
+        coupled = CoupledFMUModelME2(models, connections=connections)
+
+        opts = {"CVode_options": {"rtol":1e-6, "atol":1e-6}}
+
+        res = coupled.simulate(options=opts)
+
+        nose.tools.assert_almost_equal(res.final("First.x1"),0.08597302307099872)
+        nose.tools.assert_almost_equal(res.final("Second.x2"),0.0083923348082567)
+        nose.tools.assert_almost_equal(res.initial("First.x1"),1.0)
+        nose.tools.assert_almost_equal(res.initial("Second.x2"),1.0)
+        
+        nose.tools.assert_almost_equal(res.final("First.u1"),-0.25909975860402856)
+        nose.tools.assert_almost_equal(res.final("Second.u2"),-0.0011806893910324295)
+        nose.tools.assert_almost_equal(res.initial("First.u1"),-17.736842105263158)
+        nose.tools.assert_almost_equal(res.initial("Second.u2"),-14.73684210526316)

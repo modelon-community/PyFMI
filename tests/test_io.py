@@ -35,6 +35,7 @@ class TestResultFileText:
     @testattr(stddist = True)
     def test_get_description(self):
         model = Dummy_FMUModelME1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model.initialize()
         
         result_writer = ResultHandlerFile(model)
         result_writer.set_options(model.simulate_options())
@@ -112,8 +113,8 @@ class TestResultFileText:
     
     @testattr(stddist = True)
     def test_work_flow_me1(self):
-        """Tests the work flow of write_header, write_point, write_finalize."""
         model = Dummy_FMUModelME1([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model.initialize()
         
         bouncingBall = ResultHandlerFile(model)
         
@@ -150,6 +151,8 @@ class TestResultFileText:
     def test_work_flow_me2(self):
         """Tests the work flow of write_header, write_point, write_finalize."""
         model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model.setup_experiment()
+        model.initialize()
         
         bouncingBall = ResultHandlerFile(model)
         
@@ -239,6 +242,7 @@ class TestResultFileBinary:
     @testattr(stddist = True)
     def test_get_description(self):
         model = Dummy_FMUModelME1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model.initialize()
         
         result_writer = ResultHandlerBinaryFile(model)
         result_writer.set_options(model.simulate_options())
@@ -344,8 +348,8 @@ class TestResultFileBinary:
     
     @testattr(stddist = True)
     def test_work_flow_me1(self):
-        """Tests the work flow of write_header, write_point, write_finalize."""
         model = Dummy_FMUModelME1([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model.initialize()
         
         bouncingBall = ResultHandlerBinaryFile(model)
         
@@ -364,12 +368,11 @@ class TestResultFileBinary:
         nose.tools.assert_almost_equal(h.x, 1.000000, 5)
         nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
     
-    
-    
     @testattr(stddist = True)
     def test_work_flow_me2(self):
-        """Tests the work flow of write_header, write_point, write_finalize."""
         model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model.setup_experiment()
+        model.initialize()
         
         bouncingBall = ResultHandlerBinaryFile(model)
         
@@ -489,8 +492,8 @@ class TestResultCSVTextual:
     
     @testattr(stddist = True)
     def test_work_flow_me1(self):
-        """Tests the work flow of write_header, write_point, write_finalize."""
         model = Dummy_FMUModelME1([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model.initialize()
         
         bouncingBall = ResultHandlerCSV(model)
         
@@ -511,8 +514,9 @@ class TestResultCSVTextual:
     
     @testattr(stddist = True)
     def test_work_flow_me2(self):
-        """Tests the work flow of write_header, write_point, write_finalize."""
         model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model.setup_experiment()
+        model.initialize()
         
         bouncingBall = ResultHandlerCSV(model)
         
