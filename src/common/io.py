@@ -2134,12 +2134,14 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._sorted_vars = sorted_vars
         len_name_items = len(sorted_vars)+1
         len_desc_items = len_name_items
-        
+        """
         name_data = ["time"] + [var.name for var in sorted_vars]
         desc_data = ["Time in [s]"] + [var.description for var in sorted_vars]
         
         len_name_data, name_data = fmi_util.convert_str_list(name_data)
         len_desc_data, desc_data = fmi_util.convert_str_list(desc_data)
+        """
+        len_name_data, name_data, len_desc_data, desc_data = fmi_util.convert_sorted_vars_name_desc(sorted_vars)
         
         self._write_header("name", len_name_data, len_name_items, "char")
         self.dump_native_data(name_data)

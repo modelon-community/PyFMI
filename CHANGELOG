@@ -1,5 +1,8 @@
 --- CHANGELOG ---
 
+--- PyFMI-2.5.2 ---
+    * Fixed unicode symbols in result files (ticket:5797)
+
 --- PyFMI-2.5.1 ---
     * Fixed a number of encode/decoding issues for Python3 (ticket:5786)
     * Forced no copy if the provided array is already correct, minor 

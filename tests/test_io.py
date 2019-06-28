@@ -149,7 +149,22 @@ class TestResultFileText:
         
         assert res.description[res.get_variable_index("J1.phi")] == "Absolute rotation angle of component"
     
+    @testattr(stddist = True)
+    def test_get_description_unicode(self):
+        model = Dummy_FMUModelME1([], "Description.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model.initialize()
+        
+        result_writer = ResultHandlerFile(model)
+        result_writer.set_options(model.simulate_options())
+        result_writer.simulation_start()
+        result_writer.initialize_complete()
+        result_writer.integration_point()
+        result_writer.simulation_end()
+        
+        res = ResultDymolaTextual('Description_result.txt')
+        desc = res.description[res.get_variable_index("x")] 
 
+        assert desc == u"Test symbols '' ‘’"
     
     @testattr(stddist = True)
     def test_work_flow_me1(self):
@@ -375,6 +390,26 @@ if assimulo_installed:
             _run_negated_alias(simple_alias, "binary")
 
 class TestResultFileBinary:
+    @testattr(stddist = True)
+    def test_get_description_unicode(self):
+        model = Dummy_FMUModelME1([], "Description.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model.initialize()
+        
+        result_writer = ResultHandlerBinaryFile(model)
+        result_writer.set_options(model.simulate_options())
+        result_writer.simulation_start()
+        result_writer.initialize_complete()
+        result_writer.integration_point()
+        result_writer.simulation_end()
+        
+        res = ResultDymolaBinary('Description_result.mat')
+        
+        desc = res.description[res.get_variable_index("x")]
+        #This handling should in the future be nativly handled by the IO module        
+        desc = desc.encode("latin_1", "replace").decode("utf-8", "replace")
+        
+        assert desc == u"Test symbols '' ‘’"
+        
     @testattr(stddist = True)
     def test_get_description(self):
         model = Dummy_FMUModelME1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)

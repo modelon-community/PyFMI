@@ -245,6 +245,14 @@ class Test_FMUModelCS1:
         assert os.path.exists("Test_log.txt")
 
 class Test_FMUModelBase:
+    @testattr(stddist = True)
+    def test_unicode_description(self):
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "Description.fmu")
+        model = FMUModelME1(full_path, _connect_dll=False)
+        
+        desc = model.get_variable_description("x")
+
+        assert desc == "Test symbols '' ‘’"
     
     @testattr(stddist = True)
     def test_get_erronous_nominals(self):
@@ -392,7 +400,6 @@ class Test_FMUModelME2:
             np.allclose(A.toarray(),B.toarray())
             A = func(use_structure_info=False)
             B = func(use_structure_info=False, output_matrix=A)
-            print(A)
             assert A is B
             np.allclose(A,B)
             C = func(use_structure_info=True, output_matrix=A)
@@ -487,6 +494,14 @@ class Test_FMUModelME2:
         nose.tools.assert_raises(FMUException, model.get_variable_display_unit, "J1.w")
 
 class Test_FMUModelBase2:
+    @testattr(stddist = True)
+    def test_unicode_description(self):
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Description.fmu")
+        model = FMUModelME2(full_path, _connect_dll=False)
+        
+        desc = model.get_variable_description("x")
+
+        assert desc == "Test symbols '' ‘’"
     
     @testattr(stddist = True)
     def test_declared_enumeration_type(self):

@@ -17,6 +17,12 @@
 """
 Module containing the FMI interface Python wrappers.
 """
+"""
+For profiling:
+# cython: linetrace=True
+# cython: binding=True
+# distutils: define_macros=CYTHON_TRACE_NOGIL=1
+"""
 import os
 import sys
 import logging
@@ -36,8 +42,9 @@ from pyfmi.common.core import create_temp_dir, delete_temp_dir
 from pyfmi.common.core import create_temp_file, delete_temp_file
 #from pyfmi.common.core cimport BaseModel
 
-from pyfmi.common import python3_flag, encode, decode
-from pyfmi.fmi_util import cpr_seed, enable_caching
+#from pyfmi.common import python3_flag, encode, decode
+from pyfmi.fmi_util import cpr_seed, enable_caching, python3_flag
+from pyfmi.fmi_util cimport encode, decode
 
 int   = N.int32
 N.int = N.int32
@@ -2185,7 +2192,6 @@ cdef class FMUModelBase(ModelBase):
 
             if selected_filter:
                 for j in range(length_filter):
-                    #if re.match(filter_list[j], name):
                     if filter_list[j].match(name):
                         break
                 else:
