@@ -188,6 +188,7 @@ class Dummy_FMUModelME2(FMUModelME2):
         self.nominal_continuous_states = np.ones(self.get_ode_sizes()[0])
         self.variables = self.get_model_variables(include_alias=False)
         self.negated_aliases = negated_aliases
+        self.states = self.get_states_list()
         
         self.reset()
     
@@ -202,7 +203,7 @@ class Dummy_FMUModelME2(FMUModelME2):
         for alias in self.negated_aliases:
             self.values[self.variables[alias[1]].value_reference] = -self.values[self.variables[alias[0]].value_reference]
         
-        states = self.get_states_list()
+        states = self.states
         for i,state in enumerate(states):
             self.continuous_states[i] = self.values[states[state].value_reference]
     
@@ -227,7 +228,7 @@ class Dummy_FMUModelME2(FMUModelME2):
         pass
     
     def completed_integrator_step(self, *args, **kwargs):
-        states = self.get_states_list()
+        states = self.states
         for i,state in enumerate(states):
             self.values[states[state].value_reference] = self.continuous_states[i]
         for alias in self.negated_aliases:
