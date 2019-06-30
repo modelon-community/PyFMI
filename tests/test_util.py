@@ -141,8 +141,16 @@ class Dummy_FMUModelCS2(FMUModelCS2):
     def setup_experiment(self, *args, **kwargs):
         self.time = 0.0
     
+    def enter_initialization_mode(self, *args, **kwargs):
+        self._has_entered_init_mode = True
+        return 0
+    
+    def exit_initialization_mode(self, *args, **kwargs):
+        self._has_entered_init_mode = True
+        return 0
+    
     def initialize(self, *args, **kwargs):
-        pass
+        self.enter_initialization_mode()
     
     def event_update(self, *args, **kwargs):
         pass
@@ -174,6 +182,10 @@ class Dummy_FMUModelCS2(FMUModelCS2):
     
     def get_boolean(self, vref):
         return self.get_real(vref)
+    
+    def set_real(self, vref, values):
+        for i,v in enumerate(vref):
+            self.values[v] = values[i]
 
 class Dummy_FMUModelME2(FMUModelME2):
     #Override properties
