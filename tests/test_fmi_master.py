@@ -20,20 +20,19 @@ import os
 import numpy as np
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
-from pyfmi.fmi_coupled import CoupledFMUModelME2
-from pyfmi.fmi_extended import FMUModelME1Extended
+from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
-import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
 from pyfmi import Master
-from pyfmi.tests.test_util import Dummy_FMUModelME2
-from pyfmi.common.io import ResultHandler
+from pyfmi.tests.test_util import Dummy_FMUModelME2, Dummy_FMUModelCS2
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 
 cs2_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0")
 me2_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0")
+
+import warnings
+warnings.filterwarnings("ignore")
 
 class Test_Master:
     
@@ -83,7 +82,7 @@ class Test_Master:
     def test_basic_algebraic_loop(self):
         model_sub1 = FMUModelCS2("LinearStability.SubSystem1.fmu", cs2_xml_path, _connect_dll=False)
         model_sub2 = FMUModelCS2("LinearStability.SubSystem2.fmu", cs2_xml_path, _connect_dll=False)
-       
+        
         models = [model_sub1, model_sub2]
         connections = [(model_sub1,"y1",model_sub2,"u2"),
                    (model_sub2,"y2",model_sub1,"u1")]
@@ -100,6 +99,104 @@ class Test_Master:
                    
         sim = Master(models, connections)
         assert not sim.algebraic_loops
+    
+    @testattr(stddist = True)
+    def test_basic_simulation(self):
+        model_sub1 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem1.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub2 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem2.fmu", cs2_xml_path, _connect_dll=False)
+        
+        a1 = model_sub1.values[model_sub1.get_variable_valueref("a1")]
+        b1 = model_sub1.values[model_sub1.get_variable_valueref("b1")]
+        c1 = model_sub1.values[model_sub1.get_variable_valueref("c1")]
+        d1 = model_sub1.values[model_sub1.get_variable_valueref("d1")]
+        
+        a2 = model_sub2.values[model_sub2.get_variable_valueref("a2")]
+        b2 = model_sub2.values[model_sub2.get_variable_valueref("b2")]
+        c2 = model_sub2.values[model_sub2.get_variable_valueref("c2")]
+        d2 = model_sub2.values[model_sub2.get_variable_valueref("d2")]
+        
+        def do_step1(current_t, step_size, new_step=True):
+            u1 = model_sub1.values[model_sub1.get_variable_valueref("u1")]
+            
+            model_sub1.continuous_states = 1.0/a1*(np.exp(a1*step_size)-1.0)*b1*u1+np.exp(a1*step_size)*model_sub1.continuous_states
+            model_sub1.values[model_sub1.get_variable_valueref("y1")] = c1*model_sub1.continuous_states+d1*u1
+            model_sub1.completed_integrator_step()
+            return 0
+        
+        def do_step2(current_t, step_size, new_step=True):
+            u2 = model_sub2.values[model_sub2.get_variable_valueref("u2")]
+            
+            model_sub2.continuous_states = 1.0/a2*(np.exp(a2*step_size)-1.0)*b2*u2+np.exp(a2*step_size)*model_sub2.continuous_states
+            model_sub2.values[model_sub2.get_variable_valueref("y2")] = c2*model_sub2.continuous_states+d2*u2
+            model_sub2.completed_integrator_step()
+            return 0
+            
+        model_sub1.do_step = do_step1
+        model_sub2.do_step = do_step2
+        
+        models = [model_sub1, model_sub2]
+        connections = [(model_sub1,"y1",model_sub2,"u2"),
+                   (model_sub2,"y2",model_sub1,"u1")]
+                   
+        master = Master(models, connections)
+       
+        opts = master.simulate_options()
+        opts["step_size"] = 0.0005
+       
+        res = master.simulate(options=opts)
+        
+        nose.tools.assert_almost_equal(res[model_sub1].final("x1"), 0.0859764038708439, 3)
+        nose.tools.assert_almost_equal(res[model_sub2].final("x2"), 0.008392664839635064, 4)
+    
+    @testattr(stddist = True)
+    def test_unstable_simulation(self):
+        model_sub1 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem1.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub2 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem2.fmu", cs2_xml_path, _connect_dll=False)
+        
+        model_sub2.set("d2", 1.1) #Coupled system becomes unstable
+        
+        a1 = model_sub1.values[model_sub1.get_variable_valueref("a1")]
+        b1 = model_sub1.values[model_sub1.get_variable_valueref("b1")]
+        c1 = model_sub1.values[model_sub1.get_variable_valueref("c1")]
+        d1 = model_sub1.values[model_sub1.get_variable_valueref("d1")]
+        
+        a2 = model_sub2.values[model_sub2.get_variable_valueref("a2")]
+        b2 = model_sub2.values[model_sub2.get_variable_valueref("b2")]
+        c2 = model_sub2.values[model_sub2.get_variable_valueref("c2")]
+        d2 = model_sub2.values[model_sub2.get_variable_valueref("d2")]
+        
+        def do_step1(current_t, step_size, new_step=True):
+            u1 = model_sub1.values[model_sub1.get_variable_valueref("u1")]
+            
+            model_sub1.continuous_states = 1.0/a1*(np.exp(a1*step_size)-1.0)*b1*u1+np.exp(a1*step_size)*model_sub1.continuous_states
+            model_sub1.values[model_sub1.get_variable_valueref("y1")] = c1*model_sub1.continuous_states+d1*u1
+            model_sub1.completed_integrator_step()
+            return 0
+        
+        def do_step2(current_t, step_size, new_step=True):
+            u2 = model_sub2.values[model_sub2.get_variable_valueref("u2")]
+            
+            model_sub2.continuous_states = 1.0/a2*(np.exp(a2*step_size)-1.0)*b2*u2+np.exp(a2*step_size)*model_sub2.continuous_states
+            model_sub2.values[model_sub2.get_variable_valueref("y2")] = c2*model_sub2.continuous_states+d2*u2
+            model_sub2.completed_integrator_step()
+            return 0
+            
+        model_sub1.do_step = do_step1
+        model_sub2.do_step = do_step2
+        
+        models = [model_sub1, model_sub2]
+        connections = [(model_sub1,"y1",model_sub2,"u2"),
+                   (model_sub2,"y2",model_sub1,"u1")]
+                   
+        master = Master(models, connections)
+       
+        opts = master.simulate_options()
+        opts["step_size"] = 0.0005
+       
+        res = master.simulate(final_time=0.3, options=opts)
+       
+        assert abs(res[model_sub1].final("x1")) > 100
+        assert abs(res[model_sub2].final("x2")) > 100
 
 
 """
@@ -121,30 +218,7 @@ class Test_Master_Simulation:
                                     compiler_options={"generate_ode_jacobian": True}, compile_to="LinearSub1Dir.fmu")
         cls.linear_sub2_dir = compile_fmu("LinearCoSimulation.LinearSubSystem2", file_name, target="cs", version="2.0",
                                     compiler_options={"generate_ode_jacobian": True}, compile_to="LinearSub2Dir.fmu")
-   
-    @testattr(stddist = True)
-    def test_basic_simulation(self):
-        model = load_fmu(self.linear_full)
-       
-        model_sub1 = load_fmu(self.linear_sub1)
-        model_sub2 = load_fmu(self.linear_sub2)
-       
-        models = [model_sub1, model_sub2]
-        connections = [(model_sub1,"y1",model_sub2,"u2"),
-                   (model_sub2,"y2",model_sub1,"u1")]
-                   
-        master = Master(models, connections)
-       
-        opts = master.simulate_options()
-        opts["step_size"] = 0.0005
-       
-        res = master.simulate(options=opts)
-       
-        res_full = model.simulate()
-       
-        nose.tools.assert_almost_equal(res[model_sub1].final("x1"), res_full.final("p1.x1"), 2)
-        nose.tools.assert_almost_equal(res[model_sub2].final("x2"), res_full.final("p2.x2"), 2)
-       
+
     @testattr(stddist = True)
     def test_linear_correction_simulation(self):
         model = load_fmu(self.linear_full)
@@ -227,28 +301,6 @@ class Test_Master_Simulation:
         #plt.plot(res[model_sub1]["time"], res[model_sub1]["x1"])
         #plt.plot(res_full["time"], res_full["p1.x1"])
         #plt.show()
-
-    @testattr(stddist = True)
-    def test_unstable_simulation(self):
-        model = load_fmu(self.linear_full)
-       
-        model_sub1 = load_fmu(self.linear_sub1)
-        model_sub2 = load_fmu(self.linear_sub2)
-        model_sub2.set("d2", 1.1) #Coupled system becomes unstable
-       
-        models = [model_sub1, model_sub2]
-        connections = [(model_sub1,"y1",model_sub2,"u2"),
-                   (model_sub2,"y2",model_sub1,"u1")]
-                   
-        master = Master(models, connections)
-       
-        opts = master.simulate_options()
-        opts["step_size"] = 0.0005
-       
-        res = master.simulate(final_time=0.3, options=opts)
-       
-        assert abs(res[model_sub1].final("x1")) > 100
-        assert abs(res[model_sub2].final("x2")) > 100
 
     @testattr(stddist = True)
     def test_initialize(self):

@@ -23,7 +23,6 @@ import logging
 import fnmatch
 import re
 from collections import OrderedDict
-from pyfmi.simulation.assimulo_interface import FMIODE
 
 import numpy as N
 cimport numpy as N
@@ -479,6 +478,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
         self._allocated_fmu = True
         
         #Create an assimulo problem
+        from pyfmi.simulation.assimulo_interface import FMIODE
         self._explicit_problem = FMIODE(self, input=None, result_file_name = '',
                                         with_jacobian=False, start_time=start_time)
         

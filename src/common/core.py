@@ -521,6 +521,7 @@ class Trajectory:
         self._abscissa = abscissa.astype('float')
         self._ordinate = ordinate
         self._n = N.size(abscissa)
+        self._n_ordinate = N.size(self.ordinate,1)
         self._x0 = abscissa[0]
         self._xf = abscissa[-1]
         
@@ -590,8 +591,8 @@ class TrajectoryLinearInterpolation(Trajectory):
             Two dimensional n x m matrix containing the ordinate values 
             corresponding to the argument x.
         """        
-        y = N.zeros([N.size(x),N.size(self.ordinate,1)])
-        for i in range(N.size(y,1)):
+        y = N.zeros([N.size(x),self._n_ordinate])
+        for i in range(self._n_ordinate):
             y[:,i] = N.interp(x,self.abscissa,self.ordinate[:,i])
         return y
 

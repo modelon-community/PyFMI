@@ -16,7 +16,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import pyfmi.fmi as fmi
-from pyfmi.fmi_algorithm_drivers import FMICSAlgOptions, AssimuloSimResult
 from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException
 from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerDummy
 from pyfmi.common.core import TrajectoryLinearInterpolation
@@ -1074,6 +1073,7 @@ cdef class Master:
                 result_object = ResultHandlerDummy(model)
             else:
                 raise fmi.FMUException("Currently only writing result to file and none is supported.")
+            from pyfmi.fmi_algorithm_drivers import FMICSAlgOptions
             local_opts = FMICSAlgOptions()
             local_opts["result_file_name"] = model.get_identifier()+'_'+str(i)+'_result.txt'
             local_opts["filter"] = opts["filter"][model]
@@ -1392,6 +1392,7 @@ cdef class Master:
         #Load data
         for i,model in enumerate(self.models):
             if opts["result_handling"] == "file":
+                from pyfmi.fmi_algorithm_drivers import AssimuloSimResult
                 dym_textual = ResultDymolaTextual(model.get_identifier()+'_'+str(i)+'_result.txt')
                 res[i] = AssimuloSimResult(model, model.get_identifier()+'_'+str(i)+'_result.txt', None, dym_textual, None)
                 res[model] = res[i]

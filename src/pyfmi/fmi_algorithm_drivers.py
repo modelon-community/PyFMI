@@ -35,19 +35,6 @@ from pyfmi.common.core import TrajectoryUserFunction
 
 from timeit import default_timer as timer
 
-try:
-    import assimulo
-    assimulo_present = True
-except:
-    logging.warning(
-        'Could not load Assimulo module. Check pyfmi.check_packages()')
-    assimulo_present = False
-
-if assimulo_present:
-    from pyfmi.simulation.assimulo_interface import FMIODE, FMIODESENS, FMIODE2, FMIODESENS2
-    from pyfmi.simulation.assimulo_interface import write_data
-    import assimulo.solvers as solvers
-
 default_int = int
 int = N.int32
 N.int = N.int32
@@ -155,6 +142,10 @@ class AssimuloFMIAlgOptions(OptionBase):
         atol    --
             The absolute tolerance.
             Default: "Default" (rtol*0.01*(nominal values of the continuous states))
+        
+        maxh    --
+            The maximum step-size allowed to be used by the solver.
+            Default: 0.0 (i.e. no limit on the step-size)
 
         discr   --
             The discretization method. Can be either 'BDF' or 'Adams'
@@ -180,7 +171,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'filter':None,
             'extra_equations':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
-                            'atol':"Default",'rtol':"Default",'external_event_detection':False},
+                            'atol':"Default",'rtol':"Default","maxh":0.0,'external_event_detection':False},
             'Radau5ODE_options':{'atol':"Default",'rtol':"Default"},
             'RungeKutta34_options':{'atol':"Default",'rtol':"Default"},
             'Dopri5_options':{'atol':"Default",'rtol':"Default"},
@@ -233,10 +224,15 @@ class AssimuloFMIAlg(AlgorithmBase):
         self.model = model
         self.timings = {}
         self.time_start_total = timer()
-
-        if not assimulo_present:
+        
+        try:
+            import assimulo
+        except:
             raise fmi.FMUException(
                 'Could not find Assimulo package. Check pyfmi.check_packages()')
+                
+        # import Assimulo dependent classes
+        from pyfmi.simulation.assimulo_interface import FMIODE, FMIODESENS, FMIODE2, FMIODESENS2
 
         # set start time, final time and input trajectory
         self.start_time = start_time
@@ -417,6 +413,8 @@ class AssimuloFMIAlg(AlgorithmBase):
             self.result_file_name = self.options['result_file_name']
 
         # solver
+        import assimulo.solvers as solvers
+        
         solver = self.options['solver']
         if hasattr(solvers, solver):
             self.solver = getattr(solvers, solver)

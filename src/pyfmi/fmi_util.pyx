@@ -33,7 +33,22 @@ import marshal
 import fmi
 import sys
 
-from pyfmi.common import python3_flag, encode, decode
+python3_flag = True if sys.hexversion > 0x03000000 else False
+
+cpdef decode(x):
+    if python3_flag:
+        return x.decode()
+    else:
+        return x
+
+cpdef encode(x):
+    if python3_flag:
+        if isinstance(x, str):
+            return x.encode()
+        else:
+            return x
+    else:
+        return x.encode("utf-8")
 
 def enable_caching(obj):
     @functools.wraps(obj, ('__name__', '__doc__'))
@@ -299,6 +314,7 @@ cpdef convert_str_list(list data):
     cdef bytes py_string
     
     for i in range(items):
+        data[i] = encode(data[i])
         j = len(data[i])
         if j+1 > length:
             length = j+1
@@ -306,8 +322,7 @@ cpdef convert_str_list(list data):
     output = <char*>FMIL.calloc(items*length,sizeof(char))
     
     for i in range(items):
-        py_byte_string = encode(data[i])#.encode("latin-1")
-        tmp = py_byte_string
+        tmp = data[i]
         tmp_length = len(tmp)
         k = i*length
         
@@ -318,7 +333,58 @@ cpdef convert_str_list(list data):
     
     FMIL.free(output)
     
-    return length, py_string#.encode("latin-1")
+    return length, py_string
+
+cpdef convert_sorted_vars_name_desc(list sorted_vars):
+    cdef int items = len(sorted_vars)
+    cdef int i, name_length_trial, desc_length_trial, kd, kn
+    cdef list desc = [encode("Time in [s]")]
+    cdef list name = [encode("time")]
+    cdef int name_length = len(name[0])
+    cdef int desc_length = len(desc[0])
+    cdef char *desc_output
+    cdef char *name_output
+    cdef char *ctmp_name
+    cdef char *ctmp_desc
+    
+    for i in range(items):
+        var = sorted_vars[i]
+        tmp_name = encode(var.name)
+        tmp_desc = encode(var.description)
+        name.append(tmp_name)
+        desc.append(tmp_desc)
+        
+        name_length_trial = len(tmp_name)
+        desc_length_trial = len(tmp_desc)
+        
+        if name_length_trial+1 > name_length:
+             name_length = name_length_trial + 1
+        if desc_length_trial+1 > desc_length:
+             desc_length = desc_length_trial + 1
+    
+    desc_output = <char*>FMIL.calloc((items+1)*desc_length,sizeof(char))
+    name_output = <char*>FMIL.calloc((items+1)*name_length,sizeof(char))
+    
+    for i in range(items+1):
+        ctmp_name = name[i]
+        ctmp_desc = desc[i]
+        
+        name_length_trial = len(ctmp_name)
+        desc_length_trial = len(ctmp_desc)
+        kn = i*name_length
+        kd = i*desc_length
+        
+        FMIL.memcpy(&name_output[kn], ctmp_name, name_length_trial)
+        FMIL.memcpy(&desc_output[kd], ctmp_desc, desc_length_trial)
+    
+    py_desc_string = desc_output[:(items+1)*desc_length]
+    py_name_string = name_output[:(items+1)*name_length]
+    
+    FMIL.free(name_output)
+    FMIL.free(desc_output)
+    
+    return name_length, py_name_string, desc_length, py_desc_string
+    
 
 cpdef convert_scalarvariable_name_to_str(list data):
     cdef int length = 0
