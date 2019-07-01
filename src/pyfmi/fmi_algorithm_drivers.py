@@ -142,6 +142,10 @@ class AssimuloFMIAlgOptions(OptionBase):
         atol    --
             The absolute tolerance.
             Default: "Default" (rtol*0.01*(nominal values of the continuous states))
+        
+        maxh    --
+            The maximum step-size allowed to be used by the solver.
+            Default: 0.0 (i.e. no limit on the step-size)
 
         discr   --
             The discretization method. Can be either 'BDF' or 'Adams'
@@ -167,7 +171,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'filter':None,
             'extra_equations':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
-                            'atol':"Default",'rtol':"Default",'external_event_detection':False},
+                            'atol':"Default",'rtol':"Default","maxh":0.0,'external_event_detection':False},
             'Radau5ODE_options':{'atol':"Default",'rtol':"Default"},
             'RungeKutta34_options':{'atol':"Default",'rtol':"Default"},
             'Dopri5_options':{'atol':"Default",'rtol':"Default"},
