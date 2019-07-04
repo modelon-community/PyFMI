@@ -75,8 +75,6 @@ JModelica.org distribution. Using PyFMI together with the Python
 simulation package `Assimulo <http://pypi.python.org/pypi/Assimulo>`_ adds industrial grade simulation 
 capabilities of FMUs to Python.
 
-For a forum discussing usage and development of PyFMI, see http://www.jmodelica.org/forum.
-
 Requirements:
 -------------
 - `FMI Library (at least 2.0.1) <http://www.jmodelica.org/FMILibrary>`_
