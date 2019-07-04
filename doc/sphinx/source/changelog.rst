@@ -3,6 +3,9 @@
 Changelog
 ==========
 
+--- PyFMI-2.5.3 ---
+    * Fixed wrong default value for FMUModelME1Extended (ticket:5801)
+
 --- PyFMI-2.5.2 ---
     * Improved relative imports of Assimulo dependent classes (ticket:5798)
     * Fixed unicode symbols in result files (ticket:5797)
