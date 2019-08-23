@@ -100,8 +100,7 @@ class Test_Master:
         sim = Master(models, connections)
         assert not sim.algebraic_loops
     
-    @testattr(stddist = True)
-    def test_basic_simulation(self):
+    def _basic_simulation(self, result_handling):
         model_sub1 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem1.fmu", cs2_xml_path, _connect_dll=False)
         model_sub2 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem2.fmu", cs2_xml_path, _connect_dll=False)
         
@@ -142,11 +141,86 @@ class Test_Master:
        
         opts = master.simulate_options()
         opts["step_size"] = 0.0005
-       
+        opts["result_handling"] = result_handling
+        
         res = master.simulate(options=opts)
         
         nose.tools.assert_almost_equal(res[model_sub1].final("x1"), 0.0859764038708439, 3)
         nose.tools.assert_almost_equal(res[model_sub2].final("x2"), 0.008392664839635064, 4)
+    
+    @testattr(stddist = True)
+    def test_basic_simulation_txt_file(self):
+        self._basic_simulation(result_handling="file")
+    
+    @testattr(stddist = True)
+    def test_basic_simulation_mat_file(self):
+        self._basic_simulation(result_handling="binary")
+    
+    @testattr(stddist = True)
+    def test_integer_connections(self):
+        model_sub1 = Dummy_FMUModelCS2([], "IntegerStep.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub2 = Dummy_FMUModelCS2([], "GainTestInteger.fmu", cs2_xml_path, _connect_dll=False)
+        
+        model_sub1.set("y", 1)
+        def do_step1(current_t, step_size, new_step=True):
+            model_sub1.values[model_sub1.get_variable_valueref("y")] = 1 if current_t+step_size < 0.5 else 3
+            model_sub1.completed_integrator_step()
+            return 0
+        
+        def do_step2(current_t, step_size, new_step=True):
+            u = model_sub2.values[model_sub2.get_variable_valueref("u")]
+            model_sub2.values[model_sub2.get_variable_valueref("y")] = 10*u
+            model_sub2.completed_integrator_step()
+            return 0
+            
+        model_sub1.do_step = do_step1
+        model_sub2.do_step = do_step2
+        
+        models = [model_sub1, model_sub2]
+        connections=[(model_sub1,'y',model_sub2,'u')]
+
+        master = Master(models,connections)
+
+        opts = master.simulate_options()
+        opts["block_initialization"] = True
+
+        res = master.simulate(start_time=0.0,final_time=2.0, options=opts)
+        
+        assert res[model_sub2]["u"][0] == 1
+        assert res[model_sub2]["u"][-1] == 3
+    
+    @testattr(stddist = True)
+    def test_integer_to_real_connections(self):
+        model_sub1 = Dummy_FMUModelCS2([], "IntegerStep.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub2 = Dummy_FMUModelCS2([], "GainTestReal.fmu", cs2_xml_path, _connect_dll=False)
+        
+        model_sub1.set("y", 1)
+        def do_step1(current_t, step_size, new_step=True):
+            model_sub1.values[model_sub1.get_variable_valueref("y")] = 1 if current_t+step_size < 0.5 else 3
+            model_sub1.completed_integrator_step()
+            return 0
+        
+        def do_step2(current_t, step_size, new_step=True):
+            u = model_sub2.values[model_sub2.get_variable_valueref("u")]
+            model_sub2.values[model_sub2.get_variable_valueref("y")] = 10*u
+            model_sub2.completed_integrator_step()
+            return 0
+            
+        model_sub1.do_step = do_step1
+        model_sub2.do_step = do_step2
+        
+        models = [model_sub1, model_sub2]
+        connections=[(model_sub1,'y',model_sub2,'u')]
+
+        master = Master(models,connections)
+
+        opts = master.simulate_options()
+        opts["block_initialization"] = True
+
+        res = master.simulate(start_time=0.0,final_time=2.0, options=opts)
+        
+        assert res[model_sub2]["u"][0] == 1.0
+        assert res[model_sub2]["u"][-1] == 3.0
     
     @testattr(stddist = True)
     def test_unstable_simulation(self):

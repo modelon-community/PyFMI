@@ -175,7 +175,7 @@ class Dummy_FMUModelCS2(FMUModelCS2):
         vals = []
         for v in vref:
             vals.append(self.values[v])
-        return np.array(vals)
+        return np.array(vals).astype(float)
     
     def get_integer(self, vref):
         return self.get_real(vref)
@@ -184,6 +184,10 @@ class Dummy_FMUModelCS2(FMUModelCS2):
         return self.get_real(vref)
     
     def set_real(self, vref, values):
+        for i,v in enumerate(vref):
+            self.values[v] = values[i]
+    
+    def set_integer(self, vref, values):
         for i,v in enumerate(vref):
             self.values[v] = values[i]
 

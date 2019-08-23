@@ -1,5 +1,13 @@
 --- CHANGELOG ---
 
+--- PyFMI-trunk ---
+    * Added support for binary result saving for coupled CS simulations
+      and switched the default storing option to binary (ticket:5820)
+    * Changed default value of "linear_correction" to False for coupled
+      CS simulations (ticket:5821)
+    * Fixed issue with discrete couplings for coupled CS simulations
+      (ticket:5822)
+
 --- PyFMI-2.5.3 ---
     * Fixed wrong default value for FMUModelME1Extended (ticket:5801)
 

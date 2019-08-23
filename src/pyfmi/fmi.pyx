@@ -1378,7 +1378,7 @@ cdef class FMUModelBase(ModelBase):
         status = FMIL.fmi1_import_set_real(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_real_t*>val.data)
 
         if status != 0:
-            raise FMUException('Failed to set the Real values.')
+            raise FMUException('Failed to set the Real values. See the log for possibly more information.')
 
     def get_integer(self, valueref):
         """
@@ -1446,7 +1446,7 @@ cdef class FMUModelBase(ModelBase):
         status = FMIL.fmi1_import_set_integer(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_integer_t*>val.data)
 
         if status != 0:
-            raise FMUException('Failed to set the Integer values.')
+            raise FMUException('Failed to set the Integer values. See the log for possibly more information.')
 
 
     def get_boolean(self, valueref):
@@ -1540,7 +1540,7 @@ cdef class FMUModelBase(ModelBase):
         FMIL.free(val)
 
         if status != 0:
-            raise FMUException('Failed to set the Boolean values.')
+            raise FMUException('Failed to set the Boolean values. See the log for possibly more information.')
 
     def get_string(self, valueref):
         """
@@ -1616,7 +1616,7 @@ cdef class FMUModelBase(ModelBase):
         FMIL.free(val)
 
         if status != 0:
-            raise FMUException('Failed to set the String values.')
+            raise FMUException('Failed to set the String values. See the log for possibly more information.')
 
     def set_debug_logging(self,flag):
         """
@@ -3907,7 +3907,7 @@ cdef class FMUModelBase2(ModelBase):
         status = FMIL.fmi2_import_set_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, input_valueref.size, <FMIL.fmi2_real_t*> set_value.data)
 
         if status != 0:
-            raise FMUException('Failed to set the Real values.')
+            raise FMUException('Failed to set the Real values. See the log for possibly more information.')
 
     def get_integer(self, valueref):
         """
@@ -3976,7 +3976,7 @@ cdef class FMUModelBase2(ModelBase):
         status = FMIL.fmi2_import_set_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> set_value.data)
 
         if status != 0:
-            raise FMUException('Failed to set the Integer values.')
+            raise FMUException('Failed to set the Integer values. See the log for possibly more information.')
 
     def get_boolean(self, valueref):
         """
@@ -4069,7 +4069,7 @@ cdef class FMUModelBase2(ModelBase):
         FMIL.free(set_value)
 
         if status != 0:
-            raise FMUException('Failed to set the Boolean values.')
+            raise FMUException('Failed to set the Boolean values. See the log for possibly more information.')
 
     def get_string(self, valueref):
         """
@@ -4145,7 +4145,7 @@ cdef class FMUModelBase2(ModelBase):
         FMIL.free(val)
 
         if status != 0:
-            raise FMUException('Failed to set the String values.')
+            raise FMUException('Failed to set the String values. See the log for possibly more information.')
 
     def _set(self, variable_name, value):
         """
