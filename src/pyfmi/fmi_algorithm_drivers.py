@@ -123,6 +123,12 @@ class AssimuloFMIAlgOptions(OptionBase):
             example is filter = "*der" , stor all variables ending with
             'der'. Can also be a list.
             Default: None
+        
+        partial_jacobian_update (experimental) --
+            Determines if only a part of the Jacobian should be updated
+            at an event. Note that this requires that the FMU provides 
+            this information.
+            Default: False
 
 
     The different solvers provided by the Assimulo simulation package provides
@@ -170,6 +176,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'return_result': True,
             'filter':None,
             'extra_equations':None,
+            'partial_jacobian_update': False,
             'CVode_options':{'discr':'BDF','iter':'Newton',
                             'atol':"Default",'rtol':"Default","maxh":0.0,'external_event_detection':False},
             'Radau5ODE_options':{'atol':"Default",'rtol':"Default","maxh":0.0},
@@ -369,16 +376,24 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         if not self.input and (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
             if self.options["sensitivities"]:
-                self.probl = FMIODESENS2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time, parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
+                self.probl = FMIODESENS2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, 
+                                         start_time=self.start_time, parameters=self.options["sensitivities"],logging=self.options["logging"], 
+                                         result_handler=self.result_handler)
             else:
-                self.probl = FMIODE2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler,extra_equations=self.options["extra_equations"])
+                self.probl = FMIODE2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, 
+                                     start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler,
+                                     extra_equations=self.options["extra_equations"], partial_jacobian_update=self.options["partial_jacobian_update"])
         elif isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(
-                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
+                                        self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, 
+                                        start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"], 
+                                        result_handler=self.result_handler)
             else:
                 self.probl = FMIODE2(
-                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler, extra_equations=self.options["extra_equations"])
+                                        self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, 
+                                        start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler, 
+                                        extra_equations=self.options["extra_equations"], partial_jacobian_update=self.options["partial_jacobian_update"])
 
         elif not self.input:
             if self.options["sensitivities"]:

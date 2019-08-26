@@ -5990,7 +5990,22 @@ cdef class FMUModelBase2(ModelBase):
         self._derivatives_inputs_dependencies = inputs
             
         return states, inputs
-        
+    
+    @enable_caching
+    def __compute_group_A(self, interested_columns):
+        [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
+        if python3_flag:
+            group = cpr_seed(derv_state_dep, list(self.get_states_list().keys()), interested_columns)
+        else:
+            group = cpr_seed(derv_state_dep, self.get_states_list().keys(), interested_columns)
+        return group
+    
+    def _update_A(self, A, interested_columns):
+        group = self.__compute_group_A(interested_columns)
+        #print interested_columns
+        #print("Partial update of the Jacobian, updating %d/%d (compared to %d/%d for a full compression). Detected interested columns: %d/%d"%(len(group["groups"]), self.get_ode_sizes()[0], len(self._group_A["groups"]), self.get_ode_sizes()[0], len(interested_columns), self.get_ode_sizes()[0]))
+        return self._get_directional_proxy(self._states_references, self._derivatives_references, group, True, output_matrix=A)
+    
     def _get_directional_proxy(self, var_ref, func_ref, group=None, add_diag=False, output_matrix=None):
         cdef list data = [], row = [], col = []
         cdef tuple local_group

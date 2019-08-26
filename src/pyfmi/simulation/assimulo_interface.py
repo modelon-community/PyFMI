@@ -33,6 +33,7 @@ from pyfmi.common import python3_flag
 from pyfmi.common.core import TrajectoryLinearInterpolation
 
 from timeit import default_timer as timer
+import re
 
 try:
     import assimulo
@@ -566,7 +567,7 @@ class FMIODE2(Explicit_Problem):
     """
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False, 
-                 result_handler=None, extra_equations=None):
+                 result_handler=None, extra_equations=None, partial_jacobian_update=False):
         """
         Initialize the problem.
         """
@@ -616,6 +617,8 @@ class FMIODE2(Explicit_Problem):
         self._write_header = True
         self._logging = logging
         self._sparse_representation = False
+        self._directly_after_event = False
+        self._partial_jacobian_update = partial_jacobian_update
         
         if f_nbr > 0 and with_jacobian:
             self.jac = self.j #Activates the jacobian
@@ -637,6 +640,23 @@ class FMIODE2(Explicit_Problem):
                     self.jac_nnz += len(self._extra_f_nbr)*len(self._extra_f_nbr)
         else:
             self._extra_f_nbr = 0
+            
+        self._tmp_events_updated_end_tag = ""
+        self._tmp_states_updated = ""
+        self._tmp_derivatives_updated = ""
+        
+        def add_logger(module, level, message):
+            self._tmp_derivatives_updated = self._tmp_states_updated
+            self._tmp_states_updated = self._tmp_events_updated_end_tag
+            self._tmp_events_updated_end_tag = message
+        
+        if partial_jacobian_update:
+            self._model.set_additional_logger(add_logger)
+            
+            self._derivatives_states_deps = self._model.get_derivatives_dependencies()[0]
+            self._derivatives_states_deps_keys = self._derivatives_states_deps.keys()
+            self._states_index_map = {x:i for i,x in enumerate(self._model.get_states_list().keys())}
+            self._event_change_regex = re.compile("\d+")
     
     def _adapt_input(self, input):
         if input != None:
@@ -729,8 +749,14 @@ class FMIODE2(Explicit_Problem):
         #If there are no states return a dummy jacobian.
         if self._f_nbr == 0:
             return N.array([[0.0]])
-        
-        A = self._model._get_A(add_diag=True, output_matrix=self._A)
+            
+        if self._directly_after_event and self._partial_jacobian_update:
+            self._directly_after_event = False
+            #print "Partial Jacobian update of columns: ", self._columns_update
+            A = self._model._update_A(self._A, self._columns_update)
+        else:
+            A = self._model._get_A(add_diag=True, output_matrix=self._A)
+            
         if self._A is None:
             self._A = A
 
@@ -913,6 +939,26 @@ class FMIODE2(Explicit_Problem):
             
         #Enter continuous mode again
         self._model.enter_continuous_time_mode()
+        
+        #Find changes in states
+        if self._partial_jacobian_update:
+            if not self._tmp_events_updated_end_tag.endswith("</EventDerivativesImpacted>"):
+                raise fmi.FMUException("The FMU do not seem to provide information about which states/derivatives was impacted by an event. " \
+                                       "Please set the partial Jacobian update flag to false or make sure the FMU provides correct information")
+            #columns = {i:0 for i in range(self._f_nbr)}
+            columns = {}
+            
+            for x in self._event_change_regex.findall(self._tmp_states_updated):
+                columns[int(x)] = 1
+            
+            for i in self._event_change_regex.findall(self._tmp_derivatives_updated):
+                for x in self._derivatives_states_deps[self._derivatives_states_deps_keys[int(i)]]:
+                    columns[self._states_index_map[x]] = 1
+            
+            #print "Columns to be updated:", len(columns), "/", self._f_nbr, ": ", columns.keys()
+            self._columns_update = columns
+        
+        self._directly_after_event = True
 
     def step_events(self, solver):
         """
