@@ -22,6 +22,7 @@ Module containing the tests for the FMI interface.
 import nose
 import os
 import scipy.sparse.csc
+import numpy as np
 from collections import OrderedDict
 
 from pyfmi import testattr
@@ -43,9 +44,46 @@ class Test_FMIUtil:
         
         groups = fmi_util.cpr_seed(structure, states)
         
-        assert groups[0][5] == [1,2,3]
-        assert groups[1][5] == [5,7]
-        assert groups[2][5] == [8,9]
-        assert groups[0][4] == [0,1,2]
-        assert groups[1][4] == [3,4]
-        assert groups[2][4] == [5,6]
+        assert np.array(groups[0][5] == [1,2,3]).all()
+        assert np.array(groups[1][5] == [5,7]).all()
+        assert np.array(groups[2][5] == [8,9]).all()
+        assert np.array(groups[0][4] == [0,1,2]).all()
+        assert np.array(groups[1][4] == [3,4]).all()
+        assert np.array(groups[2][4] == [5,6]).all()
+    
+    @testattr(stddist = True)
+    def test_cpr_seed_interested_columns(self):
+        structure = OrderedDict([('der(inertia3.phi)', ['inertia3.w']),
+             ('der(inertia3.w)', ['damper.phi_rel', 'inertia3.phi']),
+             ('der(damper.phi_rel)', ['damper.w_rel']),
+             ('der(damper.w_rel)',
+              ['damper.phi_rel', 'damper.w_rel', 'inertia3.phi'])])
+        
+        states = ['inertia3.phi', 'inertia3.w', 'damper.phi_rel', 'damper.w_rel']
+        
+        interested_columns = {0:1, 1:0, 2:0}
+        groups = fmi_util.cpr_seed(structure, states, interested_columns)
+        
+        assert np.array(groups[0][5] == [1,2,3]).all()
+        assert np.array(groups[1][5] == [5,7]).all()
+        assert np.array(groups[0][4] == [0,1,2]).all()
+        assert np.array(groups[1][4] == [3,4]).all()
+        assert len(groups) == 5
+        
+        interested_columns = {0:1, 1:0, 3:0}
+        groups = fmi_util.cpr_seed(structure, states, interested_columns)
+        
+        assert np.array(groups[0][5] == [1,2,3]).all()
+        assert np.array(groups[1][5] == [8,9]).all()
+        assert np.array(groups[0][4] == [0,1,2]).all()
+        assert np.array(groups[1][4] == [5,6]).all()
+        assert len(groups) == 5
+        
+        interested_columns = {1:1, 2:0, 3:0}
+        groups = fmi_util.cpr_seed(structure, states, interested_columns)
+        
+        assert np.array(groups[0][5] == [3,5,7]).all()
+        assert np.array(groups[1][5] == [8,9]).all()
+        assert np.array(groups[0][4] == [2,3,4]).all()
+        assert np.array(groups[1][4] == [5,6]).all()
+        assert len(groups) == 5

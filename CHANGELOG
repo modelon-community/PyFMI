@@ -1,6 +1,8 @@
 --- CHANGELOG ---
 
 --- PyFMI-trunk ---
+    * Added support for computing only a subset of interesting columns
+      when considering the cpr seed (ticket:5825)
     * Fixed so that the log file is kept open during the initialization
       call (ticket:5823)
     * Added support for binary result saving for coupled CS simulations
