@@ -514,7 +514,13 @@ cdef class ModelBase:
                             continue
                     log.append(line.strip("\n"))
         return log
-
+    
+    def _log_open(self):
+        if self.file_object:
+            return True
+        else:
+            return False
+    
     def _open_log_file(self):
         if self._fmu_log_name != NULL:
             self.file_object = open(self._fmu_log_name,'a')
@@ -2913,8 +2919,15 @@ cdef class FMUModelCS1(FMUModelBase):
 
         self.time = start_time
         stop_defined = 1 if stop_time_defined else 0
+        
+        log_open = self._log_open()
+        if not log_open and self.get_log_level() > 2:
+            self._open_log_file()
 
         status = FMIL.fmi1_import_initialize_slave(self._fmu, start_time, stop_defined, stop_time)
+        
+        if not log_open and self.get_log_level() > 2:
+            self._close_log_file()
 
         if status != FMIL.fmi1_status_ok:
             raise FMUException("The slave failed to initialize. See the log for possibly more information.")
@@ -3448,7 +3461,14 @@ cdef class FMUModelME1(FMUModelBase):
             tolerance_controlled = 0
             c_tolerance = 0.0
 
+        log_open = self._log_open()
+        if not log_open and self.get_log_level() > 2:
+            self._open_log_file()
+
         status = FMIL.fmi1_import_initialize(self._fmu, tolerance_controlled, c_tolerance, &self._eventInfo)
+
+        if not log_open and self.get_log_level() > 2:
+            self._close_log_file()
 
         if status == 1:
             if self._enable_logging:
@@ -4426,11 +4446,24 @@ cdef class FMUModelBase2(ModelBase):
                                            fmi2EnterInitializationMode,
                                            fmi2ExitInitializationMode
         """
-        if self.time == None:
-            self.setup_experiment(tolerance_defined, tolerance, start_time, stop_time_defined, stop_time)
+        log_open = self._log_open()
+        if not log_open and self.get_log_level() > 2:
+            self._open_log_file()
         
-        self.enter_initialization_mode()
-        self.exit_initialization_mode()
+        try:
+            if self.time == None:
+                self.setup_experiment(tolerance_defined, tolerance, start_time, stop_time_defined, stop_time)
+            
+            self.enter_initialization_mode()
+            self.exit_initialization_mode()
+        except:
+            if not log_open and self.get_log_level() > 2:
+                self._close_log_file()
+                
+            raise
+        
+        if not log_open and self.get_log_level() > 2:
+            self._close_log_file()
 
     def set_fmil_log_level(self, FMIL.jm_log_level_enu_t level):
         logging.warning("The method 'set_fmil_log_level' is deprecated, use 'set_log_level' instead.")
@@ -6581,7 +6614,14 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         self.time = current_t + step_size
         
+        log_open = self._log_open()
+        if not log_open and self.get_log_level() > 2:
+            self._open_log_file()
+        
         status = FMIL.fmi2_import_do_step(self._fmu, current_t, step_size, new_s)
+        
+        if not log_open and self.get_log_level() > 2:
+            self._close_log_file()
 
         return status
 

@@ -1,6 +1,8 @@
 --- CHANGELOG ---
 
 --- PyFMI-trunk ---
+    * Fixed so that the log file is kept open during the initialization
+      call (ticket:5823)
     * Added support for binary result saving for coupled CS simulations
       and switched the default storing option to binary (ticket:5820)
     * Changed default value of "linear_correction" to False for coupled
