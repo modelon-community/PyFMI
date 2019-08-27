@@ -6002,7 +6002,7 @@ cdef class FMUModelBase2(ModelBase):
         
     def _get_directional_proxy(self, var_ref, func_ref, group=None, add_diag=False, output_matrix=None):
         cdef list data = [], row = [], col = []
-        cdef tuple local_group
+        cdef list local_group
         cdef int nbr_var_ref  = len(var_ref), nbr_func_ref = len(func_ref)
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v = N.zeros(nbr_var_ref, dtype = N.double)
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] data_local

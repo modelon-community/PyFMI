@@ -336,6 +336,92 @@ class Test_FMUModelCS2:
 if assimulo_installed:
     class Test_FMUModelME2_Simulation:
         @testattr(stddist = True)
+        def test_basicsens1(self):
+            #Noncompliant FMI test as 'd' is parameter is not supposed to be able to be set during simulation
+            model = Dummy_FMUModelME2([], "BasicSens1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            
+            def f(*args, **kwargs):
+                d = model.values[model.variables["d"].value_reference]
+                x = model.continuous_states[0]
+                model.values[model.variables["der(x)"].value_reference] = d*x
+                return np.array([d*x])
+            
+            model.get_derivatives = f
+            
+            opts = model.simulate_options()
+            opts["sensitivities"] = ["d"]
+
+            res = model.simulate(options=opts)
+            nose.tools.assert_almost_equal(res.final('dx/dd'), 0.36789, 3)
+            
+            assert res.solver.statistics["nsensfcnfcns"] > 0
+        
+        @testattr(stddist = True)
+        def test_basicsens1dir(self):
+            model = Dummy_FMUModelME2([], "BasicSens1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            
+            caps = model.get_capability_flags()
+            caps["providesDirectionalDerivatives"] = True
+            model.get_capability_flags = lambda : caps
+            
+            def f(*args, **kwargs):
+                d = model.values[model.variables["d"].value_reference]
+                x = model.continuous_states[0]
+                model.values[model.variables["der(x)"].value_reference] = d*x
+                return np.array([d*x])
+            
+            def d(*args, **kwargs):
+                if args[0][0] == 40:
+                    return np.array([-1.0])
+                else:
+                    return model.continuous_states
+                
+            model.get_directional_derivative = d
+            model.get_derivatives = f
+            model._provides_directional_derivatives = lambda : True
+            
+            opts = model.simulate_options()
+            opts["sensitivities"] = ["d"]
+
+            res = model.simulate(options=opts)
+            nose.tools.assert_almost_equal(res.final('dx/dd'), 0.36789, 3)
+
+            assert res.solver.statistics["nsensfcnfcns"] > 0
+            assert res.solver.statistics["nfcnjacs"] == 0
+            
+        @testattr(stddist = True)
+        def test_basicsens2(self):
+            model = Dummy_FMUModelME2([], "BasicSens2.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            
+            caps = model.get_capability_flags()
+            caps["providesDirectionalDerivatives"] = True
+            model.get_capability_flags = lambda : caps
+            
+            def f(*args, **kwargs):
+                d = model.values[model.variables["d"].value_reference]
+                x = model.continuous_states[0]
+                model.values[model.variables["der(x)"].value_reference] = d*x
+                return np.array([d*x])
+            
+            def d(*args, **kwargs):
+                if args[0][0] == 40:
+                    return np.array([-1.0])
+                else:
+                    return model.continuous_states
+                
+            model.get_directional_derivative = d
+            model.get_derivatives = f
+            model._provides_directional_derivatives = lambda : True
+            
+            opts = model.simulate_options()
+            opts["sensitivities"] = ["d"]
+
+            res = model.simulate(options=opts)
+            nose.tools.assert_almost_equal(res.final('dx/dd'), 0.36789, 3)
+            
+            assert res.solver.statistics["nsensfcnfcns"] == 0
+        
+        @testattr(stddist = True)
         def test_relative_tolerance(self):
             model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
             
