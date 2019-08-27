@@ -65,7 +65,7 @@ def enable_caching(obj):
         
     return memoizer
 
-cpdef cpr_seed(dependencies, list column_keys):
+cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
     cdef int i=0,j=0,k=0
     cdef int n_col = len(column_keys)#len(dependencies.keys())
     cdef dict columns_taken# = {key: 1 for key in dependencies.keys() if len(dependencies[key]) == 0}
@@ -116,14 +116,14 @@ cpdef cpr_seed(dependencies, list column_keys):
     
     k = 0
     for i in range(n_col):
-        if columns_taken.has_key(i):
+        if columns_taken.has_key(i) or (interested_columns is not None and not interested_columns.has_key(i)):
             continue
             
         # New group
-        groups[k] = ([i], column_dict[i][:], [row_keys_dict[x] for x in column_dict[i]], [i]*len(column_dict[i]), data_index[i], data_index_with_diag[i])
+        groups[k] = [[i], column_dict[i][:], [row_keys_dict[x] for x in column_dict[i]], [i]*len(column_dict[i]), data_index[i], data_index_with_diag[i]]
         
         for j in range(i+1, n_col):
-            if columns_taken.has_key(j):
+            if columns_taken.has_key(j) or (interested_columns is not None and not interested_columns.has_key(j)):
                 continue
             
             intersect = frozenset(groups[k][1]).intersection(column_dict[j])
@@ -144,7 +144,12 @@ cpdef cpr_seed(dependencies, list column_keys):
                 groups[k][4].extend(data_index[j])
                 groups[k][5].extend(data_index_with_diag[j])
                 columns_taken[j] = 1
-            
+        
+        groups[k][0] = np.array(groups[k][0],dtype=np.int32)
+        groups[k][2] = np.array(groups[k][2],dtype=np.int32)
+        groups[k][3] = np.array(groups[k][3],dtype=np.int32)
+        groups[k][4] = np.array(groups[k][4],dtype=np.int32)
+        groups[k][5] = np.array(groups[k][5],dtype=np.int32)
         k = k + 1
     
     groups["groups"] = list(groups.keys())

@@ -191,6 +191,7 @@ cdef class FMUModelBase2(ModelBase):
     cdef object         _mask_A
     cdef object         _A_row_ind, _A_col_ind
     cdef public object  _has_entered_init_mode
+    cdef WorkerClass2 _worker_object
     
     cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, variablename) except *
     cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, variablename) except *
@@ -211,6 +212,8 @@ cdef class FMUModelBase2(ModelBase):
     cdef int _get_directional_derivative(self, N.ndarray v_ref, N.ndarray z_ref, N.ndarray dv, N.ndarray dz) except -1
     cpdef set_real(self, valueref, values)
     cpdef N.ndarray get_real(self, valueref)
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size)
+    cdef int _get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values)
 
 cdef class FMUModelCS2(FMUModelBase2):
 
@@ -227,3 +230,14 @@ cdef class FMUModelME2(FMUModelBase2):
     cpdef get_derivatives(self)
     cdef public object force_finite_differences
     
+cdef class WorkerClass2:
+    cdef int _dim
+    
+    cdef N.ndarray _tmp1_val, _tmp2_val, _tmp3_val, _tmp4_val
+    cdef N.ndarray _tmp1_ref, _tmp2_ref, _tmp3_ref, _tmp4_ref
+
+    cdef FMIL.fmi2_real_t* get_real_vector(self, int index)
+    cdef FMIL.fmi2_value_reference_t* get_value_reference_vector(self, int index)
+    cdef N.ndarray get_value_reference_numpy_vector(self, int index)
+    cdef N.ndarray get_real_numpy_vector(self, int index)
+    cpdef verify_dimensions(self, int dim)

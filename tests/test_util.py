@@ -19,7 +19,7 @@ import nose
 import os
 import numpy as np
 
-from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
+from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, __ForTestingFMUModelME2
 
 class Dummy_FMUModelME1(FMUModelME1):
     #Override properties
@@ -175,7 +175,7 @@ class Dummy_FMUModelCS2(FMUModelCS2):
         vals = []
         for v in vref:
             vals.append(self.values[v])
-        return np.array(vals)
+        return np.array(vals).astype(float)
     
     def get_integer(self, vref):
         return self.get_real(vref)
@@ -186,8 +186,12 @@ class Dummy_FMUModelCS2(FMUModelCS2):
     def set_real(self, vref, values):
         for i,v in enumerate(vref):
             self.values[v] = values[i]
+    
+    def set_integer(self, vref, values):
+        for i,v in enumerate(vref):
+            self.values[v] = values[i]
 
-class Dummy_FMUModelME2(FMUModelME2):
+class Dummy_FMUModelME2(__ForTestingFMUModelME2):
     #Override properties
     time = None
     continuous_states = None

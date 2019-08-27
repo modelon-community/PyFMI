@@ -17,7 +17,7 @@
 
 import pyfmi.fmi as fmi
 from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException
-from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerDummy
+from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerDummy, ResultHandlerBinaryFile, ResultDymolaBinary
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
@@ -199,26 +199,6 @@ def init_jac(y, master):
     D = master.compute_global_D()
     DL = D.dot(master.L)
     return np.eye(*DL.shape) - DL
-
-"""
-cdef np.ndarray matvec(object A, np.ndarray[np.float64_t, ndim=1, mode="c"] x):
-    cdef np.ndarray[dtype=np.int32_t, mode="c"] indices = A.indices
-    cdef np.ndarray[dtype=np.int32_t, mode="c"] indptr  = A.indptr
-    cdef np.ndarray[dtype=np.float64_t, mode="c"] data  = A.data
-    cdef np.ndarray b     = np.empty((x.size,1), dtype=np.float64)
-    cdef int i, j, ind
-    cdef double tmp
-    
-    for i in range(x.size):
-        #b[i] = np.sum(data[indices[indptr[i]:indptr[i+1]]]*x[indices[indptr[i]:indptr[i+1]]])
-        tmp = 0.0
-        for j in range(indptr[i], indptr[i+1]):
-            ind = indices[j]
-            tmp += data[j]*x[ind]
-        b[i] = tmp
-        
-    return b
-"""
     
 class MasterAlgOptions(OptionBase):
     """
@@ -257,7 +237,7 @@ class MasterAlgOptions(OptionBase):
             Defines if linear correction should be used during the simulation.
             Note that this increases the simulation robustness in case of 
             algebraic loops.
-            Default is True
+            Default is False
 
         execution --
             Defines if the models are to be evaluated in parallel (note that it
@@ -301,8 +281,8 @@ class MasterAlgOptions(OptionBase):
         result_handling --
             Specifies how the result should be handled. Either stored to
             file or stored in memory. One can also use a custom handler.
-            Available options: "file", "memory", "csv", "custom"
-            Default: "file"
+            Available options: "file", "binary", "memory", "csv", "custom"
+            Default: "binary"
 
         result_handler --
             The handler for the result. Depending on the option in
@@ -331,10 +311,10 @@ class MasterAlgOptions(OptionBase):
         "step_size"  : 0.01,
         "maxh"       : 0.0,
         "filter"     : dict((model,None) for model in master.models),
-        "result_handling"     : "file",
+        "result_handling"     : "binary",
         "result_handler"      : None,
         "inputs"              : None,
-        "linear_correction"   : True,
+        "linear_correction"   : False,
         "error_controlled"    : False if master.support_storing_fmu_states else False,
         "logging"             : False,
         "extrapolation_order" : 0, #Constant
@@ -356,7 +336,7 @@ cdef class Master:
     cdef public list connections, models
     cdef public dict statistics, models_id_mapping
     cdef public object opts
-    cdef public object models_dict, L
+    cdef public object models_dict, L, L_discrete
     cdef public object I
     cdef public object y_prev, yd_prev, input_traj
     cdef public object DL_prev
@@ -366,7 +346,7 @@ cdef class Master:
     cdef double rtol, atol, current_step_size
     cdef public object y_m1, yd_m1, u_m1, ud_m1, udd_m1
     cdef FMIL.fmi2_import_t** fmu_adresses
-    cdef public int _len_inputs, _len_outputs
+    cdef public int _len_inputs, _len_inputs_discrete, _len_outputs, _len_outputs_discrete
     cdef public int _len_derivatives
     cdef public list _storedDrow, _storedDcol
     cdef public np.ndarray _array_one
@@ -406,9 +386,11 @@ cdef class Master:
         self.models = models
         self.models_dict = OrderedDict((model,{"model": model, "result": None, "external_input": None, 
                                                "local_input": [], "local_input_vref": [], "local_input_len": 0,
+                                               "local_input_discrete": [], "local_input_discrete_vref": [], "local_input_discrete_len": 0,
                                                "local_state": [], "local_state_vref": [],
                                                "local_derivative": [], "local_derivative_vref": [],
                                                "local_output": [], "local_output_vref": [], "local_output_len": 0,
+                                               "local_output_discrete": [], "local_output_discrete_vref": [], "local_output_discrete_len": 0,
                                                "local_output_range_array": None,
                                                "direct_dependence": []}) for model in models)
         self.models_id_mapping = {str(id(model)): model for model in models}
@@ -429,6 +411,8 @@ cdef class Master:
         self._max_output_derivative_order = -1
         self._len_inputs = 0
         self._len_outputs = 0
+        self._len_inputs_discrete = 0
+        self._len_outputs_discrete = 0
         self._len_derivatives = 0
         self._array_one = np.array([1.0])
         self._D = None
@@ -500,30 +484,53 @@ cdef class Master:
         cdef list data = []
         cdef list row = []
         cdef list col = []
+        cdef list data_discrete = []
+        cdef list row_discrete = []
+        cdef list col_discrete = []
+        cdef int len_connections = 0
+        cdef int len_connections_discrete = 0
 
-        start_index_inputs      = 0
-        start_index_outputs     = 0     
-        start_index_states      = 0
-        start_index_derivatives = 0
+        start_index_inputs            = 0
+        start_index_outputs           = 0     
+        start_index_inputs_discrete   = 0
+        start_index_outputs_discrete  = 0
+        start_index_states            = 0
+        start_index_derivatives       = 0
+        
         for model in self.models_dict.keys():
             self.models_dict[model]["global_index_inputs"]      = start_index_inputs
             self.models_dict[model]["global_index_outputs"]     = start_index_outputs
+            self.models_dict[model]["global_index_inputs_discrete"]      = start_index_inputs_discrete
+            self.models_dict[model]["global_index_outputs_discrete"]     = start_index_outputs_discrete
             self.models_dict[model]["global_index_states"]      = start_index_states
             self.models_dict[model]["global_index_derivatives"] = start_index_derivatives
             
             start_index_inputs      += len(self.models_dict[model]["local_input"])
             start_index_outputs     += len(self.models_dict[model]["local_output"])
+            start_index_inputs_discrete      += len(self.models_dict[model]["local_input_discrete"])
+            start_index_outputs_discrete     += len(self.models_dict[model]["local_output_discrete"])
             start_index_states      += len(self.models_dict[model]["local_state"])
             start_index_derivatives += len(self.models_dict[model]["local_derivative"])
         
         for connection in self.connections:
             src = connection[0]; src_var = connection[1]
             dst = connection[2]; dst_var = connection[3]
-            data.append(1)
-            row.append(self.models_dict[dst]["global_index_inputs"]+self.models_dict[dst]["local_input"].index(dst_var))
-            col.append(self.models_dict[src]["global_index_outputs"]+self.models_dict[src]["local_output"].index(src_var))
             
-        self.L = sp.csr_matrix((data, (row, col)), (len(self.connections),len(self.connections)), dtype=np.float64)
+            if connection[0].get_variable_variability(connection[1]) == fmi.FMI2_CONTINUOUS and \
+               connection[2].get_variable_variability(connection[3]) == fmi.FMI2_CONTINUOUS:
+                   
+                data.append(1)
+                row.append(self.models_dict[dst]["global_index_inputs"]+self.models_dict[dst]["local_input"].index(dst_var))
+                col.append(self.models_dict[src]["global_index_outputs"]+self.models_dict[src]["local_output"].index(src_var))
+                len_connections = len_connections + 1
+            else:
+                data_discrete.append(1)
+                row_discrete.append(self.models_dict[dst]["global_index_inputs_discrete"]+self.models_dict[dst]["local_input_discrete"].index(dst_var))
+                col_discrete.append(self.models_dict[src]["global_index_outputs_discrete"]+self.models_dict[src]["local_output_discrete"].index(src_var))
+                len_connections_discrete = len_connections_discrete + 1
+            
+        self.L = sp.csr_matrix((data, (row, col)), (len_connections,len_connections), dtype=np.float64)
+        self.L_discrete = sp.csr_matrix((data_discrete, (row_discrete, col_discrete)), (len_connections_discrete,len_connections_discrete), dtype=np.float64)
         
     cpdef compute_global_D(self):
         cdef list data = []
@@ -621,14 +628,23 @@ cdef class Master:
         
     def connection_setup(self, connections):
         for connection in connections:
-            self.models_dict[connection[0]]["local_output"].append(connection[1])
-            self.models_dict[connection[0]]["local_output_vref"].append(connection[0].get_variable_valueref(connection[1]))
-            self.models_dict[connection[2]]["local_input"].append(connection[3])
-            self.models_dict[connection[2]]["local_input_vref"].append(connection[2].get_variable_valueref(connection[3]))
-            
+            if connection[0].get_variable_variability(connection[1]) == fmi.FMI2_CONTINUOUS and \
+               connection[2].get_variable_variability(connection[3]) == fmi.FMI2_CONTINUOUS:
+                self.models_dict[connection[0]]["local_output"].append(connection[1])
+                self.models_dict[connection[0]]["local_output_vref"].append(connection[0].get_variable_valueref(connection[1]))
+                self.models_dict[connection[2]]["local_input"].append(connection[3])
+                self.models_dict[connection[2]]["local_input_vref"].append(connection[2].get_variable_valueref(connection[3]))
+            else:
+                self.models_dict[connection[0]]["local_output_discrete"].append(connection[1])
+                self.models_dict[connection[0]]["local_output_discrete_vref"].append(connection[0].get_variable_valueref(connection[1]))
+                self.models_dict[connection[2]]["local_input_discrete"].append(connection[3])
+                self.models_dict[connection[2]]["local_input_discrete_vref"].append(connection[2].get_variable_valueref(connection[3]))
+                
         for model in self.models_dict.keys():
             self.models_dict[model]["local_input_len"] = len(self.models_dict[model]["local_input"])
             self.models_dict[model]["local_output_len"] = len(self.models_dict[model]["local_output"])
+            self.models_dict[model]["local_input_discrete_len"] = len(self.models_dict[model]["local_input_discrete"])
+            self.models_dict[model]["local_output_discrete_len"] = len(self.models_dict[model]["local_output_discrete"])
             self.models_dict[model]["local_output_range_array"] = np.array(range(self.models_dict[model]["local_output_len"]))
             self.models_dict[model]["local_output_vref_array"] = np.array(self.models_dict[model]["local_output_vref"], dtype=np.uint32)
             self.models_dict[model]["local_input_vref_array"] = np.array(self.models_dict[model]["local_input_vref"], dtype=np.uint32)
@@ -637,6 +653,8 @@ cdef class Master:
             self.models_dict[model]["local_output_vref_ones"] = np.ones(self.models_dict[model]["local_output_len"], dtype=np.int32)
             self._len_inputs  += self.models_dict[model]["local_input_len"]
             self._len_outputs += self.models_dict[model]["local_output_len"]
+            self._len_inputs_discrete  += self.models_dict[model]["local_input_discrete_len"]
+            self._len_outputs_discrete += self.models_dict[model]["local_output_discrete_len"]
             
             if model.get_generation_tool() == "JModelica.org":
                 self.models_dict[model]["local_state"]           = model.get_states_list().keys()
@@ -652,7 +670,13 @@ cdef class Master:
             for output in self.models_dict[model]["local_output"]:
                 if model.get_variable_causality(output) != fmi.FMI2_OUTPUT:
                     raise fmi.FMUException("The connection variable " + output + " in model " + model.get_name() + " is not an output. ")
+            for output in self.models_dict[model]["local_output_discrete"]:
+                if model.get_variable_causality(output) != fmi.FMI2_OUTPUT:
+                    raise fmi.FMUException("The connection variable " + output + " in model " + model.get_name() + " is not an output. ")
             for input in self.models_dict[model]["local_input"]:
+                if model.get_variable_causality(input) != fmi.FMI2_INPUT:
+                    raise fmi.FMUException("The connection variable " + input + " in model " + model.get_name() + " is not an input. ")
+            for input in self.models_dict[model]["local_input_discrete"]:
                 if model.get_variable_causality(input) != fmi.FMI2_INPUT:
                     raise fmi.FMUException("The connection variable " + input + " in model " + model.get_name() + " is not an input. ")
                     
@@ -697,7 +721,7 @@ cdef class Master:
     cpdef np.ndarray get_connection_outputs(self):
         cdef int i = 0, inext = 0
         cdef np.ndarray y = np.empty((self._len_outputs))
-        #for model in self.models_dict.keys():
+
         for model in self.models:
             #y.extend(model.get(self.models_dict[model]["local_output"]))
             #y.extend(model.get_real(self.models_dict[model]["local_output_vref"]))
@@ -707,6 +731,18 @@ cdef class Master:
             i = inext
             
         #return np.array(y)
+        return y.reshape(-1,1)
+    
+    cpdef np.ndarray get_connection_outputs_discrete(self):
+        cdef int i = 0, inext = 0
+        cdef np.ndarray y = np.empty((self._len_outputs_discrete))
+
+        for model in self.models:
+            i = self.models_dict[model]["global_index_outputs_discrete"]
+            inext = i + self.models_dict[model]["local_output_discrete_len"]
+            y[i:inext] = model.get(self.models_dict[model]["local_output_discrete"])
+            i = inext
+            
         return y.reshape(-1,1)
         
     cpdef np.ndarray _get_derivatives(self):
@@ -724,7 +760,15 @@ cdef class Master:
             i = inext
 
         return xd.reshape(-1,1)
-        
+    
+    cpdef np.ndarray get_specific_connection_outputs_discrete(self, model, np.ndarray mask, np.ndarray yout):
+        cdef int j = 0
+        ytmp = model.get(np.array(self.models_dict[model]["local_output_discrete"])[mask])
+        for i, flag in enumerate(mask):
+            if flag:
+                yout[i+self.models_dict[model]["global_index_outputs_discrete"]] = ytmp[j]
+                j = j + 1
+                
     cpdef np.ndarray get_specific_connection_outputs(self, model, np.ndarray mask, np.ndarray yout):
         cdef int j = 0
         cdef np.ndarray ytmp = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"][mask])
@@ -829,7 +873,7 @@ cdef class Master:
             
     cpdef set_connection_inputs(self, np.ndarray u, np.ndarray ud=None, np.ndarray udd=None):
         cdef int i = 0, inext, status
-        #for model in self.models_dict.keys():
+        
         u = u.ravel()
         for model in self.models:
             i = self.models_dict[model]["global_index_inputs"] #MIGHT BE WRONG
@@ -849,13 +893,28 @@ cdef class Master:
                 if status != 0: raise fmi.FMUException("Failed to set the second order input derivatives.")
             
             i = inext
+    
+    cpdef set_connection_inputs_discrete(self, np.ndarray u):
+        cdef int i = 0, inext, status
+        
+        u = u.ravel()
+        for model in self.models:
+            i = self.models_dict[model]["global_index_inputs_discrete"] #MIGHT BE WRONG
+            inext = i + self.models_dict[model]["local_input_discrete_len"]
+            model.set(self.models_dict[model]["local_input_discrete"], u[i:inext])
             
     cpdef set_specific_connection_inputs(self, model, np.ndarray mask, np.ndarray u):
         cdef int i = self.models_dict[model]["global_index_inputs"]
         cdef int inext = i + self.models_dict[model]["local_input_len"]
         cdef np.ndarray usliced = u.ravel()[i:inext]
         (<FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"][mask], usliced[mask])
-
+    
+    cpdef set_specific_connection_inputs_discrete(self, model, np.ndarray mask, np.ndarray u):
+        cdef int i = self.models_dict[model]["global_index_inputs_discrete"]
+        cdef int inext = i + self.models_dict[model]["local_input_discrete_len"]
+        cdef np.ndarray usliced = u.ravel()[i:inext]
+        model.set(np.array(self.models_dict[model]["local_input_discrete"])[mask], usliced[mask])
+    
     cpdef correct_output_second_derivative(self, np.ndarray ydd):
         if self.linear_correction and self.algebraic_loops and self.support_directional_derivatives:
             raise NotImplementedError
@@ -901,8 +960,8 @@ cdef class Master:
                 else:
                     res = sopt.fsolve(init_f, y, args=(self))
                 if not res["success"]:
-                    print res
-                    raise Exception("Failed to converge the output system.")
+                    print(res)
+                    raise fmi.FMUException("Failed to converge the output system.")
                 return res["x"].reshape(-1,1)
                 
         if self.linear_correction and self.algebraic_loops and y_prev is not None:# and self.support_directional_derivatives:
@@ -932,9 +991,7 @@ cdef class Master:
         cdef double h = self.get_current_step_size()
         
         u    = self.L.dot(y)
-        #u    = matvec(self.L,y.ravel())
-        ud   = self.L.dot(yd) if yd is not None else None
-        #ud   = matvec(self.L,yd.ravel()) if yd is not None else None
+        ud   = self.L.dot(yd)  if yd  is not None else None
         udd  = self.L.dot(ydd) if ydd is not None else None
         
         if self.opts["extrapolation_order"] > 0 and self.opts["smooth_coupling"]:
@@ -947,23 +1004,30 @@ cdef class Master:
             ud = udhat
 
         return u, ud, udd
-        
+    
+    cpdef modify_input_discrete(self, np.ndarray y):
+        return self.L_discrete.dot(y)
     
     cpdef exchange_connection_data(self):
         #u = Ly
         cdef np.ndarray y = self.get_connection_outputs()
+        cdef np.ndarray y_discrete
         cdef np.ndarray u
+        cdef np.ndarray u_discrete
         
         y   = self.correct_output(y, self.y_prev)
         yd  = self.get_connection_derivatives(y)
         ydd = self.get_connection_second_derivatives(yd)
+        y_discrete = self.get_connection_outputs_discrete()
         
         self.y_prev = y.copy()
         self.yd_prev = yd.copy() if yd is not None else None
         
         u, ud, udd = self.modify_input(y, yd, ydd)
+        u_discrete = self.modify_input_discrete(y_discrete)
         
         self.set_connection_inputs(u, ud=ud, udd=udd)
+        self.set_connection_inputs_discrete(u_discrete)
         
         self.set_last_us(u, ud, udd)
         
@@ -973,11 +1037,13 @@ cdef class Master:
         self.set_input(start_time)
         
         if opts["block_initialization"]:
+            
             order, blocks, compressed = self.compute_evaluation_order(opts["block_initialization_type"], order=opts["block_initialization_order"])
             model_in_init_mode = {model:False for model in self.models}
             
             #Global outputs vector
             y = np.zeros((self._len_outputs))
+            y_discrete = np.zeros((self._len_outputs_discrete))
             
             for block in blocks:
                 if len(block["inputs"]) == 0: #No inputs in this block, only outputs
@@ -989,20 +1055,27 @@ cdef class Master:
                         
                         #Get the outputs 
                         time_start = timer()
-                        self.get_specific_connection_outputs(model, block["outputs_mask"][model], y)
+                        if len(y) > 0:
+                            self.get_specific_connection_outputs(model, block["outputs_mask"][model], y)
+                        if len(y_discrete) > 0:
+                            self.get_specific_connection_outputs_discrete(model, block["outputs_discrete_mask"][model], y_discrete)
                         self.elapsed_time_init[model] += timer() - time_start
                         
                 elif len(block["outputs"]) == 0: #No outputs in this block
                     
                     #Compute current global input vector
-                    u = self.L.dot(y.reshape(-1,1))
-                    for model in block["inputs"].keys(): #Set the inputs
-                        #print "Model: ", model
-                        #print "Inputs: ", block["inputs"]
-                        #print "Mask: ", block["inputs_mask"]
-                        self.set_specific_connection_inputs(model, block["inputs_mask"][model], u)
+                    if len(y) > 0:
+                        u = self.L.dot(y.reshape(-1,1))
+                        for model in block["inputs"].keys(): #Set the inputs
+                            self.set_specific_connection_inputs(model, block["inputs_mask"][model], u)
+                    if len(y_discrete) > 0:
+                        u_discrete = self.L_discrete.dot(y_discrete.reshape(-1,1))
+                        for model in block["inputs"].keys(): #Set the inputs
+                            self.set_specific_connection_inputs_discrete(model, block["inputs_discrete_mask"][model], u_discrete)
                         
                 else: #Both (algebraic loop)
+                    if self._len_outputs_discrete > 0:
+                        raise fmi.FMUException("Block initialization is currently not supported when discrete connections (inputs or outputs) results in an algebraic loop. Please set 'block_initialization' to False.")
                     
                     #Assert models has entered initialization mode
                     for model in block["inputs"].keys()+block["outputs"].keys(): #Possible only need outputs?
@@ -1019,8 +1092,8 @@ cdef class Master:
                     else:
                         res = sopt.fsolve(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
                     if not res["success"]:
-                        print res
-                        raise Exception("Failed to converge the initialization system.")
+                        print(res)
+                        raise fmi.FMUException("Failed to converge the initialization system.")
                     
                     y[block["global_outputs_mask"]] = res["x"]
                     u = self.L.dot(y.reshape(-1,1))
@@ -1049,14 +1122,23 @@ cdef class Master:
                     else:
                         res = sopt.fsolve(init_f, self.get_connection_outputs(), args=(self))
                 if not res["success"]:
-                    print res
-                    raise Exception("Failed to converge the initialization system.")
+                    print(res)
+                    raise fmi.FMUException("Failed to converge the initialization system.")
+                
+                y_discrete = self.get_connection_outputs_discrete()
+                
                 u = self.L.dot(res["x"].reshape(-1,1))
+                u_discrete = self.L_discrete.dot(y_discrete)
+                
                 self.set_connection_inputs(u)
+                self.set_connection_inputs_discrete(u_discrete)
             else:
                 y = self.get_connection_outputs()
+                y_discrete = self.get_connection_outputs_discrete()
                 u = self.L.dot(y)
+                u_discrete = self.L_discrete.dot(y_discrete)
                 self.set_connection_inputs(u)
+                self.set_connection_inputs_discrete(u_discrete)
         
         exit_initialization_mode(self.models, self.elapsed_time_init)
         
@@ -1067,15 +1149,18 @@ cdef class Master:
     def initialize_result_objects(self, opts):
         i = 0
         for model in self.models_dict.keys():
-            if opts["result_handling"] == "file":
+            if opts["result_handling"] == "binary":
+                result_object = ResultHandlerBinaryFile(model)
+            elif opts["result_handling"] == "file":
                 result_object = ResultHandlerFile(model)
             elif opts["result_handling"] == "none":
                 result_object = ResultHandlerDummy(model)
             else:
-                raise fmi.FMUException("Currently only writing result to file and none is supported.")
+                raise fmi.FMUException("Currently only writing result to file (txt and binary) and none is supported.")
             from pyfmi.fmi_algorithm_drivers import FMICSAlgOptions
             local_opts = FMICSAlgOptions()
-            local_opts["result_file_name"] = model.get_identifier()+'_'+str(i)+'_result.txt'
+            prefix = "txt" if opts["result_handling"] == "file" else "mat"
+            local_opts["result_file_name"] = model.get_identifier()+'_'+str(i)+'_result.'+prefix
             local_opts["filter"] = opts["filter"][model]
             
             result_object.set_options(local_opts)
@@ -1361,14 +1446,12 @@ cdef class Master:
         #self.report_solution(tcur)
         
         #Start of simulation, start the clock
-        #time_start = time.clock()
         time_start = timer()
         self._time_integration_start = time_start
         
         self.jacobi_algorithm(start_time,final_time, options)
 
         #End of simulation, stop the clock
-        #time_stop = time.clock()
         time_stop = timer()
         
         self.print_statistics(options)
@@ -1391,10 +1474,12 @@ cdef class Master:
         res = {}
         #Load data
         for i,model in enumerate(self.models):
-            if opts["result_handling"] == "file":
+            if opts["result_handling"] == "file" or opts["result_handling"] == "binary":
                 from pyfmi.fmi_algorithm_drivers import AssimuloSimResult
-                dym_textual = ResultDymolaTextual(model.get_identifier()+'_'+str(i)+'_result.txt')
-                res[i] = AssimuloSimResult(model, model.get_identifier()+'_'+str(i)+'_result.txt', None, dym_textual, None)
+                prefix = "txt" if opts["result_handling"] == "file" else "mat"
+                ResClass = ResultDymolaTextual if opts["result_handling"] == "file" else ResultDymolaBinary
+                dym_res = ResClass(model.get_identifier()+'_'+str(i)+'_result.'+prefix)
+                res[i] = AssimuloSimResult(model, model.get_identifier()+'_'+str(i)+'_result.'+prefix, None, dym_res, None)
                 res[model] = res[i]
             elif opts["result_handling"] == "none":
                 res[model] = None
@@ -1407,7 +1492,7 @@ cdef class Master:
         print('Master Algorithm options:')
         print(' Algorithm             : Jacobi ' + ("(variable-step)" if self.error_controlled else "(fixed-step)"))
         print('  Execution            : ' + ("Parallel" if self.opts["execution"] == "parallel" else "Serial"))
-        print(' Extrapolation Order   : ' + str(opts["extrapolation_order"]) + ("(with smoothing)" if opts["smooth_coupling"] and opts["extrapolation_order"] > 0  else ""))
+        print(' Extrapolation Order   : ' + str(opts["extrapolation_order"]) + (" (with smoothing)" if opts["smooth_coupling"] and opts["extrapolation_order"] > 0  else ""))
         if self.error_controlled:
             print(' Tolerances (relative) : ' + str(opts["rtol"]))
             print(' Tolerances (absolute) : ' + str(opts["atol"]))
@@ -1589,7 +1674,7 @@ cdef class Master:
             elif init_type == "greedy":
                 order = graph.compute_evaluation_order()[::-1]
             else:
-                raise Exception("Unknown initialization type. Use either 'greedy', 'simple', 'grouping'")
+                raise fmi.FMUException("Unknown initialization type. Use either 'greedy', 'simple', 'grouping'")
         
         blocks = []
         for block in order:
@@ -1600,12 +1685,12 @@ cdef class Master:
             for variable_compound in block:
                 model_id, var = variable_compound.split("_",1)
                 model = self.models_id_mapping[model_id]
-                if var in self.models_dict[model]["local_input"]:
+                if var in self.models_dict[model]["local_input"] or var in self.models_dict[model]["local_input_discrete"]:
                     try:
                         blocks[-1]["inputs"][model].append(var)
                     except KeyError:
                         blocks[-1]["inputs"][model] = [var]
-                elif var in self.models_dict[model]["local_output"]:
+                elif var in self.models_dict[model]["local_output"] or var in self.models_dict[model]["local_output_discrete"]:
                     try:
                         blocks[-1]["outputs"][model].append(var)
                     except KeyError:
@@ -1617,27 +1702,48 @@ cdef class Master:
         for block in blocks:
             block["global_inputs_mask"] = np.array([False]*self._len_inputs)
             block["global_outputs_mask"] = np.array([False]*self._len_outputs)
+            block["global_inputs_discrete_mask"] = np.array([False]*self._len_inputs_discrete)
+            block["global_outputs_discrete_mask"] = np.array([False]*self._len_outputs_discrete)
             block["inputs_mask"] = {}
             block["outputs_mask"] = {}
+            block["inputs_discrete_mask"] = {}
+            block["outputs_discrete_mask"] = {}
             for model in block["inputs"].keys():
                 input_vref = np.array(self.models_dict[model]["local_input"])
+                input_discrete_vref = np.array(self.models_dict[model]["local_input_discrete"])
                 mask = np.array([False]*len(input_vref))
+                mask_discrete = np.array([False]*len(input_discrete_vref))
                 for i,x in enumerate(block["inputs"][model]):
-                    pos = np.where(input_vref == x)[0][0]
-                    mask[pos] = True
-                    block["global_inputs_mask"][self.models_dict[model]["global_index_inputs"]+pos] = True
+                    if len(np.where(input_vref == x)[0]) > 0:
+                        pos = np.where(input_vref == x)[0][0]
+                        mask[pos] = True
+                        block["global_inputs_mask"][self.models_dict[model]["global_index_inputs"]+pos] = True
+                    else:
+                        pos = np.where(input_discrete_vref == x)[0][0]
+                        mask_discrete[pos] = True
+                        block["global_inputs_discrete_mask"][self.models_dict[model]["global_index_inputs_discrete"]+pos] = True
+                        
                 block["inputs_mask"][model] = mask
-                #if len(block["inputs"].keys()) > 1:
-                #    print "Creation: ", model, block["inputs_mask"]
-                #print block["inputs"].keys(), model, block["inputs_mask"]
+                block["inputs_discrete_mask"][model] = mask_discrete
+
             for model in block["outputs"].keys():
                 output_vref = np.array(self.models_dict[model]["local_output"])
+                output_discrete_vref = np.array(self.models_dict[model]["local_output_discrete"])
                 mask = np.array([False]*len(output_vref))
+                mask_discrete = np.array([False]*len(output_discrete_vref))
                 for i,x in enumerate(block["outputs"][model]):
-                    pos = np.where(output_vref == x)[0][0]
-                    mask[pos] = True
-                    block["global_outputs_mask"][self.models_dict[model]["global_index_outputs"]+pos] = True
+
+                    if len(np.where(output_vref == x)[0]) > 0:
+                        pos = np.where(output_vref == x)[0][0]
+                        mask[pos] = True
+                        block["global_outputs_mask"][self.models_dict[model]["global_index_outputs"]+pos] = True
+                    else:
+                        pos = np.where(output_discrete_vref == x)[0][0]
+                        mask_discrete[pos] = True
+                        block["global_outputs_discrete_mask"][self.models_dict[model]["global_index_outputs_discrete"]+pos] = True
+                        
                 block["outputs_mask"][model] = mask
+                block["outputs_discrete_mask"][model] = mask_discrete
         
         #Compress blocks
         compressed_blocks = []
