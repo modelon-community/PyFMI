@@ -3,6 +3,14 @@
 Changelog
 ==========
 
+--- PyFMI-2.5.4 ---
+    * Improved the performance of estimating directional derivatives (ticket:5569)
+    * Added support for computing only a subset of interesting columns when considering the cpr seed (ticket:5825)
+    * Fixed so that the log file is kept open during the initialization call (ticket:5823)
+    * Added support for binary result saving for coupled CS simulations and switched the default storing option to binary (ticket:5820)
+    * Changed default value of "linear_correction" to False for coupled CS simulations (ticket:5821)
+    * Fixed issue with discrete couplings for coupled CS simulations (ticket:5822)
+
 --- PyFMI-2.5.3 ---
     * Fixed wrong default value for FMUModelME1Extended (ticket:5801)
 
@@ -12,12 +20,10 @@ Changelog
 
 --- PyFMI-2.5.1 ---
     * Fixed a number of encode/decoding issues for Python3 (ticket:5786)
-    * Forced no copy if the provided array is already correct, minor 
-      performance improvement (ticket:5785)
+    * Forced no copy if the provided array is already correct, minor performance improvement (ticket:5785)
     * Removed a number of C compiler warnings (ticket:5782)
     * Fixed issue with corrupt result files after failed simulations (ticket:5784)
-    * Added (hidden) option to only load the XML from an FMU, for testing
-      purposes (ticket:5778)
+    * Added (hidden) option to only load the XML from an FMU, for testing purposes (ticket:5778)
 
 --- PyFMI-2.5 ---
     * Fixed issue with atol not being updated when rtol is set (ticket:5709)
