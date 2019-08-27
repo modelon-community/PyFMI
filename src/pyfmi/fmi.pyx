@@ -29,10 +29,12 @@ import logging
 import fnmatch
 import re
 from collections import OrderedDict
+cimport cython
 
 import scipy.sparse as sp
 import numpy as N
 cimport numpy as N
+from numpy cimport PyArray_DATA
 
 N.import_array()
 
@@ -3730,7 +3732,8 @@ cdef class FMUModelBase2(ModelBase):
         self._last_accepted_time = 0.0
 
         #Internal values
-        self._pyEventInfo = PyEventInfo()
+        self._pyEventInfo   = PyEventInfo()
+        self._worker_object = WorkerClass2()
 
         #Specify the general callback functions
         self.callbacks.malloc           = FMIL.malloc
@@ -3897,7 +3900,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('Failed to get the Real values.')
 
         return output_value
-
+    
     cpdef set_real(self, valueref, values):
         """
         Sets the real-values in the FMU as defined by the valuereference(s).
@@ -3928,7 +3931,13 @@ cdef class FMUModelBase2(ModelBase):
 
         if status != 0:
             raise FMUException('Failed to set the Real values. See the log for possibly more information.')
-
+    
+    cdef int _get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
+        return FMIL.fmi2_import_get_real(self._fmu, vrefs, size, values)
+    
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
+        return FMIL.fmi2_import_set_real(self._fmu, vrefs, size, values)
+    
     def get_integer(self, valueref):
         """
         Returns the integer-values from the valuereference(s).
@@ -7631,42 +7640,65 @@ cdef class FMUModelME2(FMUModelBase2):
             return FMUModelBase2._get_directional_proxy(self, var_ref, func_ref, group, add_diag, output_matrix)
         else:
             return self._estimate_directional_derivative(var_ref, func_ref, group, add_diag, output_matrix)
-    
-    def _estimate_directional_derivative(self, var_ref, func_ref, group=None, add_diag=False, output_matrix=None):
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    def _estimate_directional_derivative(self, var_ref, func_ref, dict group=None, add_diag=False, output_matrix=None):
         cdef list data = [], row = [], col = []
-        cdef int sol_found = 0, dim = 0, i, j, len_v = len(var_ref), len_f = len(func_ref)
-        cdef double nominal, fac
+        cdef int sol_found = 0, dim = 0, i, j, len_v = len(var_ref), len_f = len(func_ref), local_indices_vars_nbr, status
+        cdef double nominal, fac, tmp
         cdef int method = FORWARD_DIFFERENCE if self.force_finite_differences is True or self.force_finite_differences == 0 else CENTRAL_DIFFERENCE
         cdef double RUROUND = FORWARD_DIFFERENCE_EPS if method == FORWARD_DIFFERENCE else CENTRAL_DIFFERENCE_EPS
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] eps     = N.zeros(len_v, dtype = N.double)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] df
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.array(var_ref, dtype = N.uint32)
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.array(func_ref, dtype = N.uint32) 
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] data_local
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert, df, eps
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.array(var_ref, copy=False, dtype = N.uint32)
+        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.array(func_ref, copy=False, dtype = N.uint32)
         cdef int ind_local = 5 if add_diag else 4
+        cdef list local_group
         
-        #structure
-        # - [0] - variable indexes
-        # - [1] - variable names
-        # - [2] - matrix rows
-        # - [3] - matrix columns
-        # - [4] - position in data vector (CSC format)
-        # - [5] - position in data vector (with diag) (CSC format)
+        cdef FMIL.fmi2_real_t *column_data_pt
+        cdef FMIL.fmi2_real_t *v_pt
+        cdef FMIL.fmi2_real_t *df_pt
+        cdef FMIL.fmi2_real_t *eps_pt
+        cdef FMIL.fmi2_real_t *tmp_val_pt
+        cdef FMIL.fmi2_real_t *output_matrix_data_pt = NULL
+        cdef FMIL.fmi2_value_reference_t *v_ref_pt = <FMIL.fmi2_value_reference_t*>PyArray_DATA(v_ref)
+        cdef FMIL.fmi2_value_reference_t *z_ref_pt = <FMIL.fmi2_value_reference_t*>PyArray_DATA(z_ref)
+        cdef FMIL.fmi2_value_reference_t *local_v_vref_pt
+        cdef FMIL.fmi2_value_reference_t *local_z_vref_pt
+        cdef int* local_indices_vars_pt
+        cdef int* local_indices_matrix_rows_pt
+        cdef int* local_indices_matrix_columns_pt
+        cdef int* local_data_indices
         
-        df = self.get_real(z_ref)
-        v  = self.get_real(v_ref)
+        #Make sure that the work vectors has the correct lengths
+        self._worker_object.verify_dimensions(max(len_v, len_f))
+        
+        #Get work vectors
+        df_pt      = self._worker_object.get_real_vector(0)
+        df         = self._worker_object.get_real_numpy_vector(0) #Should be removed in the future
+        v_pt       = self._worker_object.get_real_vector(1)
+        eps_pt     = self._worker_object.get_real_vector(2)
+        eps        = self._worker_object.get_real_numpy_vector(2) #Should be removed in the future
+        tmp_val_pt = self._worker_object.get_real_vector(3)
+        
+        local_v_vref_pt = self._worker_object.get_value_reference_vector(0)
+        local_z_vref_pt = self._worker_object.get_value_reference_vector(1)
+        
+        #Get updated values for the derivatives and states
+        self._get_real(z_ref_pt, len_f, df_pt)
+        self._get_real(v_ref_pt, len_v, v_pt)
+
         for i in range(len_v):
-            nominal = self.get_variable_nominal(valueref = v_ref[i])
-            eps[i] = RUROUND*(max(abs(v[i]), nominal))
+            nominal = self.get_variable_nominal(valueref = v_ref_pt[i])
+            eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominal))
 
         if group is not None:
             if output_matrix is not None:
                 if not isinstance(output_matrix, sp.csc_matrix):
                     output_matrix = None
                 else:
-                    data_local = output_matrix.data
+                    output_matrix_data_pt = <FMIL.fmi2_real_t*>PyArray_DATA(output_matrix.data)
             
             if add_diag and output_matrix is None:
                 dim = min(len_v,len_f)
@@ -7675,46 +7707,82 @@ cdef class FMUModelME2(FMUModelBase2):
                 col.extend(range(dim))
                 
             for key in group["groups"]:
+                local_group = group[key]
                 sol_found = 0
+                local_indices_vars_pt           = <int*>PyArray_DATA(local_group[0])
+                local_indices_matrix_rows_pt    = <int*>PyArray_DATA(local_group[2])
+                local_indices_matrix_columns_pt = <int*>PyArray_DATA(local_group[3])
+                local_data_indices              = <int*>PyArray_DATA(local_group[ind_local])
+                
+                local_indices_vars_nbr        = len(local_group[0])
+                local_indices_matrix_rows_nbr = len(local_group[2])
+                
+                #Structure of a local group
+                # - [0] - variable indexes
+                # - [1] - variable names
+                # - [2] - matrix rows
+                # - [3] - matrix columns
+                # - [4] - position in data vector (CSC format)
+                # - [5] - position in data vector (with diag) (CSC format)
+                
+                #Get the local value references for the derivatives and states corresponding to the current group
+                for i in range(local_indices_vars_nbr):        local_v_vref_pt[i] = v_ref_pt[local_indices_vars_pt[i]]
+                for i in range(local_indices_matrix_rows_nbr): local_z_vref_pt[i] = z_ref_pt[local_indices_matrix_rows_pt[i]]
+                
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
-                    self.set_real(v_ref[group[key][0]], v[group[key][0]]+fac*eps[group[key][0]])
+                    for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]+fac*eps_pt[local_indices_vars_pt[i]]
+                    self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
                     
-                    if method == FORWARD_DIFFERENCE: #Forward and Backward difference    
-                        try:
-                            column_data = (self.get_real(z_ref[group[key][2]]) - df[group[key][2]])/(fac*eps[group[key][3]])
+                    if method == FORWARD_DIFFERENCE: #Forward and Backward difference
+                        column_data_pt = tmp_val_pt
+
+                        status = self._get_real(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
+                        if status == 0:
+                            for i in range(local_indices_matrix_rows_nbr):
+                                column_data_pt[i] = (tmp_val_pt[i] - df_pt[local_indices_matrix_rows_pt[i]])/(fac*eps_pt[local_indices_matrix_columns_pt[i]])
+                        
                             sol_found = 1
-                        except FMUException: #Try backward difference (for all variables)
-                            self.set_real(v_ref[group[key][0]], v[group[key][0]]-fac*eps[group[key][0]])
-                            try:
-                                column_data = (df[group[key][2]] - self.get_real(z_ref[group[key][2]]))/(fac*eps[group[key][3]])
+                        else: #Backward
+
+                            for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]-fac*eps_pt[local_indices_vars_pt[i]]
+                            self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                            
+                            status = self._get_real(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
+                            if status == 0:
+                                for i in range(local_indices_matrix_rows_nbr):
+                                    column_data_pt[i] = (df_pt[local_indices_matrix_rows_pt[i]] - tmp_val_pt[i])/(fac*eps_pt[local_indices_matrix_columns_pt[i]])
+                                    
                                 sol_found = 1
-                            except FMUException:
-                                pass
-                    
+                                
                     else: #Central difference
-                        dfpertp = self.get_real(z_ref[group[key][2]])
+                        dfpertp = self.get_real(z_ref[local_group[2]])
                         
-                        self.set_real(v_ref[group[key][0]], v[group[key][0]]-fac*eps[group[key][0]])
+                        for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]-fac*eps_pt[local_indices_vars_pt[i]]
+                        self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
                         
-                        dfpertm = self.get_real(z_ref[group[key][2]])
+                        dfpertm = self.get_real(z_ref[local_group[2]])
                         
-                        column_data = (dfpertp - dfpertm)/(2*fac*eps[group[key][3]])
+                        column_data = (dfpertp - dfpertm)/(2*fac*eps[local_group[3]])
+                        column_data_pt = <FMIL.fmi2_real_t*>PyArray_DATA(column_data)
                         sol_found = 1
                     
                     if sol_found:
                         if output_matrix is not None:
-                            data_local[group[key][ind_local]] = column_data
+                            for i in range(local_indices_matrix_rows_nbr):
+                                output_matrix_data_pt[local_data_indices[i]] = column_data_pt[i]
                         else:
-                            data.extend(column_data)
+                            for i in range(local_indices_matrix_rows_nbr):
+                                data.append(column_data_pt[i])
                         break
                 else:
                     raise FMUException("Failed to estimate the directional derivative at time %g."%self.time)
                 
                 if output_matrix is None:
-                    row.extend(group[key][2])
-                    col.extend(group[key][3])
-                    
-                self.set_real(v_ref[group[key][0]], v[group[key][0]])
+                    row.extend(local_group[2])
+                    col.extend(local_group[3])
+                
+                for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]
+                self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
             
             if output_matrix is not None:
                 A = output_matrix 
@@ -7735,43 +7803,71 @@ cdef class FMUModelME2(FMUModelBase2):
             
             dfpert = N.zeros(len_f, dtype = N.double)
             for i in range(len_v):
-                tmp = v[i]
+                tmp = v_pt[i]
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
-                    v[i] = tmp+fac*eps[i]
-                    self.set_real(v_ref, v)
+                    v_pt[i] = tmp+fac*eps_pt[i]
+                    self._set_real(v_ref_pt, v_pt, len_v)
                             
                     if method == FORWARD_DIFFERENCE: #Forward and Backward difference
                         try:
                             dfpert = self.get_real(z_ref)
-                            A[:, i] = (dfpert - df)/(fac*eps[i])
+                            A[:, i] = (dfpert - df)/(fac*eps_pt[i])
                             break
                         except FMUException: #Try backward difference
-                            v[i] = tmp - fac*eps[i]
-                            self.set_real(v_ref, v)
+                            v_pt[i] = tmp - fac*eps_pt[i]
+                            self._set_real(v_ref_pt, v_pt, len_v)
                             try:
                                 dfpert = self.get_real(z_ref)
-                                A[:, i] = (df - dfpert)/(fac*eps[i])
+                                A[:, i] = (df - dfpert)/(fac*eps_pt[i])
                                 break
                             except FMUException:
                                 pass
                             
                     else: #Central difference
                         dfpertp = self.get_real(z_ref)
-                        v[i] = tmp - fac*eps[i]
-                        self.set_real(v_ref, v)
+                        v_pt[i] = tmp - fac*eps_pt[i]
+                        self._set_real(v_ref_pt, v_pt, len_v)
                         dfpertm = self.get_real(z_ref)
-                        A[:, i] = (dfpertp - dfpertm)/(2*fac*eps[i])
+                        A[:, i] = (dfpertp - dfpertm)/(2*fac*eps_pt[i])
                         break
                 else:
                     raise FMUException("Failed to estimate the directional derivative at time %g."%self.time)
                 
-                    
                 #Reset values
-                v[i] = tmp
-                self.set_real(v_ref, v)
+                v_pt[i] = tmp
+                self._set_real(v_ref_pt, v_pt, len_v)
             
             return A
             
+cdef class __ForTestingFMUModelME2(FMUModelME2):
+    cdef int _get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
+        vr = N.zeros(size)
+        for i in range(size):
+            vr[i] = vrefs[i]
+        
+        try:
+            vv = self.get_real(vr)
+        except:
+            return FMIL.fmi2_status_error
+        
+        for i in range(size):
+            values[i] = vv[i]
+        
+        return FMIL.fmi2_status_ok
+    
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
+        vr = N.zeros(size)
+        vv = N.zeros(size)
+        for i in range(size):
+            vr[i] = vrefs[i]
+            vv[i] = values[i]
+        
+        try:
+            self.set_real(vr, vv)
+        except:
+            return FMIL.fmi2_status_error
+        
+        return FMIL.fmi2_status_ok
 
 #Temporary should be removed! (after a period)
 cdef class FMUModel(FMUModelME1):
@@ -8023,5 +8119,77 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     return model
 
 
-
+cdef class WorkerClass2:
+    
+    def __init__(self):
+        self._dim = 0
+    
+    def _update_work_vectors(self, dim):
+        self._tmp1_val = N.zeros(dim, dtype = N.double)
+        self._tmp2_val = N.zeros(dim, dtype = N.double)
+        self._tmp3_val = N.zeros(dim, dtype = N.double)
+        self._tmp4_val = N.zeros(dim, dtype = N.double)
+        
+        self._tmp1_ref = N.zeros(dim, dtype = N.uint32)
+        self._tmp2_ref = N.zeros(dim, dtype = N.uint32)
+        self._tmp3_ref = N.zeros(dim, dtype = N.uint32)
+        self._tmp4_ref = N.zeros(dim, dtype = N.uint32)
+        
+    cpdef verify_dimensions(self, int dim):
+        if dim > self._dim:
+            self._update_work_vectors(dim)
+    
+    cdef N.ndarray get_real_numpy_vector(self, int index):
+        cdef N.ndarray ret = None
+        
+        if index == 0:
+            ret = self._tmp1_val
+        elif index == 1:
+            ret = self._tmp2_val
+        elif index == 2:
+            ret = self._tmp3_val
+        elif index == 3:
+            ret = self._tmp4_val
+            
+        return ret
+    
+    cdef FMIL.fmi2_real_t* get_real_vector(self, int index):
+        cdef FMIL.fmi2_real_t* ret = NULL
+        if index == 0:
+            ret = <FMIL.fmi2_real_t*>PyArray_DATA(self._tmp1_val)
+        elif index == 1:
+            ret = <FMIL.fmi2_real_t*>PyArray_DATA(self._tmp2_val)
+        elif index == 2:
+            ret = <FMIL.fmi2_real_t*>PyArray_DATA(self._tmp3_val)
+        elif index == 3:
+            ret = <FMIL.fmi2_real_t*>PyArray_DATA(self._tmp4_val)
+        
+        return ret
+    
+    cdef N.ndarray get_value_reference_numpy_vector(self, int index):
+        cdef N.ndarray ret = None
+        
+        if index == 0:
+            ret = self._tmp1_ref
+        elif index == 1:
+            ret = self._tmp2_ref
+        elif index == 2:
+            ret = self._tmp3_ref
+        elif index == 3:
+            ret = self._tmp4_ref
+            
+        return ret
+    
+    cdef FMIL.fmi2_value_reference_t* get_value_reference_vector(self, int index):
+        cdef FMIL.fmi2_value_reference_t* ret = NULL
+        if index == 0:
+            ret = <FMIL.fmi2_value_reference_t*>PyArray_DATA(self._tmp1_ref)
+        elif index == 1:
+            ret = <FMIL.fmi2_value_reference_t*>PyArray_DATA(self._tmp2_ref)
+        elif index == 2:
+            ret = <FMIL.fmi2_value_reference_t*>PyArray_DATA(self._tmp3_ref)
+        elif index == 3:
+            ret = <FMIL.fmi2_value_reference_t*>PyArray_DATA(self._tmp4_ref)
+        
+        return ret
 

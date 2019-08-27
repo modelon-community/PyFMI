@@ -19,7 +19,7 @@ import nose
 import os
 import numpy as np
 
-from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
+from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, __ForTestingFMUModelME2
 
 class Dummy_FMUModelME1(FMUModelME1):
     #Override properties
@@ -191,7 +191,7 @@ class Dummy_FMUModelCS2(FMUModelCS2):
         for i,v in enumerate(vref):
             self.values[v] = values[i]
 
-class Dummy_FMUModelME2(FMUModelME2):
+class Dummy_FMUModelME2(__ForTestingFMUModelME2):
     #Override properties
     time = None
     continuous_states = None
