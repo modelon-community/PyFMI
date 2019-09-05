@@ -466,7 +466,11 @@ class AssimuloFMIAlg(AlgorithmBase):
             if self.model.get_capability_flags()['providesDirectionalDerivatives']:
                 self.with_jacobian = True
             else:
-                self.with_jacobian = False
+                fnbr, gnbr = self.model.get_ode_sizes()
+                if fnbr >= 10:
+                    self.with_jacobian = True
+                else:
+                    self.with_jacobian = False
 
     def _set_solver_options(self):
         """
