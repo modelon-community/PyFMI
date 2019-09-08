@@ -467,7 +467,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.with_jacobian = True
             else:
                 fnbr, gnbr = self.model.get_ode_sizes()
-                if fnbr >= 10:
+                if fnbr >= 10 and solver == "CVode":
                     self.with_jacobian = True
                 else:
                     self.with_jacobian = False
