@@ -469,6 +469,11 @@ class AssimuloFMIAlg(AlgorithmBase):
                 fnbr, gnbr = self.model.get_ode_sizes()
                 if fnbr >= 10 and solver == "CVode":
                     self.with_jacobian = True
+                    if fnbr >= 100:
+                        try:
+                            self.solver_options["linear_solver"]
+                        except KeyError:
+                            self.solver_options["linear_solver"] = "SPARSE"
                 else:
                     self.with_jacobian = False
 
