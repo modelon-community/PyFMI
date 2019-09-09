@@ -457,6 +457,36 @@ if assimulo_installed:
             assert res.solver.maxord == 1
             
 class Test_FMUModelME2:
+    
+    @testattr(stddist = True)
+    def test_estimate_directional_derivatives_bouncing_ball(self):
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BouncingBall.fmu")
+        model = Dummy_FMUModelME2([], full_path, _connect_dll=False)
+        
+        def f(*args, **kwargs):
+            derh = model.values[model.variables["v"].value_reference]
+            derv = -9.81
+            model.values[model.variables["der(h)"].value_reference] = derh
+            return np.array([derh, derv])
+        model.get_derivatives = f
+        
+        model.initialize()
+        model.event_update()
+        model.enter_continuous_time_mode()
+        
+        [As, Bs, Cs, Ds] = model.get_state_space_representation(use_structure_info=False)
+        [A, B, C, D] = model.get_state_space_representation()
+        
+        assert As.shape == A.shape
+        assert Bs.shape == B.shape
+        assert Cs.shape == C.shape
+        assert Ds.shape == D.shape
+        
+        np.allclose(As, A.toarray())
+        np.allclose(Bs, B.toarray())
+        np.allclose(Cs, C.toarray())
+        np.allclose(Ds, D.toarray())
+    
     @testattr(stddist = True)
     def test_estimate_directional_derivatives_BCD(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "OutputTest2.fmu")

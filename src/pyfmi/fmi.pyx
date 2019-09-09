@@ -7801,6 +7801,9 @@ cdef class FMUModelME2(FMUModelBase2):
             else:
                 A = output_matrix
             
+            if len_v == 0 or len_f == 0:
+                return A
+            
             dfpert = N.zeros(len_f, dtype = N.double)
             for i in range(len_v):
                 tmp = v_pt[i]

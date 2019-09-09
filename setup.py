@@ -156,6 +156,13 @@ for x in sys.argv[1:]:
     if not x.find('--version'):
         VERSION = x[10:]
         copy_args.remove(x)
+    if not x.find('--debug'):
+        static = x[8:]
+        if x[8:].upper() == "TRUE":
+            debug_flag = True
+        else:
+            debug_flag = False
+        copy_args.remove(x)
     
 
 if not incdirs:
