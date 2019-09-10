@@ -459,7 +459,7 @@ if assimulo_installed:
 class Test_FMUModelME2:
     
     @testattr(stddist = True)
-    def test_estimate_directional_derivatives_bouncing_ball(self):
+    def test_estimate_directional_derivatives_without_structure_info(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BouncingBall.fmu")
         model = Dummy_FMUModelME2([], full_path, _connect_dll=False)
         
@@ -477,15 +477,15 @@ class Test_FMUModelME2:
         [As, Bs, Cs, Ds] = model.get_state_space_representation(use_structure_info=False)
         [A, B, C, D] = model.get_state_space_representation()
         
-        assert As.shape == A.shape
-        assert Bs.shape == B.shape
-        assert Cs.shape == C.shape
-        assert Ds.shape == D.shape
+        assert As.shape == A.shape, str(As.shape)+' '+str(A.shape)
+        assert Bs.shape == B.shape, str(Bs.shape)+' '+str(B.shape)
+        assert Cs.shape == C.shape, str(Cs.shape)+' '+str(C.shape)
+        assert Ds.shape == D.shape, str(Ds.shape)+' '+str(D.shape)
         
-        np.allclose(As, A.toarray())
-        np.allclose(Bs, B.toarray())
-        np.allclose(Cs, C.toarray())
-        np.allclose(Ds, D.toarray())
+        assert np.allclose(As, A.toarray()), str(As)+' '+str(A.toarray())
+        assert np.allclose(Bs, B.toarray()), str(Bs)+' '+str(B.toarray())
+        assert np.allclose(Cs, C.toarray()), str(Cs)+' '+str(C.toarray())
+        assert np.allclose(Ds, D.toarray()), str(Ds)+' '+str(D.toarray())
     
     @testattr(stddist = True)
     def test_estimate_directional_derivatives_BCD(self):
@@ -529,17 +529,17 @@ class Test_FMUModelME2:
         C = model._get_C(use_structure_info=True)
         D = model._get_D(use_structure_info=True)
         
-        np.allclose(B.toarray(), np.array([[0.0],[0.0]]))
-        np.allclose(C.toarray(), np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
-        np.allclose(D.toarray(), np.array([[-1.0],[0.0], [1.0]]))
+        assert np.allclose(B.toarray(), np.array([[0.0],[0.0]]))
+        assert np.allclose(C.toarray(), np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
+        assert np.allclose(D.toarray(), np.array([[-1.0],[0.0], [1.0]]))
         
         B = model._get_B(use_structure_info=False)
         C = model._get_C(use_structure_info=False)
         D = model._get_D(use_structure_info=False)
         
-        np.allclose(B, np.array([[0.0],[0.0]]))
-        np.allclose(C, np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
-        np.allclose(D, np.array([[-1.0],[0.0], [1.0]]))
+        assert np.allclose(B, np.array([[0.0],[0.0]]))
+        assert np.allclose(C, np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
+        assert np.allclose(D, np.array([[-1.0],[0.0], [1.0]]))
         
     @testattr(stddist = True)
     def test_output_dependencies(self):
