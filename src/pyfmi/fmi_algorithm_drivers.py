@@ -473,7 +473,11 @@ class AssimuloFMIAlg(AlgorithmBase):
                         try:
                             self.solver_options["linear_solver"]
                         except KeyError:
-                            self.solver_options["linear_solver"] = "SPARSE"
+                            #Need to calculate the nnz.
+                            [derv_state_dep, derv_input_dep] = self.model.get_derivatives_dependencies()
+                            nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+fnbr
+                            if nnz/float(fnbr*fnbr) <= 0.15:
+                                self.solver_options["linear_solver"] = "SPARSE"
                 else:
                     self.with_jacobian = False
 
