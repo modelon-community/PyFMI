@@ -105,10 +105,10 @@ class ModelBase(object):
             (FMU)Model.set('damper.d', 1.1)
             (FMU)Model.set(['damper.d','gear.a'], [1.1, 10])
         """
-        if isinstance(variable_name, basestring):
+        if isinstance(variable_name, str):
             self._set(variable_name, value) #Scalar case
         else:
-            for i in xrange(len(variable_name)): #A list of variables
+            for i in range(len(variable_name)): #A list of variables
                 self._set(variable_name[i], value[i])
     
     def get(self, variable_name):
@@ -132,11 +132,11 @@ class ModelBase(object):
             # Returns a list of the variables
             (FMU)Model.get(['damper.d','gear.a'])
         """
-        if isinstance(variable_name, basestring):
+        if isinstance(variable_name, str):
             return self._get(variable_name) #Scalar case
         else:
             ret = []
-            for i in xrange(len(variable_name)): #A list of variables
+            for i in range(len(variable_name)): #A list of variables
                 ret += [self._get(variable_name[i])]
             return ret
     
@@ -154,7 +154,7 @@ class ModelBase(object):
         algdrive = __import__(base_path, globals(), locals(), [], -1)
         AlgorithmBase = getattr(algdrive, 'AlgorithmBase')
         
-        if isinstance(algorithm, basestring):
+        if isinstance(algorithm, str):
             module = __import__(module, globals(), locals(), [algorithm], -1)
             algorithm = getattr(module, algorithm)
         
@@ -189,7 +189,7 @@ class ModelBase(object):
         algdrive = __import__(base_path, globals(), locals(), [], -1)
         AlgorithmBase = getattr(algdrive, 'AlgorithmBase')
         
-        if isinstance(algorithm, basestring):
+        if isinstance(algorithm, str):
             module = __import__(module, globals(), locals(), [algorithm], -1)
             algorithm = getattr(module, algorithm)
         

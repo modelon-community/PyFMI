@@ -949,12 +949,12 @@ class ModelDescription:
         if include_alias:
             for sv in scalarvariables:
                 names.append(sv.get_name())
-            return zip(tuple(self._vrefs),tuple(names))
+            return list(zip(tuple(self._vrefs),tuple(names)))
 
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS:
                 names.append(sv.get_name())
-        return zip(tuple(self._vrefs_noAlias),tuple(names))
+        return list(zip(tuple(self._vrefs_noAlias),tuple(names)))
         
     def get_variable_aliases(self, ignore_cache=False):
         """ 
@@ -979,7 +979,7 @@ class ModelDescription:
         scalarvariables = self.get_model_variables()
         for sv in scalarvariables:
             alias_data.append(sv.get_alias())
-        return zip(tuple(self._vrefs),tuple(alias_data))
+        return list(zip(tuple(self._vrefs),tuple(alias_data)))
 
     def get_variable_descriptions(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1013,12 +1013,12 @@ class ModelDescription:
         if include_alias:
             for sv in scalarvariables:
                 descriptions.append(sv.get_description())
-            return zip(tuple(self._vrefs),tuple(descriptions))
+            return list(zip(tuple(self._vrefs),tuple(descriptions)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS:
                 descriptions.append(sv.get_description())
-        return zip(tuple(self._vrefs_noAlias),tuple(descriptions))
+        return list(zip(tuple(self._vrefs_noAlias),tuple(descriptions)))
         
     def get_variable_variabilities(self, include_alias=True, 
         ignore_cache=False):
@@ -1053,12 +1053,12 @@ class ModelDescription:
         if include_alias:
             for sv in scalarvariables:
                 variabilities.append(sv.get_variability())
-            return zip(tuple(self._vrefs),tuple(variabilities))
+            return list(zip(tuple(self._vrefs),tuple(variabilities)))
         
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS:
                 variabilities.append(sv.get_variability())
-        return zip(tuple(self._vrefs_noAlias),tuple(variabilities))
+        return list(zip(tuple(self._vrefs_noAlias),tuple(variabilities)))
 
     def get_variable_nominal_attributes(self, include_alias=True, 
         ignore_cache=False):
@@ -1097,7 +1097,7 @@ class ModelDescription:
                     nominals.append(ftype.get_nominal())
                 else:
                     nominals.append(None)
-            return zip(tuple(self._vrefs),tuple(nominals))
+            return list(zip(tuple(self._vrefs),tuple(nominals)))
         
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -1106,7 +1106,7 @@ class ModelDescription:
                     nominals.append(ftype.get_nominal())
                 else:
                     nominals.append(None)
-        return zip(tuple(self._vrefs_noAlias),tuple(nominals))
+        return list(zip(tuple(self._vrefs_noAlias),tuple(nominals)))
 
     def get_variable_fixed_attributes(self, include_alias=True, 
         ignore_cache=False):
@@ -1145,7 +1145,7 @@ class ModelDescription:
                     fixeds.append(ftype.get_fixed())
                 else:
                     fixeds.append(None)
-            return zip(tuple(self._vrefs),tuple(fixeds))
+            return list(zip(tuple(self._vrefs),tuple(fixeds)))
         
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -1154,7 +1154,7 @@ class ModelDescription:
                     fixeds.append(ftype.get_fixed())
                 else:
                     fixeds.append(None)
-        return zip(tuple(self._vrefs_noAlias),tuple(fixeds))
+        return list(zip(tuple(self._vrefs_noAlias),tuple(fixeds)))
 
 
 
@@ -1191,12 +1191,12 @@ class ModelDescription:
         if include_alias:
             for sv in scalarvariables:
                 start_attributes.append(sv.get_fundamental_type().get_start())
-            return zip(tuple(self._vrefs), tuple(start_attributes))
+            return list(zip(tuple(self._vrefs), tuple(start_attributes)))
        
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS:
                 start_attributes.append(sv.get_fundamental_type().get_start())
-        return zip(tuple(self._vrefs_noAlias), tuple(start_attributes))
+        return list(zip(tuple(self._vrefs_noAlias), tuple(start_attributes)))
         
     def get_all_real_variables(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1360,7 +1360,7 @@ class ModelDescription:
                     sv.get_fundamental_type().get_free() == True:
                         vrefs.append(sv.get_value_reference())
                         names.append(sv.get_name())
-            return zip(tuple(vrefs), tuple(names))
+            return list(zip(tuple(vrefs), tuple(names)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -1368,7 +1368,7 @@ class ModelDescription:
                 sv.get_fundamental_type().get_free() == True:
                         vrefs.append(sv.get_value_reference())
                         names.append(sv.get_name())
-        return zip(tuple(vrefs), tuple(names))
+        return list(zip(tuple(vrefs), tuple(names)))
                 
     def get_dx_variable_names(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1404,14 +1404,14 @@ class ModelDescription:
                 if sv.get_variable_category() == DERIVATIVE:
                     vrefs.append(sv.get_value_reference())
                     names.append(sv.get_name())
-            return zip(tuple(vrefs), tuple(names))
+            return list(zip(tuple(vrefs), tuple(names)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
                sv.get_variable_category() == DERIVATIVE:
                     vrefs.append(sv.get_value_reference())
                     names.append(sv.get_name())
-        return zip(tuple(vrefs), tuple(names))
+        return list(zip(tuple(vrefs), tuple(names)))
                     
     def get_x_variable_names(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1448,14 +1448,14 @@ class ModelDescription:
                 if sv.get_variable_category() == STATE:
                     vrefs.append(sv.get_value_reference())
                     names.append(sv.get_name())
-            return zip(tuple(vrefs), tuple(names))
+            return list(zip(tuple(vrefs), tuple(names)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
                sv.get_variable_category() == STATE:
                     vrefs.append(sv.get_value_reference())
                     names.append(sv.get_name())
-        return zip(tuple(vrefs), tuple(names))
+        return list(zip(tuple(vrefs), tuple(names)))
                     
     def get_u_variable_names(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1491,7 +1491,7 @@ class ModelDescription:
                 sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     names.append(sv.get_name())
-            return zip(tuple(vrefs), tuple(names))
+            return list(zip(tuple(vrefs), tuple(names)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -1499,7 +1499,7 @@ class ModelDescription:
                sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     names.append(sv.get_name())
-        return zip(tuple(vrefs), tuple(names))
+        return list(zip(tuple(vrefs), tuple(names)))
 
     def get_w_variable_names(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1535,7 +1535,7 @@ class ModelDescription:
                 sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     names.append(sv.get_name())
-            return zip(tuple(vrefs), tuple(names))
+            return list(zip(tuple(vrefs), tuple(names)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -1543,7 +1543,7 @@ class ModelDescription:
                sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     names.append(sv.get_name())
-        return zip(tuple(vrefs), tuple(names))
+        return list(zip(tuple(vrefs), tuple(names)))
 
     def get_p_opt_start(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1581,7 +1581,7 @@ class ModelDescription:
                     sv.get_fundamental_type().get_free() == True:
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
-            return zip(tuple(vrefs), tuple(start_attributes))
+            return list(zip(tuple(vrefs), tuple(start_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -1589,7 +1589,7 @@ class ModelDescription:
                 sv.get_fundamental_type().get_free() == True:
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
-        return zip(tuple(vrefs), tuple(start_attributes))
+        return list(zip(tuple(vrefs), tuple(start_attributes)))
                 
     def get_dx_start(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1625,14 +1625,14 @@ class ModelDescription:
                 if sv.get_variable_category() == DERIVATIVE:
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
-            return zip(tuple(vrefs), tuple(start_attributes))
+            return list(zip(tuple(vrefs), tuple(start_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
                sv.get_variable_category() == DERIVATIVE:
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
-        return zip(tuple(vrefs), tuple(start_attributes))
+        return list(zip(tuple(vrefs), tuple(start_attributes)))
                     
     def get_x_start(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1668,14 +1668,14 @@ class ModelDescription:
                 if sv.get_variable_category() == STATE:
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
-            return zip(tuple(vrefs), tuple(start_attributes))
+            return list(zip(tuple(vrefs), tuple(start_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
                sv.get_variable_category() == STATE:
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
-        return zip(tuple(vrefs), tuple(start_attributes))
+        return list(zip(tuple(vrefs), tuple(start_attributes)))
                     
     def get_u_start(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1712,7 +1712,7 @@ class ModelDescription:
                 sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
-            return zip(tuple(vrefs), tuple(start_attributes))
+            return list(zip(tuple(vrefs), tuple(start_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -1720,7 +1720,7 @@ class ModelDescription:
                sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
-        return zip(tuple(vrefs), tuple(start_attributes))
+        return list(zip(tuple(vrefs), tuple(start_attributes)))
 
     def get_w_start(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1757,7 +1757,7 @@ class ModelDescription:
                 sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
-            return zip(tuple(vrefs), tuple(start_attributes))
+            return list(zip(tuple(vrefs), tuple(start_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -1765,7 +1765,7 @@ class ModelDescription:
                sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
-        return zip(tuple(vrefs), tuple(start_attributes))
+        return list(zip(tuple(vrefs), tuple(start_attributes)))
 
 ############################
     def get_dx_fixed(self, include_alias=True, ignore_cache=False):
@@ -1802,14 +1802,14 @@ class ModelDescription:
                 if sv.get_variable_category() == DERIVATIVE:
                     vrefs.append(sv.get_value_reference())
                     fixed_attributes.append(sv.get_fundamental_type().get_fixed())
-            return zip(tuple(vrefs), tuple(fixed_attributes))
+            return list(zip(tuple(vrefs), tuple(fixed_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
                sv.get_variable_category() == DERIVATIVE:
                     vrefs.append(sv.get_value_reference())
                     fixed_attributes.append(sv.get_fundamental_type().get_fixed())
-        return zip(tuple(vrefs), tuple(fixed_attributes))
+        return list(zip(tuple(vrefs), tuple(fixed_attributes)))
                     
     def get_x_fixed(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1845,14 +1845,14 @@ class ModelDescription:
                 if sv.get_variable_category() == STATE:
                     vrefs.append(sv.get_value_reference())
                     fixed_attributes.append(sv.get_fundamental_type().get_fixed())
-            return zip(tuple(vrefs), tuple(fixed_attributes))
+            return list(zip(tuple(vrefs), tuple(fixed_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
                sv.get_variable_category() == STATE:
                     vrefs.append(sv.get_value_reference())
                     fixed_attributes.append(sv.get_fundamental_type().get_fixed())
-        return zip(tuple(vrefs), tuple(fixed_attributes))
+        return list(zip(tuple(vrefs), tuple(fixed_attributes)))
                     
     def get_u_fixed(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1889,7 +1889,7 @@ class ModelDescription:
                 sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     fixed_attributes.append(sv.get_fundamental_type().get_fixed())
-            return zip(tuple(vrefs), tuple(fixed_attributes))
+            return list(zip(tuple(vrefs), tuple(fixed_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -1897,7 +1897,7 @@ class ModelDescription:
                sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     fixed_attributes.append(sv.get_fundamental_type().get_fixed())
-        return zip(tuple(vrefs), tuple(fixed_attributes))
+        return list(zip(tuple(vrefs), tuple(fixed_attributes)))
 
     def get_w_fixed(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1934,7 +1934,7 @@ class ModelDescription:
                 sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     fixed_attributes.append(sv.get_fundamental_type().get_fixed())
-            return zip(tuple(vrefs), tuple(fixed_attributes))
+            return list(zip(tuple(vrefs), tuple(fixed_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -1942,7 +1942,7 @@ class ModelDescription:
                sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     fixed_attributes.append(sv.get_fundamental_type().get_fixed())
-        return zip(tuple(vrefs), tuple(fixed_attributes))
+        return list(zip(tuple(vrefs), tuple(fixed_attributes)))
 
     def get_x_nominal(self, include_alias=True, ignore_cache=False):
         """ 
@@ -1978,14 +1978,14 @@ class ModelDescription:
                 if sv.get_variable_category() == STATE:
                     vrefs.append(sv.get_value_reference())
                     nominal_attributes.append(sv.get_fundamental_type().get_nominal())
-            return zip(tuple(vrefs), tuple(nominal_attributes))
+            return list(zip(tuple(vrefs), tuple(nominal_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
                sv.get_variable_category() == STATE:
                     vrefs.append(sv.get_value_reference())
                     nominal_attributes.append(sv.get_fundamental_type().get_nominal())
-        return zip(tuple(vrefs), tuple(nominal_attributes))
+        return list(zip(tuple(vrefs), tuple(nominal_attributes)))
                     
     def get_u_nominal(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2022,7 +2022,7 @@ class ModelDescription:
                 sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     nominal_attributes.append(sv.get_fundamental_type().get_nominal())
-            return zip(tuple(vrefs), tuple(nominal_attributes))
+            return list(zip(tuple(vrefs), tuple(nominal_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -2030,7 +2030,7 @@ class ModelDescription:
                sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     nominal_attributes.append(sv.get_fundamental_type().get_nominal())
-        return zip(tuple(vrefs), tuple(nominal_attributes))
+        return list(zip(tuple(vrefs), tuple(nominal_attributes)))
 
     def get_w_nominal(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2067,7 +2067,7 @@ class ModelDescription:
                 sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     nominal_attributes.append(sv.get_fundamental_type().get_nominal())
-            return zip(tuple(vrefs), tuple(nominal_attributes))
+            return list(zip(tuple(vrefs), tuple(nominal_attributes)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -2075,7 +2075,7 @@ class ModelDescription:
                sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     nominal_attributes.append(sv.get_fundamental_type().get_nominal())
-        return zip(tuple(vrefs), tuple(nominal_attributes))
+        return list(zip(tuple(vrefs), tuple(nominal_attributes)))
 
     def get_p_opt_nominal(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2114,7 +2114,7 @@ class ModelDescription:
                     ftype.get_free() == True):
                     vrefs.append(sv.get_value_reference())
                     nominal_attributes.append(ftype.get_nominal())
-            return zip(tuple(vrefs), tuple(nominal_attributes))
+            return list(zip(tuple(vrefs), tuple(nominal_attributes)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2123,7 +2123,7 @@ class ModelDescription:
                 ftype.get_free() == True):
                 vrefs.append(sv.get_value_reference())
                 nominal_attributes.append(ftype.get_nominal())
-        return zip(tuple(vrefs), tuple(nominal_attributes))
+        return list(zip(tuple(vrefs), tuple(nominal_attributes)))
 
 #############################
     def get_p_opt_initial_guess(self, include_alias=True, ignore_cache=False):
@@ -2165,7 +2165,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     initial_values.append(ftype.get_initial_guess())
-            return zip(tuple(vrefs), tuple(initial_values))
+            return list(zip(tuple(vrefs), tuple(initial_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2177,7 +2177,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     initial_values.append(ftype.get_initial_guess())
-        return zip(tuple(vrefs), tuple(initial_values))
+        return list(zip(tuple(vrefs), tuple(initial_values)))
 
     def get_dx_initial_guess(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2218,7 +2218,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     initial_values.append(ftype.get_initial_guess())
-            return zip(tuple(vrefs), tuple(initial_values))
+            return list(zip(tuple(vrefs), tuple(initial_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2229,7 +2229,7 @@ class ModelDescription:
                    
                     vrefs.append(sv.get_value_reference())
                     initial_values.append(ftype.get_initial_guess())
-        return zip(tuple(vrefs), tuple(initial_values))
+        return list(zip(tuple(vrefs), tuple(initial_values)))
 
     def get_x_initial_guess(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2270,7 +2270,7 @@ class ModelDescription:
                     
                         vrefs.append(sv.get_value_reference())
                         initial_values.append(ftype.get_initial_guess())
-            return zip(tuple(vrefs), tuple(initial_values))
+            return list(zip(tuple(vrefs), tuple(initial_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2281,7 +2281,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     initial_values.append(ftype.get_initial_guess())
-        return zip(tuple(vrefs), tuple(initial_values))
+        return list(zip(tuple(vrefs), tuple(initial_values)))
 
     def get_u_initial_guess(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2323,7 +2323,7 @@ class ModelDescription:
                     
                         vrefs.append(sv.get_value_reference())
                         initial_values.append(ftype.get_initial_guess())
-            return zip(tuple(vrefs), tuple(initial_values))
+            return list(zip(tuple(vrefs), tuple(initial_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2335,7 +2335,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     initial_values.append(ftype.get_initial_guess())
-        return zip(tuple(vrefs), tuple(initial_values))
+        return list(zip(tuple(vrefs), tuple(initial_values)))
 
     def get_w_initial_guess(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2377,7 +2377,7 @@ class ModelDescription:
                         
                         vrefs.append(sv.get_value_reference())
                         initial_values.append(ftype.get_initial_guess())
-            return zip(tuple(vrefs), tuple(initial_values))
+            return list(zip(tuple(vrefs), tuple(initial_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2389,7 +2389,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     initial_values.append(ftype.get_initial_guess())
-        return zip(tuple(vrefs), tuple(initial_values))
+        return list(zip(tuple(vrefs), tuple(initial_values)))
 
     def get_p_opt_min(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2429,7 +2429,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
-            return zip(tuple(vrefs), tuple(min_values))
+            return list(zip(tuple(vrefs), tuple(min_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2441,7 +2441,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
-        return zip(tuple(vrefs), tuple(min_values))
+        return list(zip(tuple(vrefs), tuple(min_values)))
 
     def get_dx_min(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2481,7 +2481,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
-            return zip(tuple(vrefs), tuple(min_values))
+            return list(zip(tuple(vrefs), tuple(min_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2492,7 +2492,7 @@ class ModelDescription:
                    
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
-        return zip(tuple(vrefs), tuple(min_values))
+        return list(zip(tuple(vrefs), tuple(min_values)))
 
     def get_x_min(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2532,7 +2532,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
-            return zip(tuple(vrefs), tuple(min_values))
+            return list(zip(tuple(vrefs), tuple(min_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2543,7 +2543,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
-        return zip(tuple(vrefs), tuple(min_values))
+        return list(zip(tuple(vrefs), tuple(min_values)))
 
     def get_u_min(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2584,7 +2584,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
-            return zip(tuple(vrefs), tuple(min_values))
+            return list(zip(tuple(vrefs), tuple(min_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2596,7 +2596,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
-        return zip(tuple(vrefs), tuple(min_values))
+        return list(zip(tuple(vrefs), tuple(min_values)))
 
     def get_w_min(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2637,7 +2637,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
-            return zip(tuple(vrefs), tuple(min_values))
+            return list(zip(tuple(vrefs), tuple(min_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2649,7 +2649,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
-        return zip(tuple(vrefs), tuple(min_values))
+        return list(zip(tuple(vrefs), tuple(min_values)))
 
     def get_p_opt_max(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2689,7 +2689,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
-            return zip(tuple(vrefs), tuple(max_values))
+            return list(zip(tuple(vrefs), tuple(max_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2701,7 +2701,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
-        return zip(tuple(vrefs), tuple(max_values))
+        return list(zip(tuple(vrefs), tuple(max_values)))
 
     def get_dx_max(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2741,7 +2741,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
-            return zip(tuple(vrefs), tuple(max_values))
+            return list(zip(tuple(vrefs), tuple(max_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2752,7 +2752,7 @@ class ModelDescription:
                    
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
-        return zip(tuple(vrefs), tuple(max_values))
+        return list(zip(tuple(vrefs), tuple(max_values)))
 
     def get_x_max(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2792,7 +2792,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
-            return zip(tuple(vrefs), tuple(max_values))
+            return list(zip(tuple(vrefs), tuple(max_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2803,7 +2803,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
-        return zip(tuple(vrefs), tuple(max_values))
+        return list(zip(tuple(vrefs), tuple(max_values)))
 
     def get_u_max(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2844,7 +2844,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
-            return zip(tuple(vrefs), tuple(max_values))
+            return list(zip(tuple(vrefs), tuple(max_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2856,7 +2856,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
-        return zip(tuple(vrefs), tuple(max_values))
+        return list(zip(tuple(vrefs), tuple(max_values)))
 
     def get_w_max(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2897,7 +2897,7 @@ class ModelDescription:
                         
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
-            return zip(tuple(vrefs), tuple(max_values))
+            return list(zip(tuple(vrefs), tuple(max_values)))
             
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
@@ -2909,7 +2909,7 @@ class ModelDescription:
                     
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
-        return zip(tuple(vrefs), tuple(max_values))
+        return list(zip(tuple(vrefs), tuple(max_values)))
 
     def get_p_opt_islinear(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2948,14 +2948,14 @@ class ModelDescription:
                     sv.get_fundamental_type().get_free() == True:
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
-            return zip(tuple(vrefs), tuple(is_linear))
+            return list(zip(tuple(vrefs), tuple(is_linear)))
             
         for sv in scalarvariables:
             if sv.get_variability() == PARAMETER and \
                 sv.get_fundamental_type().get_free() == True:
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
-        return zip(tuple(vrefs), tuple(is_linear))
+        return list(zip(tuple(vrefs), tuple(is_linear)))
 
     def get_dx_islinear(self, include_alias=True, ignore_cache=False):
         """ 
@@ -2993,14 +2993,14 @@ class ModelDescription:
                 if sv.get_variable_category() == DERIVATIVE:
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
-            return zip(tuple(vrefs), tuple(is_linear))
+            return list(zip(tuple(vrefs), tuple(is_linear)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
                 sv.get_variable_category() == DERIVATIVE:
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
-        return zip(tuple(vrefs), tuple(is_linear))
+        return list(zip(tuple(vrefs), tuple(is_linear)))
 
     def get_x_islinear(self, include_alias=True, ignore_cache=False):
         """ 
@@ -3038,14 +3038,14 @@ class ModelDescription:
                 if sv.get_variable_category() == STATE:
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
-            return zip(tuple(vrefs), tuple(is_linear))
+            return list(zip(tuple(vrefs), tuple(is_linear)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
                 sv.get_variable_category() == STATE:
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
-        return zip(tuple(vrefs), tuple(is_linear))
+        return list(zip(tuple(vrefs), tuple(is_linear)))
 
     def get_u_islinear(self, include_alias=True, ignore_cache=False):
         """ 
@@ -3084,7 +3084,7 @@ class ModelDescription:
                     sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
-            return zip(tuple(vrefs), tuple(is_linear))
+            return list(zip(tuple(vrefs), tuple(is_linear)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -3092,7 +3092,7 @@ class ModelDescription:
                 sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
-        return zip(tuple(vrefs), tuple(is_linear))
+        return list(zip(tuple(vrefs), tuple(is_linear)))
 
     def get_w_islinear(self, include_alias=True, ignore_cache=False):
         """ 
@@ -3131,7 +3131,7 @@ class ModelDescription:
                     sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
-            return zip(tuple(vrefs), tuple(is_linear))
+            return list(zip(tuple(vrefs), tuple(is_linear)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
@@ -3139,7 +3139,7 @@ class ModelDescription:
                 sv.get_variable_category() == ALGEBRAIC:
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
-        return zip(tuple(vrefs), tuple(is_linear))
+        return list(zip(tuple(vrefs), tuple(is_linear)))
         
     def get_dx_linear_timed_variables(self, include_alias=True, 
         ignore_cache=False):
@@ -5112,7 +5112,7 @@ class IndependentParameters:
             names.append(ip.get_name())
             values.append(ip.get_value())
             
-        return dict(zip(names, values))
+        return dict(list(zip(names, values)))
         
     def get_all_parameters(self):
         """
@@ -5656,7 +5656,7 @@ class XMLFunctionCache:
         else:
             result = f(ignore_cache=True)
         # check if function is already in cache
-        if not self.cache.has_key(function):
+        if function not in self.cache:
             # function is not in cache so add both function 
             # and return result which is either a dict or 
             # "normal" value entry dependent on key
