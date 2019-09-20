@@ -1,6 +1,8 @@
 --- CHANGELOG ---
 
 --- PyFMI-trunk ---
+    * Added option to specify if the variable descriptions should be 
+      stored or not in the result file (ticket:5846)
     * Fixed issue with estimating directional derivatives when the 
       structure info is not used and the matrix has zero dim (ticket:5836)
 

@@ -115,6 +115,12 @@ class AssimuloFMIAlgOptions(OptionBase):
             not. If set to False, the simulation result is not loaded
             into memory after the simulation finishes.
             Default: True
+            
+        result_store_variable_description --
+            Determines if the description for the variables should be 
+            stored in the result file or not. Only impacts the result
+            file formats that supports storing the variable description.
+            Default: True
 
         filter --
             A filter for choosing which variables to actually store
@@ -168,6 +174,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'result_handling':"binary",
             'result_handler': None,
             'return_result': True,
+            'result_store_variable_description': True,
             'filter':None,
             'extra_equations':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
@@ -615,6 +622,12 @@ class FMICSAlgOptions(OptionBase):
             not. If set to False, the simulation result is not loaded
             into memory after the simulation finishes.
             Default: True
+        
+        result_store_variable_description --
+            Determines if the description for the variables should be 
+            stored in the result file or not. Only impacts the result
+            file formats that supports storing the variable description.
+            Default: True
             
         time_limit --
             Specifies an upper bound on the time allowed for the 
@@ -643,6 +656,7 @@ class FMICSAlgOptions(OptionBase):
             'result_file_name':'',
             'result_handling':"binary",
             'result_handler': None,
+            'result_store_variable_description': True,
             'return_result': True,
             'time_limit': None,
             'filter':None

@@ -1725,6 +1725,11 @@ class ResultHandlerFile(ResultHandler):
             f.write(name + '\n')
 
         f.write('\n')
+        
+        if not opts["result_store_variable_description"]:
+            max_desc_length = 0
+            descriptions    = [[0,""] for d in descriptions]
+            descs_sens      = ["" for d in descs_sens]
 
         # Write descriptions       
         f.write('char description(%d,%d)\n' % (num_vars+len(names_sens) + 1, max_desc_length))
@@ -2134,17 +2139,16 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._sorted_vars = sorted_vars
         len_name_items = len(sorted_vars)+1
         len_desc_items = len_name_items
-        """
-        name_data = ["time"] + [var.name for var in sorted_vars]
-        desc_data = ["Time in [s]"] + [var.description for var in sorted_vars]
         
-        len_name_data, name_data = fmi_util.convert_str_list(name_data)
-        len_desc_data, desc_data = fmi_util.convert_str_list(desc_data)
-        """
         len_name_data, name_data, len_desc_data, desc_data = fmi_util.convert_sorted_vars_name_desc(sorted_vars)
         
         self._write_header("name", len_name_data, len_name_items, "char")
         self.dump_native_data(name_data)
+        
+        if not opts["result_store_variable_description"]:
+            len_desc_data = 1
+            desc_data = encode(" "*len_desc_items)
+        
         self._write_header("description", len_desc_data, len_desc_items, "char")
         self.dump_native_data(desc_data)
         
