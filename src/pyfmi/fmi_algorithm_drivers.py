@@ -119,7 +119,8 @@ class AssimuloFMIAlgOptions(OptionBase):
         result_store_variable_description --
             Determines if the description for the variables should be 
             stored in the result file or not. Only impacts the result
-            file formats that supports storing the variable description.
+            file formats that supports storing the variable description
+            ("file" and "binary").
             Default: True
 
         filter --
@@ -626,7 +627,8 @@ class FMICSAlgOptions(OptionBase):
         result_store_variable_description --
             Determines if the description for the variables should be 
             stored in the result file or not. Only impacts the result
-            file formats that supports storing the variable description.
+            file formats that supports storing the variable description
+            ("file" and "binary").
             Default: True
             
         time_limit --

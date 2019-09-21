@@ -166,7 +166,7 @@ class TestResultFileText:
         
         res = ResultDymolaTextual('CoupledClutches_result.txt')
         
-        assert res.description[res.get_variable_index("J1.phi")] == ""
+        assert res.description[res.get_variable_index("J1.phi")] == "", "Description is not empty, " + res.description[res.get_variable_index("J1.phi")]
     
     @testattr(stddist = True)
     def test_get_description_unicode(self):
@@ -462,7 +462,7 @@ class TestResultFileBinary:
         
         res = ResultDymolaBinary('CoupledClutches_result.mat')
         
-        assert res.description[res.get_variable_index("J1.phi")] == ""
+        assert res.description[res.get_variable_index("J1.phi")] == "", "Description is not empty, " + res.description[res.get_variable_index("J1.phi")]
     
     @testattr(stddist = True)
     def test_read_all_variables(self):
