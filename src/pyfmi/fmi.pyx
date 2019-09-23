@@ -532,7 +532,10 @@ cdef class ModelBase:
             self.file_object.close()
             self.file_object = None
 
-    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil:
+    cdef _logger(self, FMIL.jm_string c_module, int log_level, FMIL.jm_string c_message) with gil:
+        module  = decode(c_module)
+        message = decode(c_message)
+        
         if self._additional_logger:
             self._additional_logger(module, log_level, message)
             
