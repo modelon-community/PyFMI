@@ -532,7 +532,10 @@ cdef class ModelBase:
             self.file_object.close()
             self.file_object = None
 
-    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil:
+    cdef _logger(self, FMIL.jm_string c_module, int log_level, FMIL.jm_string c_message) with gil:
+        module  = decode(c_module)
+        message = decode(c_message)
+        
         if self._additional_logger:
             self._additional_logger(module, log_level, message)
             
@@ -7800,6 +7803,9 @@ cdef class FMUModelME2(FMUModelBase2):
                     A = N.zeros((len_f,len_v))
             else:
                 A = output_matrix
+            
+            if len_v == 0 or len_f == 0:
+                return A
             
             dfpert = N.zeros(len_f, dtype = N.double)
             for i in range(len_v):

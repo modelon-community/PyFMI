@@ -457,6 +457,36 @@ if assimulo_installed:
             assert res.solver.maxord == 1
             
 class Test_FMUModelME2:
+    
+    @testattr(stddist = True)
+    def test_estimate_directional_derivatives_without_structure_info(self):
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BouncingBall.fmu")
+        model = Dummy_FMUModelME2([], full_path, _connect_dll=False)
+        
+        def f(*args, **kwargs):
+            derh = model.values[model.variables["v"].value_reference]
+            derv = -9.81
+            model.values[model.variables["der(h)"].value_reference] = derh
+            return np.array([derh, derv])
+        model.get_derivatives = f
+        
+        model.initialize()
+        model.event_update()
+        model.enter_continuous_time_mode()
+        
+        [As, Bs, Cs, Ds] = model.get_state_space_representation(use_structure_info=False)
+        [A, B, C, D] = model.get_state_space_representation()
+        
+        assert As.shape == A.shape, str(As.shape)+' '+str(A.shape)
+        assert Bs.shape == B.shape, str(Bs.shape)+' '+str(B.shape)
+        assert Cs.shape == C.shape, str(Cs.shape)+' '+str(C.shape)
+        assert Ds.shape == D.shape, str(Ds.shape)+' '+str(D.shape)
+        
+        assert np.allclose(As, A.toarray()), str(As)+' '+str(A.toarray())
+        assert np.allclose(Bs, B.toarray()), str(Bs)+' '+str(B.toarray())
+        assert np.allclose(Cs, C.toarray()), str(Cs)+' '+str(C.toarray())
+        assert np.allclose(Ds, D.toarray()), str(Ds)+' '+str(D.toarray())
+    
     @testattr(stddist = True)
     def test_estimate_directional_derivatives_BCD(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "OutputTest2.fmu")
@@ -483,33 +513,33 @@ class Test_FMUModelME2:
             A = func(use_structure_info=True)
             B = func(use_structure_info=True, output_matrix=A)
             assert A is B #Test that the returned matrix is actually the same as the input
-            np.allclose(A.toarray(),B.toarray())
+            assert np.allclose(A.toarray(),B.toarray())
             A = func(use_structure_info=False)
             B = func(use_structure_info=False, output_matrix=A)
             assert A is B
-            np.allclose(A,B)
+            assert np.allclose(A,B)
             C = func(use_structure_info=True, output_matrix=A)
             assert A is not C
-            np.allclose(C.toarray(), A)
+            assert np.allclose(C.toarray(), A)
             D = func(use_structure_info=False, output_matrix=C)
             assert D is not C
-            np.allclose(D, C.toarray())
+            assert np.allclose(D, C.toarray())
         
         B = model._get_B(use_structure_info=True)
         C = model._get_C(use_structure_info=True)
         D = model._get_D(use_structure_info=True)
         
-        np.allclose(B.toarray(), np.array([[0.0],[0.0]]))
-        np.allclose(C.toarray(), np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
-        np.allclose(D.toarray(), np.array([[-1.0],[0.0], [1.0]]))
+        assert np.allclose(B.toarray(), np.array([[0.0],[0.0]]))
+        assert np.allclose(C.toarray(), np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
+        assert np.allclose(D.toarray(), np.array([[-1.0],[0.0], [1.0]]))
         
         B = model._get_B(use_structure_info=False)
         C = model._get_C(use_structure_info=False)
         D = model._get_D(use_structure_info=False)
         
-        np.allclose(B, np.array([[0.0],[0.0]]))
-        np.allclose(C, np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
-        np.allclose(D, np.array([[-1.0],[0.0], [1.0]]))
+        assert np.allclose(B, np.array([[0.0],[0.0]]))
+        assert np.allclose(C, np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
+        assert np.allclose(D, np.array([[-1.0],[0.0], [1.0]]))
         
     @testattr(stddist = True)
     def test_output_dependencies(self):
@@ -534,8 +564,8 @@ class Test_FMUModelME2:
         
         [state_dep, input_dep] = model.get_output_dependencies()
         
-        assert len(state_dep.keys()) == 0
-        assert len(input_dep.keys()) == 0
+        assert len(state_dep.keys()) == 0, len(state_dep.keys())
+        assert len(input_dep.keys()) == 0, len(input_dep.keys())
     
     @testattr(stddist = True)
     def test_derivative_dependencies(self):
@@ -545,8 +575,8 @@ class Test_FMUModelME2:
         
         [state_dep, input_dep] = model.get_derivatives_dependencies()
         
-        assert len(state_dep.keys()) == 0
-        assert len(input_dep.keys()) == 0
+        assert len(state_dep.keys()) == 0, len(state_dep.keys())
+        assert len(input_dep.keys()) == 0, len(input_dep.keys())
     
     @testattr(stddist = True)
     def test_malformed_xml(self):
@@ -565,8 +595,8 @@ class Test_FMUModelME2:
     def test_units(self):
         model = FMUModelME2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         
-        assert model.get_variable_unit("J1.w") == "rad/s"
-        assert model.get_variable_unit("J1.phi") == "rad"
+        assert model.get_variable_unit("J1.w") == "rad/s", model.get_variable_unit("J1.w")
+        assert model.get_variable_unit("J1.phi") == "rad", model.get_variable_unit("J1.phi")
         
         nose.tools.assert_raises(FMUException, model.get_variable_unit, "clutch1.useHeatPort")
         nose.tools.assert_raises(FMUException, model.get_variable_unit, "clutch1.sss")
@@ -576,7 +606,7 @@ class Test_FMUModelME2:
     def test_display_units(self):
         model = FMUModelME2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         
-        assert model.get_variable_display_unit("J1.phi") == "deg"
+        assert model.get_variable_display_unit("J1.phi") == "deg", model.get_variable_display_unit("J1.phi")
         nose.tools.assert_raises(FMUException, model.get_variable_display_unit, "J1.w")
 
 class Test_FMUModelBase2:
@@ -594,9 +624,9 @@ class Test_FMUModelBase2:
         model = FMUModelME2("Enumerations.Enumeration3.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         
         enum = model.get_variable_declared_type("x")
-        assert len(enum.items.keys()) == 2
+        assert len(enum.items.keys()) == 2, len(enum.items.keys())
         enum = model.get_variable_declared_type("home")
-        assert len(enum.items.keys()) == 4
+        assert len(enum.items.keys()) == 4, len(enum.items.keys())
         
         nose.tools.assert_raises(FMUException, model.get_variable_declared_type, "z")
 
@@ -634,10 +664,10 @@ class Test_FMUModelBase2:
         vars = model.get_variable_alias("J4.phi")
         for var in vars:
             [r,i,b] = model.get_model_time_varying_value_references(filter=var)
-            assert len(r) == 1
+            assert len(r) == 1, len(r)
         
         [r,i,b] = model.get_model_time_varying_value_references(filter=list(vars.keys()))
-        assert len(r) == 1
+        assert len(r) == 1, len(r)
     
     @testattr(stddist = True)
     def test_get_directional_derivative_capability(self):
@@ -703,11 +733,11 @@ class Test_FMUModelBase2:
 
         sc_x = negated_alias.get_scalar_variable("x")
         
-        assert sc_x.name == "x"
-        assert sc_x.value_reference >= 0
-        assert sc_x.type == fmi.FMI2_REAL
-        assert sc_x.variability == fmi.FMI2_CONTINUOUS
-        assert sc_x.causality == fmi.FMI2_LOCAL
+        assert sc_x.name == "x", sc_x.name
+        assert sc_x.value_reference >= 0, sc_x.value_reference
+        assert sc_x.type == fmi.FMI2_REAL, sc_x.type
+        assert sc_x.variability == fmi.FMI2_CONTINUOUS, sc_x.variability
+        assert sc_x.causality == fmi.FMI2_LOCAL, sc_x.causality
 
         nose.tools.assert_raises(FMUException, negated_alias.get_scalar_variable, "not_existing")
     
@@ -724,25 +754,25 @@ class Test_load_fmu_only_XML:
         
         model = FMUModelME1("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
         
-        assert model.get_name() == "CoupledClutches"
+        assert model.get_name() == "CoupledClutches", model.get_name()
 
     @testattr(stddist = True)
     def test_loading_xml_cs1(self):
         
         model = FMUModelCS1("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
         
-        assert model.get_name() == "CoupledClutches"
+        assert model.get_name() == "CoupledClutches", model.get_name()
         
     @testattr(stddist = True)
     def test_loading_xml_me2(self):
         
         model = FMUModelME2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         
-        assert model.get_name() == "CoupledClutches"
+        assert model.get_name() == "CoupledClutches", model.get_name()
         
     @testattr(stddist = True)
     def test_loading_xml_cs2(self):
         
         model = FMUModelCS2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
         
-        assert model.get_name() == "CoupledClutches"
+        assert model.get_name() == "CoupledClutches", model.get_name()
