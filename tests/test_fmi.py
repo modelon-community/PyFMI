@@ -460,7 +460,7 @@ class Test_FMUModelME2:
     
     @testattr(stddist = True)
     def test_estimate_directional_derivatives_without_structure_info(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BouncingBall.fmu")
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu")
         model = Dummy_FMUModelME2([], full_path, _connect_dll=False)
         
         def f(*args, **kwargs):
