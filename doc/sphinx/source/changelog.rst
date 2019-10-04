@@ -3,6 +3,12 @@
 Changelog
 ==========
 
+--- PyFMI-2.5.5 ---
+    * Added option to specify if the variable descriptions should be 
+      stored or not in the result file (ticket:5846)
+    * Fixed issue with estimating directional derivatives when the 
+      structure info is not used and the matrix has zero dim (ticket:5836)
+
 --- PyFMI-2.5.4 ---
     * Improved the performance of estimating directional derivatives (ticket:5569)
     * Added support for computing only a subset of interesting columns when considering the cpr seed (ticket:5825)
