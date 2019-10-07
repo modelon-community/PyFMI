@@ -1,6 +1,11 @@
 --- CHANGELOG ---
 
 --- PyFMI-2.5.5 ---
+    * Changed default value for the sparse solver in CVode (if the
+      systemsize is >100 and the non-zero pattern is less than 15% then
+      a sparse solver is used) (ticket:5666)
+    * Changed default value for Jacobian compression (if CVode is used
+      and the systemsize is >10 then Jacobian compression is used) (ticket:5666)
     * Added option to specify if the variable descriptions should be 
       stored or not in the result file (ticket:5846)
     * Fixed issue with estimating directional derivatives when the 

@@ -616,6 +616,7 @@ class FMIODE2(Explicit_Problem):
         self._write_header = True
         self._logging = logging
         self._sparse_representation = False
+        self._with_jacobian = with_jacobian
         
         if f_nbr > 0 and with_jacobian:
             self.jac = self.j #Activates the jacobian
@@ -984,7 +985,6 @@ class FMIODE2(Explicit_Problem):
         print('\nNumber of events: ',len(self._logg_step_event))
 
     def initialize(self, solver):
-        
         if hasattr(solver,"linear_solver"):
             if solver.linear_solver == "SPARSE":
                 self._sparse_representation = True
