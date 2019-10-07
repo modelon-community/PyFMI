@@ -39,6 +39,9 @@ default_int = int
 int = N.int32
 N.int = N.int32
 
+PYFMI_JACOBIAN_LIMIT = 10
+PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT = 100
+PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT  = 0.15 #In percentage
 
 class FMIResult(JMResultBase):
     def __init__(self, model=None, result_file_name=None, solver=None, 
@@ -474,7 +477,20 @@ class AssimuloFMIAlg(AlgorithmBase):
             if self.model.get_capability_flags()['providesDirectionalDerivatives']:
                 self.with_jacobian = True
             else:
-                self.with_jacobian = False
+                fnbr, gnbr = self.model.get_ode_sizes()
+                if fnbr >= PYFMI_JACOBIAN_LIMIT and solver == "CVode":
+                    self.with_jacobian = True
+                    if fnbr >= PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT:
+                        try:
+                            self.solver_options["linear_solver"]
+                        except KeyError:
+                            #Need to calculate the nnz.
+                            [derv_state_dep, derv_input_dep] = self.model.get_derivatives_dependencies()
+                            nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+fnbr
+                            if nnz/float(fnbr*fnbr) <= PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT:
+                                self.solver_options["linear_solver"] = "SPARSE"
+                else:
+                    self.with_jacobian = False
 
     def _set_solver_options(self):
         """
