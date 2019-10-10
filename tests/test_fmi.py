@@ -521,6 +521,50 @@ if assimulo_installed:
             run_case(True, "DENSE",  PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT**2})
             run_case(True, "SPARSE", PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT})
             run_case(True, "SPARSE", PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT}, True)
+        
+        @testattr(stddist = True)
+        def test_ncp_option(self):
+            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            opts = model.simulate_options()
+            assert opts["ncp"] == 500, opts["ncp"]
+        
+        @testattr(stddist = True)
+        def test_maxh_option(self):
+            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            opts = model.simulate_options()
+            opts["result_handling"] = "none"
+            
+            from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg
+            
+            class TempAlg(AssimuloFMIAlg):
+                def solve(self):
+                    pass
+            
+            def run_case(tstart, tstop, solver, ncp="Default"):
+                model.reset()
+                
+                opts["solver"] = solver
+                
+                if ncp != "Default":
+                    opts["ncp"] = ncp
+                
+                if opts["ncp"] == 0:
+                    expected = 0.0
+                else:
+                    expected = (float(tstop)-float(tstart))/float(opts["ncp"])
+                
+                res = model.simulate(start_time=tstart, final_time=tstop,options=opts, algorithm=TempAlg)
+                assert res.solver.maxh == expected, res.solver.maxh
+                assert res.options[solver+"_options"]["maxh"] == "Default", res.options[solver+"_options"]["maxh"]
+                
+            run_case(0,1,"CVode")
+            run_case(0,1,"CVode", 0)
+            run_case(0,1,"Radau5ODE")
+            run_case(0,1,"Dopri5")
+            run_case(0,1,"RodasODE")
+            run_case(0,1,"LSODAR")
+            run_case(0,1,"LSODAR")
+
             
 class Test_FMUModelME2:
     

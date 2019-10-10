@@ -4,6 +4,9 @@ Changelog
 ==========
 
 --- PyFMI-2.5.5 ---
+    * Changed default value of maxh to be computed based on ncp, start
+      and stop time according to, maxh=(stop-start)/ncp (ticket:5858)
+    * Changed default ncp value from '0' to '500' (ticket:5857)
     * Changed default value for the sparse solver in CVode (if the
       systemsize is >100 and the non-zero pattern is less than 15% then
       a sparse solver is used) (ticket:5666)

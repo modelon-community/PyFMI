@@ -76,7 +76,7 @@ if assimulo_installed:
             
             coupled = CoupledFMUModelME2(models, connections=connections)
 
-            opts = {"CVode_options": {"rtol":1e-6, "atol":1e-6}}
+            opts = {"CVode_options": {"rtol":1e-6, "atol":1e-6}, "ncp":0}
 
             res = coupled.simulate(options=opts)
 
