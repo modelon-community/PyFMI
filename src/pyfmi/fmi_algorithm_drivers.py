@@ -64,7 +64,7 @@ class AssimuloFMIAlgOptions(OptionBase):
         ncp    --
             Number of communication points. If ncp is zero, the solver will
             return the internal steps taken.
-            Default: '0'
+            Default: '500'
 
         initialize --
             If set to True, the initializing algorithm defined in the FMU model
@@ -168,7 +168,7 @@ class AssimuloFMIAlgOptions(OptionBase):
     def __init__(self, *args, **kw):
         _defaults= {
             'solver': 'CVode',
-            'ncp':0,
+            'ncp':500,
             'initialize':True,
             'sensitivities':None,
             'write_scaled_result':False,
