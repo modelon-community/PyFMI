@@ -155,7 +155,7 @@ class AssimuloFMIAlgOptions(OptionBase):
         
         maxh    --
             The maximum step-size allowed to be used by the solver.
-            Default: 0.0 (i.e. no limit on the step-size)
+            Default: "Default" (max step-size computed based on (final_time-start_time)/ncp)
 
         discr   --
             The discretization method. Can be either 'BDF' or 'Adams'
@@ -182,12 +182,12 @@ class AssimuloFMIAlgOptions(OptionBase):
             'filter':None,
             'extra_equations':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
-                            'atol':"Default",'rtol':"Default","maxh":0.0,'external_event_detection':False},
-            'Radau5ODE_options':{'atol':"Default",'rtol':"Default","maxh":0.0},
+                            'atol':"Default",'rtol':"Default","maxh":"Default",'external_event_detection':False},
+            'Radau5ODE_options':{'atol':"Default",'rtol':"Default","maxh":"Default"},
             'RungeKutta34_options':{'atol':"Default",'rtol':"Default"},
-            'Dopri5_options':{'atol':"Default",'rtol':"Default"},
-            'RodasODE_options':{'atol':"Default",'rtol':"Default"},
-            'LSODAR_options':{'atol':"Default",'rtol':"Default"},
+            'Dopri5_options':{'atol':"Default",'rtol':"Default", "maxh":"Default"},
+            'RodasODE_options':{'atol':"Default",'rtol':"Default", "maxh":"Default"},
+            'LSODAR_options':{'atol':"Default",'rtol':"Default", "maxh":"Default"},
             'ExplicitEuler_options':{},
             'ImplicitEuler_options':{}
             }
@@ -515,6 +515,12 @@ class AssimuloFMIAlg(AlgorithmBase):
         fnbr, gnbr = self.model.get_ode_sizes()
         if "usejac" in solver_options and fnbr == 0:
             solver_options["usejac"] = False
+            
+        if "maxh" in solver_options and solver_options["maxh"] == "Default":
+            if self.options["ncp"] == 0:
+                solver_options["maxh"] = 0.0
+            else:
+                solver_options["maxh"] = float(self.final_time - self.start_time) / float(self.options["ncp"])
 
         #loop solver_args and set properties of solver
         for k, v in solver_options.items():
