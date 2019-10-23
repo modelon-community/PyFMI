@@ -1619,6 +1619,10 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
         
+        if python3_flag:
+            values = [item.decode() if isinstance(item, bytes) else item for item in values]
+        
+
         for i in range(val_ref.size):
             val[i] = values[i]      
         
@@ -4168,6 +4172,9 @@ cdef class FMUModelBase2(ModelBase):
         if len(values) != val_ref.size:
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
+        
+        if python3_flag:
+            values = [item.decode() if isinstance(item, bytes) else item for item in values]
         
         for i in range(val_ref.size):
             val[i] = values[i]      
