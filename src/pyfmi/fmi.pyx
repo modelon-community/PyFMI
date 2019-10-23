@@ -1619,12 +1619,9 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
         
-        if python3_flag:
-            values = [item.decode() if isinstance(item, bytes) else item for item in values]
-        
 
         for i in range(val_ref.size):
-            val[i] = values[i]      
+            val[i] = decode(values[i])
         
         status = FMIL.fmi1_import_set_string(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, val_ref.size, val)
 
@@ -4172,12 +4169,9 @@ cdef class FMUModelBase2(ModelBase):
         if len(values) != val_ref.size:
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
-        
-        if python3_flag:
-            values = [item.decode() if isinstance(item, bytes) else item for item in values]
-        
+
         for i in range(val_ref.size):
-            val[i] = values[i]      
+            val[i] = decode(values[i])
         
         status = FMIL.fmi2_import_set_string(self._fmu, <FMIL.fmi2_value_reference_t*>val_ref.data, val_ref.size, val)
 
