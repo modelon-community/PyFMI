@@ -36,18 +36,19 @@ import sys
 python3_flag = True if sys.hexversion > 0x03000000 else False
 
 cpdef decode(x):
-    if isinstance(x, list):
-        return [item.decode() if python3_flag else item for item in x]
+    if python3_flag:
+        return x.decode()
     else:
-        return x.decode() if python3_flag else x
+        return x
 
 cpdef encode(x):
-    if isinstance(x, str):
-        return x.encode() if python3_flag else x.encode("utf-8")
-    elif isinstance(x, list):
-        return [item.encode() if python3_flag else item.encode("utf-8") for item in x]
+    if python3_flag:
+        if isinstance(x, str):
+            return x.encode()
+        else:
+            return x
     else:
-        return x if python3_flag else x.encode("utf-8")
+        return x.encode("utf-8")
 
 def enable_caching(obj):
     @functools.wraps(obj, ('__name__', '__doc__'))

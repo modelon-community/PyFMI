@@ -1619,7 +1619,7 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
         
-        values = encode(values)
+        values = [encode(item) for item in values]
         for i in range(val_ref.size):
             val[i] = values[i]
         
@@ -4170,7 +4170,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
-        values = encode(values)
+        values = [encode(item) for item in values]
         for i in range(val_ref.size):
             val[i] = values[i]
         
