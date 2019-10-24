@@ -4196,11 +4196,11 @@ cdef class FMUModelBase2(ModelBase):
         elif type == FMIL.fmi2_base_type_int:
             self.set_integer([ref], [value])
         elif type == FMIL.fmi2_base_type_enum:
-            if isinstance(value, str):
+            if isinstance(value, str) or isinstance(value, bytes):
                 enum_type = self.get_variable_declared_type(variable_name)
-                enum_values = {v[0]: k for k, v in enum_type.items.items()}
+                enum_values = {encode(v[0]): k for k, v in enum_type.items.items()}
                 try:
-                    self.set_integer([ref], [enum_values[value]])
+                    self.set_integer([ref], [enum_values[encode(value)]])
                 except KeyError:
                     raise FMUException("The value '%s' is not in the list of allowed enumeration items for variable '%s'. Allowed values: %s'"%(value, variable_name, ", ".join(enum_values.keys())))
             else:
