@@ -4202,7 +4202,9 @@ cdef class FMUModelBase2(ModelBase):
                 try:
                     self.set_integer([ref], [enum_values[encode(value)]])
                 except KeyError:
-                    raise FMUException("The value '%s' is not in the list of allowed enumeration items for variable '%s'. Allowed values: %s'"%(value, variable_name, ", ".join(enum_values.keys())))
+                    str_keys = [decode(k) for k in enum_values.keys()]
+                    msg = "The value '{}' is not in the list of allowed enumeration items for variable '{}'. Allowed values: {}'.".format(decode(value), decode(variable_name), ", ".join(str_keys))
+                    raise FMUException(msg)
             else:
                 self.set_integer([ref], [value])
         elif type == FMIL.fmi2_base_type_str: #STRING
