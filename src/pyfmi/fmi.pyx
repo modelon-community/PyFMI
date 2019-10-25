@@ -8099,7 +8099,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             _handle_load_fmu_exception(fmu, log_data)
-            raise FMUException('FMU is a ' + FMIL.fmi2_fmu_kind_to_string(fmu_2_kind) + ' and not a ' + kind.upper())
+            raise FMUException("FMU is a {} and not a {}".format(decode(FMIL.fmi2_fmu_kind_to_string(fmu_2_kind)),  decode(kind.upper())
 
     else:
         #This else-statement ensures that the variables "context" and "version" are defined before proceeding
