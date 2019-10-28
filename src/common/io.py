@@ -927,8 +927,6 @@ class ResultDymolaTextual(ResultDymola):
                     else:
                         data.append(map(float,info[0:nCols]))
                 except ValueError: #Handle 1.#INF's and such
-                    print(i)
-                    print(nCols)
                     if python3_flag:
                         data.append(list(map(robust_float,info[0:nCols])))
                     else:
