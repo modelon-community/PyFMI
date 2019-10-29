@@ -1,12 +1,5 @@
 --- CHANGELOG ---
 
---- PyFMI-2.5.6 ---
-    * Fixed such that instance attributes 'name' and 'raw_name' in class ResultDymolaBinary
-      are now attributes that consists of strings instead of bytes in Python 3.
-    * Fixed issue with set_string when input was a list of strings in Python 3.
-    * Fixed other bytes/string incompabilities that caused exceptions with
-      Python 3.
-
 --- PyFMI-2.5.5 ---
     * Changed default value of maxh to be computed based on ncp, start
       and stop time according to, maxh=(stop-start)/ncp (ticket:5858)
