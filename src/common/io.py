@@ -1121,7 +1121,7 @@ class ResultDymolaBinary(ResultDymola):
         self.name = fmi_util.convert_array_names_list_names_int(name.view(np.int32))
         self.name = [item.decode("utf8") if python3_flag and isinstance(item, bytes) else item for item in self.name]
         self.dataInfo = self.raw['dataInfo'].transpose()
-        self.name_lookup = {key.decode("utf8") if python3_flag and isinstance(item, bytes) else key:ind for ind,key in enumerate(self.name)}
+        self.name_lookup = {key.decode("utf8") if python3_flag and isinstance(key, bytes) else key:ind for ind,key in enumerate(self.name)}
         
         self._description = None
         
