@@ -1284,7 +1284,7 @@ cdef class FMUModelBase(ModelBase):
             model.get_version()
         """
         version = FMIL.fmi1_import_get_version(self._fmu)
-        return version
+        return decode(version)
 
     def _get_version(self):
         """
@@ -2721,7 +2721,8 @@ cdef class FMUModelCS1(FMUModelBase):
 
             model.types_platform
         """
-        return FMIL.fmi1_import_get_types_platform(self._fmu)
+        types_platform = FMIL.fmi1_import_get_types_platform(self._fmu)
+        return decode(types_platform)
 
     types_platform = property(fget=_get_types_platform)
 
@@ -3089,7 +3090,7 @@ cdef class FMUModelME1(FMUModelBase):
 
     def reset(self):
         """
-        This metod resets the FMU by first calling fmiTerminate and
+        This method resets the FMU by first calling fmiTerminate and
         fmiFreeModelInstance and then reloads the DLL and finally
         re-instantiates using fmiInstantiateModel.
         """

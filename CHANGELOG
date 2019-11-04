@@ -4,6 +4,8 @@
     * Fixed such that instance attributes 'name' and 'raw_name' in class ResultDymolaBinary
       are now attributes that consists of strings instead of bytes in Python 3.
     * Fixed issue with set_string when input was a list of strings in Python 3.
+    * Methods _get_types_platform and get_version now returns data of type string 
+      instead of bytes with Python 3.
     * Fixed other bytes/string incompabilities that caused exceptions with
       Python 3.
 
