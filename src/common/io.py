@@ -115,6 +115,11 @@ class ResultDymola:
     """
     Base class for representation of a result file.
     """
+    def _get_name(self):
+        return [decode(n) for n in self._name]
+    
+    name = property(fget = _get_name)
+    
     def get_variable_index(self,name): 
         """
         Retrieve the index in the name vector of a given variable.
@@ -179,7 +184,7 @@ class ResultDymola:
         #Loop through all alias
         for ind in alias_index:
             #Get the trial name
-            trial_name = self.name[ind]
+            trial_name = self._name[ind]
             
             #Create the derivative name
             if python3_flag and isinstance(self, ResultDymolaBinary): 
@@ -265,7 +270,7 @@ class ResultCSVTextual:
             name = [s[1:-1] for s in re.findall('".+?"', fid.readline().strip())]
         else:
             raise JIOError('Unsupported separator.') 
-        self.name = name
+        self._name = name
         
         self.data_matrix = {}
         for i,n in enumerate(name):
@@ -723,7 +728,7 @@ class ResultStorageMemory(ResultDymola):
         """             
         self.model = model 
         self.vars = vars 
-        self.name = [var.name for var in vars.values()] 
+        self._name = [var.name for var in vars.values()] 
         self.data = {}
         self.data_matrix = data
             
@@ -852,7 +857,7 @@ class ResultDymolaTextual(ResultDymola):
         """
         fid = codecs.open(fname,'r','utf-8')
         
-        result  = [];
+        result  = []
      
         # Read Aclass section
         nLines = self._find_phrase(fid, 'char Aclass')
@@ -872,8 +877,8 @@ class ResultDymolaTextual(ResultDymola):
         #name = []
         #for i in range(0,nLines):
         #    name.append(fid.readline().strip().replace(" ",""))
-        self.name = name
-        self.name_lookup = {key:ind for ind,key in enumerate(self.name)}
+        self._name = name
+        self.name_lookup = {key:ind for ind,key in enumerate(self._name)}
      
         # Read description section  
         nLines = self._find_phrase(fid, 'char description') 
@@ -1118,12 +1123,12 @@ class ResultDymolaBinary(ResultDymola):
         name = self.raw['name']
         self.raw_name = name
 
-        self.name = fmi_util.convert_array_names_list_names_int(name.view(np.int32))
+        self._name = fmi_util.convert_array_names_list_names_int(name.view(np.int32))
         self.dataInfo = self.raw['dataInfo'].transpose()
-        self.name_lookup = {key:ind for ind,key in enumerate(self.name)}
+        self.name_lookup = {key:ind for ind,key in enumerate(self._name)}
         
-        self._description = None
-        
+        self._description = None  
+    
     def _get_description(self):
         if not self._description:
             description = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["description"])["description"]
