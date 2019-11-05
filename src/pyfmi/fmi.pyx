@@ -3084,7 +3084,8 @@ cdef class FMUModelME1(FMUModelBase):
 
             model.model_types_platform
         """
-        return FMIL.fmi1_import_get_model_types_platform(self._fmu)
+        model_types_platform = FMIL.fmi1_import_get_model_types_platform(self._fmu)
+        return decode(model_types_platform)
 
     model_types_platform = property(fget=_get_model_types_platform)
 
