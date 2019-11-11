@@ -37,7 +37,10 @@ python3_flag = True if sys.hexversion > 0x03000000 else False
 
 cpdef decode(x):
     if python3_flag:
-        return x.decode()
+        if isinstance(x, bytes):
+            return x.decode()
+        else:
+            return x
     else:
         return x
 

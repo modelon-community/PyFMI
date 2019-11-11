@@ -1284,7 +1284,7 @@ cdef class FMUModelBase(ModelBase):
             model.get_version()
         """
         version = FMIL.fmi1_import_get_version(self._fmu)
-        return version
+        return decode(version)
 
     def _get_version(self):
         """
@@ -1619,8 +1619,9 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
         
+        values = [encode(item) for item in values]
         for i in range(val_ref.size):
-            val[i] = values[i]      
+            val[i] = values[i]
         
         status = FMIL.fmi1_import_set_string(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, val_ref.size, val)
 
@@ -2720,7 +2721,8 @@ cdef class FMUModelCS1(FMUModelBase):
 
             model.types_platform
         """
-        return FMIL.fmi1_import_get_types_platform(self._fmu)
+        types_platform = FMIL.fmi1_import_get_types_platform(self._fmu)
+        return decode(types_platform)
 
     types_platform = property(fget=_get_types_platform)
 
@@ -3082,13 +3084,14 @@ cdef class FMUModelME1(FMUModelBase):
 
             model.model_types_platform
         """
-        return FMIL.fmi1_import_get_model_types_platform(self._fmu)
+        model_types_platform = FMIL.fmi1_import_get_model_types_platform(self._fmu)
+        return decode(model_types_platform)
 
     model_types_platform = property(fget=_get_model_types_platform)
 
     def reset(self):
         """
-        This metod resets the FMU by first calling fmiTerminate and
+        This method resets the FMU by first calling fmiTerminate and
         fmiFreeModelInstance and then reloads the DLL and finally
         re-instantiates using fmiInstantiateModel.
         """
@@ -4168,9 +4171,10 @@ cdef class FMUModelBase2(ModelBase):
         if len(values) != val_ref.size:
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
-        
+
+        values = [encode(item) for item in values]
         for i in range(val_ref.size):
-            val[i] = values[i]      
+            val[i] = values[i]
         
         status = FMIL.fmi2_import_set_string(self._fmu, <FMIL.fmi2_value_reference_t*>val_ref.data, val_ref.size, val)
 
@@ -4194,13 +4198,15 @@ cdef class FMUModelBase2(ModelBase):
         elif type == FMIL.fmi2_base_type_int:
             self.set_integer([ref], [value])
         elif type == FMIL.fmi2_base_type_enum:
-            if isinstance(value, str):
+            if isinstance(value, str) or isinstance(value, bytes):
                 enum_type = self.get_variable_declared_type(variable_name)
-                enum_values = {v[0]: k for k, v in enum_type.items.items()}
+                enum_values = {encode(v[0]): k for k, v in enum_type.items.items()}
                 try:
-                    self.set_integer([ref], [enum_values[value]])
+                    self.set_integer([ref], [enum_values[encode(value)]])
                 except KeyError:
-                    raise FMUException("The value '%s' is not in the list of allowed enumeration items for variable '%s'. Allowed values: %s'"%(value, variable_name, ", ".join(enum_values.keys())))
+                    str_keys = [decode(k) for k in enum_values.keys()]
+                    msg = "The value '{}' is not in the list of allowed enumeration items for variable '{}'. Allowed values: {}'.".format(decode(value), decode(variable_name), ", ".join(str_keys))
+                    raise FMUException(msg)
             else:
                 self.set_integer([ref], [value])
         elif type == FMIL.fmi2_base_type_str: #STRING
@@ -8043,7 +8049,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
             _handle_load_fmu_exception(fmu, log_data)
-            raise FMUException('FMU is a ' + FMIL.fmi1_fmu_kind_to_string(fmu_1_kind) + ' and not a ' + kind.upper())
+            raise FMUException("FMU is a {} and not a {}".format(FMIL.fmi1_fmu_kind_to_string(fmu_1_kind), kind.upper()))
 
     elif version == FMIL.fmi_version_2_0_enu:
         #Check fmu-kind and compare with input-specified kind
@@ -8095,7 +8101,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             _handle_load_fmu_exception(fmu, log_data)
-            raise FMUException('FMU is a ' + FMIL.fmi2_fmu_kind_to_string(fmu_2_kind) + ' and not a ' + kind.upper())
+            raise FMUException("FMU is a {} and not a {}".format(decode(FMIL.fmi2_fmu_kind_to_string(fmu_2_kind)),  decode(kind.upper())))
 
     else:
         #This else-statement ensures that the variables "context" and "version" are defined before proceeding
