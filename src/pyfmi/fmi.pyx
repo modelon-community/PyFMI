@@ -8049,7 +8049,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_free_context(context)
             FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
             _handle_load_fmu_exception(fmu, log_data)
-            raise FMUException("FMU is a {} and not a {}".format(FMIL.fmi1_fmu_kind_to_string(fmu_1_kind), kind.upper()))
+            raise FMUException("FMU is a {} and not a {}".format(decode(FMIL.fmi1_fmu_kind_to_string(fmu_1_kind)), kind.upper()))
 
     elif version == FMIL.fmi_version_2_0_enu:
         #Check fmu-kind and compare with input-specified kind
