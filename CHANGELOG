@@ -1,5 +1,8 @@
 --- CHANGELOG ---
 
+--- PyFMI-2.5.7 ---
+    * Fixed minor issue in plot GUI for compliance with Python 3.
+
 --- PyFMI-2.5.6 ---
     * Fixed such that instance attributes 'name' and 'raw_name' in class ResultDymolaBinary
       are now attributes that consists of strings instead of bytes in Python 3.

@@ -1620,7 +1620,6 @@ class PlotPanel(wx.Panel):
     #def Draw(self, variables=[]):
     def Draw(self):
         self.subplot.clear()
-        self.subplot.hold(True)
 
         for i in self.plotVariables:
             traj = i[2]["traj"].get_variable_data(i[2]["full_name"])
