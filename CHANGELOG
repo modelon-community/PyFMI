@@ -1,8 +1,5 @@
 --- CHANGELOG ---
 
---- PyFMI-2.5.8 ---
-    * The version property on FMUs should now always properly be decoded with Python 3.
-
 --- PyFMI-2.5.7 ---
     * Fixed minor issue in plot GUI for compliance with Python 3.
 

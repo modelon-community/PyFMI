@@ -1286,8 +1286,6 @@ cdef class FMUModelBase(ModelBase):
         version = FMIL.fmi1_import_get_version(self._fmu)
         return decode(version)
 
-    version = property(fget=get_version)
-
     def _get_version(self):
         """
         Returns the FMI version of the Model which it was generated according.
@@ -1305,6 +1303,7 @@ cdef class FMUModelBase(ModelBase):
         version = FMIL.fmi1_import_get_version(self._fmu)
         return version
 
+    version = property(fget=_get_version)
 
     def get_ode_sizes(self):
         """
