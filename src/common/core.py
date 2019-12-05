@@ -151,11 +151,11 @@ class ModelBase(object):
             common.algorithm_drivers.AlgorithmBase.
         """
         base_path = 'algorithm_drivers'
-        algdrive = __import__(base_path, globals(), locals(), [], -1)
+        algdrive = __import__(base_path, globals(), locals(), [], 0)
         AlgorithmBase = getattr(algdrive, 'AlgorithmBase')
         
         if isinstance(algorithm, str):
-            module = __import__(module, globals(), locals(), [algorithm], -1)
+            module = __import__(module, globals(), locals(), [algorithm], 0)
             algorithm = getattr(module, algorithm)
         
         if not issubclass(algorithm, AlgorithmBase):
@@ -186,11 +186,11 @@ class ModelBase(object):
             common.algorithm_drivers.AlgorithmBase.
         """
         base_path = 'algorithm_drivers'
-        algdrive = __import__(base_path, globals(), locals(), [], -1)
+        algdrive = __import__(base_path, globals(), locals(), [], 0)
         AlgorithmBase = getattr(algdrive, 'AlgorithmBase')
         
         if isinstance(algorithm, str):
-            module = __import__(module, globals(), locals(), [algorithm], -1)
+            module = __import__(module, globals(), locals(), [algorithm], 0)
             algorithm = getattr(module, algorithm)
         
         if not issubclass(algorithm, AlgorithmBase):
@@ -210,7 +210,7 @@ class ModelBase(object):
         Help method. Gets the options class for the algorithm specified in 
         'algorithm'.
         """
-        module = __import__(module, globals(), locals(), [algorithm], -1)
+        module = __import__(module, globals(), locals(), [algorithm], 0)
         algorithm = getattr(module, algorithm)
         
         return algorithm.get_default_options()
