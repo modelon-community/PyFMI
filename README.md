@@ -10,4 +10,4 @@ information.
 The latest version is available for download at
 http://pypi.python.org/pypi/PyFMI/.   
 
-Contributions are accepted under the [JModelica.org Contributor License Agreement](http://www.jmodelica.org/downloads/JModelica_CLA.pdf)
+For information about contributing, see [here](https://github.com/modelon/contributing).
