@@ -5894,10 +5894,12 @@ cdef class FMUModelBase2(ModelBase):
 
         if python3_flag:
             outputs = list(self.get_output_list().keys())
+            states_list = list(self.get_states_list().keys())
+            inputs_list = list(self.get_input_list().keys())
         else:
             outputs = self.get_output_list().keys()
-        states_list = self.get_states_list()
-        inputs_list = self.get_input_list()
+            states_list = self.get_states_list().keys()
+            inputs_list = self.get_input_list().keys()
         
         states = OrderedDict()
         inputs = OrderedDict()
@@ -5915,8 +5917,8 @@ cdef class FMUModelBase2(ModelBase):
                         states[outputs[i]]  = [outputs[i]]
                         inputs[outputs[i]]  = []
                     else:
-                        states[outputs[i]]  = states_list.keys()
-                        inputs[outputs[i]]  = inputs_list.keys()
+                        states[outputs[i]]  = states_list
+                        inputs[outputs[i]]  = inputs_list
             else:
                 variable_list = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
                 if variable_list == NULL:
@@ -5963,10 +5965,12 @@ cdef class FMUModelBase2(ModelBase):
 
         if python3_flag:
             derivatives = list(self.get_derivatives_list().keys())
+            states_list = list(self.get_states_list().keys())
+            inputs_list = list(self.get_input_list().keys())
         else:
             derivatives = self.get_derivatives_list().keys()
-        states_list = self.get_states_list()
-        inputs_list = self.get_input_list()
+            states_list = self.get_states_list().keys()
+            inputs_list = self.get_input_list().keys()
         
         states = OrderedDict()
         inputs = OrderedDict()
@@ -5979,8 +5983,8 @@ cdef class FMUModelBase2(ModelBase):
                     'No dependency information for the derivatives was found in the model description.' \
                     ' Assuming complete dependency.')
                 for i in range(0,len(derivatives)):
-                    states[derivatives[i]]  = states_list.keys()
-                    inputs[derivatives[i]]  = inputs_list.keys()
+                    states[derivatives[i]]  = states_list
+                    inputs[derivatives[i]]  = inputs_list
             else:
                 variable_list = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
                 if variable_list == NULL:
