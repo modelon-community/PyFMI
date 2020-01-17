@@ -669,6 +669,10 @@ class FMICSAlgOptions(OptionBase):
             example is filter = "*der" , stor all variables ending with
             'der'. Can also be a list.
             Default: None
+        
+        silent_mode --
+            Disables printouts to the console.
+            Default: False
             
     """
     def __init__(self, *args, **kw):
@@ -683,7 +687,8 @@ class FMICSAlgOptions(OptionBase):
             'result_store_variable_description': True,
             'return_result': True,
             'time_limit': None,
-            'filter':None
+            'filter':None,
+            'silent_mode':False
             }
         super(FMICSAlgOptions,self).__init__(_defaults)
         # for those key-value-sets where the value is a dict, don't
@@ -913,11 +918,13 @@ class FMICSAlg(AlgorithmBase):
         result_handler.simulation_end()
         
         if self.status != 0:
-            print('Simulation terminated prematurely. See the log for possibly more information. Return flag %d.'%status)
+            if not self.options["silent_mode"]:
+                print('Simulation terminated prematurely. See the log for possibly more information. Return flag %d.'%status)
         
         #Log elapsed time
-        print('Simulation interval    : ' + str(self.start_time) + ' - ' + str(final_time) + ' seconds.')
-        print('Elapsed simulation time: ' + str(time_stop-time_start) + ' seconds.')
+        if not self.options["silent_mode"]:
+            print('Simulation interval    : ' + str(self.start_time) + ' - ' + str(final_time) + ' seconds.')
+            print('Elapsed simulation time: ' + str(time_stop-time_start) + ' seconds.')
         
         self.timings["computing_solution"] = time_stop - time_start - self.timings["storing_result"]
 
