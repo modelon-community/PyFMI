@@ -237,6 +237,10 @@ def check_extensions():
     #FMI Coupled PYX
     ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi_coupled.pyx"], 
                     include_path=[".","src","src"+O.sep+"pyfmi"])
+    
+    #Simulation interface PYX
+    ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"simulation"+O.path.sep+"assimulo_interface.pyx"], 
+                    include_path=[".","src","src"+O.sep+"pyfmi"])
                     
     #MASTER PYX
     compile_time_env = {'WITH_OPENMP': with_openmp}

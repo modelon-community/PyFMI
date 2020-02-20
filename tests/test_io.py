@@ -515,8 +515,8 @@ class TestResultFileBinary:
         derh = res.get_variable_data('der(h)')
         g = res.get_variable_data('g')
 
-        nose.tools.assert_almost_equal(h.x, 1.000000, 5)
-        nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
+        nose.tools.assert_almost_equal(h.x[0], 1.000000, 5)
+        nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5)
     
     @testattr(stddist = True)
     def test_binary_options_cs2(self):

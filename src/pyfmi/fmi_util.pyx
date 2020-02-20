@@ -27,6 +27,7 @@ from numpy.compat import asbytes
 cimport numpy as np
 cimport fmil_import as FMIL
 from cpython cimport array
+from pyfmi.fmi cimport FMUModelME2, FMUModelBase
 
 import functools
 import marshal
@@ -928,6 +929,71 @@ class Graph:
                     f.write(' "%s" [color=none, label="%s"] \n'%(node, node))
             f.write('}')
 
+cdef class DumpData:
+    cdef np.ndarray real_var_ref, int_var_ref, bool_var_ref
+    cdef np.ndarray real_var_tmp, int_var_tmp, bool_var_tmp
+    cdef np.ndarray time_tmp
+    cdef public FMUModelME2 model_me2
+    cdef public int model_me2_instance
+    cdef public object _file, model
+    cdef size_t real_size, int_size, bool_size
+    
+    def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref):
+        
+        if not isinstance(model, FMUModelBase):
+            self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
+            self.int_var_ref  = np.array(int_var_ref, ndmin=1).ravel()
+            self.bool_var_ref = np.array(bool_var_ref, ndmin=1).ravel()
+        else:
+            self.real_var_ref = np.array(real_var_ref, dtype=np.uint32, ndmin=1).ravel()
+            self.int_var_ref  = np.array(int_var_ref,  dtype=np.uint32, ndmin=1).ravel()
+            self.bool_var_ref = np.array(bool_var_ref, dtype=np.uint32, ndmin=1).ravel()
+        
+        self.real_var_tmp = np.zeros(self.real_var_ref.size)
+        self.int_var_tmp  = np.zeros(self.int_var_ref.size, dtype=np.int32)
+        self.bool_var_tmp = np.zeros(self.bool_var_ref.size)
+        self.time_tmp     = np.zeros(1)
+        
+        self.real_size = self.real_var_ref.size
+        self.int_size  = self.int_var_ref.size
+        self.bool_size = self.bool_var_ref.size
+        
+        self._file = filep
+        
+        if type(model) == FMUModelME2: #isinstance(model, FMUModelME2):
+            self.model_me2 = model
+            self.model_me2_instance = 1
+        else:
+            self.model_me2_instance = 0
+            self.model = model
+    
+    cdef dump_data(self, np.ndarray data):
+        self._file.write(data.tostring(order="F"))
+    
+    def save_point(self):
+        
+        if self.model_me2_instance:
+            self.model_me2._get_real(self.real_var_ref, self.real_size, self.real_var_tmp)
+            self.model_me2._get_integer(self.int_var_ref, self.int_size, self.int_var_tmp)
+            self.model_me2._get_boolean(self.bool_var_ref, self.bool_size, self.bool_var_tmp)
+            
+            self.time_tmp[0] = self.model_me2._get_time()
+            
+            self.dump_data(self.time_tmp)
+            self.dump_data(self.real_var_tmp)
+            self.dump_data(self.int_var_tmp.astype(float))
+            self.dump_data(self.bool_var_tmp)
+        else:
+            r = self.model.get_real(self.real_var_ref)
+            i = self.model.get_integer(self.int_var_ref).astype(float)
+            b = self.model.get_boolean(self.bool_var_ref).astype(float)
+            
+            #self._write_data(data)
+            self.dump_data(np.array(float(self.model.time)))
+            self.dump_data(r)
+            self.dump_data(i)
+            self.dump_data(b)
+            
 """
 cdef class FastPointSave:
     cdef np.ndarray real_var_ref, 

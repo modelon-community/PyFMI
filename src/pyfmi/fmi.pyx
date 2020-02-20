@@ -1485,11 +1485,9 @@ cdef class FMUModelBase(ModelBase):
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
 
         nref = val_ref.size
-        #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1)
         cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
 
 
-        #status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
         status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val)
 
         return_values = []
@@ -1503,7 +1501,6 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException('Failed to get the Boolean values.')
 
         return N.array(return_values)
-        #return val==FMI_TRUE
 
     def set_boolean(self, valueref, values):
         """
@@ -1529,23 +1526,19 @@ cdef class FMUModelBase(ModelBase):
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
         nref = val_ref.size
 
-        #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1).flatten()
         cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
 
         values = N.array(values,ndmin=1).ravel()
         for i in range(nref):
             if values[i]:
-                #val[i]=1
                 (<FMIL.fmi1_boolean_t*>val)[i] = 1
             else:
-                #val[i]=0
                 (<FMIL.fmi1_boolean_t*>val)[i] = 0
 
         if val_ref.size != values.size:
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
-        #status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
         status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val)
 
         FMIL.free(val)
@@ -3182,7 +3175,7 @@ cdef class FMUModelME1(FMUModelBase):
 
     def _set_continuous_states(self, N.ndarray[FMIL.fmi1_real_t] values):
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = values#N.array(values,dtype=N.double,ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = values
 
         if ndx.size != self._nContinuousStates:
             raise FMUException(
@@ -3291,7 +3284,6 @@ cdef class FMUModelME1(FMUModelBase):
 
             [rtol, atol] = model.get_tolerances()
         """
-        #rtol = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
         rtol = self.get_default_experiment_tolerance()
         atol = 0.01*rtol*self.nominal_continuous_states
 
@@ -3938,11 +3930,17 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to set the Real values. See the log for possibly more information.')
     
-    cdef int _get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
+    cdef int _get_real(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
+        return FMIL.fmi2_import_get_real(self._fmu, &valueref[0], size, &values[0])
+    
+    cdef int __get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
         return FMIL.fmi2_import_get_real(self._fmu, vrefs, size, values)
     
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
+    cdef int __set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
         return FMIL.fmi2_import_set_real(self._fmu, vrefs, size, values)
+    
+    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values):
+        return FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], size, &values[0])
     
     def get_integer(self, valueref):
         """
@@ -3969,7 +3967,7 @@ cdef class FMUModelBase2(ModelBase):
 
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
         nref = input_valueref.size
-        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         output_value   = N.array([0]*nref, dtype=int,ndmin=1)
+        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         output_value   = N.zeros(nref, dtype=int)
 
 
         status = FMIL.fmi2_import_get_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> output_value.data)
@@ -4013,6 +4011,19 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to set the Integer values. See the log for possibly more information.')
 
+    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
+        cdef int status
+        cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*size)
+        
+        status = FMIL.fmi2_import_get_boolean(self._fmu, &valueref[0], size, <FMIL.fmi2_boolean_t*> output_value)
+        
+        for i in range(size):
+            values[i] = (<FMIL.fmi2_boolean_t*>output_value)[i]==1
+        
+        FMIL.free(output_value)
+        
+        return status
+
     def get_boolean(self, valueref):
         """
         Returns the boolean-values from the valuereference(s).
@@ -4039,11 +4050,8 @@ cdef class FMUModelBase2(ModelBase):
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
         nref = input_valueref.size
 
-        #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1)
         cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
 
-
-        #status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
         status = FMIL.fmi2_import_get_boolean(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_boolean_t*> output_value)
 
         return_values = []
@@ -4056,7 +4064,6 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to get the Boolean values.')
 
-        #return val==FMI_TRUE
         return N.array(return_values)
 
     def set_boolean(self, valueref, values):
@@ -4083,22 +4090,18 @@ cdef class FMUModelBase2(ModelBase):
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
         nref = len(input_valueref)
 
-        #cdef N.ndarray[FMIL.fmi1_boolean_t, ndim=1,mode='c'] val = N.array(['0']*nref, dtype=N.char.character,ndmin=1).flatten()
         cdef void* set_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
 
         values = N.array(values,ndmin=1).ravel()
         for i in range(nref):
             if values[i]:
-                #val[i]=1
                 (<FMIL.fmi2_boolean_t*> set_value)[i] = 1
             else:
-                #val[i]=0
                 (<FMIL.fmi2_boolean_t*> set_value)[i] = 0
 
         if len(input_valueref) != len(values):
             raise FMUException('The length of valueref and values are inconsistent.')
 
-        #status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val.data)
         status = FMIL.fmi2_import_set_boolean(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_boolean_t*> set_value)
 
         FMIL.free(set_value)
@@ -7284,7 +7287,13 @@ cdef class FMUModelME2(FMUModelBase2):
         
         if status != 0:
             raise FMUException('Failed to enter continuous time mode.')
-
+    
+    cdef int _get_event_indicators(self, FMIL.fmi2_real_t[:] values):
+        #if not values.flags['C_CONTIGUOUS']:
+        #    values = N.ascontiguousarray(values)
+            
+        return FMIL.fmi2_import_get_event_indicators(self._fmu, &values[0], self._nEventIndicators)
+    
     def get_event_indicators(self):
         """
         Returns the event indicators at the current time-point.
@@ -7303,11 +7312,10 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef int status
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] values = N.empty(self._nEventIndicators, dtype=N.double)
 
-        status = FMIL.fmi2_import_get_event_indicators(self._fmu, <FMIL.fmi2_real_t*> values.data, self._nEventIndicators)
+        status = self._get_event_indicators(values)
 
         if status != 0:
             raise FMUException('Failed to get the event indicators at time: %E.'%self.time)
-            
 
         return values
 
@@ -7383,7 +7391,22 @@ cdef class FMUModelME2(FMUModelBase2):
         atol = 0.01*rtol*self.nominal_continuous_states
 
         return [rtol, atol]
-
+    
+    cdef int _completed_integrator_step(self, int* enter_event_mode, int* terminate_simulation):
+        cdef int status
+        cdef FMIL.fmi2_boolean_t noSetFMUStatePriorToCurrentPoint = FMI2_TRUE
+        cdef FMIL.fmi2_boolean_t enterEventMode
+        cdef FMIL.fmi2_boolean_t terminateSimulation        
+        
+        status = FMIL.fmi2_import_completed_integrator_step(self._fmu, noSetFMUStatePriorToCurrentPoint, &enterEventMode, &terminateSimulation)
+        
+        self._last_accepted_time = self._get_time()
+        
+        enter_event_mode[0] = enterEventMode==FMI2_TRUE
+        terminate_simulation[0] = terminateSimulation==FMI2_TRUE
+        
+        return status
+    
     def completed_integrator_step(self, no_set_FMU_state_prior_to_current_point = True):
         """
         This method must be called by the environment after every completed step
@@ -7404,13 +7427,16 @@ cdef class FMUModelME2(FMUModelBase2):
 
         status = FMIL.fmi2_import_completed_integrator_step(self._fmu, noSetFMUStatePriorToCurrentPoint, &enterEventMode, &terminateSimulation)
         
-        self._last_accepted_time = self.time
+        self._last_accepted_time = self._get_time()
         
         if status != 0:
             raise FMUException('Failed to call FMI completed step at time: %E.'%self.time)
         
         return enterEventMode==FMI2_TRUE, terminateSimulation==FMI2_TRUE
-
+    
+    cdef int __get_continuous_states(self, FMIL.fmi2_real_t[:] ndx):
+        return FMIL.fmi2_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
+    
     def _get_continuous_states(self):
         """
         Returns a vector with the values of the continuous states.
@@ -7421,13 +7447,16 @@ cdef class FMUModelME2(FMUModelBase2):
         """
         cdef int status
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
-        status = FMIL.fmi2_import_get_continuous_states(self._fmu, <FMIL.fmi2_real_t*> ndx.data ,self._nContinuousStates)
+        status = self.__get_continuous_states(ndx)
 
         if status != 0:
             raise FMUException('Failed to retrieve the continuous states.')
 
         return ndx
-
+    
+    cdef int __set_continuous_states(self, FMIL.fmi2_real_t[:] ndx):
+        return FMIL.fmi2_import_set_continuous_states(self._fmu, &ndx[0] , self._nContinuousStates)
+    
     def _set_continuous_states(self, N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values):
         """
         Set the values of the continuous states.
@@ -7446,7 +7475,7 @@ cdef class FMUModelME2(FMUModelBase2):
                 'The number of values are not consistent with the number of '\
                 'continuous states.')
 
-        status = FMIL.fmi2_import_set_continuous_states(self._fmu, <FMIL.fmi2_real_t*> ndx.data , self._nContinuousStates)
+        status = self.__set_continuous_states(ndx)
 
         if status >= 3:
             raise FMUException('Failed to set the new continuous states.')
@@ -7481,7 +7510,10 @@ cdef class FMUModelME2(FMUModelBase2):
     Property for accessing the nominal values of the continuous states. Calls
     the low-level FMI function: fmi2GetNominalContinuousStates.
     """)
-
+    
+    cdef int _get_derivatives(self, FMIL.fmi2_real_t[:] values):
+        return FMIL.fmi2_import_get_derivatives(self._fmu, &values[0], self._nContinuousStates)
+        
     cpdef get_derivatives(self):
         """
         Returns the derivative of the continuous states.
@@ -7500,7 +7532,7 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef int status
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] values = N.empty(self._nContinuousStates, dtype = N.double)
 
-        status = FMIL.fmi2_import_get_derivatives(self._fmu, <FMIL.fmi2_real_t*> values.data, self._nContinuousStates)
+        status = self._get_derivatives(values)
 
         if status != 0:
             raise FMUException('Failed to get the derivative values at time: %E.'%self.time)
@@ -7699,8 +7731,8 @@ cdef class FMUModelME2(FMUModelBase2):
         local_z_vref_pt = self._worker_object.get_value_reference_vector(1)
         
         #Get updated values for the derivatives and states
-        self._get_real(z_ref_pt, len_f, df_pt)
-        self._get_real(v_ref_pt, len_v, v_pt)
+        self.__get_real(z_ref_pt, len_f, df_pt)
+        self.__get_real(v_ref_pt, len_v, v_pt)
 
         for i in range(len_v):
             nominal = self.get_variable_nominal(valueref = v_ref_pt[i])
@@ -7744,12 +7776,12 @@ cdef class FMUModelME2(FMUModelBase2):
                 
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
                     for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]+fac*eps_pt[local_indices_vars_pt[i]]
-                    self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                    self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
                     
                     if method == FORWARD_DIFFERENCE: #Forward and Backward difference
                         column_data_pt = tmp_val_pt
 
-                        status = self._get_real(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
+                        status = self.__get_real(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
                         if status == 0:
                             for i in range(local_indices_matrix_rows_nbr):
                                 column_data_pt[i] = (tmp_val_pt[i] - df_pt[local_indices_matrix_rows_pt[i]])/(fac*eps_pt[local_indices_matrix_columns_pt[i]])
@@ -7758,9 +7790,9 @@ cdef class FMUModelME2(FMUModelBase2):
                         else: #Backward
 
                             for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]-fac*eps_pt[local_indices_vars_pt[i]]
-                            self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                            self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
                             
-                            status = self._get_real(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
+                            status = self.__get_real(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
                             if status == 0:
                                 for i in range(local_indices_matrix_rows_nbr):
                                     column_data_pt[i] = (df_pt[local_indices_matrix_rows_pt[i]] - tmp_val_pt[i])/(fac*eps_pt[local_indices_matrix_columns_pt[i]])
@@ -7771,7 +7803,7 @@ cdef class FMUModelME2(FMUModelBase2):
                         dfpertp = self.get_real(z_ref[local_group[2]])
                         
                         for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]-fac*eps_pt[local_indices_vars_pt[i]]
-                        self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                        self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
                         
                         dfpertm = self.get_real(z_ref[local_group[2]])
                         
@@ -7795,7 +7827,7 @@ cdef class FMUModelME2(FMUModelBase2):
                     col.extend(local_group[3])
                 
                 for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]
-                self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
             
             if output_matrix is not None:
                 A = output_matrix 
@@ -7822,7 +7854,7 @@ cdef class FMUModelME2(FMUModelBase2):
                 tmp = v_pt[i]
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
                     v_pt[i] = tmp+fac*eps_pt[i]
-                    self._set_real(v_ref_pt, v_pt, len_v)
+                    self.__set_real(v_ref_pt, v_pt, len_v)
                             
                     if method == FORWARD_DIFFERENCE: #Forward and Backward difference
                         try:
@@ -7831,7 +7863,7 @@ cdef class FMUModelME2(FMUModelBase2):
                             break
                         except FMUException: #Try backward difference
                             v_pt[i] = tmp - fac*eps_pt[i]
-                            self._set_real(v_ref_pt, v_pt, len_v)
+                            self.__set_real(v_ref_pt, v_pt, len_v)
                             try:
                                 dfpert = self.get_real(z_ref)
                                 A[:, i] = (df - dfpert)/(fac*eps_pt[i])
@@ -7842,7 +7874,7 @@ cdef class FMUModelME2(FMUModelBase2):
                     else: #Central difference
                         dfpertp = self.get_real(z_ref)
                         v_pt[i] = tmp - fac*eps_pt[i]
-                        self._set_real(v_ref_pt, v_pt, len_v)
+                        self.__set_real(v_ref_pt, v_pt, len_v)
                         dfpertm = self.get_real(z_ref)
                         A[:, i] = (dfpertp - dfpertm)/(2*fac*eps_pt[i])
                         break
@@ -7851,12 +7883,12 @@ cdef class FMUModelME2(FMUModelBase2):
                 
                 #Reset values
                 v_pt[i] = tmp
-                self._set_real(v_ref_pt, v_pt, len_v)
+                self.__set_real(v_ref_pt, v_pt, len_v)
             
             return A
             
 cdef class __ForTestingFMUModelME2(FMUModelME2):
-    cdef int _get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
+    cdef int __get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
         vr = N.zeros(size)
         for i in range(size):
             vr[i] = vrefs[i]
@@ -7871,7 +7903,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
         
         return FMIL.fmi2_status_ok
     
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
+    cdef int __set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
         vr = N.zeros(size)
         vv = N.zeros(size)
         for i in range(size):
@@ -7883,6 +7915,33 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
         except:
             return FMIL.fmi2_status_error
         
+        return FMIL.fmi2_status_ok
+    
+    cdef int _get_real(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
+        try:
+            tmp = self.get_real(valueref)
+            for i in range(size):
+                values[i] = tmp[i]
+        except:
+            return FMIL.fmi2_status_error
+        return FMIL.fmi2_status_ok
+        
+    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values):
+        try:
+            tmp = self.get_integer(valueref)
+            for i in range(size):
+                values[i] = tmp[i]
+        except:
+            return FMIL.fmi2_status_error
+        return FMIL.fmi2_status_ok
+        
+    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
+        try:
+            tmp = self.get_boolean(valueref)
+            for i in range(size):
+                values[i] = tmp[i]
+        except:
+            return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
 
 #Temporary should be removed! (after a period)

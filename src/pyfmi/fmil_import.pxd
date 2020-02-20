@@ -26,6 +26,9 @@ cdef extern from "stdlib.h":
     void *calloc(size_t, size_t)
     void *realloc(void *, size_t)
 
+cdef extern from "string.h":
+    int memcmp(void *s1, void *s2, size_t n);
+
 #SEE http://wiki.cython.org/FAQ#HowdoIusevariableargs.
 cdef extern from "stdarg.h":
     ctypedef struct va_list:

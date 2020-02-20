@@ -107,7 +107,7 @@ if assimulo_installed:
             # Simulate model response with optimal parameters a1 and a2
             res = model.simulate(input=(['u1','u2'],u),start_time=0.,final_time=60)
 
-            assert np.abs(res.final('qt.x1') - 0.07060188) < 1e-3
+            assert np.abs(res.final('qt.x1') - 0.07060188) < 1e-3, "Was: " + str(res.final('qt.x1')) + ", expected: 0.07060188"
             assert np.abs(res.final('qt.x2') - 0.06654621) < 1e-3
             assert np.abs(res.final('qt.x3') - 0.02736549) < 1e-3
             assert np.abs(res.final('qt.x4') - 0.02789857) < 1e-3

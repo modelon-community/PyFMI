@@ -261,14 +261,14 @@ class Dummy_FMUModelME2(__ForTestingFMUModelME2):
             vref = [vref]
         for v in vref:
             vals.append(self.values[v])
-        return np.array(vals)
+        return np.array(vals).astype(float)
     
     def set_real(self, vref, values):
         for i,v in enumerate(vref):
             self.values[v] = values[i]
     
     def get_integer(self, vref):
-        return self.get_real(vref)
+        return self.get_real(vref).astype(np.int32)
     
     def get_boolean(self, vref):
         return self.get_real(vref)

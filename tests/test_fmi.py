@@ -556,7 +556,7 @@ if assimulo_installed:
                 res = model.simulate(start_time=tstart, final_time=tstop,options=opts, algorithm=TempAlg)
                 assert res.solver.maxh == expected, res.solver.maxh
                 assert res.options[solver+"_options"]["maxh"] == "Default", res.options[solver+"_options"]["maxh"]
-                
+            
             run_case(0,1,"CVode")
             run_case(0,1,"CVode", 0)
             run_case(0,1,"Radau5ODE")

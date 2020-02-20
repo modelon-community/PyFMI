@@ -212,8 +212,11 @@ cdef class FMUModelBase2(ModelBase):
     cdef int _get_directional_derivative(self, N.ndarray v_ref, N.ndarray z_ref, N.ndarray dv, N.ndarray dz) except -1
     cpdef set_real(self, valueref, values)
     cpdef N.ndarray get_real(self, valueref)
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size)
-    cdef int _get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values)
+    cdef int __set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size)
+    cdef int __get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values)
+    cdef int _get_real(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
+    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values)
+    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
 
 cdef class FMUModelCS2(FMUModelBase2):
 
@@ -229,6 +232,11 @@ cdef class FMUModelME2(FMUModelBase2):
     cpdef _set_time(self, FMIL.fmi2_real_t t)
     cpdef get_derivatives(self)
     cdef public object force_finite_differences
+    cdef int _get_derivatives(self, FMIL.fmi2_real_t[:] values)
+    cdef int __get_continuous_states(self, FMIL.fmi2_real_t[:] ndx)
+    cdef int __set_continuous_states(self, FMIL.fmi2_real_t[:] ndx)
+    cdef int _get_event_indicators(self, FMIL.fmi2_real_t[:] values)
+    cdef int _completed_integrator_step(self, int* enter_event_mode, int* terminate_simulation)
     
 cdef class WorkerClass2:
     cdef int _dim

@@ -2180,34 +2180,13 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.int_var_ref  = np.array(sorted_vars_int_vref)
         self.bool_var_ref = np.array(sorted_vars_bool_vref)
         self.nbr_points = 0
+        self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref)
 
     def integration_point(self, solver = None):
         """ 
-        Writes the current status of the model to file. If the header has not 
-        been written previously it is written now. If data is specified it is 
-        written instead of the current status.
-        
-        Parameters::
-            
-                data --
-                    A one dimensional array of variable trajectory data. data 
-                    should consist of information about the status in the order 
-                    specified by FMUModel.save_time_point()
-                    Default: None
+        Writes the current status of the model to file.
         """
-        f = self._file
-        model = self.model
-
-        #Retrieves the time-point
-        r = model.get_real(self.real_var_ref)
-        i = model.get_integer(self.int_var_ref).astype(float)
-        b = model.get_boolean(self.bool_var_ref).astype(float)
-        
-        #self._write_data(data)
-        self.dump_data(np.array(float(model.time)))
-        self.dump_data(r)
-        self.dump_data(i)
-        self.dump_data(b)
+        self.dump_data_internal.save_point()
         
         #Increment number of points
         self.nbr_points += 1
