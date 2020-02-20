@@ -7850,6 +7850,7 @@ cdef class FMUModelME2(FMUModelBase2):
                 return A
             
             dfpert = N.zeros(len_f, dtype = N.double)
+            df = df[:len_f] #Should be removed in the future
             for i in range(len_v):
                 tmp = v_pt[i]
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps

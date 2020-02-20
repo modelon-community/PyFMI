@@ -310,7 +310,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, mod
         
     data_info[0,0] = 0; data_info[1, 0] = 1; data_info[2, 0] = 0; data_info[3, 0] = -1
     
-    data = np.append(np.append(np.append(model.time, model.get_real(param_real)),model.get_real(param_int)),model.get_real(param_bool))
+    data = np.append(np.append(np.append(model.time, model.get_real(param_real)),model.get_integer(param_int).astype(float)),model.get_boolean(param_bool).astype(float))
     
     return data, varia_real, varia_int, varia_bool
 
@@ -940,7 +940,7 @@ cdef class DumpData:
     
     def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref):
         
-        if not isinstance(model, FMUModelBase):
+        if type(model) != FMUModelME2:
             self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
             self.int_var_ref  = np.array(int_var_ref, ndmin=1).ravel()
             self.bool_var_ref = np.array(bool_var_ref, ndmin=1).ravel()
@@ -973,26 +973,34 @@ cdef class DumpData:
     def save_point(self):
         
         if self.model_me2_instance:
-            self.model_me2._get_real(self.real_var_ref, self.real_size, self.real_var_tmp)
-            self.model_me2._get_integer(self.int_var_ref, self.int_size, self.int_var_tmp)
-            self.model_me2._get_boolean(self.bool_var_ref, self.bool_size, self.bool_var_tmp)
-            
             self.time_tmp[0] = self.model_me2._get_time()
-            
             self.dump_data(self.time_tmp)
-            self.dump_data(self.real_var_tmp)
-            self.dump_data(self.int_var_tmp.astype(float))
-            self.dump_data(self.bool_var_tmp)
-        else:
-            r = self.model.get_real(self.real_var_ref)
-            i = self.model.get_integer(self.int_var_ref).astype(float)
-            b = self.model.get_boolean(self.bool_var_ref).astype(float)
             
-            #self._write_data(data)
+            if self.real_size > 0:
+                self.model_me2._get_real(self.real_var_ref, self.real_size, self.real_var_tmp)
+                self.dump_data(self.real_var_tmp)
+                
+            if self.int_size > 0:
+                self.dump_data(self.int_var_tmp.astype(float))
+                self.model_me2._get_integer(self.int_var_ref, self.int_size, self.int_var_tmp)
+            
+            if self.bool_size > 0:
+                self.model_me2._get_boolean(self.bool_var_ref, self.bool_size, self.bool_var_tmp)
+                self.dump_data(self.bool_var_tmp)
+        else:
             self.dump_data(np.array(float(self.model.time)))
-            self.dump_data(r)
-            self.dump_data(i)
-            self.dump_data(b)
+            
+            if self.real_size > 0:
+                r = self.model.get_real(self.real_var_ref)
+                self.dump_data(r)
+            
+            if self.int_size > 0:
+                i = self.model.get_integer(self.int_var_ref).astype(float)
+                self.dump_data(i)
+            
+            if self.bool_size > 0:
+                b = self.model.get_boolean(self.bool_var_ref).astype(float)
+                self.dump_data(b)
             
 """
 cdef class FastPointSave:
