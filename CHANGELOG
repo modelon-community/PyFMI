@@ -5,6 +5,7 @@
       the number of outputs was less than the number of states
     * Performance improvements
     * Fixed minor issue when storing the result (https://github.com/modelon-community/PyFMI/issues/21)
+    * Added a 'silent' option to the CS simulation options.
 
 --- PyFMI-2.5.7 ---
     * Fixed minor issue in plot GUI for compliance with Python 3.
