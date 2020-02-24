@@ -477,7 +477,29 @@ cdef class ModelBase:
 
         for i in range(N):
             print(log[i])
+    
+    def extract_xml_log(self, file_name=None):
+        """
+        Extract the XML contents of a FMU log and write as a new file.
+        
+        Parameters::
             
+            file_name --
+                Name of the file which holds the extracted log
+                Default: get_log_filename() + xml
+        """
+        from pyfmi.common.log import extract_xml_log
+        
+        if file_name is None:
+            file_name = self.get_log_filename()[:-3] + "xml"
+        
+        if isinstance(self, FMUModelCS1):
+            module_name = "Slave"
+        else:
+            module_name = "Model"
+        
+        extract_xml_log(file_name, self.get_log_filename(), module_name)
+    
     def get_log(self, int start_lines=-1, int end_lines=-1):
         """
         Returns the log information as a list. To turn on the logging 
