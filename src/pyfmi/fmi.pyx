@@ -555,6 +555,7 @@ cdef class ModelBase:
             self.file_object = None
 
     cdef _logger(self, FMIL.jm_string c_module, int log_level, FMIL.jm_string c_message) with gil:
+        cdef FMIL.FILE *f
         module  = decode(c_module)
         message = decode(c_message)
         
@@ -575,8 +576,14 @@ cdef class ModelBase:
             if self.file_object:
                 self.file_object.write(msg)
             else:
-                with open(self._fmu_log_name,'a') as file:
-                    file.write(msg)
+                try:
+                    with open(self._fmu_log_name,'a') as file:
+                        file.write(msg)
+                except: #In somecases (especially when Python closes the above will fail when messages are provided from the FMI terminate/free methods)
+                    f = FMIL.fopen(self._fmu_log_name, "a");
+                    if (f != NULL):
+                        FMIL.fprintf(f, "FMIL: module = %s, log level = %d: %s\n",c_module, log_level, c_message)
+                        FMIL.fclose(f)
         else:
             self._log.append([module,log_level,message])
             
@@ -4580,8 +4587,7 @@ cdef class FMUModelBase2(ModelBase):
             categories.append(FMIL.fmi2_import_get_log_category(self._fmu, i))
 
         return categories
-
-    @enable_caching
+    
     def get_variable_nominal(self, variable_name=None, valueref=None, _override_erroneous_nominal=True):
         """
         Returns the nominal value from a real variable determined by
@@ -7313,8 +7319,10 @@ cdef class FMUModelME2(FMUModelBase2):
     cdef int _get_event_indicators(self, FMIL.fmi2_real_t[:] values):
         #if not values.flags['C_CONTIGUOUS']:
         #    values = N.ascontiguousarray(values)
-            
-        return FMIL.fmi2_import_get_event_indicators(self._fmu, &values[0], self._nEventIndicators)
+        if self._nEventIndicators > 0:
+            return FMIL.fmi2_import_get_event_indicators(self._fmu, &values[0], self._nEventIndicators)
+        else:
+            return FMIL.fmi2_import_get_event_indicators(self._fmu, NULL, self._nEventIndicators)
     
     def get_event_indicators(self):
         """
@@ -7457,7 +7465,10 @@ cdef class FMUModelME2(FMUModelBase2):
         return enterEventMode==FMI2_TRUE, terminateSimulation==FMI2_TRUE
     
     cdef int __get_continuous_states(self, FMIL.fmi2_real_t[:] ndx):
-        return FMIL.fmi2_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
+        if self._nContinuousStates > 0:
+            return FMIL.fmi2_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
+        else:
+            return FMIL.fmi2_import_get_continuous_states(self._fmu, NULL ,self._nContinuousStates)
     
     def _get_continuous_states(self):
         """
@@ -7477,7 +7488,10 @@ cdef class FMUModelME2(FMUModelBase2):
         return ndx
     
     cdef int __set_continuous_states(self, FMIL.fmi2_real_t[:] ndx):
-        return FMIL.fmi2_import_set_continuous_states(self._fmu, &ndx[0] , self._nContinuousStates)
+        if self._nContinuousStates > 0:
+            return FMIL.fmi2_import_set_continuous_states(self._fmu, &ndx[0] , self._nContinuousStates)
+        else:
+            return FMIL.fmi2_status_ok
     
     def _set_continuous_states(self, N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values):
         """
@@ -7534,7 +7548,10 @@ cdef class FMUModelME2(FMUModelBase2):
     """)
     
     cdef int _get_derivatives(self, FMIL.fmi2_real_t[:] values):
-        return FMIL.fmi2_import_get_derivatives(self._fmu, &values[0], self._nContinuousStates)
+        if self._nContinuousStates > 0:
+            return FMIL.fmi2_import_get_derivatives(self._fmu, &values[0], self._nContinuousStates)
+        else:
+            return FMIL.fmi2_import_get_derivatives(self._fmu, NULL, self._nContinuousStates)
         
     cpdef get_derivatives(self):
         """

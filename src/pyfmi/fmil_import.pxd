@@ -29,6 +29,13 @@ cdef extern from "stdlib.h":
 cdef extern from "string.h":
     int memcmp(void *s1, void *s2, size_t n);
 
+cdef extern from "stdio.h":
+    ctypedef struct FILE:
+        pass
+    int fprintf(FILE *restrict, const char *restrict, ...)
+    FILE *fopen(const char *path, const char *mode)
+    int fclose(FILE *file_pointer)
+
 #SEE http://wiki.cython.org/FAQ#HowdoIusevariableargs.
 cdef extern from "stdarg.h":
     ctypedef struct va_list:
