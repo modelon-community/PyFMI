@@ -19,7 +19,7 @@
 The log analysis toolkit. 
 """
 
-from .parser import parse_xml_log, parse_xml_log, extract_xml_log
+from .parser import parse_xml_log, parse_xml_log, extract_xml_log, parse_fmu_xml_log
 from .prettyprinter import prettyprint_to_file
 
 __all__=['parser','tree','prettyprinter']
