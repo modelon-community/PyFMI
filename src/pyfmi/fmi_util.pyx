@@ -981,8 +981,8 @@ cdef class DumpData:
                 self.dump_data(self.real_var_tmp)
                 
             if self.int_size > 0:
-                self.dump_data(self.int_var_tmp.astype(float))
                 self.model_me2._get_integer(self.int_var_ref, self.int_size, self.int_var_tmp)
+                self.dump_data(self.int_var_tmp.astype(float))
             
             if self.bool_size > 0:
                 self.model_me2._get_boolean(self.bool_var_ref, self.bool_size, self.bool_var_tmp)

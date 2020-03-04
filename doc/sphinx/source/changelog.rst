@@ -3,6 +3,17 @@
 Changelog
 ==========
 
+--- PyFMI-2.6 ---
+    * Fixed issue with log messages during the FMI methods terminate /
+      free instance.
+    * Removed caching on the get_variable_nominal method
+    * Added a logging module (for parsing XML based FMU logs)
+    * Fixed issue with the estimation of directional derivatives when
+      the number of outputs was less than the number of states
+    * Performance improvements
+    * Fixed minor issue when storing the result (https://github.com/modelon-community/PyFMI/issues/21)
+    * Added a 'silent' option to the CS simulation options.
+
 --- PyFMI-2.5.7 ---
     * Fixed minor issue in plot GUI for compliance with Python 3.
 

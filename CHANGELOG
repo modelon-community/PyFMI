@@ -1,6 +1,6 @@
 --- CHANGELOG ---
 
---- PyFMI-2.5.X ---
+--- PyFMI-2.6 ---
     * Fixed issue with log messages during the FMI methods terminate /
       free instance.
     * Removed caching on the get_variable_nominal method
