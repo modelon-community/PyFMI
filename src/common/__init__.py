@@ -32,7 +32,10 @@ if python3_flag:
         else:
             return x
     def decode(x):
-        return x.decode()
+        if isinstance(x, bytes):
+            return x.decode()
+        else:
+            return x
 else:
     def encode(x):
         return x

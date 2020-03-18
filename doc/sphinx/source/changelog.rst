@@ -3,6 +3,9 @@
 Changelog
 ==========
 
+--- PyFMI-2.6.1 ---
+    * Minor fix in handling bytes/str in Python 3
+
 --- PyFMI-2.6 ---
     * Fixed issue with log messages during the FMI methods terminate /
       free instance.
