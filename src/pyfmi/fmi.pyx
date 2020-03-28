@@ -5078,7 +5078,7 @@ cdef class FMUModelBase2(ModelBase):
 
         Returns::
 
-            The name of the declared type.
+            The declared type.
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_value_reference_t  vr
@@ -5127,12 +5127,12 @@ cdef class FMUModelBase2(ModelBase):
                 item_name  = FMIL.fmi2_import_get_enum_type_item_name(enumeration_type, i)
                 item_desc  = FMIL.fmi2_import_get_enum_type_item_description(enumeration_type, i)
                 
-                items[item_value] = (item_name if item_name != NULL else "",
-                                     item_desc if item_desc != NULL else "")
+                items[item_value] = (decode(item_name) if item_name != NULL else "",
+                                     decode(item_desc) if item_desc != NULL else "")
                                      
-            ret_type = EnumerationType2(type_name if type_name != NULL else "",
-                                         type_desc if type_desc != NULL else "",
-                                         type_quantity if type_quantity != NULL else "", items)
+            ret_type = EnumerationType2(decode(type_name) if type_name != NULL else "",
+                                        decode(type_desc) if type_desc != NULL else "",
+                                        decode(type_quantity) if type_quantity != NULL else "", items)
                                          
                                          
         elif type == FMIL.fmi2_base_type_int:
@@ -5141,9 +5141,9 @@ cdef class FMUModelBase2(ModelBase):
             min_val = FMIL.fmi2_import_get_integer_type_min(integer_type)
             max_val = FMIL.fmi2_import_get_integer_type_max(integer_type)
             
-            ret_type = IntegerType2(type_name if type_name != NULL else "",
-                                         type_desc if type_desc != NULL else "",
-                                         type_quantity if type_quantity != NULL else "",
+            ret_type = IntegerType2(decode(type_name) if type_name != NULL else "",
+                                    decode(type_desc) if type_desc != NULL else "",
+                                    decode(type_quantity) if type_quantity != NULL else "",
                                          min_val, max_val)
         elif type == FMIL.fmi2_base_type_real:
             real_type = FMIL.fmi2_import_get_type_as_real(variable_type)
@@ -5160,11 +5160,11 @@ cdef class FMUModelBase2(ModelBase):
             type_unit_name = FMIL.fmi2_import_get_unit_name(type_unit)
             type_display_unit_name = FMIL.fmi2_import_get_display_unit_name(type_display_unit)
             
-            ret_type = RealType2(type_name if type_name != NULL else "",
-                                         type_desc if type_desc != NULL else "",
-                                         type_quantity if type_quantity != NULL else "",
+            ret_type = RealType2(decode(type_name) if type_name != NULL else "",
+                                 decode(type_desc) if type_desc != NULL else "",
+                                 decode(type_quantity) if type_quantity != NULL else "",
                                          min_val, max_val, nominal_val, unbounded, relative_quantity,
-                                         type_display_unit_name if type_display_unit_name != NULL else "", type_unit_name if type_unit_name != NULL else "")
+                                 decode(type_display_unit_name) if type_display_unit_name != NULL else "", decode(type_unit_name) if type_unit_name != NULL else "")
         else:
             raise NotImplementedError
         

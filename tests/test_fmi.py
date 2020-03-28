@@ -768,7 +768,11 @@ class Test_FMUModelBase2:
         assert len(enum.items.keys()) == 2, len(enum.items.keys())
         enum = model.get_variable_declared_type("home")
         assert len(enum.items.keys()) == 4, len(enum.items.keys())
-        
+
+        assert enum.items[1][0] == "atlantis"
+        assert enum.name == "Enumerations.Enumeration3.cities", "Got: " + enum.name
+        assert enum.description == "", "Got: " + enum.description
+
         nose.tools.assert_raises(FMUException, model.get_variable_declared_type, "z")
 
     @testattr(stddist = True)

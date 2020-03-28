@@ -971,7 +971,6 @@ cdef class DumpData:
         self._file.write(data.tostring(order="F"))
     
     def save_point(self):
-        
         if self.model_me2_instance:
             self.time_tmp[0] = self.model_me2._get_time()
             self.dump_data(self.time_tmp)

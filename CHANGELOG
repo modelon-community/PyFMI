@@ -1,5 +1,8 @@
 --- CHANGELOG ---
 
+--- PyFMI-2.7 ---
+    * Minor encoding issues fixed when retrieving declared types
+
 --- PyFMI-2.6.1 ---
     * Minor fix in handling bytes/str in Python 3
 
