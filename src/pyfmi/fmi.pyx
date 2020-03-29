@@ -2496,7 +2496,7 @@ cdef class FMUModelBase(ModelBase):
 
         Returns::
 
-            The variability of the variable, INPUT(0), OUTPUT(1),
+            The causality of the variable, INPUT(0), OUTPUT(1),
             INTERNAL(2), NONE(3)
         """
         cdef FMIL.fmi1_import_variable_t* variable
