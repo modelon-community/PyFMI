@@ -4565,7 +4565,7 @@ cdef class FMUModelBase2(ModelBase):
         self._enable_logging = bool(log)
 
         if len(categories) > 0:
-            raise FMUException('Currently the logging of categories is not availible. See the docstring for more information')
+            raise FMUException('Currently the logging of categories is not available. See the docstring for more information')
 
         status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, nCat, NULL)
 
@@ -8018,7 +8018,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         kind --
             String indicating the kind of model to create. This is only
             needed if a FMU contains both a ME and CS model.
-            Availible options:
+            Available options:
                 - 'ME'
                 - 'CS'
                 - 'auto'
