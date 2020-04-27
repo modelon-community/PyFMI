@@ -105,6 +105,8 @@ cdef class FMUModelBase(ModelBase):
     cdef FMIL.fmi1_import_variable_list_t *variable_list
     cdef FMIL.fmi1_fmu_kind_enu_t fmu_kind
     cdef FMIL.jm_status_enu_t jm_status
+    cdef FMIL.jm_callbacks callbacks_defaults
+    cdef FMIL.jm_callbacks* callbacks_standard
 
     #Internal values
     cdef public object __t

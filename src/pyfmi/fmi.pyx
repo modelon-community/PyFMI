@@ -150,6 +150,18 @@ FMI_DERIVATIVES = 1
 """Evaluate Jacobian of outputs."""
 FMI_OUTPUTS = 2
 
+GLOBAL_LOG_LEVEL = 3
+GLOBAL_FMU_OBJECT = None
+
+#CALLBACKS
+cdef void importlogger_default(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
+    msg = decode(message)
+    mod = decode(module)
+    if GLOBAL_FMU_OBJECT != None:
+        GLOBAL_FMU_OBJECT.append_log_message(mod,log_level,msg)
+    elif log_level <= GLOBAL_LOG_LEVEL:
+        print("FMIL: module = %s, log level = %d: %s\n"%(mod, log_level, msg))
+        
 #CALLBACKS
 cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     if c.context != NULL:
@@ -1184,6 +1196,7 @@ cdef class FMUModelBase(ModelBase):
         self.callbacks.logger  = importlogger
         self.callbacks.context = <void*>self #Class loggger
         
+        
         if enable_logging==None:
             if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
                 if log_level == FMIL.jm_log_level_nothing:
@@ -1210,7 +1223,7 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
 
         #Specify FMI related callbacks
-        self.callBackFunctions.logger = FMIL.fmi1_log_forwarding;
+        self.callBackFunctions.logger = FMIL.fmi1_log_forwarding;   
         self.callBackFunctions.allocateMemory = FMIL.calloc;
         self.callBackFunctions.freeMemory = FMIL.free;
         self.callBackFunctions.stepFinished = NULL;
@@ -2590,7 +2603,25 @@ cdef class FMUModelCS1(FMUModelBase):
             raise FMUException("This class only supports FMI 1.0 for Co-simulation.")
         
         if _connect_dll:
+            global GLOBAL_FMU_OBJECT
+            GLOBAL_FMU_OBJECT = self
+            
+            self.callbacks_defaults.malloc  = FMIL.malloc
+            self.callbacks_defaults.calloc  = FMIL.calloc
+            self.callbacks_defaults.realloc = FMIL.realloc
+            self.callbacks_defaults.free    = FMIL.free
+            self.callbacks_defaults.logger  = importlogger_default
+            self.callbacks_defaults.context = <void*>self
+            self.callbacks_defaults.log_level = self.callbacks.log_level
+            
+            self.callbacks_standard = FMIL.jm_get_default_callbacks()
+            FMIL.jm_set_default_callbacks(&self.callbacks_defaults)
+            
             self.instantiate_slave(logging = self._enable_logging)
+            
+            FMIL.jm_set_default_callbacks(self.callbacks_standard)
+            
+            GLOBAL_FMU_OBJECT = None
         
     cpdef _get_time(self):
         return self.__t
@@ -3089,8 +3120,27 @@ cdef class FMUModelME1(FMUModelBase):
         if self._fmu_kind != FMI_ME:
             raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
 
+        print("Before instantiation")
         if _connect_dll:
+            global GLOBAL_FMU_OBJECT
+            GLOBAL_FMU_OBJECT = self  
+            
+            self.callbacks_defaults.malloc  = FMIL.malloc
+            self.callbacks_defaults.calloc  = FMIL.calloc
+            self.callbacks_defaults.realloc = FMIL.realloc
+            self.callbacks_defaults.free    = FMIL.free
+            self.callbacks_defaults.logger  = importlogger_default
+            self.callbacks_defaults.context = <void*>self
+            self.callbacks_defaults.log_level = self.callbacks.log_level
+            
+            self.callbacks_standard = FMIL.jm_get_default_callbacks()
+            FMIL.jm_set_default_callbacks(&self.callbacks_defaults)
+            
             self.instantiate_model(logging = self._enable_logging)
+            
+            FMIL.jm_set_default_callbacks(self.callbacks_standard)
+            
+            GLOBAL_FMU_OBJECT = None
 
     def _get_model_types_platform(self):
         """
