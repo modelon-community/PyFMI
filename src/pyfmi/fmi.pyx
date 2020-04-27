@@ -2509,7 +2509,7 @@ cdef class FMUModelBase(ModelBase):
 
         Returns::
 
-            The variability of the variable, INPUT(0), OUTPUT(1),
+            The causality of the variable, INPUT(0), OUTPUT(1),
             INTERNAL(2), NONE(3)
         """
         cdef FMIL.fmi1_import_variable_t* variable
@@ -4615,7 +4615,7 @@ cdef class FMUModelBase2(ModelBase):
         self._enable_logging = bool(log)
 
         if len(categories) > 0:
-            raise FMUException('Currently the logging of categories is not availible. See the docstring for more information')
+            raise FMUException('Currently the logging of categories is not available. See the docstring for more information')
 
         status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, nCat, NULL)
 
@@ -8068,7 +8068,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         kind --
             String indicating the kind of model to create. This is only
             needed if a FMU contains both a ME and CS model.
-            Availible options:
+            Available options:
                 - 'ME'
                 - 'CS'
                 - 'auto'
