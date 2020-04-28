@@ -3,6 +3,11 @@
 Changelog
 ==========
 
+--- PyFMI-2.7 ---
+    * Fixed logging messages being printed to the console during 
+      instantiation for FMI 1.0
+    * Minor encoding issues fixed when retrieving declared types
+    
 --- PyFMI-2.6.1 ---
     * Minor fix in handling bytes/str in Python 3
 
