@@ -6587,7 +6587,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         Deallocate memory allocated
         """
-        if self._intialized_fmu == 1:
+        if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
             
         if self._allocated_fmu == 1:
