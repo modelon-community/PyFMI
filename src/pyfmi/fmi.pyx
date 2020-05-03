@@ -3783,6 +3783,7 @@ cdef class FMUModelBase2(ModelBase):
         self._allocated_dll = 0
         self._allocated_xml = 0
         self._allocated_fmu = 0
+        self._initialized_fmu = 0
         self._fmu_temp_dir = NULL
         self._fmu_log_name = NULL
 
@@ -4357,6 +4358,8 @@ cdef class FMUModelBase2(ModelBase):
 
         if status != FMIL.jm_status_success:
             raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
+        
+        self._allocated_fmu = 1
     
     def setup_experiment(self, tolerance_defined=True, tolerance="Default", start_time="Default", stop_time_defined=False, stop_time="Default"):
         """
@@ -4425,7 +4428,7 @@ cdef class FMUModelBase2(ModelBase):
         self._has_entered_init_mode = False
         
         #Reseting the allocation flags
-        self._allocated_fmu = 0
+        self._initialized_fmu = 0
 
         #Internal values
         self._log = []
@@ -4473,7 +4476,7 @@ cdef class FMUModelBase2(ModelBase):
                     ' Enable logging for more information, (load_fmu(..., log_level=4)).')
                     
 
-        self._allocated_fmu = 1
+        self._initialized_fmu = 1
         
         return status
         
@@ -6634,8 +6637,10 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         Deallocate memory allocated
         """
-        if self._allocated_fmu == 1:
+        if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
+            
+        if self._allocated_fmu == 1:
             FMIL.fmi2_import_free_instance(self._fmu)
 
         if self._allocated_dll == 1:
@@ -7251,8 +7256,10 @@ cdef class FMUModelME2(FMUModelBase2):
         Deallocate memory allocated
         """
 
-        if self._allocated_fmu == 1:
+        if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
+        
+        if self._allocated_fmu == 1:
             FMIL.fmi2_import_free_instance(self._fmu)
 
         if self._allocated_dll == 1:
