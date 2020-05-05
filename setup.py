@@ -319,18 +319,20 @@ setup(name=NAME,
       ext_modules = ext_list,
       package_dir = {'pyfmi':'src'+O.path.sep+'pyfmi','pyfmi.common':'src'+O.path.sep+'common', 'pyfmi.tests':'tests'},
       packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting', 'pyfmi.tests', 'pyfmi.common.log'],
-      package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'ME1.0'+O.path.sep+'*',
-                               'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS1.0'+O.path.sep+'*',
-                               'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'ME2.0'+O.path.sep+'*',
-                               'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS2.0'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'ME1.0'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'CS1.0'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'ME2.0'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'CS2.0'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'Results'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'Logs'+O.path.sep+'*',
-                               'version.txt', 'LICENSE', 'CHANGELOG',
-                               'util'+O.path.sep+'*']+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])+(['libgcc_s_dw2-1.dll'] if copy_gcc_lib else [])},
+      package_data={'pyfmi': ['examples/files/FMUs/ME1.0/*',
+                              'examples/files/FMUs/CS1.0/*',
+                              'examples/files/FMUs/ME2.0/*',
+                              'examples/files/FMUs/CS2.0/*',
+                              'tests/files/FMUs/XML/ME1.0/*',
+                              'tests/files/FMUs/XML/CS1.0/*',
+                              'tests/files/FMUs/XML/ME2.0/*',
+                              'tests/files/FMUs/XML/CS2.0/*',
+                              'tests/files/Results/*',
+                              'tests/files/Logs/*',
+                              'version.txt', 'LICENSE', 'CHANGELOG',
+                              'util/*']
+                             + (['*fmilib_shared*'] if sys.platform.startswith("win") else [])
+                             + (['libgcc_s_dw2-1.dll'] if copy_gcc_lib else [])}
       script_args=copy_args
       )
 
