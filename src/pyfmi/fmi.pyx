@@ -3120,7 +3120,6 @@ cdef class FMUModelME1(FMUModelBase):
         if self._fmu_kind != FMI_ME:
             raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
 
-        print("Before instantiation")
         if _connect_dll:
             global GLOBAL_FMU_OBJECT
             GLOBAL_FMU_OBJECT = self  
