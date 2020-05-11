@@ -3,6 +3,9 @@
 Changelog
 ==========
 
+--- PyFMI-2.7.1 ---
+    * Fixed so that free/terminate methods are called correctly
+
 --- PyFMI-2.7 ---
     * Fixed logging messages being printed to the console during 
       instantiation for FMI 1.0
