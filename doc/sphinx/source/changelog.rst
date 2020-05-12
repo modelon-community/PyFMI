@@ -3,6 +3,9 @@
 Changelog
 ==========
 
+--- PyFMI-2.7.2 ---
+    * Corrected version number.
+    
 --- PyFMI-2.7.1 ---
     * Fixed so that free/terminate methods are called correctly
 
