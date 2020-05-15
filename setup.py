@@ -47,7 +47,8 @@ AUTHOR_EMAIL = ""
 VERSION = "trunk"
 LICENSE = "LGPL"
 URL = "https://jmodelica.org/pyfmi"
-DOWNLOAD_URL = "https://jmodelica.org/pyfmi/installation.html"
+DOWNLOAD_URL = "https://github.com/modelon-community/PyFMI/releases"
+SOURCE_URL = "https://github.com/modelon-community/PyFMI"
 DESCRIPTION = "A package for working with dynamic models compliant with the Functional Mock-Up Interface standard."
 PLATFORMS = ["Linux", "Windows", "MacOS X"]
 CLASSIFIERS = [ 'Programming Language :: Python',
@@ -314,6 +315,9 @@ setup(name=NAME,
       author_email=AUTHOR_EMAIL,
       url=URL,
       download_url=DOWNLOAD_URL,
+      project_urls={
+        "Source Code": SOURCE_URL,
+      },
       platforms=PLATFORMS,
       classifiers=CLASSIFIERS,
       ext_modules = ext_list,
