@@ -5788,7 +5788,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('This FMU dos not support serialisation of FMU-state')
 
         n_bytes = self.serialized_fmu_state_size(state)
-        serialized_fmu = N.empty(n_bytes, dtype=N.char)
+        serialized_fmu = N.empty(n_bytes, dtype=N.byte)
 
         status = FMIL.fmi2_import_serialize_fmu_state(self._fmu, internal_state.fmu_state, <FMIL.fmi2_byte_t*> serialized_fmu.data, n_bytes)
 
