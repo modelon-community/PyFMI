@@ -22,7 +22,6 @@ Module containing optimization, simulation and initialization algorithms.
 import logging
 import time
 import numpy as N
-from copy import deepcopy
 
 default_int = int
 int = N.int32
@@ -317,21 +316,6 @@ class OptionBase(dict):
                 self[key] = other[key]
         for key in kw:
             self[key] = kw[key]
-    
-    def __deepcopy__(self, memo):
-        def _deepcopy_dict(x, memo):
-            y = {}
-            memo[id(x)] = y
-            for key, value in x.items():
-                y[deepcopy(key, memo)] = deepcopy(value, memo)
-            return y
-        cls = self.__class__
-        result = cls.__new__(cls)
-        result.__init__(_deepcopy_dict(self, memo))
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
-            setattr(result, k, deepcopy(list(v), memo))
-        return result
     
     def setdefault(self, key, value=None):
         if key not in self:
