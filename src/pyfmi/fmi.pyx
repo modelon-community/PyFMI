@@ -5774,7 +5774,6 @@ cdef class FMUModelBase2(ModelBase):
             FMU_state = Model.get_fmu_state()
             serialized_fmu = Model.serialize_fmu_state(FMU_state)
         """
-        raise NotImplementedError
 
         cdef int status
         cdef object cap1, cap2
@@ -5817,7 +5816,6 @@ cdef class FMUModelBase2(ModelBase):
             serialized_fmu = Model.serialize_fmu_state(FMU_state)
             FMU_state = Model.deserialize_fmu_state(serialized_fmu)
         """
-        raise NotImplementedError
 
         cdef int status
         cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu
@@ -5844,7 +5842,6 @@ cdef class FMUModelBase2(ModelBase):
 
             The size of the vector.
         """
-        raise NotImplementedError
 
         cdef int status
         cdef FMUState2 internal_state = state
