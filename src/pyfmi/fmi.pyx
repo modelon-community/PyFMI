@@ -150,6 +150,18 @@ FMI_DERIVATIVES = 1
 """Evaluate Jacobian of outputs."""
 FMI_OUTPUTS = 2
 
+GLOBAL_LOG_LEVEL = 3
+GLOBAL_FMU_OBJECT = None
+
+#CALLBACKS
+cdef void importlogger_default(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
+    msg = decode(message)
+    mod = decode(module)
+    if GLOBAL_FMU_OBJECT != None:
+        GLOBAL_FMU_OBJECT.append_log_message(mod,log_level,msg)
+    elif log_level <= GLOBAL_LOG_LEVEL:
+        print("FMIL: module = %s, log level = %d: %s\n"%(mod, log_level, msg))
+        
 #CALLBACKS
 cdef void importlogger(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     if c.context != NULL:
@@ -1184,6 +1196,7 @@ cdef class FMUModelBase(ModelBase):
         self.callbacks.logger  = importlogger
         self.callbacks.context = <void*>self #Class loggger
         
+        
         if enable_logging==None:
             if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
                 if log_level == FMIL.jm_log_level_nothing:
@@ -1210,7 +1223,7 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
 
         #Specify FMI related callbacks
-        self.callBackFunctions.logger = FMIL.fmi1_log_forwarding;
+        self.callBackFunctions.logger = FMIL.fmi1_log_forwarding;   
         self.callBackFunctions.allocateMemory = FMIL.calloc;
         self.callBackFunctions.freeMemory = FMIL.free;
         self.callBackFunctions.stepFinished = NULL;
@@ -2496,7 +2509,7 @@ cdef class FMUModelBase(ModelBase):
 
         Returns::
 
-            The variability of the variable, INPUT(0), OUTPUT(1),
+            The causality of the variable, INPUT(0), OUTPUT(1),
             INTERNAL(2), NONE(3)
         """
         cdef FMIL.fmi1_import_variable_t* variable
@@ -2590,7 +2603,25 @@ cdef class FMUModelCS1(FMUModelBase):
             raise FMUException("This class only supports FMI 1.0 for Co-simulation.")
         
         if _connect_dll:
+            global GLOBAL_FMU_OBJECT
+            GLOBAL_FMU_OBJECT = self
+            
+            self.callbacks_defaults.malloc  = FMIL.malloc
+            self.callbacks_defaults.calloc  = FMIL.calloc
+            self.callbacks_defaults.realloc = FMIL.realloc
+            self.callbacks_defaults.free    = FMIL.free
+            self.callbacks_defaults.logger  = importlogger_default
+            self.callbacks_defaults.context = <void*>self
+            self.callbacks_defaults.log_level = self.callbacks.log_level
+            
+            self.callbacks_standard = FMIL.jm_get_default_callbacks()
+            FMIL.jm_set_default_callbacks(&self.callbacks_defaults)
+            
             self.instantiate_slave(logging = self._enable_logging)
+            
+            FMIL.jm_set_default_callbacks(self.callbacks_standard)
+            
+            GLOBAL_FMU_OBJECT = None
         
     cpdef _get_time(self):
         return self.__t
@@ -3090,7 +3121,25 @@ cdef class FMUModelME1(FMUModelBase):
             raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
 
         if _connect_dll:
+            global GLOBAL_FMU_OBJECT
+            GLOBAL_FMU_OBJECT = self  
+            
+            self.callbacks_defaults.malloc  = FMIL.malloc
+            self.callbacks_defaults.calloc  = FMIL.calloc
+            self.callbacks_defaults.realloc = FMIL.realloc
+            self.callbacks_defaults.free    = FMIL.free
+            self.callbacks_defaults.logger  = importlogger_default
+            self.callbacks_defaults.context = <void*>self
+            self.callbacks_defaults.log_level = self.callbacks.log_level
+            
+            self.callbacks_standard = FMIL.jm_get_default_callbacks()
+            FMIL.jm_set_default_callbacks(&self.callbacks_defaults)
+            
             self.instantiate_model(logging = self._enable_logging)
+            
+            FMIL.jm_set_default_callbacks(self.callbacks_standard)
+            
+            GLOBAL_FMU_OBJECT = None
 
     def _get_model_types_platform(self):
         """
@@ -3733,6 +3782,7 @@ cdef class FMUModelBase2(ModelBase):
         self._allocated_dll = 0
         self._allocated_xml = 0
         self._allocated_fmu = 0
+        self._initialized_fmu = 0
         self._fmu_temp_dir = NULL
         self._fmu_log_name = NULL
 
@@ -4307,6 +4357,8 @@ cdef class FMUModelBase2(ModelBase):
 
         if status != FMIL.jm_status_success:
             raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
+        
+        self._allocated_fmu = 1
     
     def setup_experiment(self, tolerance_defined=True, tolerance="Default", start_time="Default", stop_time_defined=False, stop_time="Default"):
         """
@@ -4375,7 +4427,7 @@ cdef class FMUModelBase2(ModelBase):
         self._has_entered_init_mode = False
         
         #Reseting the allocation flags
-        self._allocated_fmu = 0
+        self._initialized_fmu = 0
 
         #Internal values
         self._log = []
@@ -4423,7 +4475,7 @@ cdef class FMUModelBase2(ModelBase):
                     ' Enable logging for more information, (load_fmu(..., log_level=4)).')
                     
 
-        self._allocated_fmu = 1
+        self._initialized_fmu = 1
         
         return status
         
@@ -4565,7 +4617,7 @@ cdef class FMUModelBase2(ModelBase):
         self._enable_logging = bool(log)
 
         if len(categories) > 0:
-            raise FMUException('Currently the logging of categories is not availible. See the docstring for more information')
+            raise FMUException('Currently the logging of categories is not available. See the docstring for more information')
 
         status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, nCat, NULL)
 
@@ -5078,7 +5130,7 @@ cdef class FMUModelBase2(ModelBase):
 
         Returns::
 
-            The name of the declared type.
+            The declared type.
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_value_reference_t  vr
@@ -5127,12 +5179,12 @@ cdef class FMUModelBase2(ModelBase):
                 item_name  = FMIL.fmi2_import_get_enum_type_item_name(enumeration_type, i)
                 item_desc  = FMIL.fmi2_import_get_enum_type_item_description(enumeration_type, i)
                 
-                items[item_value] = (item_name if item_name != NULL else "",
-                                     item_desc if item_desc != NULL else "")
+                items[item_value] = (decode(item_name) if item_name != NULL else "",
+                                     decode(item_desc) if item_desc != NULL else "")
                                      
-            ret_type = EnumerationType2(type_name if type_name != NULL else "",
-                                         type_desc if type_desc != NULL else "",
-                                         type_quantity if type_quantity != NULL else "", items)
+            ret_type = EnumerationType2(decode(type_name) if type_name != NULL else "",
+                                        decode(type_desc) if type_desc != NULL else "",
+                                        decode(type_quantity) if type_quantity != NULL else "", items)
                                          
                                          
         elif type == FMIL.fmi2_base_type_int:
@@ -5141,9 +5193,9 @@ cdef class FMUModelBase2(ModelBase):
             min_val = FMIL.fmi2_import_get_integer_type_min(integer_type)
             max_val = FMIL.fmi2_import_get_integer_type_max(integer_type)
             
-            ret_type = IntegerType2(type_name if type_name != NULL else "",
-                                         type_desc if type_desc != NULL else "",
-                                         type_quantity if type_quantity != NULL else "",
+            ret_type = IntegerType2(decode(type_name) if type_name != NULL else "",
+                                    decode(type_desc) if type_desc != NULL else "",
+                                    decode(type_quantity) if type_quantity != NULL else "",
                                          min_val, max_val)
         elif type == FMIL.fmi2_base_type_real:
             real_type = FMIL.fmi2_import_get_type_as_real(variable_type)
@@ -5160,11 +5212,11 @@ cdef class FMUModelBase2(ModelBase):
             type_unit_name = FMIL.fmi2_import_get_unit_name(type_unit)
             type_display_unit_name = FMIL.fmi2_import_get_display_unit_name(type_display_unit)
             
-            ret_type = RealType2(type_name if type_name != NULL else "",
-                                         type_desc if type_desc != NULL else "",
-                                         type_quantity if type_quantity != NULL else "",
+            ret_type = RealType2(decode(type_name) if type_name != NULL else "",
+                                 decode(type_desc) if type_desc != NULL else "",
+                                 decode(type_quantity) if type_quantity != NULL else "",
                                          min_val, max_val, nominal_val, unbounded, relative_quantity,
-                                         type_display_unit_name if type_display_unit_name != NULL else "", type_unit_name if type_unit_name != NULL else "")
+                                 decode(type_display_unit_name) if type_display_unit_name != NULL else "", decode(type_unit_name) if type_unit_name != NULL else "")
         else:
             raise NotImplementedError
         
@@ -6584,8 +6636,10 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         Deallocate memory allocated
         """
-        if self._allocated_fmu == 1:
+        if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
+            
+        if self._allocated_fmu == 1:
             FMIL.fmi2_import_free_instance(self._fmu)
 
         if self._allocated_dll == 1:
@@ -7201,8 +7255,10 @@ cdef class FMUModelME2(FMUModelBase2):
         Deallocate memory allocated
         """
 
-        if self._allocated_fmu == 1:
+        if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
+        
+        if self._allocated_fmu == 1:
             FMIL.fmi2_import_free_instance(self._fmu)
 
         if self._allocated_dll == 1:
@@ -8018,7 +8074,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         kind --
             String indicating the kind of model to create. This is only
             needed if a FMU contains both a ME and CS model.
-            Availible options:
+            Available options:
                 - 'ME'
                 - 'CS'
                 - 'auto'

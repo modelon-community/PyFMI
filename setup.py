@@ -60,24 +60,23 @@ PyFMI is a package for loading and interacting with Functional Mock-Up
 Units (FMUs), which are compiled dynamic models compliant with the 
 Functional Mock-Up Interface (FMI), see 
 https://www.fmi-standard.org/ for more information. PyFMI
-is based on FMI Library, see http://www.jmodelica.org/FMILibrary .
+is based on FMI Library, see https://github.com/modelon-community/fmi-library .
 
 FMI is a standard that enables tool independent exchange of dynamic 
 models on binary format. Several industrial simulation platforms 
-supports export of FMUs, including, Dymola, JModelica.org, OpenModelica 
+supports export of FMUs, including, Impact, Dymola, OpenModelica 
 and SimulationX, see https://www.fmi-standard.org/tools 
 for a complete list. PyFMI offers a Python interface for interacting 
 with FMUs and enables for example loading of FMU models, setting of 
 model parameters and evaluation of model equations.
 
-PyFMI is available as a stand-alone package or as part of the 
-JModelica.org distribution. Using PyFMI together with the Python 
-simulation package `Assimulo <http://pypi.python.org/pypi/Assimulo>`_ adds industrial grade simulation 
-capabilities of FMUs to Python.
+Using PyFMI together with the Python 
+simulation package `Assimulo <http://pypi.python.org/pypi/Assimulo>`_ 
+adds industrial grade simulation capabilities of FMUs to Python.
 
 Requirements:
 -------------
-- `FMI Library (at least 2.0.1) <http://www.jmodelica.org/FMILibrary>`_
+- `FMI Library (at least 2.0.1) <https://github.com/modelon-community/fmi-library>`_
 - `Numpy (recommended 1.6.2) <http://pypi.python.org/pypi/numpy>`_
 - `Scipy (recommended 0.10.1) <http://pypi.python.org/pypi/scipy>`_
 - `lxml (at least 2.3) <http://pypi.python.org/pypi/lxml>`_
