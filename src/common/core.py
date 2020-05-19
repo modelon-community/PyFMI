@@ -153,7 +153,7 @@ class ModelBase(object):
         from algorithm_drivers import AlgorithmBase
         
         if isinstance(algorithm, str):
-            module = __import__(module, globals(), locals(), [algorithm], 0)
+            module = __import__(module, globals(), locals(), [algorithm], 1)
             algorithm = getattr(module, algorithm)
         
         if not issubclass(algorithm, AlgorithmBase):
@@ -186,7 +186,7 @@ class ModelBase(object):
         from algorithm_drivers import AlgorithmBase
         
         if isinstance(algorithm, str):
-            module = __import__(module, globals(), locals(), [algorithm], 0)
+            module = __import__(module, globals(), locals(), [algorithm], 1)
             algorithm = getattr(module, algorithm)
         
         if not issubclass(algorithm, AlgorithmBase):
