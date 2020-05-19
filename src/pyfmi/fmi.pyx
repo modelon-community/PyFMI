@@ -5822,7 +5822,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMUState2 state = FMUState2()
         cdef FMIL.size_t n_byte = len(ser_fmu)
 
-        status = FMIL.fmi2_import_de_serialize_fmu_state(self._fmu, <FMIL.fmi2_byte_t *> ser_fmu.data, n_byte, state.fmu_state)
+        status = FMIL.fmi2_import_de_serialize_fmu_state(self._fmu, <FMIL.fmi2_byte_t *> ser_fmu.data, n_byte, &(state.fmu_state))
 
         if status != 0:
             raise FMUException('An error occured while deserializing the FMU-state, see the log for possible more information')
