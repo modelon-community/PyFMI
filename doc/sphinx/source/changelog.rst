@@ -3,6 +3,9 @@
 Changelog
 ==========
 
+--- PyFMI-2.7.3 ---
+    * Enabled support for serialize/de-serialization of FMU state
+
 --- PyFMI-2.7.2 ---
     * Corrected version number.
     
