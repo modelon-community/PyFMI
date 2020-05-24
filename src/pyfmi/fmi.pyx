@@ -5774,7 +5774,6 @@ cdef class FMUModelBase2(ModelBase):
             FMU_state = Model.get_fmu_state()
             serialized_fmu = Model.serialize_fmu_state(FMU_state)
         """
-        raise NotImplementedError
 
         cdef int status
         cdef object cap1, cap2
@@ -5789,7 +5788,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('This FMU dos not support serialisation of FMU-state')
 
         n_bytes = self.serialized_fmu_state_size(state)
-        serialized_fmu = N.empty(n_bytes, dtype=N.char)
+        serialized_fmu = N.empty(n_bytes, dtype=N.byte)
 
         status = FMIL.fmi2_import_serialize_fmu_state(self._fmu, internal_state.fmu_state, <FMIL.fmi2_byte_t*> serialized_fmu.data, n_bytes)
 
@@ -5817,14 +5816,13 @@ cdef class FMUModelBase2(ModelBase):
             serialized_fmu = Model.serialize_fmu_state(FMU_state)
             FMU_state = Model.deserialize_fmu_state(serialized_fmu)
         """
-        raise NotImplementedError
 
         cdef int status
         cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu
         cdef FMUState2 state = FMUState2()
         cdef FMIL.size_t n_byte = len(ser_fmu)
 
-        status = FMIL.fmi2_import_de_serialize_fmu_state(self._fmu, <FMIL.fmi2_byte_t *> ser_fmu.data, n_byte, state.fmu_state)
+        status = FMIL.fmi2_import_de_serialize_fmu_state(self._fmu, <FMIL.fmi2_byte_t *> ser_fmu.data, n_byte, &(state.fmu_state))
 
         if status != 0:
             raise FMUException('An error occured while deserializing the FMU-state, see the log for possible more information')
@@ -5844,7 +5842,6 @@ cdef class FMUModelBase2(ModelBase):
 
             The size of the vector.
         """
-        raise NotImplementedError
 
         cdef int status
         cdef FMUState2 internal_state = state
