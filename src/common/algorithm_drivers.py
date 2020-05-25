@@ -296,7 +296,7 @@ class OptionBase(dict):
         # create dict
         super(OptionBase,self).__init__(*args, **kw)
         # save keys - these are now the set of allowed keys
-        self._keys = super(OptionBase,self).keys()
+        self._keys = list(super(OptionBase,self).keys())
 
     def __setitem__(self, key, value):
         if self._keys:
