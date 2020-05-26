@@ -150,7 +150,7 @@ class ModelBase(object):
             Exception if algorithm is not a subclass of 
             common.algorithm_drivers.AlgorithmBase.
         """
-        from algorithm_drivers import AlgorithmBase
+        from .algorithm_drivers import AlgorithmBase
         
         if isinstance(algorithm, str):
             module = __import__(module, globals(), locals(), [algorithm], 0)
@@ -183,7 +183,7 @@ class ModelBase(object):
             Exception if algorithm is not a subclass of 
             common.algorithm_drivers.AlgorithmBase.
         """
-        from algorithm_drivers import AlgorithmBase
+        from .algorithm_drivers import AlgorithmBase
         
         if isinstance(algorithm, str):
             module = __import__(module, globals(), locals(), [algorithm], 0)
