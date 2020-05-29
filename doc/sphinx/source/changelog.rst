@@ -4,6 +4,7 @@ Changelog
 ==========
 
 --- PyFMI-2.7.3 ---
+    * Added support for retrieving relative quantity
     * Fixed pickling of the OptionsBase class
     * Enabled support for serialize/de-serialization of FMU state
 

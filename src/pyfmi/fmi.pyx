@@ -5393,7 +5393,41 @@ cdef class FMUModelBase2(ModelBase):
         unit_description = FMIL.fmi2_import_get_unit_name(unit)
         
         return decode(unit_description) if unit_description != NULL else ""
+
+    def get_variable_relative_quantity(self, variable_name):
+        """
+        Get the relative quantity of a real variable.
         
+        Parameters::
+        
+            variable_name --
+                The name of the variable.
+                
+        Returns::
+        
+            Boolean representing the relative quantity of the variable.
+        """
+        cdef FMIL.fmi2_import_variable_t* variable
+        cdef FMIL.fmi2_import_real_variable_t* real_variable
+        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_boolean_t relative_quantity
+        
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
+        
+        variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+            
+        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        if type != FMIL.fmi2_base_type_real:
+            raise FMUException("The variable %s is not a Real variable. Relative quantity only exists for Real variables."%variablename)
+            
+        real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
+        relative_quantity = FMIL.fmi2_import_get_real_variable_relative_quantity(real_variable)
+
+        return relative_quantity == FMI2_TRUE
+
     def get_variable_display_unit(self, variable_name):
         """
         Get the display unit of the variable.
@@ -5456,6 +5490,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_real_t display_value, value
         cdef FMIL.fmi2_value_reference_t  vr
         cdef int relative_quantity
+        cdef FMIL.fmi2_boolean_t relative_quantity_bool
         
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5473,17 +5508,8 @@ cdef class FMUModelBase2(ModelBase):
         if display_unit == NULL:
             raise FMUException("No display unit was found for the variable %s."%variablename)
         
-        variable_typedef = FMIL.fmi2_import_get_variable_declared_type(variable)
-        if variable_typedef == NULL:
-            #Use the default value for relative quantity (False)
-            relative_quantity = 0
-        else:
-            variable_real_typedef = FMIL.fmi2_import_get_type_as_real(variable_typedef)
-            if variable_real_typedef == NULL:
-                #Use the default value for relative quantity (False)
-                relative_quantity = 0
-            else:
-                relative_quantity = FMIL.fmi2_import_get_real_type_is_relative_quantity(variable_real_typedef)
+        relative_quantity_bool = FMIL.fmi2_import_get_real_variable_relative_quantity(real_variable)
+        relative_quantity = 1 if relative_quantity_bool == FMI2_TRUE else 0
         
         vr = FMIL.fmi2_import_get_variable_vr(variable)
         value = self.get_real(vr)
