@@ -296,7 +296,7 @@ class OptionBase(dict):
         # create dict
         super(OptionBase,self).__init__(*args, **kw)
         # save keys - these are now the set of allowed keys
-        self._keys = super(OptionBase,self).keys()
+        self._keys = list(super(OptionBase,self).keys())
 
     def __setitem__(self, key, value):
         if self._keys:
@@ -316,7 +316,7 @@ class OptionBase(dict):
                 self[key] = other[key]
         for key in kw:
             self[key] = kw[key]
-
+    
     def setdefault(self, key, value=None):
         if key not in self:
             self[key] = value

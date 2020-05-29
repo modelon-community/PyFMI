@@ -751,6 +751,25 @@ class Test_FMUModelME2:
         nose.tools.assert_raises(FMUException, model.get_variable_display_unit, "J1.w")
 
 class Test_FMUModelBase2:
+    
+    @testattr(stddist = True)
+    def test_relative_quantity(self):
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "test_type_definitions.fmu")
+        model = FMUModelME2(full_path, _connect_dll=False)
+        
+        rel = model.get_variable_relative_quantity("real_with_attr")
+        assert rel == True, "Relative quantity should be True"
+        rel = model.get_variable_relative_quantity("real_with_attr_false")
+        assert rel == False, "Relative quantity should be False"
+        
+        rel = model.get_variable_relative_quantity("real_without_attr")
+        assert rel == False, "Relative quantity should be (default) False"
+
+        rel = model.get_variable_relative_quantity("real_with_typedef")
+        assert rel == True, "Relative quantity should be True"
+        
+        nose.tools.assert_raises(FMUException, model.get_variable_relative_quantity, "int_with_attr")
+    
     @testattr(stddist = True)
     def test_unicode_description(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Description.fmu")

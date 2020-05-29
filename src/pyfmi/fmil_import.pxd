@@ -1015,5 +1015,6 @@ cdef extern from 'fmilib.h':
     fmi2_import_variable_list_t * fmi2_import_get_states_list(fmi2_import_t *)
 
     fmi2_real_t fmi2_import_get_display_unit_factor(fmi2_import_display_unit_t *)
+    fmi2_boolean_t fmi2_import_get_real_variable_relative_quantity(fmi2_import_real_variable_t* v)
 
 
