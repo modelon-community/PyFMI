@@ -966,12 +966,11 @@ class FMIODE2(Explicit_Problem):
             fwrite.write(" Time  event info:  "+str(event_info[1])+ "\n")
 
             preface = "[INFO][FMU status:OK] "
-            event_info_tag = 'EventInfo' #TODO: set an appropriate name
+            event_info_tag = 'EventInfo'
 
             msg = preface + '<%s>Detected event at <value name="t">        %.14E</value>.'%(event_info_tag, solver.t)
             self._model.append_log_message("Model", 6, msg)
 
-            # TODO Should we do something differently when state_event_info is empty?
             msg = preface + '  <vector name="state_event_info">' + ", ".join(str(i) for i in event_info[0]) + '</vector>'
             self._model.append_log_message("Model", 6, msg)
 
@@ -1073,7 +1072,8 @@ class FMIODE2(Explicit_Problem):
 
             if self._g_nbr > 0:
                 str_ev = " |"
-                for i in self._model.get_event_indicators():
+                ev_indicator_values = self._model.get_event_indicators()
+                for i in ev_indicator_values:
                     str_ev += " %.14E"%i
                 data_line += str_ev
 
@@ -1082,7 +1082,7 @@ class FMIODE2(Explicit_Problem):
 
 
             preface = "[INFO][FMU status:OK] "
-            solver_info_tag = 'SolverAttributes' #TODO: Set an appropriate name
+            solver_info_tag = 'Solver'
 
             msg = preface + '<%s>Updated attributes due to successful step at <value name="t">        %.14E</value>.'%(solver_info_tag, solver.t)
             self._model.append_log_message("Model", 6, msg)
@@ -1100,17 +1100,12 @@ class FMIODE2(Explicit_Problem):
             msg = preface + '  <vector name="state_error">' + state_errors[:-1] + '</vector>'
             self._model.append_log_message("Model", 6, msg)
 
-            # For some unknown reason the code below also add
-            #   <GetEventIndicators>Call to get event indicators at <value name="t">       8.6316745750310986E-013</value>.
-            #   ...
-            #   </GetEventIndicators>
-
-            # if self._g_nbr > 0:
-            #     msg = preface + '  <vector name="event_indicators">'
-            #     for i in self._model.get_event_indicators():
-            #         msg += "        %.14E,"%i
-            #     msg = msg[:-1] + '</vector>'# remove last comma
-            #     self._model.append_log_message("Model", 6, msg)
+            if self._g_nbr > 0:
+                msg = preface + '  <vector name="event_indicators">'
+                for i in ev_indicator_values:
+                    msg += "        %.14E,"%i
+                msg = msg[:-1] + '</vector>'# remove last comma
+                self._model.append_log_message("Model", 6, msg)
 
 
             msg = preface + '</%s>'%(solver_info_tag)
@@ -1152,6 +1147,7 @@ class FMIODE2(Explicit_Problem):
                 self._sparse_representation = True
 
         if self._logging:
+            solver_name = solver.__class__.__name__
             self.debug_file_object = open(self.debug_file_name, 'w')
             f = self.debug_file_object
 
@@ -1161,7 +1157,7 @@ class FMIODE2(Explicit_Problem):
             names = names[:-2] # remove trailing ', '
 
             preface = "[INFO][FMU status:OK] "
-            init_tag = 'InitialSolverAttributes' # TODO: change this name?
+            init_tag = 'SolverSettings'
 
             msg = preface + '<%s>Solver initialized with the following attributes:'%(init_tag)
             self._model.append_log_message("Model", 6, msg)
