@@ -1084,7 +1084,7 @@ class FMIODE2(Explicit_Problem):
             preface = "[INFO][FMU status:OK] "
             solver_info_tag = 'Solver'
 
-            msg = preface + '<%s>Updated attributes due to successful step at <value name="t">        %.14E</value>.'%(solver_info_tag, solver.t)
+            msg = preface + '<%s>Successful solver step at <value name="t">        %.14E</value>.'%(solver_info_tag, solver.t)
             self._model.append_log_message("Model", 6, msg)
 
             msg = preface + '  <value name="elapsed_real_time">        %.14E</value>'%(solver.get_elapsed_step_time())
