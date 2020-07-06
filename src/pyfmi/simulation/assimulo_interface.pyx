@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2014 Modelon AB
@@ -925,22 +925,22 @@ class FMIODE2(Explicit_Problem):
         This method is called when Assimulo finds an event.
         """
         cdef int status
-        
+
         if self._extra_f_nbr > 0:
             y_extra = solver.y[-self._extra_f_nbr:]
             y       = solver.y[:-self._extra_f_nbr]
         else:
             y       = solver.y
-            
+
         #Moving data to the model
         if self._compare(solver.t, y):
             self._update_model(solver.t, y)
-        
+
             #Evaluating the rhs (Have to evaluate the values in the model)
             """
             if self.model_me2_instance:
                 status = self.model_me2._get_derivatives(self._state_temp_1)
-                
+
                 if status != 0:
                     raise fmi.FMUException('Failed to get the derivatives at time: %E during handling of the event.'%t)
             else:
@@ -959,12 +959,27 @@ class FMIODE2(Explicit_Problem):
             str_der = ""
             for i in self._model.get_derivatives():
                 str_der += " %.14E"%i
-            
+
             fwrite = self._get_debug_file_object()
             fwrite.write("\nDetected event at t = %.14E \n"%solver.t)
             fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
             fwrite.write(" Time  event info:  "+str(event_info[1])+ "\n")
-            
+
+            preface = "[INFO][FMU status:OK] "
+            event_info_tag = 'EventInfo'
+
+            msg = preface + '<%s>Detected event at <value name="t">        %.14E</value>.'%(event_info_tag, solver.t)
+            self._model.append_log_message("Model", 6, msg)
+
+            msg = preface + '  <vector name="state_event_info">' + ", ".join(str(i) for i in event_info[0]) + '</vector>'
+            self._model.append_log_message("Model", 6, msg)
+
+            msg = preface + '  <boolean name="time_event_info">' + str(event_info[1]) + '</boolean>'
+            self._model.append_log_message("Model", 6, msg)
+
+            msg = preface + '</%s>'%(event_info_tag)
+            self._model.append_log_message("Model", 6, msg)
+
         #Enter event mode
         self._model.enter_event_mode()
         
@@ -1040,29 +1055,63 @@ class FMIODE2(Explicit_Problem):
                 rhs = self._model.get_derivatives()
             """
             rhs = self._model.get_derivatives()
-            
+
         if self._logging:
+            solver_name = solver.__class__.__name__
             data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
-                
-            if solver.__class__.__name__=="CVode" or solver.__class__.__name__=="Radau5ODE":
+
+            if solver_name=="CVode" or solver_name=="Radau5ODE":
                 err = solver.get_weighted_local_errors()
                 str_err = " |"
                 for i in err:
                     str_err += " %.14E"%i
-                if solver.__class__.__name__=="CVode":
+                if solver_name=="CVode":
                     data_line += " | %d"%solver.get_last_order()+str_err
                 else:
                     data_line += " | 5"+str_err
-            
+
             if self._g_nbr > 0:
                 str_ev = " |"
-                for i in self._model.get_event_indicators():
+                ev_indicator_values = self._model.get_event_indicators()
+                for i in ev_indicator_values:
                     str_ev += " %.14E"%i
                 data_line += str_ev
-            
+
             fwrite = self._get_debug_file_object()
             fwrite.write(data_line+"\n")
-        
+
+
+            preface = "[INFO][FMU status:OK] "
+            solver_info_tag = 'Solver'
+
+            msg = preface + '<%s>Successful solver step at <value name="t">        %.14E</value>.'%(solver_info_tag, solver.t)
+            self._model.append_log_message("Model", 6, msg)
+
+            msg = preface + '  <value name="elapsed_real_time">        %.14E</value>'%(solver.get_elapsed_step_time())
+            self._model.append_log_message("Model", 6, msg)
+
+            solver_order = solver.get_last_order() if solver_name=="CVode" else 5 #hardcoded 5 for other solvers
+            msg = preface + '  <value name="solver_order">%d</value>'%(solver_order)
+            self._model.append_log_message("Model", 6, msg)
+
+            state_errors = ''
+            for i in solver.get_weighted_local_errors():
+                state_errors += "        %.14E,"%i
+            msg = preface + '  <vector name="state_error">' + state_errors[:-1] + '</vector>'
+            self._model.append_log_message("Model", 6, msg)
+
+            if self._g_nbr > 0:
+                msg = preface + '  <vector name="event_indicators">'
+                for i in ev_indicator_values:
+                    msg += "        %.14E,"%i
+                msg = msg[:-1] + '</vector>'# remove last comma
+                self._model.append_log_message("Model", 6, msg)
+
+
+            msg = preface + '</%s>'%(solver_info_tag)
+            self._model.append_log_message("Model", 6, msg)
+
+
         if self.model_me2_instance:
             #self.model_me2._completed_integrator_step(&enter_event_mode, &terminate_simulation)
             enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
@@ -1098,26 +1147,52 @@ class FMIODE2(Explicit_Problem):
                 self._sparse_representation = True
         
         if self._logging:
+            solver_name = solver.__class__.__name__
             self.debug_file_object = open(self.debug_file_name, 'w')
             f = self.debug_file_object
             
             names = ""
             for i in range(self._f_nbr):
                 names += list(self._model.get_states_list().keys())[i] + ", "
-            
-            f.write("Solver: %s \n"%solver.__class__.__name__)
-            f.write("State variables: "+names+ "\n")
+            names = names[:-2] # remove trailing ', '
+
+            preface = "[INFO][FMU status:OK] "
+            init_tag = 'SolverSettings'
+
+            msg = preface + '<%s>Solver initialized with the following attributes:'%(init_tag)
+            self._model.append_log_message("Model", 6, msg)
+
+            msg = preface + '  <vector name="state_names">' + names + '</vector>'
+            self._model.append_log_message("Model", 6, msg)
+
+            msg = preface + '  <value name="solver_name">%s</value>'%solver_name
+            self._model.append_log_message("Model", 6, msg)
+
+            msg = preface + '  <value name="relative_tolerance">%.14E</value>'%solver.rtol
+            self._model.append_log_message("Model", 6, msg)
+
+            atol_values = ''
+            for value in solver.atol:
+                atol_values += '        %.14E,'%value
+            msg = preface + '  <vector name="absolute_tolerance">' + atol_values[:-1] + '</vector>'
+            self._model.append_log_message("Model", 6, msg)
+
+            msg = preface + '</%s>'%(init_tag)
+            self._model.append_log_message("Model", 6, msg)
 
             str_y = ""
             if self._f_nbr != 0:
                 for i in solver.y:
                     str_y += " %.14E"%i
 
+            f.write("Solver: %s \n"%solver_name)
+            f.write("State variables: "+names+ "\n")
+
             f.write("Initial values: t = %.14E \n"%solver.t)
             f.write("Initial values: y ="+str_y+"\n\n")
 
             header = "Time (simulated) | Time (real) | "
-            if solver.__class__.__name__=="CVode" or solver.__class__.__name__=="Radau5ODE": #Only available for CVode
+            if solver_name=="CVode" or solver_name=="Radau5ODE": #Only available for CVode
                 header += "Order | Error (Weighted)"
             f.write(header+"\n")
 

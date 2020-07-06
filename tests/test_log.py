@@ -17,7 +17,7 @@
 
 import os
 
-from pyfmi import testattr
+from pyfmi import testattr, load_fmu
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 
 file_path = os.path.dirname(os.path.abspath(__file__))
@@ -64,3 +64,4 @@ class Test_Log:
             log.nodes[1]
         except IndexError: #Test that the log is empty
             pass
+
