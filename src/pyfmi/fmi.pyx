@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2014 Modelon AB
@@ -1158,6 +1158,10 @@ cdef class FMUState2:
     """
     def __init__(self):
         self.fmu_state = NULL
+        self._internal_state_variables = {'initialized_fmu': None,
+                                          'has_entered_init_mode': None,
+                                          'time': None,
+                                          'callback_log_level': None}
 
 
 
@@ -5698,12 +5702,12 @@ cdef class FMUModelBase2(ModelBase):
         Creates a copy of the recent FMU-state and returns
         a pointer to this state which later can be used to
         set the FMU to this state.
-        
+
         Parameters::
-        
+
             state --
                 Optionally a pointer to an already allocated FMU state
-        
+
         Returns::
 
             A pointer to a copy of the recent FMU state.
@@ -5713,7 +5717,7 @@ cdef class FMUModelBase2(ModelBase):
             FMU_state = model.get_fmu_state()
         """
         cdef int status
-        
+
         if state is None:
             state = FMUState2()
 
@@ -5724,7 +5728,12 @@ cdef class FMUModelBase2(ModelBase):
 
         if status != 0:
             raise FMUException('An error occured while trying to get the FMU-state, see the log for possible more information')
-        
+
+        state._internal_state_variables['time'] = self.time
+        state._internal_state_variables['initialized_fmu'] = self._initialized_fmu
+        state._internal_state_variables['has_entered_init_mode'] = self._has_entered_init_mode
+        state._internal_state_variables['callback_log_level'] = self.callbacks.log_level
+
         return state
 
     def set_fmu_state(self, FMUState2 state):
@@ -5751,6 +5760,15 @@ cdef class FMUModelBase2(ModelBase):
 
         if status != 0:
             raise FMUException('An error occured while trying to set the FMU-state, see the log for possible more information')
+
+        if state._internal_state_variables['time'] is not None:
+            self.time = state._internal_state_variables['time']
+        if state._internal_state_variables['has_entered_init_mode'] is not None:
+            self._has_entered_init_mode = state._internal_state_variables['has_entered_init_mode']
+        if state._internal_state_variables['initialized_fmu'] is not None:
+            self._initialized_fmu = state._internal_state_variables['initialized_fmu']
+        if state._internal_state_variables['callback_log_level'] is not None:
+            self.callbacks.log_level = state._internal_state_variables['callback_log_level']
 
     def free_fmu_state(self, FMUState2 state):
         """
@@ -5783,6 +5801,7 @@ cdef class FMUModelBase2(ModelBase):
         
         #Memory has been released
         state.fmu_state = NULL
+        state._internal_state_variables = {}
 
     cpdef serialize_fmu_state(self, state):
         """
@@ -5794,7 +5813,7 @@ cdef class FMUModelBase2(ModelBase):
                 A FMU-state.
 
         Returns::
-            A vector with the serialized FMU-state.
+            A list with a vector with the serialized FMU-state and internal state values.
 
         Example::
             FMU_state = Model.get_fmu_state()
@@ -5821,7 +5840,9 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('An error occured while serializing the FMU-state, see the log for possible more information')
 
-        return serialized_fmu
+        # We temporarily return a list with wrapper values in the second entry.
+        # What we need to do is add serialization/deserialization for the wrapper values
+        return [serialized_fmu, list(internal_state._internal_state_variables.values())]
 
     cpdef deserialize_fmu_state(self, serialized_fmu):
         """
@@ -5844,7 +5865,7 @@ cdef class FMUModelBase2(ModelBase):
         """
 
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu
+        cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu[0]
         cdef FMUState2 state = FMUState2()
         cdef FMIL.size_t n_byte = len(ser_fmu)
 
@@ -5852,6 +5873,12 @@ cdef class FMUModelBase2(ModelBase):
 
         if status != 0:
             raise FMUException('An error occured while deserializing the FMU-state, see the log for possible more information')
+
+
+        state._internal_state_variables = {'initialized_fmu': serialized_fmu[1][0],
+                                           'has_entered_init_mode': serialized_fmu[1][1],
+                                           'time': serialized_fmu[1][2],
+                                           'callback_log_level': serialized_fmu[1][3]}
 
         return state
 
