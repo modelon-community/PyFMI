@@ -5840,9 +5840,15 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('An error occured while serializing the FMU-state, see the log for possible more information')
 
+        # Extract the values one by one due to differences between Python 2 and 3 for dict entry order
+        internal_values = [internal_state._internal_state_variables["initialized_fmu"],
+                           internal_state._internal_state_variables["has_entered_init_mode"],
+                           internal_state._internal_state_variables["time"],
+                           internal_state._internal_state_variables["callback_log_level"]]
+
         # We temporarily return a list with wrapper values in the second entry.
         # What we need to do is add serialization/deserialization for the wrapper values
-        return [serialized_fmu, list(internal_state._internal_state_variables.values())]
+        return [serialized_fmu, internal_values]
 
     cpdef deserialize_fmu_state(self, serialized_fmu):
         """
