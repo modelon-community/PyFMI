@@ -1158,10 +1158,11 @@ cdef class FMUState2:
     """
     def __init__(self):
         self.fmu_state = NULL
-        self._internal_state_variables = {'initialized_fmu': None,
-                                          'has_entered_init_mode': None,
-                                          'time': None,
-                                          'callback_log_level': None}
+        self._internal_state_variables = OrderedDict([
+                                          ('initialized_fmu', None),
+                                          ('has_entered_init_mode', None),
+                                          ('time', None),
+                                          ('callback_log_level', None)])
 
 
 
@@ -5801,7 +5802,7 @@ cdef class FMUModelBase2(ModelBase):
         
         #Memory has been released
         state.fmu_state = NULL
-        state._internal_state_variables = {}
+        state._internal_state_variables = OrderedDict([])
 
     cpdef serialize_fmu_state(self, state):
         """
@@ -5875,10 +5876,11 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('An error occured while deserializing the FMU-state, see the log for possible more information')
 
 
-        state._internal_state_variables = {'initialized_fmu': serialized_fmu[1][0],
-                                           'has_entered_init_mode': serialized_fmu[1][1],
-                                           'time': serialized_fmu[1][2],
-                                           'callback_log_level': serialized_fmu[1][3]}
+        state._internal_state_variables = OrderedDict([
+                                            ('initialized_fmu', serialized_fmu[1][0]),
+                                            ('has_entered_init_mode', serialized_fmu[1][1]),
+                                            ('time', serialized_fmu[1][2]),
+                                            ('callback_log_level', serialized_fmu[1][3])])
 
         return state
 
