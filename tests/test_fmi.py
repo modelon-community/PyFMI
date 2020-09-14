@@ -26,6 +26,7 @@ import pyfmi.fmi as fmi
 import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
 from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
 from pyfmi.common.io import ResultHandler
+from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 
 assimulo_installed = True
 try:
@@ -527,6 +528,22 @@ if assimulo_installed:
             model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
             opts = model.simulate_options()
             assert opts["ncp"] == 500, opts["ncp"]
+        
+        @testattr(stddist = True)
+        def test_solver_options(self):
+            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            opts = model.simulate_options()
+            
+            try:
+                opts["CVode_options"] = "ShouldFail"
+                raise Exception("Setting an incorrect option should lead to exception being thrown, it wasn't")
+            except UnrecognizedOptionError:
+                pass
+            
+            opts["CVode_options"] = {"maxh":1.0}
+            assert opts["CVode_options"]["atol"] == "Default", "Default should have been changed: " + opts["CVode_options"]["atol"]
+            assert opts["CVode_options"]["maxh"] == 1.0, "Value should have been changed to 1.0: " + opts["CVode_options"]["maxh"]
+
         
         @testattr(stddist = True)
         def test_maxh_option(self):

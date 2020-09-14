@@ -3,6 +3,10 @@
 Changelog
 ==========
 
+--- PyFMI-2.8 ---
+    * Fixed so that default options are not overriden when setting
+      solver options.
+
 --- PyFMI-2.7.4 ---
     * Minor fix for save/get state functionality.
 

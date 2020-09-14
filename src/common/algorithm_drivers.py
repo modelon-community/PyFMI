@@ -303,8 +303,14 @@ class OptionBase(dict):
             if not key in self._keys:
                 raise UnrecognizedOptionError(
                     "The key: %s, is not a valid option" %str(key))
-            
-        super(OptionBase,self).__setitem__(key, value)
+        
+        if isinstance(self[key], dict):
+            if not isinstance(value, dict):
+                raise UnrecognizedOptionError(
+                    "The options in '%s' needs to be provided as a dictionary." %str(key))
+            self[key].update(value)
+        else:
+            super(OptionBase,self).__setitem__(key, value)
     
     def update(self, *args, **kw):
         if args:
