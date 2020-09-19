@@ -3,6 +3,8 @@
 --- PyFMI-2.8 ---
     * Fixed so that default options are not overriden when setting
       solver options.
+    * Improved performance when simulating FMI 2.0 ME FMUs.
+    * Building PyFMI now requires that Assimulo is installed.
 
 --- PyFMI-2.7.4 ---
     * Minor fix for save/get state functionality.

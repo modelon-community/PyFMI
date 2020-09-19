@@ -7476,23 +7476,25 @@ cdef class FMUModelME2(FMUModelBase2):
         Calls the low-level FMI function: fmi2NewDiscreteStates
         """
         cdef int status
+        cdef int tmp_values_continuous_states_changed
+        cdef int tmp_nominals_continuous_states_changed
 
         if intermediateResult:
             status = FMIL.fmi2_import_new_discrete_states(self._fmu, &self._eventInfo)
             if status != 0:
                 raise FMUException('Failed to update the events at time: %E.'%self.time)
         else:
-            tmp_values_continuous_states_changed   = False
-            tmp_nominals_continuous_states_changed = False
+            tmp_values_continuous_states_changed   = 0
+            tmp_nominals_continuous_states_changed = 0
             
             self._eventInfo.newDiscreteStatesNeeded = FMI2_TRUE
             while self._eventInfo.newDiscreteStatesNeeded:
                 status = FMIL.fmi2_import_new_discrete_states(self._fmu, &self._eventInfo)
                 
                 if self._eventInfo.nominalsOfContinuousStatesChanged:
-                    tmp_nominals_continuous_states_changed = True
+                    tmp_nominals_continuous_states_changed = 1
                 if self._eventInfo.valuesOfContinuousStatesChanged:
-                    tmp_values_continuous_states_changed = True
+                    tmp_values_continuous_states_changed = 1
                 if status != 0:
                     raise FMUException('Failed to update the events at time: %E.'%self.time)
             
@@ -7860,6 +7862,7 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef int* local_indices_matrix_rows_pt
         cdef int* local_indices_matrix_columns_pt
         cdef int* local_data_indices
+        cdef float* nominals
         
         #Make sure that the work vectors has the correct lengths
         self._worker_object.verify_dimensions(max(len_v, len_f))
@@ -7878,10 +7881,22 @@ cdef class FMUModelME2(FMUModelBase2):
         #Get updated values for the derivatives and states
         self.__get_real(z_ref_pt, len_f, df_pt)
         self.__get_real(v_ref_pt, len_v, v_pt)
-
-        for i in range(len_v):
-            nominal = self.get_variable_nominal(valueref = v_ref_pt[i])
-            eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominal))
+        
+        if group is not None:
+            if "nominals" in group:
+                nominals = <float*>PyArray_DATA(group["nominals"])
+            else:
+                group["nominals"] = N.empty(len_v, dtype=float)
+                nominals = <float*>PyArray_DATA(group["nominals"])
+                for i in range(len_v):
+                    nominals[i] = self.get_variable_nominal(valueref = v_ref_pt[i])
+            
+            for i in range(len_v):
+                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominals[i]))
+        else:
+            for i in range(len_v):
+                nominal = self.get_variable_nominal(valueref = v_ref_pt[i])
+                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominal))
 
         if group is not None:
             if output_matrix is not None:

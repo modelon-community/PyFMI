@@ -48,6 +48,7 @@ except:
 if assimulo_present:
     from assimulo.problem import Implicit_Problem
     from assimulo.problem import Explicit_Problem
+    from assimulo.problem cimport cExplicit_Problem
     from assimulo.exception import *
 else:
     class Implicit_Problem:
@@ -563,23 +564,21 @@ class FMIODESENS(FMIODE):
         self.timings["handle_result"] += timer() - time_start
 
 
-class FMIODE2(Explicit_Problem):
+cdef class FMIODE2(cExplicit_Problem):
     """
     An Assimulo Explicit Model extended to FMI interface.
-    """
     """
     cdef public int _f_nbr, _g_nbr, _input_activated, _extra_f_nbr, jac_nnz, input_len_names
     cdef public object _model, problem_name, result_file_name, __input, _A, debug_file_name, debug_file_object
     cdef public object export, _sparse_representation, _with_jacobian, _logging, _write_header
     cdef public dict timings
-    cdef public N.ndarray y0
-    cdef public list input_names, input_real_value_refs, input_real_mask, input_other, input_other_mask, _logg_step_event
+    cdef public N.ndarray y0, input_real_mask, input_other_mask
+    cdef public list input_names, input_real_value_refs, input_other, _logg_step_event
     cdef public double t0
     cdef public jac_use, state_events_use, time_events_use
     cdef public FMUModelME2 model_me2
     cdef public int model_me2_instance
     cdef public N.ndarray _state_temp_1, _event_temp_1
-    """
     
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False, 
@@ -668,9 +667,9 @@ class FMIODE2(Explicit_Problem):
             input_names = input[0]
             self.input_len_names = len(input_names)
             self.input_real_value_refs = []
-            self.input_real_mask = []
+            input_real_mask = []
             self.input_other = []
-            self.input_other_mask = []
+            input_other_mask = []
             
             if isinstance(input_names,str):
                 input_names = [input_names]
@@ -681,13 +680,13 @@ class FMIODE2(Explicit_Problem):
                 
                 if self._model.get_variable_data_type(name) == fmi.FMI2_REAL:
                     self.input_real_value_refs.append(self._model.get_variable_valueref(name))
-                    self.input_real_mask.append(i)
+                    input_real_mask.append(i)
                 else:
                     self.input_other.append(name)
-                    self.input_other_mask.append(i)
+                    input_other_mask.append(i)
             
-            self.input_real_mask  = N.array(self.input_real_mask)
-            self.input_other_mask = N.array(self.input_other_mask)
+            self.input_real_mask  = N.array(input_real_mask)
+            self.input_other_mask = N.array(input_other_mask)
             
             self._input_activated = 1
         else:
@@ -695,8 +694,7 @@ class FMIODE2(Explicit_Problem):
 
         self.input = input
         
-    #cpdef _set_input_values(self, double t):
-    def _set_input_values(self, t):
+    cpdef _set_input_values(self, double t):
         if self._input_activated:
             values = self.input[1].eval(t)[0,:]
             
@@ -705,9 +703,7 @@ class FMIODE2(Explicit_Problem):
             if self.input_other:
                 self._model.set(self.input_other, values[self.input_other_mask])
     
-    #cdef _update_model(self, double t, N.ndarray[double, ndim=1, mode="c"] y):
-    def _update_model(self, t, y):
-        """
+    cdef _update_model(self, double t, N.ndarray[double, ndim=1, mode="c"] y):
         if self.model_me2_instance:
             #Moving data to the model
             self.model_me2._set_time(t)
@@ -720,23 +716,14 @@ class FMIODE2(Explicit_Problem):
             #Check if there are any states
             if self._f_nbr != 0:
                 self._model.continuous_states = y
-        """
-        #Moving data to the model
-        self._model.time = t
-        #Check if there are any states
-        if self._f_nbr != 0:
-            self._model.continuous_states = y
 
         #Sets the inputs, if any
         self._set_input_values(t)
     
-    #cdef int _compare(self, double t, N.ndarray[double, ndim=1, mode="c"] y):
-    def _compare(self, t, y):
-        """
+    cdef int _compare(self, double t, N.ndarray[double, ndim=1, mode="c"] y):
         cdef int res
         
         if self.model_me2_instance:
-            
             if t != self.model_me2._get_time():
                 return 1
             
@@ -752,12 +739,8 @@ class FMIODE2(Explicit_Problem):
             return 1
         else:
             return t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all())
-        return 0
-        """
-        return t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all())
 
-    #def rhs(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw=None):
-    def rhs(self, t, y, sw=None):
+    def rhs(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """
         The rhs (right-hand-side) for an ODE problem.
         """
@@ -770,7 +753,6 @@ class FMIODE2(Explicit_Problem):
         self._update_model(t, y)
 
         #Evaluating the rhs
-        """
         if self.model_me2_instance:
             status = self.model_me2._get_derivatives(self._state_temp_1)
             if status != 0:
@@ -782,14 +764,9 @@ class FMIODE2(Explicit_Problem):
                 der = self._state_temp_1.copy()
         else:
             try:
-                self._state_temp_1 = self._model.get_derivatives()
+                der = self._model.get_derivatives()
             except fmi.FMUException:
                 raise AssimuloRecoverableError
-        """
-        try:
-            der = self._model.get_derivatives()
-        except fmi.FMUException:
-            raise AssimuloRecoverableError
 
         #If there is no state, use the dummy
         if self._f_nbr == 0:
@@ -800,8 +777,7 @@ class FMIODE2(Explicit_Problem):
 
         return der
 
-    #def jac(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw=None):
-    def jac(self, t, y, sw=None):
+    def jac(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """
         The jacobian function for an ODE problem.
         """
@@ -846,8 +822,7 @@ class FMIODE2(Explicit_Problem):
 
         return Jac
 
-    #def state_events(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw):
-    def state_events(self, t, y, sw):
+    def state_events(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw):
         """
         The event indicator function for a ODE problem.
         """
@@ -860,7 +835,6 @@ class FMIODE2(Explicit_Problem):
         self._update_model(t, y)
         
         #Evaluating the event indicators
-        """
         if self.model_me2_instance:
             status = self.model_me2._get_event_indicators(self._event_temp_1)
             
@@ -870,11 +844,8 @@ class FMIODE2(Explicit_Problem):
             return self._event_temp_1
         else:
             return self._model.get_event_indicators()
-        """
-        return self._model.get_event_indicators()
 
-    #def time_events(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw):
-    def time_events(self, t, y, sw):
+    def time_events(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw):
         """
         Time event function.
         """
@@ -903,7 +874,6 @@ class FMIODE2(Explicit_Problem):
             self._update_model(t, y)
         
             #Evaluating the rhs (Have to evaluate the values in the model)
-            """
             if self.model_me2_instance:
                 status = self.model_me2._get_derivatives(self._state_temp_1)
                 
@@ -911,8 +881,6 @@ class FMIODE2(Explicit_Problem):
                     raise fmi.FMUException('Failed to get the derivatives at time: %E during handling of the result.'%t)
             else:
                 rhs = self._model.get_derivatives()
-            """
-            rhs = self._model.get_derivatives()
 
         self.export.integration_point(solver)
         if self._extra_f_nbr > 0:
@@ -937,7 +905,6 @@ class FMIODE2(Explicit_Problem):
             self._update_model(solver.t, y)
 
             #Evaluating the rhs (Have to evaluate the values in the model)
-            """
             if self.model_me2_instance:
                 status = self.model_me2._get_derivatives(self._state_temp_1)
 
@@ -945,8 +912,6 @@ class FMIODE2(Explicit_Problem):
                     raise fmi.FMUException('Failed to get the derivatives at time: %E during handling of the event.'%t)
             else:
                 rhs = self._model.get_derivatives()
-            """
-            rhs = self._model.get_derivatives()
 
         if self._logging:
             str_ind = ""
@@ -1048,13 +1013,10 @@ class FMIODE2(Explicit_Problem):
             self._update_model(solver.t, y)
         
             #Evaluating the rhs (Have to evaluate the values in the model)
-            """
             if self.model_me2_instance:
                 self.model_me2._get_derivatives(self._state_temp_1)
             else:
                 rhs = self._model.get_derivatives()
-            """
-            rhs = self._model.get_derivatives()
 
         if self._logging:
             solver_name = solver.__class__.__name__
@@ -1113,8 +1075,7 @@ class FMIODE2(Explicit_Problem):
 
 
         if self.model_me2_instance:
-            #self.model_me2._completed_integrator_step(&enter_event_mode, &terminate_simulation)
-            enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
+            self.model_me2._completed_integrator_step(&enter_event_mode, &terminate_simulation)
         else:
             enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
             
