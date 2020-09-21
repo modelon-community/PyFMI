@@ -568,18 +568,6 @@ cdef class FMIODE2(cExplicit_Problem):
     """
     An Assimulo Explicit Model extended to FMI interface.
     """
-    cdef public int _f_nbr, _g_nbr, _input_activated, _extra_f_nbr, jac_nnz, input_len_names
-    cdef public object _model, problem_name, result_file_name, __input, _A, debug_file_name, debug_file_object
-    cdef public object export, _sparse_representation, _with_jacobian, _logging, _write_header
-    cdef public dict timings
-    cdef public N.ndarray y0, input_real_mask, input_other_mask
-    cdef public list input_names, input_real_value_refs, input_other, _logg_step_event
-    cdef public double t0
-    cdef public jac_use, state_events_use, time_events_use
-    cdef public FMUModelME2 model_me2
-    cdef public int model_me2_instance
-    cdef public N.ndarray _state_temp_1, _event_temp_1
-    
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False, 
                  result_handler=None, extra_equations=None):
