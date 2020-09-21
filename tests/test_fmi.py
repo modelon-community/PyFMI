@@ -543,7 +543,18 @@ if assimulo_installed:
             opts["CVode_options"] = {"maxh":1.0}
             assert opts["CVode_options"]["atol"] == "Default", "Default should have been changed: " + opts["CVode_options"]["atol"]
             assert opts["CVode_options"]["maxh"] == 1.0, "Value should have been changed to 1.0: " + opts["CVode_options"]["maxh"]
-
+        
+        @testattr(stddist = True)
+        def test_deepcopy_option(self):
+            from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlgOptions
+            opts = AssimuloFMIAlgOptions()
+            opts["CVode_options"]["maxh"] = 2.0
+            
+            import copy
+            
+            opts_copy = copy.deepcopy(opts)
+            
+            assert opts["CVode_options"]["maxh"] == opts_copy["CVode_options"]["maxh"], "Deepcopy not working..."
         
         @testattr(stddist = True)
         def test_maxh_option(self):

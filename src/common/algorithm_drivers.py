@@ -304,12 +304,16 @@ class OptionBase(dict):
                 raise UnrecognizedOptionError(
                     "The key: %s, is not a valid option" %str(key))
         
-        if isinstance(self[key], dict):
-            if not isinstance(value, dict):
-                raise UnrecognizedOptionError(
-                    "The options in '%s' needs to be provided as a dictionary." %str(key))
-            self[key].update(value)
-        else:
+        #This try is needed in order for deepcopy of the options dictionary to work
+        try:
+            if isinstance(self[key], dict):
+                if not isinstance(value, dict):
+                    raise UnrecognizedOptionError(
+                        "The options in '%s' needs to be provided as a dictionary." %str(key))
+                self[key].update(value)
+            else:
+                super(OptionBase,self).__setitem__(key, value)
+        except KeyError:
             super(OptionBase,self).__setitem__(key, value)
     
     def update(self, *args, **kw):
