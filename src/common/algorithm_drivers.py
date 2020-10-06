@@ -18,7 +18,6 @@
 Module containing optimization, simulation and initialization algorithms.
 """
 
-#from abc import ABCMeta, abstractmethod
 import logging
 import time
 import numpy as N
@@ -296,7 +295,9 @@ class OptionBase(dict):
         # create dict
         super(OptionBase,self).__init__(*args, **kw)
         # save keys - these are now the set of allowed keys
-        self._keys = list(super(OptionBase,self).keys())
+        self._keys   = list(super(OptionBase,self).keys())
+        self._values = list(super(OptionBase,self).values())
+        self._defaults_copy = dict(zip(self._keys, self._values))
 
     def __setitem__(self, key, value):
         if self._keys:
@@ -310,6 +311,8 @@ class OptionBase(dict):
                 if not isinstance(value, dict):
                     raise UnrecognizedOptionError(
                         "The options in '%s' needs to be provided as a dictionary." %str(key))
+                #Make sure that we have a fresh dict with defaults
+                super(OptionBase,self).__setitem__(key, self._defaults_copy[key].copy())
                 self[key].update(value)
             else:
                 super(OptionBase,self).__setitem__(key, value)

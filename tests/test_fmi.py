@@ -545,6 +545,19 @@ if assimulo_installed:
             assert opts["CVode_options"]["maxh"] == 1.0, "Value should have been changed to 1.0: " + opts["CVode_options"]["maxh"]
         
         @testattr(stddist = True)
+        def test_solver_options_using_defaults(self):
+            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            opts = model.simulate_options()
+            
+            opts["CVode_options"] = {"maxh":1.0}
+            assert opts["CVode_options"]["atol"] == "Default", "Default should have been changed: " + opts["CVode_options"]["atol"]
+            assert opts["CVode_options"]["maxh"] == 1.0, "Value should have been changed to 1.0: " + opts["CVode_options"]["maxh"]
+            
+            opts["CVode_options"] = {"atol":1e-6} #Defaults should be used together with only the option atol set
+            assert opts["CVode_options"]["atol"] == 1e-6, "Default should have been changed: " + opts["CVode_options"]["atol"]
+            assert opts["CVode_options"]["maxh"] == "Default", "Value should have been default is: " + opts["CVode_options"]["maxh"]
+        
+        @testattr(stddist = True)
         def test_deepcopy_option(self):
             from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlgOptions
             opts = AssimuloFMIAlgOptions()
