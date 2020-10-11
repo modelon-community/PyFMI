@@ -1161,9 +1161,13 @@ cdef class FMUState2:
         self._internal_state_variables = {'initialized_fmu': None,
                                           'has_entered_init_mode': None,
                                           'time': None,
-                                          'callback_log_level': None}
-
-
+                                          'callback_log_level': None,
+                                          'event_info.new_discrete_states_needed': None,
+                                          'event_info.nominals_of_continuous_states_changed': None,
+                                          'event_info.terminate_simulation': None,
+                                          'event_info.values_of_continuous_states_changed': None,
+                                          'event_info.next_event_time_defined': None,
+                                          'event_info.next_event_time': None}
 
 cdef class FMUModelBase(ModelBase):
     """
@@ -5733,6 +5737,13 @@ cdef class FMUModelBase2(ModelBase):
         state._internal_state_variables['initialized_fmu'] = self._initialized_fmu
         state._internal_state_variables['has_entered_init_mode'] = self._has_entered_init_mode
         state._internal_state_variables['callback_log_level'] = self.callbacks.log_level
+        
+        state._internal_state_variables["event_info.new_discrete_states_needed"]            = self._eventInfo.newDiscreteStatesNeeded
+        state._internal_state_variables["event_info.nominals_of_continuous_states_changed"] = self._eventInfo.nominalsOfContinuousStatesChanged
+        state._internal_state_variables["event_info.terminate_simulation"]                  = self._eventInfo.terminateSimulation
+        state._internal_state_variables["event_info.values_of_continuous_states_changed"]   = self._eventInfo.valuesOfContinuousStatesChanged
+        state._internal_state_variables["event_info.next_event_time_defined"]               = self._eventInfo.nextEventTimeDefined
+        state._internal_state_variables["event_info.next_event_time"]                       = self._eventInfo.nextEventTime
 
         return state
 
@@ -5769,6 +5780,19 @@ cdef class FMUModelBase2(ModelBase):
             self._initialized_fmu = state._internal_state_variables['initialized_fmu']
         if state._internal_state_variables['callback_log_level'] is not None:
             self.callbacks.log_level = state._internal_state_variables['callback_log_level']
+        
+        if state._internal_state_variables["event_info.new_discrete_states_needed"] is not None:
+            self._eventInfo.newDiscreteStatesNeeded = state._internal_state_variables["event_info.new_discrete_states_needed"]
+        if state._internal_state_variables["event_info.nominals_of_continuous_states_changed"] is not None:
+            self._eventInfo.nominalsOfContinuousStatesChanged = state._internal_state_variables["event_info.nominals_of_continuous_states_changed"]
+        if state._internal_state_variables["event_info.terminate_simulation"] is not None:
+            self._eventInfo.terminateSimulation = state._internal_state_variables["event_info.terminate_simulation"]
+        if state._internal_state_variables["event_info.values_of_continuous_states_changed"] is not None:
+            self._eventInfo.valuesOfContinuousStatesChanged = state._internal_state_variables["event_info.values_of_continuous_states_changed"]
+        if state._internal_state_variables["event_info.next_event_time_defined"] is not None:
+            self._eventInfo.nextEventTimeDefined = state._internal_state_variables["event_info.next_event_time_defined"]
+        if state._internal_state_variables["event_info.next_event_time"] is not None:
+            self._eventInfo.nextEventTime = state._internal_state_variables["event_info.next_event_time"]
 
     def free_fmu_state(self, FMUState2 state):
         """
@@ -5878,7 +5902,13 @@ cdef class FMUModelBase2(ModelBase):
         state._internal_state_variables = {'initialized_fmu': serialized_fmu[1][0],
                                            'has_entered_init_mode': serialized_fmu[1][1],
                                            'time': serialized_fmu[1][2],
-                                           'callback_log_level': serialized_fmu[1][3]}
+                                           'callback_log_level': serialized_fmu[1][3],
+                                           'event_info.new_discrete_states_needed': serialized_fmu[1][4],
+                                           'event_info.nominals_of_continuous_states_changed': serialized_fmu[1][5],
+                                           'event_info.terminate_simulation': serialized_fmu[1][6],
+                                           'event_info.values_of_continuous_states_changed': serialized_fmu[1][7],
+                                           'event_info.next_event_time_defined': serialized_fmu[1][8],
+                                           'event_info.next_event_time': serialized_fmu[1][9]}
 
         return state
 
