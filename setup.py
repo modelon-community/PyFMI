@@ -44,7 +44,7 @@ except ImportError:
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "2.8"
+VERSION = "2.8.1"
 LICENSE = "LGPL"
 URL = "https://jmodelica.org/pyfmi"
 DOWNLOAD_URL = "https://jmodelica.org/pyfmi/installation.html"
