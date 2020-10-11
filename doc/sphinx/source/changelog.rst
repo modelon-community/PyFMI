@@ -3,6 +3,10 @@
 Changelog
 ==========
 
+--- PyFMI-2.8.1 ---
+    * Fixed so that the internal event information is saved together
+      with the FMU state (when using save / get state).
+
 --- PyFMI-2.8 ---
     * Fixed so that default options are not overriden when setting
       solver options.
