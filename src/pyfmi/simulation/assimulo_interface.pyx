@@ -219,7 +219,7 @@ class FMIODE(Explicit_Problem):
 
         return rhs
 
-    def g(self, t, y, sw):
+    def g(self, t, y, sw=None):
         """
         The event indicator function for a ODE problem.
         """
@@ -238,7 +238,7 @@ class FMIODE(Explicit_Problem):
 
         return eventInd
 
-    def t(self, t, y, sw):
+    def t(self, t, y, sw=None):
         """
         Time event function.
         """
@@ -810,7 +810,7 @@ cdef class FMIODE2(cExplicit_Problem):
 
         return Jac
 
-    def state_events(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw):
+    def state_events(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """
         The event indicator function for a ODE problem.
         """
@@ -833,7 +833,7 @@ cdef class FMIODE2(cExplicit_Problem):
         else:
             return self._model.get_event_indicators()
 
-    def time_events(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw):
+    def time_events(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """
         Time event function.
         """

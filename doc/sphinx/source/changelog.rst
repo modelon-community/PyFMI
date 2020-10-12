@@ -3,6 +3,9 @@
 Changelog
 ==========
 
+--- PyFMI-2.8.2 ---
+    * Added default arguments in the simulation interface (minor)
+
 --- PyFMI-2.8.1 ---
     * Fixed so that the internal event information is saved together
       with the FMU state (when using save / get state).
