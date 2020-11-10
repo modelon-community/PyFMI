@@ -349,8 +349,8 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars):
     cdef int i, name_length_trial, desc_length_trial, kd, kn
     cdef list desc = [encode("Time in [s]")]
     cdef list name = [encode("time")]
-    cdef int name_length = len(name[0])
-    cdef int desc_length = len(desc[0])
+    cdef int name_length = len(name[0])+1
+    cdef int desc_length = len(desc[0])+1
     cdef char *desc_output
     cdef char *name_output
     cdef char *ctmp_name
