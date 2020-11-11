@@ -216,10 +216,11 @@ cdef extern from 'fmilib.h':
         fmi2_real_t    nextEventTime
 
     cdef enum fmi2_dependency_factor_kind_enu_t:
-        fmi2_dependency_factor_kind_nonlinear = 0
-        fmi2_dependency_factor_kind_fixed = 1
-        fmi2_dependency_factor_kind_discrete = 2
-        fmi2_dependency_factor_kind_num = 3
+        fmi2_dependency_factor_kind_dependent = 0
+        fmi2_dependency_factor_kind_constant = 1
+        fmi2_dependency_factor_kind_fixed = 2
+        fmi2_dependency_factor_kind_tunable = 3
+        fmi2_dependency_factor_kind_discrete = 4
 
     cdef enum fmi2_initial_enu_t:
         fmi2_initial_enu_exact = 0

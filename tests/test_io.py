@@ -116,6 +116,19 @@ if assimulo_installed:
             
             for i in range(len(derx)):
                 nose.tools.assert_equal(derx[i], dery[i])
+        
+        @testattr(stddist = True)
+        def test_no_variables(self):
+            model = Dummy_FMUModelME2([], "ParameterAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            
+            opts = model.simulate_options()
+            opts["result_handling"] = "file"
+            opts["result_file_name"] = "NoMatchingTest.txt"
+            opts["filter"] = "NoMatchingVariables"
+            
+            res = model.simulate(options=opts)
+            
+            nose.tools.assert_almost_equal(1.0, res["time"][-1])
                 
         @testattr(stddist = True)
         def test_enumeration_file(self):
@@ -256,6 +269,18 @@ if assimulo_installed:
             nose.tools.assert_almost_equal(3.0, res["p2"][0])
             assert not isinstance(res.initial("p2"), np.ndarray)
             assert not isinstance(res.final("p2"), np.ndarray)
+
+        @testattr(stddist = True)
+        def test_no_variables(self):
+            model = Dummy_FMUModelME2([], "ParameterAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            
+            opts = model.simulate_options()
+            opts["result_handling"] = "memory"
+            opts["filter"] = "NoMatchingVariables"
+            
+            res = model.simulate(options=opts)
+            
+            nose.tools.assert_almost_equal(1.0, res["time"][-1])
         
         @testattr(stddist = True)
         def test_enumeration_memory(self):
@@ -323,6 +348,19 @@ if assimulo_installed:
             res = model.simulate(options=opts)
             
             nose.tools.assert_almost_equal(3.0, res["p2"][0])
+        
+        @testattr(stddist = True)
+        def test_no_variables(self):
+            model = Dummy_FMUModelME2([], "ParameterAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            
+            opts = model.simulate_options()
+            opts["result_handling"] = "custom"
+            opts["result_handler"] = ResultHandlerBinaryFile(model)
+            opts["filter"] = "NoMatchingVariables"
+            
+            res = model.simulate(options=opts)
+            
+            nose.tools.assert_almost_equal(1.0, res["time"][-1])
             
         @testattr(stddist = True)
         def test_read_alias_derivative(self):
@@ -519,6 +557,29 @@ class TestResultFileBinary:
         nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5)
     
     @testattr(stddist = True)
+    def test_filter_no_variables(self):
+        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model.setup_experiment()
+        model.initialize()
+        model.time = 1.0
+        opts = model.simulate_options()
+        opts["filter"] = "NoMatchingVariables"
+        
+        
+        bouncingBall = ResultHandlerBinaryFile(model)
+        
+        bouncingBall.set_options(opts)
+        bouncingBall.simulation_start()
+        bouncingBall.initialize_complete()
+        bouncingBall.integration_point()
+        bouncingBall.simulation_end()
+        
+        res = ResultDymolaBinary('bouncingBall_result.mat')
+        
+        t = res.get_variable_data('time')
+        nose.tools.assert_almost_equal(t.x[-1], 1.000000, 5)
+    
+    @testattr(stddist = True)
     def test_binary_options_cs2(self):
         simple_alias = Dummy_FMUModelCS2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
         _run_negated_alias(simple_alias, "binary")
@@ -537,6 +598,20 @@ if assimulo_installed:
             res = model.simulate(options=opts)
             
             nose.tools.assert_almost_equal(3.0, res["p2"][0])
+        
+        @testattr(stddist = True)
+        def test_no_variables(self):
+            model = Dummy_FMUModelME2([], "ParameterAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            
+            opts = model.simulate_options()
+            opts["result_handling"] = "custom"
+            opts["result_handler"] = ResultHandlerCSV(model)
+            opts["filter"] = "NoMatchingVariables"
+            opts["result_file_name"] = "NoMatchingTest.csv"
+            
+            res = model.simulate(options=opts)
+            
+            nose.tools.assert_almost_equal(1.0, res["time"][-1])
             
         @testattr(stddist = True)
         def test_variable_alias_custom_handler(self):
