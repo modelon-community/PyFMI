@@ -187,8 +187,12 @@ cdef class FMUModelBase2(ModelBase):
     cdef object         _derivatives_references
     cdef object         _derivatives_states_dependencies
     cdef object         _derivatives_inputs_dependencies
+    cdef object         _derivatives_states_dependencies_kind
+    cdef object         _derivatives_inputs_dependencies_kind
     cdef object         _outputs_states_dependencies
     cdef object         _outputs_inputs_dependencies
+    cdef object         _outputs_states_dependencies_kind
+    cdef object         _outputs_inputs_dependencies_kind
     cdef object         _A, _B, _C, _D
     cdef public object         _group_A, _group_B, _group_C, _group_D 
     cdef object         _mask_A
@@ -202,7 +206,9 @@ cdef class FMUModelBase2(ModelBase):
     cpdef FMIL.fmi2_variability_enu_t get_variable_variability(self, variablename) except *
     cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, variablename) except *
     cpdef get_output_dependencies(self)
+    cpdef get_output_dependencies_kind(self)
     cpdef get_derivatives_dependencies(self)
+    cpdef get_derivatives_dependencies_kind(self)
     cpdef get_variable_start(self, variablename)
     cpdef get_variable_max(self, variablename)
     cpdef get_variable_min(self, variablename)

@@ -3,6 +3,10 @@
 Changelog
 ==========
 
+--- PyFMI-2.8.3 ---
+    * Fixed result saving when saving only the "time" variable
+    * Exposed the dependencies kind attributes from FMI 2.0
+
 --- PyFMI-2.8.2 ---
     * Added default arguments in the simulation interface (minor)
 

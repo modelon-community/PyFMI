@@ -120,6 +120,12 @@ FMI2_CALCULATED_PARAMETER = FMIL.fmi2_causality_enu_calculated_parameter
 FMI2_LOCAL       = FMIL.fmi2_causality_enu_local
 FMI2_INDEPENDENT = FMIL.fmi2_causality_enu_independent
 
+FMI2_KIND_DEPENDENT = FMIL.fmi2_dependency_factor_kind_dependent
+FMI2_KIND_CONSTANT  = FMIL.fmi2_dependency_factor_kind_constant
+FMI2_KIND_FIXED     = FMIL.fmi2_dependency_factor_kind_fixed
+FMI2_KIND_TUNABLE   = FMIL.fmi2_dependency_factor_kind_tunable
+FMI2_KIND_DISCRETE  = FMIL.fmi2_dependency_factor_kind_discrete
+
 # FMI types
 FMI_ME                 = FMIL.fmi1_fmu_kind_enu_me
 FMI_CS_STANDALONE      = FMIL.fmi1_fmu_kind_enu_cs_standalone
@@ -6065,7 +6071,9 @@ cdef class FMUModelBase2(ModelBase):
             inputs_list = self.get_input_list().keys()
         
         states = OrderedDict()
+        states_kind = OrderedDict()
         inputs = OrderedDict()
+        inputs_kind = OrderedDict()
         
         if len(outputs) != 0: #If there are no outputs, return empty dicts
         
@@ -6078,18 +6086,27 @@ cdef class FMUModelBase2(ModelBase):
                 for i in range(0,len(outputs)):
                     if outputs[i] in states_list: #The output is a state in itself
                         states[outputs[i]]  = [outputs[i]]
+                        states_kind[outputs[i]] = [FMI2_KIND_DEPENDENT]
+                        
                         inputs[outputs[i]]  = []
+                        inputs_kind[outputs[i]] = []
                     else:
                         states[outputs[i]]  = states_list
+                        states_kind[outputs[i]] = [FMI2_KIND_DEPENDENT]*len(states_list)
+                        
                         inputs[outputs[i]]  = inputs_list
+                        inputs_kind[outputs[i]] = [FMI2_KIND_DEPENDENT]*len(inputs_list)
             else:
                 variable_list = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
                 if variable_list == NULL:
                     raise FMUException("The returned variable list is NULL.")
                 
                 for i in range(0,len(outputs)):
-                    states[outputs[i]]  = []
+                    states[outputs[i]] = []
+                    states_kind[outputs[i]] = []
+                    
                     inputs[outputs[i]] = []
+                    inputs_kind[outputs[i]] = []
                     
                     for j in range(0, start_indexp[i+1]-start_indexp[i]):
                         if dependencyp[start_indexp[i]+j] != 0:
@@ -6098,17 +6115,39 @@ cdef class FMUModelBase2(ModelBase):
                             
                             if name in states_list:
                                 states[outputs[i]].append(name)
+                                states_kind[outputs[i]].append(factor_kindp[start_indexp[i]+j])
+                                
                             elif name in inputs_list:
-                                inputs[outputs[i]].append(name)                        
+                                inputs[outputs[i]].append(name)
+                                inputs_kind[outputs[i]].append(factor_kindp[start_indexp[i]+j])
                 
                 #Free the variable list
                 FMIL.fmi2_import_free_variable_list(variable_list)
                 
         #Caching
         self._outputs_states_dependencies = states
+        self._outputs_states_dependencies_kind = states_kind
         self._outputs_inputs_dependencies = inputs
+        self._outputs_inputs_dependencies_kind = inputs_kind
                
         return states, inputs
+    
+    cpdef get_output_dependencies_kind(self):
+        """
+        Retrieve the list of 'kinds' that the outputs are 
+        dependent on. Returns two dictionaries, one with the states 
+        and one with the inputs. The list of 'kinds'::
+        
+            FMI2_KIND_DEPENDENT (= 0)
+            FMI2_KIND_CONSTANT  (= 1)
+            FMI2_KIND_FIXED     (= 2)
+            FMI2_KIND_TUNABLE   (= 3)
+            FMI2_KIND_DISCRETE  (= 4)
+            
+        """ 
+        self.get_output_dependencies() 
+        
+        return self._outputs_states_dependencies_kind, self._outputs_inputs_dependencies_kind 
         
     cpdef get_derivatives_dependencies(self):
         """
@@ -6136,7 +6175,9 @@ cdef class FMUModelBase2(ModelBase):
             inputs_list = self.get_input_list().keys()
         
         states = OrderedDict()
+        states_kind = OrderedDict()
         inputs = OrderedDict()
+        inputs_kind = OrderedDict()
         
         if len(derivatives) != 0:
             FMIL.fmi2_import_get_derivatives_dependencies(self._fmu, &start_indexp, &dependencyp, &factor_kindp)
@@ -6147,7 +6188,10 @@ cdef class FMUModelBase2(ModelBase):
                     ' Assuming complete dependency.')
                 for i in range(0,len(derivatives)):
                     states[derivatives[i]]  = states_list
+                    states_kind[derivatives[i]] = [FMI2_KIND_DEPENDENT]*len(states_list)
+                    
                     inputs[derivatives[i]]  = inputs_list
+                    inputs_kind[derivatives[i]] = [FMI2_KIND_DEPENDENT]*len(inputs_list)
             else:
                 variable_list = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
                 if variable_list == NULL:
@@ -6155,7 +6199,10 @@ cdef class FMUModelBase2(ModelBase):
                 
                 for i in range(0,len(derivatives)):
                     states[derivatives[i]]  = []
+                    states_kind[derivatives[i]]  = []
+                    
                     inputs[derivatives[i]] = []
+                    inputs_kind[derivatives[i]] = []
                     
                     for j in range(0, start_indexp[i+1]-start_indexp[i]):
                         if dependencyp[start_indexp[i]+j] != 0:
@@ -6164,17 +6211,40 @@ cdef class FMUModelBase2(ModelBase):
                             
                             if name in states_list:
                                 states[derivatives[i]].append(name)
+                                states_kind[derivatives[i]].append(factor_kindp[start_indexp[i]+j])
+                                
                             elif name in inputs_list:
-                                inputs[derivatives[i]].append(name)                        
+                                inputs[derivatives[i]].append(name)
+                                inputs_kind[derivatives[i]].append(factor_kindp[start_indexp[i]+j])
                 
                 #Free the variable list
                 FMIL.fmi2_import_free_variable_list(variable_list)
                 
         #Caching
         self._derivatives_states_dependencies = states
+        self._derivatives_states_dependencies_kind = states_kind
+        
         self._derivatives_inputs_dependencies = inputs
+        self._derivatives_inputs_dependencies_kind = inputs_kind
             
         return states, inputs
+    
+    cpdef get_derivatives_dependencies_kind(self):
+        """
+        Retrieve the list of 'kinds' that the derivatives are 
+        dependent on. Returns two dictionaries, one with the states 
+        and one with the inputs. The list of 'kinds'::
+        
+            FMI2_KIND_DEPENDENT (= 0)
+            FMI2_KIND_CONSTANT  (= 1)
+            FMI2_KIND_FIXED     (= 2)
+            FMI2_KIND_TUNABLE   (= 3)
+            FMI2_KIND_DISCRETE  (= 4)
+        
+        """ 
+        self.get_derivatives_dependencies() 
+        
+        return self._derivatives_states_dependencies_kind, self._derivatives_inputs_dependencies_kind 
         
     def _get_directional_proxy(self, var_ref, func_ref, group=None, add_diag=False, output_matrix=None):
         cdef list data = [], row = [], col = []

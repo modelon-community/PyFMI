@@ -279,7 +279,7 @@ class ResultCSVTextual:
         data = []
         while True:
             row = fid.readline().strip().split(delimiter)
-            
+
             if row[-1] == "" or row[-1] == "\n":
                 break
             
@@ -902,9 +902,12 @@ class ResultDymolaTextual(ResultDymola):
         else:
             dataInfo = [map(int,fid.readline().split()[0:nCols]) for i in range(nLines)]
         self.dataInfo = N.array(dataInfo)
-
+        
         # Find out how many data matrices there are
-        nData = max(self.dataInfo[:,0])
+        if len(name) == 1: #Only time
+            nData = 2
+        else:
+            nData = max(self.dataInfo[:,0])
                 
         self.data = []
         for i in range(0,nData): 
@@ -1501,8 +1504,12 @@ class ResultHandlerCSV(ResultHandler):
         cont_str = ""
         for val in data:
             cont_str += "%.14E%s"%(val,delimiter)
+        
+        if len(cont_str) == 0 and len(self.const_str) == 0:
+            f.write("%.14E"%(t))
+        else:
+            f.write("%.14E%s"%(t,delimiter))
             
-        f.write("%.14E%s"%(t,delimiter))
         if len(cont_str) == 0:
             f.write(self.const_str[:-1]+"\n")
         else:
