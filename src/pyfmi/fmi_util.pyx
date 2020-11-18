@@ -1095,4 +1095,162 @@ cdef class FastPointSave:
         
 """
 
+def prune_dependency_information(dependencies, kinds):
+    """
+    Remove dependencies on constant and fixed elements.
+    """
+    pruned = OrderedDict()
+    
+    for i,der in enumerate(dependencies.keys()):
+        l = []
+        for j,state in enumerate(dependencies[der]):
+            if kinds[der][j] == fmi.FMI2_KIND_DEPENDENT or kinds[der][j] == fmi.FMI2_KIND_TUNABLE or kinds[der][j] == fmi.FMI2_KIND_DISCRETE:
+                l.append(state)
+        pruned[der] = l
+    
+    return pruned
 
+def compute_needed_adjustments(dependencies, dependencies_pruned, groups, states, derivatives):
+    
+    states_mapping = {i:k for i,k in enumerate(states)}
+    derivatives_mapping = {k:i for i,k in enumerate(derivatives)}
+    available_derivatives = {}
+    for der in dependencies:
+        if len(dependencies[der]) <= 1:
+            continue
+        if len(dependencies[der]) == len(dependencies_pruned[der]):
+            continue
+        
+        available_derivatives[der] = dependencies[der].copy()
+
+    needs_update = []
+    for group in groups["groups"]:
+        g = groups[group]
+        perturbed_states = g[0]
+        affected_derivatives = g[1]
+        position_data_vector = g[4]
+        
+        if len(perturbed_states) == 1:
+            continue
+        
+        for i,affected_derivative in enumerate(affected_derivatives):
+            try:
+                available_derivatives[affected_derivative] #If not available, will be excpeiotn
+                
+                target_perturbed = []
+                relevant_perturbed = []
+                for x in perturbed_states:
+                    
+                    if states_mapping[x] in available_derivatives[affected_derivative]:
+                        if states_mapping[x] in dependencies_pruned[affected_derivative]:
+                            target_perturbed.append(x)
+                        else:
+                            relevant_perturbed.append(x)
+                        
+                        available_derivatives[affected_derivative].remove(states_mapping[x])
+                        
+                        if len(available_derivatives[affected_derivative]) == 0:
+                            available_derivatives.pop(affected_derivative)
+                        
+                if len(relevant_perturbed) > 0:
+                    needs_update.append([affected_derivative, position_data_vector[i], target_perturbed[0], relevant_perturbed, derivatives_mapping[affected_derivative]])
+            
+            except KeyError:
+                pass
+    
+    #Name of the derivative [0]
+    #Position in the data vector that needs to be updated [1]
+    #The state being perturbed [2]
+    #Hidden dependencies of this equation that are also being perturbed [3]
+    #Index of the derivative [4]
+    
+    return needs_update
+
+def compute_needed_adjustments_companion_elements(adjustment_values, original_matrix):
+    
+    for element in adjustment_values:
+        data_indices = []
+        
+        row = element[4]
+        for perturbed in element[3]:
+            data_indices.append(find_data_position(perturbed, row, original_matrix))
+            
+        element.append(data_indices)
+
+def find_data_position(col, row, A):
+    cdef int A_col_ptr, A_col_size
+    cdef np.ndarray A_indptr = A.indptr
+    cdef np.ndarray A_indices = A.indices
+    cdef np.ndarray A_data = A.data
+    
+    A_col_ptr  = A_indptr[col]
+    A_col_size = A_indptr[col+1] - A_col_ptr
+
+    for i in range(A_col_ptr, A_col_ptr + A_col_size):
+        if A_indices[i] == row:
+            return i
+        
+    raise Exception("Something is wrong...")
+
+def sparse_update(A, B):
+    """
+    Updated a sparse matrix A with the elements of B, i.e.::
+    
+        A[coord(B)] = values(B)
+    
+    B needs to be a subset of the matrix A in terms of the sparsity
+    structure. 
+    """
+    cdef int col, A_col_ptr, B_col_ptr, B_col_size, A_col_size
+    cdef int B_row_ind, A_row_ind
+    cdef np.ndarray A_indptr = A.indptr
+    cdef np.ndarray B_indptr = B.indptr
+    cdef np.ndarray A_indices = A.indices
+    cdef np.ndarray B_indices = B.indices
+    cdef np.ndarray A_data = A.data
+    cdef np.ndarray B_data = B.data
+    
+    for col in range(0, B.shape[0]):
+        A_col_ptr  = A_indptr[col]
+        A_col_size = A_indptr[col+1] - A_col_ptr
+        B_col_ptr  = B_indptr[col]
+        B_col_size = B_indptr[col+1] - B_col_ptr
+        
+        A_row_ind = A_indices[A_col_ptr]
+        for i in range(B_col_ptr, B_col_ptr + B_col_size):
+            B_row_ind = B_indices[i]
+
+            while B_row_ind != A_row_ind:
+                A_col_ptr = A_col_ptr + 1
+                A_row_ind = A_indices[A_col_ptr]
+            
+            A_data[A_col_ptr] = B_data[i]
+    
+def sparse_diff(A, B):
+    cdef int col, A_col_ptr, B_col_ptr, B_col_size, A_col_size
+    cdef int B_row_ind, A_row_ind
+    cdef np.ndarray A_indptr = A.indptr
+    cdef np.ndarray B_indptr = B.indptr
+    cdef np.ndarray A_indices = A.indices
+    cdef np.ndarray B_indices = B.indices
+    cdef np.ndarray A_data = A.data
+    cdef np.ndarray B_data = B.data
+    
+    for col in range(0, B.shape[0]):
+        A_col_ptr  = A_indptr[col]
+        A_col_size = A_indptr[col+1] - A_col_ptr
+        B_col_ptr  = B_indptr[col]
+        B_col_size = B_indptr[col+1] - B_col_ptr
+        
+        A_row_ind = A_indices[A_col_ptr]
+        for i in range(B_col_ptr, B_col_ptr + B_col_size):
+            B_row_ind = B_indices[i]
+
+            while B_row_ind != A_row_ind:
+                A_col_ptr = A_col_ptr + 1
+                A_row_ind = A_indices[A_col_ptr]
+            
+            B_data[i] = A_data[A_col_ptr] - B_data[i]
+
+def sparse_subtract(A, B):
+    A.data = A.data + B.data

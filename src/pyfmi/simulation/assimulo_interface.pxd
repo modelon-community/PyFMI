@@ -48,6 +48,7 @@ cdef class FMIODE2(cExplicit_Problem):
     cdef public int _f_nbr, _g_nbr, _input_activated, _extra_f_nbr, jac_nnz, input_len_names
     cdef public object _model, problem_name, result_file_name, __input, _A, debug_file_name, debug_file_object
     cdef public object export, _sparse_representation, _with_jacobian, _logging, _write_header
+    cdef public object _group_pruned, _states_vref, _der_vref, _derv_state_dep_pruned, _derv_state_dep, _states
     cdef public dict timings
     cdef public N.ndarray y0, input_real_mask, input_other_mask
     cdef public list input_names, input_real_value_refs, input_other, _logg_step_event
@@ -56,6 +57,7 @@ cdef class FMIODE2(cExplicit_Problem):
     cdef public FMUModelME2 model_me2
     cdef public int model_me2_instance
     cdef public N.ndarray _state_temp_1, _event_temp_1
+    cdef public object _A_adjustments, _A_update, _experimental_jacobian_update, 
 
     cpdef _set_input_values(self, double t)
     cdef _update_model(self, double t, N.ndarray[double, ndim=1, mode="c"] y)

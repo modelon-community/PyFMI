@@ -7962,7 +7962,8 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef int* local_indices_matrix_rows_pt
         cdef int* local_indices_matrix_columns_pt
         cdef int* local_data_indices
-        cdef float* nominals
+        cdef double* nominals
+        cdef double* epsilons
         
         #Make sure that the work vectors has the correct lengths
         self._worker_object.verify_dimensions(max(len_v, len_f))
@@ -7983,16 +7984,21 @@ cdef class FMUModelME2(FMUModelBase2):
         self.__get_real(v_ref_pt, len_v, v_pt)
         
         if group is not None:
+            if "epsilons" not in group:
+                group["epsilons"] = N.empty(len_v, dtype=float)
+            epsilons = <double*>PyArray_DATA(group["epsilons"])
+                
             if "nominals" in group:
-                nominals = <float*>PyArray_DATA(group["nominals"])
+                nominals = <double*>PyArray_DATA(group["nominals"])
             else:
                 group["nominals"] = N.empty(len_v, dtype=float)
-                nominals = <float*>PyArray_DATA(group["nominals"])
+                nominals = <double*>PyArray_DATA(group["nominals"])
                 for i in range(len_v):
                     nominals[i] = self.get_variable_nominal(valueref = v_ref_pt[i])
             
             for i in range(len_v):
                 eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominals[i]))
+                epsilons[i] = eps_pt[i]
         else:
             for i in range(len_v):
                 nominal = self.get_variable_nominal(valueref = v_ref_pt[i])
@@ -8035,17 +8041,19 @@ cdef class FMUModelME2(FMUModelBase2):
                 for i in range(local_indices_matrix_rows_nbr): local_z_vref_pt[i] = z_ref_pt[local_indices_matrix_rows_pt[i]]
                 
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
+                    group["epsilons"] = fac*group["epsilons"]
+                    
                     for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]+fac*eps_pt[local_indices_vars_pt[i]]
                     self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
                     
                     if method == FORWARD_DIFFERENCE: #Forward and Backward difference
                         column_data_pt = tmp_val_pt
-
+                        
                         status = self.__get_real(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
                         if status == 0:
                             for i in range(local_indices_matrix_rows_nbr):
                                 column_data_pt[i] = (tmp_val_pt[i] - df_pt[local_indices_matrix_rows_pt[i]])/(fac*eps_pt[local_indices_matrix_columns_pt[i]])
-                        
+                                
                             sol_found = 1
                         else: #Backward
 

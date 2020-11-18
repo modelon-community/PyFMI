@@ -30,6 +30,7 @@ import time
 
 from pyfmi.common.io import ResultWriterDymola
 import pyfmi.fmi as fmi
+import pyfmi.fmi_util as fmi_util
 from pyfmi.fmi cimport FMUModelME2
 from pyfmi.common import python3_flag
 from pyfmi.common.core import TrajectoryLinearInterpolation
@@ -570,7 +571,7 @@ cdef class FMIODE2(cExplicit_Problem):
     """
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False, 
-                 result_handler=None, extra_equations=None):
+                 result_handler=None, extra_equations=None, experimental_jacobian_update=False):
         """
         Initialize the problem.
         """
@@ -578,6 +579,7 @@ cdef class FMIODE2(cExplicit_Problem):
         self._adapt_input(input)
         self.input_names = []
         self.timings = {"handle_result": 0.0}
+        self._experimental_jacobian_update = experimental_jacobian_update
         
         if type(model) == FMUModelME2: #isinstance(model, FMUModelME2):
             self.model_me2 = model
@@ -597,6 +599,7 @@ cdef class FMIODE2(cExplicit_Problem):
         self._f_nbr = f_nbr
         self._g_nbr = g_nbr
         self._A = None
+        self._A_update = None
         
         self.state_events_use = False
         if g_nbr > 0:
@@ -632,6 +635,20 @@ cdef class FMIODE2(cExplicit_Problem):
             #Need to calculate the nnz.
             [derv_state_dep, derv_input_dep] = model.get_derivatives_dependencies()
             self.jac_nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+f_nbr
+            
+            [derv_state_kind, derv_input_kind] = model.get_derivatives_dependencies_kind()
+            
+            derv_state_dep_pruned = fmi_util.prune_dependency_information(derv_state_dep, derv_state_kind)
+            
+            self._states      = list(model.get_states_list().keys())
+            self._states_vref = [s.value_reference for s in model.get_states_list().values()]
+            self._der_vref    = [s.value_reference for s in model.get_derivatives_list().values()]
+            self._group_pruned = fmi_util.cpr_seed(derv_state_dep_pruned, self._states)
+            
+            self._derv_state_dep_pruned = derv_state_dep_pruned
+            self._derv_state_dep        = derv_state_dep
+            
+            self._A_adjustments = fmi_util.compute_needed_adjustments(self._derv_state_dep, self._derv_state_dep_pruned, self._group_pruned, self._states, list(model.get_derivatives_list().keys()))
             
         if extra_equations:
             self._extra_f_nbr = extra_equations.get_size()
@@ -780,10 +797,33 @@ cdef class FMIODE2(cExplicit_Problem):
         #If there are no states return a dummy jacobian.
         if self._f_nbr == 0:
             return N.array([[0.0]])
-        
-        A = self._model._get_A(add_diag=True, output_matrix=self._A)
-        if self._A is None:
-            self._A = A
+
+        #Prepare
+        if self._A is not None and self._experimental_jacobian_update:
+            if self._A_update is None:
+                fmi_util.compute_needed_adjustments_companion_elements(self._A_adjustments, self._A)
+            
+            A_update   = self._model._get_directional_proxy(self._states_vref, self._der_vref, self._group_pruned, add_diag=False, output_matrix=self._A_update)
+
+            epsilons = self._group_pruned["epsilons"]
+            for element in self._A_adjustments:
+                adjustment_value = 0.0
+                primary = epsilons[element[2]]
+                
+                for j,ind in enumerate(element[3]):
+                    adjustment_value = adjustment_value - epsilons[ind] / primary * self._A.data[element[5][j]]
+
+                A_update.data[element[1]] = A_update.data[element[1]] + adjustment_value
+
+            fmi_util.sparse_update(self._A, A_update)
+
+            self._A_update = A_update
+            A = self._A
+            
+        else:
+            A = self._model._get_A(add_diag=True, output_matrix=self._A)
+            if self._A is None:
+                self._A = A
 
         if self._extra_f_nbr > 0:
             if hasattr(self._extra_equations, "jac"):

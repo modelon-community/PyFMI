@@ -189,7 +189,8 @@ class AssimuloFMIAlgOptions(OptionBase):
             'RodasODE_options':{'atol':"Default",'rtol':"Default", "maxh":"Default"},
             'LSODAR_options':{'atol':"Default",'rtol':"Default", "maxh":"Default"},
             'ExplicitEuler_options':{},
-            'ImplicitEuler_options':{}
+            'ImplicitEuler_options':{},
+            'experimental_jacobian_update': False
             }
         super(AssimuloFMIAlgOptions,self).__init__(_defaults)
         # for those key-value-sets where the value is a dict, don't
@@ -382,14 +383,14 @@ class AssimuloFMIAlg(AlgorithmBase):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time, parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
             else:
-                self.probl = FMIODE2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler,extra_equations=self.options["extra_equations"])
+                self.probl = FMIODE2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler,extra_equations=self.options["extra_equations"], experimental_jacobian_update=self.options["experimental_jacobian_update"])
         elif isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(
                 self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
             else:
                 self.probl = FMIODE2(
-                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler, extra_equations=self.options["extra_equations"])
+                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler, extra_equations=self.options["extra_equations"], experimental_jacobian_update=self.options["experimental_jacobian_update"])
 
         elif not self.input:
             if self.options["sensitivities"]:
