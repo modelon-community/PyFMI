@@ -190,7 +190,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'LSODAR_options':{'atol':"Default",'rtol':"Default", "maxh":"Default"},
             'ExplicitEuler_options':{},
             'ImplicitEuler_options':{},
-            'experimental_jacobian_update': False
+            'experimental_jacobian_update': True
             }
         super(AssimuloFMIAlgOptions,self).__init__(_defaults)
         # for those key-value-sets where the value is a dict, don't
