@@ -805,7 +805,12 @@ cdef class FMIODE2(cExplicit_Problem):
             
             A_update   = self._model._get_directional_proxy(self._states_vref, self._der_vref, self._group_pruned, add_diag=False, output_matrix=self._A_update)
 
-            epsilons = self._group_pruned["epsilons"]
+            try:
+                epsilons = self._group_pruned["epsilons"]
+            except KeyError:
+                self._group_pruned["epsilons"] = N.ones(len(self._states))
+                epsilons = self._group_pruned["epsilons"]
+            
             for element in self._A_adjustments:
                 adjustment_value = 0.0
                 primary = epsilons[element[2]]
