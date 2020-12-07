@@ -627,7 +627,7 @@ cdef class ModelBase:
             
                 number_of_characters --
                     The maximum number of characters in the log.
-                    Default: 1024^3 (about 1GB)
+                    Default: 1024^3*2 (about 2GB)
         """
         self._max_log_size = number_of_characters
         
