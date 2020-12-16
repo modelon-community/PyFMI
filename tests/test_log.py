@@ -64,3 +64,10 @@ class Test_Log:
             log.nodes[1]
         except IndexError: #Test that the log is empty
             pass
+
+    @testattr(stddist = True)
+    def test_extract_boolean_value(self):
+        log = parse_xml_log(os.path.join(logs, "boolean_log.xml")
+        eis.log.find("EventInfo")
+        for ei in eis:
+            assert isinstance(ei.time_event_info, bool), "Expected ei.time_event_info to be bool"
