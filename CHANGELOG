@@ -1,5 +1,8 @@
 --- CHANGELOG ---
---- PyFMI-<TBD> ---
+
+--- PyFMI-2.8.4 ---
+    * Added utility function for determining if the maximum log file
+      size has been reached
     * Added support for parsing boolean values in the XML log parser
 
 --- PyFMI-2.8.3 ---
