@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<JMILog category="info">
+<Solver>Successful solver step at <value name="t">        4.00000000000000E-01</value>.
+  <value name="elapsed_real_time">        2.22199999999617E-04</value>
+  <value name="solver_order">3</value>
+  <vector name="state_error">        4.73586919441991E-06,        9.51952684588326E-04,        1.30761683086889E-07,        1.80958489026530E-08,        5.68591603144660E-13,        1.35313236136660E-13,        4.06514549116529E-17,        3.07946109899289E-13</vector>
+  <vector name="event_indicators">        1.75261336008773E+01,        9.99999990000000E-01,        9.99999990000000E-01,        -1.00000000023326E+10,        9.99999990000000E-01,        1.00000001000000E+00,        1.00000001000000E+00,        1.00000001000000E+00,        1.00000000000000E+00,        9.99999990000000E-01,        -2.33264105137300E+00,        -1.00000000000000E-08,        9.99999990000000E-01,        9.99999990000000E-01,        9.99999990000000E-01,        9.99999990000000E-01,        1.00000000000000E+00,        1.00000000000000E+00,        1.00000001000000E+00,        1.00000001000000E+00,        9.99999990000000E-01,        1.00000001000000E+00,        -1.00000000000000E-08,        9.99999990000000E-01,        9.99999990000000E-01,        9.99999990000000E-01,        9.99999990000000E-01,        1.00000001000000E+00,        1.00000001000000E+00,        1.00000001000000E+00,        1.00000001000000E+00,        9.99999990000000E-01,        1.00000001000000E+00</vector>
+</Solver>
+<EventInfo>Detected event at <value name="t">        4.00000000000000E-01</value>.
+  <vector name="state_event_info"></vector>
+  <boolean name="time_event_info">True</boolean>
+</EventInfo>
+<EventInfo>Detected event at <value name="t">        4.00000000000000E-01</value>.
+  <vector name="state_event_info"></vector>
+  <boolean name="time_event_info">False</boolean>
+</EventInfo>
+<EventInfo>Detected event at <value name="t">        4.00000000000000E-01</value>.
+  <vector name="state_event_info"></vector>
+  <boolean name="time_event_info">true</boolean>
+</EventInfo>
+<EventInfo>Detected event at <value name="t">        4.00000000000000E-01</value>.
+  <vector name="state_event_info"></vector>
+  <boolean name="time_event_info">false</boolean>
+</EventInfo>
+
+</JMILog>

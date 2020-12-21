@@ -505,6 +505,10 @@ cdef class ModelBase:
             file_name --
                 Name of the file which holds the extracted log
                 Default: get_log_filename() + xml
+                
+        Returns::
+            
+            file_path -- path to extracted XML file
         """
         from pyfmi.common.log import extract_xml_log
         
@@ -517,6 +521,7 @@ cdef class ModelBase:
             module_name = "Model"
         
         extract_xml_log(file_name, self.get_log_filename(), module_name)
+        return os.path.abspath(file_name)
     
     def get_log(self, int start_lines=-1, int end_lines=-1):
         """
@@ -627,7 +632,7 @@ cdef class ModelBase:
             
                 number_of_characters --
                     The maximum number of characters in the log.
-                    Default: 1024^3 (about 1GB)
+                    Default: 1024^3*2 (about 2GB)
         """
         self._max_log_size = number_of_characters
         
@@ -636,8 +641,14 @@ cdef class ModelBase:
         Returns the limit (in characters) of the log file.
         """
         return self._max_log_size
-    
-            
+
+    def has_reached_max_log_size(self):
+        """
+        Returns True if the log has reached the maximum allowed limit on
+        the size of the log file, otherwise, returns False.
+        """
+        return self._max_log_size_msg_sent
+        
     def set_log_level(self, FMIL.jm_log_level_enu_t level):
         """
         Specifies the log level for PyFMI. Note that this is
