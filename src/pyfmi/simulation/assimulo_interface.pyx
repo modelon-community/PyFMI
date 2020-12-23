@@ -1042,7 +1042,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 self._model.append_log_message("Model", 6, msg)
 
             if solver_name=="CVode":
-                msg = preface + '  <value name="solver_order">%d</value>'%(solver_order)
+                msg = preface + '  <value name="solver_order">%d</value>'%(solver.get_last_order())
                 self._model.append_log_message("Model", 6, msg)
 
             if solver_name=="CVode" or solver_name=="Radau5ODE":
