@@ -21,6 +21,7 @@ Parser for a XML based FMU log format
 from xml import sax
 import re
 import numpy as np
+from distutils.util import strtobool
 from .tree import *
 from pyfmi.fmi_util import python3_flag
 
@@ -30,10 +31,12 @@ from pyfmi.fmi_util import python3_flag
 floatingpoint_re = "^[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?$"
 integer_re       = "^[0-9]+$"
 quoted_string_re = '^"(?:[^"]|"")*"$'
+boolean_re       = "True$|true$|False$|false$"
 
 integer_pattern       = re.compile(integer_re)
 floatingpoint_pattern = re.compile(floatingpoint_re)
 quoted_string_pattern = re.compile(quoted_string_re)
+boolean_pattern       = re.compile(boolean_re)
 
 comma_re     = "((?:[^,']|(?:'[^']*'))*)(?:,|\Z)"
 semicolon_re = "((?:[^;']|(?:'[^']*'))*)(?:;|\Z)"
@@ -48,6 +51,8 @@ def parse_value(text):
         return int(text)
     elif floatingpoint_pattern.match(text):
         return float(text)
+    elif boolean_pattern.match(text):
+        return bool(strtobool(text))
     else:
         if quoted_string_pattern.match(text):
             text = text[1:-1].replace('""','"')
@@ -117,7 +122,7 @@ class ContentHandler(sax.ContentHandler):
         self.chars = []
         self.leafkey = self.leafparser = None
         
-        if   type == 'value':  self.leafparser = parse_value
+        if   type == 'value' or type == 'boolean':  self.leafparser = parse_value
         elif type == 'vector': self.leafparser = parse_vector
         elif type == 'matrix': self.leafparser = parse_matrix
 

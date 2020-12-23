@@ -505,6 +505,10 @@ cdef class ModelBase:
             file_name --
                 Name of the file which holds the extracted log
                 Default: get_log_filename() + xml
+                
+        Returns::
+            
+            file_path -- path to extracted XML file
         """
         from pyfmi.common.log import extract_xml_log
         
@@ -517,6 +521,7 @@ cdef class ModelBase:
             module_name = "Model"
         
         extract_xml_log(file_name, self.get_log_filename(), module_name)
+        return os.path.abspath(file_name)
     
     def get_log(self, int start_lines=-1, int end_lines=-1):
         """

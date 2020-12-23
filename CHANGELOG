@@ -1,4 +1,6 @@
 --- CHANGELOG ---
+--- PyFMI-<TBD> ---
+    * Added support for parsing boolean values in the XML log parser
 
 --- PyFMI-2.8.3 ---
     * Fixed result saving when saving only the "time" variable
