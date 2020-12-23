@@ -1123,6 +1123,10 @@ cdef class FMIODE2(cExplicit_Problem):
             msg = preface + '  <boolean name="support_state_errors">%s</boolean>'%support_state_errors
             self._model.append_log_message("Model", 6, msg)
             
+            support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE")   
+            msg = preface + '  <boolean name="support_event_indicators">%s</boolean>'%support_event_indicators
+            self._model.append_log_message("Model", 6, msg)
+            
             support_solver_order = solver_name=="CVode"  
             msg = preface + '  <boolean name="support_solver_order">%s</boolean>'%support_solver_order
             self._model.append_log_message("Model", 6, msg)
