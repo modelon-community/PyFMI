@@ -19,6 +19,7 @@ import os
 
 from pyfmi import testattr
 from pyfmi.common.log import extract_xml_log, parse_xml_log
+from pyfmi.tests.test_util import Dummy_FMUModelME2
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 logs = os.path.join(file_path, "files", "Logs")
@@ -65,6 +66,34 @@ class Test_Log:
         except IndexError: #Test that the log is empty
             pass
 
+    def _test_logging_different_solver(self, solver_name):
+        model = Dummy_FMUModelME2([], "Bouncing_Ball.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        opts=model.simulate_options()
+        opts["logging"] = True
+        opts["solver"] = solver_name
+        model.simulate(options=opts)
+        log_file = model.extract_xml_log()
+        assert os.path.exists(log_file), "Missing log file for {}".format(solver_name)
+
+    @testattr(stddist = True)
+    def test_logging_option_CVode(self):
+        self._test_logging_different_solver("CVode")
+        
+    @testattr(stddist = True)
+    def test_logging_option_Radau5ODE(self):
+        self._test_logging_different_solver("Radau5ODE")
+
+    @testattr(stddist = True)
+    def test_logging_option_ImplicitEuler(self):
+        self._test_logging_different_solver("ImplicitEuler")
+
+    @testattr(stddist = True)
+    def test_logging_option_ExplicitEuler(self):
+        self._test_logging_different_solver("ExplicitEuler")
+
+    @testattr(stddist = True)
+    def test_logging_option_LSODAR(self):
+        self._test_logging_different_solver("LSODAR")
     @testattr(stddist = True)
     def test_extract_boolean_value(self):
         log = parse_xml_log(os.path.join(logs, "boolean_log.xml"))

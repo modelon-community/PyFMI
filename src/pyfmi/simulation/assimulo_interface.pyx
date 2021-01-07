@@ -1037,25 +1037,29 @@ cdef class FMIODE2(cExplicit_Problem):
             msg = preface + '<%s>Successful solver step at <value name="t">        %.14E</value>.'%(solver_info_tag, solver.t)
             self._model.append_log_message("Model", 6, msg)
 
-            msg = preface + '  <value name="elapsed_real_time">        %.14E</value>'%(solver.get_elapsed_step_time())
-            self._model.append_log_message("Model", 6, msg)
-
-            solver_order = solver.get_last_order() if solver_name=="CVode" else 5 #hardcoded 5 for other solvers
-            msg = preface + '  <value name="solver_order">%d</value>'%(solver_order)
-            self._model.append_log_message("Model", 6, msg)
-
-            state_errors = ''
-            for i in solver.get_weighted_local_errors():
-                state_errors += "        %.14E,"%i
-            msg = preface + '  <vector name="state_error">' + state_errors[:-1] + '</vector>'
-            self._model.append_log_message("Model", 6, msg)
-
-            if self._g_nbr > 0:
-                msg = preface + '  <vector name="event_indicators">'
-                for i in ev_indicator_values:
-                    msg += "        %.14E,"%i
-                msg = msg[:-1] + '</vector>'# remove last comma
+            if solver.clock_step:
+                msg = preface + '  <value name="elapsed_real_time">        %.14E</value>'%(solver.get_elapsed_step_time())
                 self._model.append_log_message("Model", 6, msg)
+
+            support_solver_order = solver_name=="CVode" 
+            if support_solver_order:
+                msg = preface + '  <value name="solver_order">%d</value>'%(solver.get_last_order())
+                self._model.append_log_message("Model", 6, msg)
+
+            support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE") 
+            if support_state_errors:
+                state_errors = ''
+                for i in solver.get_weighted_local_errors():
+                    state_errors += "        %.14E,"%i
+                msg = preface + '  <vector name="state_error">' + state_errors[:-1] + '</vector>'
+                self._model.append_log_message("Model", 6, msg)
+
+                if self._g_nbr > 0:
+                    msg = preface + '  <vector name="event_indicators">'
+                    for i in ev_indicator_values:
+                        msg += "        %.14E,"%i
+                    msg = msg[:-1] + '</vector>'# remove last comma
+                    self._model.append_log_message("Model", 6, msg)
 
 
             msg = preface + '</%s>'%(solver_info_tag)
@@ -1116,16 +1120,38 @@ cdef class FMIODE2(cExplicit_Problem):
 
             msg = preface + '  <value name="solver_name">%s</value>'%solver_name
             self._model.append_log_message("Model", 6, msg)
-
-            msg = preface + '  <value name="relative_tolerance">%.14E</value>'%solver.rtol
+            
+            support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE")   
+            msg = preface + '  <boolean name="support_state_errors">%s</boolean>'%support_state_errors
             self._model.append_log_message("Model", 6, msg)
-
-            atol_values = ''
-            for value in solver.atol:
-                atol_values += '        %.14E,'%value
-            msg = preface + '  <vector name="absolute_tolerance">' + atol_values[:-1] + '</vector>'
+            
+            support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE")   
+            msg = preface + '  <boolean name="support_event_indicators">%s</boolean>'%support_event_indicators
             self._model.append_log_message("Model", 6, msg)
+            
+            support_solver_order = solver_name=="CVode"  
+            msg = preface + '  <boolean name="support_solver_order">%s</boolean>'%support_solver_order
+            self._model.append_log_message("Model", 6, msg)
+            
+            msg = preface + '  <boolean name="support_elapsed_time">%s</boolean>'%solver.clock_step
+            self._model.append_log_message("Model", 6, msg)
+            
+            support_tol = solver_name != "ExplicitEuler"
+            msg = preface + '  <boolean name="support_tolerances">%s</boolean>'%support_tol
+            self._model.append_log_message("Model", 6, msg)
+            
+            if support_tol:
+                msg = preface + '  <value name="relative_tolerance">%.14E</value>'%solver.rtol
+                self._model.append_log_message("Model", 6, msg)
 
+                atol_values = ''
+                for value in solver.atol:
+                    atol_values += '        %.14E,'%value
+                msg = preface + '  <vector name="absolute_tolerance">' + atol_values[:-1] + '</vector>'
+                self._model.append_log_message("Model", 6, msg)
+
+                       
+            
             msg = preface + '</%s>'%(init_tag)
             self._model.append_log_message("Model", 6, msg)
 
@@ -1141,7 +1167,7 @@ cdef class FMIODE2(cExplicit_Problem):
             f.write("Initial values: y ="+str_y+"\n\n")
 
             header = "Time (simulated) | Time (real) | "
-            if solver_name=="CVode" or solver_name=="Radau5ODE": #Only available for CVode
+            if solver_name=="CVode" or solver_name=="Radau5ODE": #Only available for CVode and Radau5ODE
                 header += "Order | Error (Weighted)"
             f.write(header+"\n")
 

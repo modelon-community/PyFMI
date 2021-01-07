@@ -1,10 +1,12 @@
 --- CHANGELOG ---
-
+--- PyFMI-<TBD> ---
+    * Added support for option 'logging' for different ODE solvers.
+    
 --- PyFMI-2.8.4 ---
     * Added utility function for determining if the maximum log file
       size has been reached
     * Added support for parsing boolean values in the XML log parser
-
+    
 --- PyFMI-2.8.3 ---
     * Fixed result saving when saving only the "time" variable
     * Exposed the dependencies kind attributes from FMI 2.0
