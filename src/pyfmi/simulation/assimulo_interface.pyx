@@ -1045,7 +1045,8 @@ cdef class FMIODE2(cExplicit_Problem):
                 msg = preface + '  <value name="solver_order">%d</value>'%(solver.get_last_order())
                 self._model.append_log_message("Model", 6, msg)
 
-            if solver_name=="CVode" or solver_name=="Radau5ODE":
+            support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE") 
+            if support_state_errors:
                 state_errors = ''
                 for i in solver.get_weighted_local_errors():
                     state_errors += "        %.14E,"%i
