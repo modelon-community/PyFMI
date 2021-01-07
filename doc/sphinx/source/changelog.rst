@@ -3,6 +3,9 @@
 Changelog
 ==========
 
+--- PyFMI-2.8.5 ---
+    * Added support for option 'logging' for different ODE solvers.
+
 --- PyFMI-2.8.4 ---
     * Added utility function for determining if the maximum log file
       size has been reached
