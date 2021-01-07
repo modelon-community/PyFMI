@@ -1041,7 +1041,8 @@ cdef class FMIODE2(cExplicit_Problem):
                 msg = preface + '  <value name="elapsed_real_time">        %.14E</value>'%(solver.get_elapsed_step_time())
                 self._model.append_log_message("Model", 6, msg)
 
-            if solver_name=="CVode":
+            support_solver_order = solver_name=="CVode" 
+            if support_solver_order:
                 msg = preface + '  <value name="solver_order">%d</value>'%(solver.get_last_order())
                 self._model.append_log_message("Model", 6, msg)
 
