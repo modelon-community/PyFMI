@@ -943,6 +943,7 @@ class Test_FMUModelBase2:
         assert sc_x.type == fmi.FMI2_REAL, sc_x.type
         assert sc_x.variability == fmi.FMI2_CONTINUOUS, sc_x.variability
         assert sc_x.causality == fmi.FMI2_LOCAL, sc_x.causality
+        assert sc_x.initial == fmi.FMI2_INITIAL_APPROX, sc_x.initial
 
         nose.tools.assert_raises(FMUException, negated_alias.get_scalar_variable, "not_existing")
     
