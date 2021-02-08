@@ -119,6 +119,11 @@ class Test_FMUModelME1:
 
         nose.tools.assert_raises(FMUException, bounce.get_variable_by_valueref,7)
     
+    @testattr(stddist = True)
+    def test_get_variable_nominal_valueref(self):
+        bounce = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        assert bounce.get_variable_nominal("v") == bounce.get_variable_nominal(valueref=2)
+
     @testattr(windows_full = True)
     def test_default_experiment(self):
         model = FMUModelME1("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
