@@ -1962,7 +1962,7 @@ cdef class FMUModelBase(ModelBase):
         
         if _override_erroneous_nominal:
             if variable_name == None:
-                variable_name = self.get_variable_by_valueref(valueref)
+                variable_name = encode(self.get_variable_by_valueref(valueref))
                 variablename = variable_name
                 
             if value == 0.0:
