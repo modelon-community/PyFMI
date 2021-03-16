@@ -2072,11 +2072,14 @@ class ResultHandlerBinaryFile(ResultHandler):
         
         return header
         
+    def __write_header(self, header, name):
+        self._file.write(header.tostring(order="F"))
+        self._file.write(np.compat.asbytes(name +"\0"))
+        
     def _write_header(self, name, nbr_rows, nbr_cols, data_type):
         header = self._data_header(name, nbr_rows, nbr_cols, data_type)
         
-        self._file.write(header.tostring(order="F"))
-        self._file.write(np.compat.asbytes(name +"\0"))
+        self.__write_header(header, name)
     
     def convert_char_array(self, data):
         data = np.array(data)
@@ -2181,7 +2184,9 @@ class ResultHandlerBinaryFile(ResultHandler):
         
         #Record the position so that we can later modify the number of result points stored
         self.data_2_header_position = self._file.tell()
-        self._write_header("data_2", len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref)+1, 1, "double")
+        self._len_vars_ref =  len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref)+1
+        self._data_2_header = self._data_header("data_2", self._len_vars_ref, 1, "double")
+        self.__write_header(self._data_2_header, "data_2")
         
         self.real_var_ref = np.array(sorted_vars_real_vref)
         self.int_var_ref  = np.array(sorted_vars_int_vref)
@@ -2197,6 +2202,26 @@ class ResultHandlerBinaryFile(ResultHandler):
         
         #Increment number of points
         self.nbr_points += 1
+        
+        #Make sure that file is always consistent
+        self._make_consistent()
+    
+    def _make_consistent(self):
+        f = self._file
+        
+        #Get current position
+        file_pos = f.tell()
+        
+        f.seek(self.data_1_header_position)
+        t = np.array([float(self.model.time)])
+        self.dump_data(t)
+        
+        f.seek(self.data_2_header_position)
+        self._data_2_header["ncols"] = self.nbr_points
+        self.__write_header(self._data_2_header, "data_2")
+
+        #Reset file pointer
+        f.seek(file_pos)
 
     def simulation_end(self):
         """ 
@@ -2208,13 +2233,6 @@ class ResultHandlerBinaryFile(ResultHandler):
         f = self._file
         
         if f:
-            f.seek(self.data_1_header_position)
-            t = np.array([float(self.model.time)])
-            self.dump_data(t)
-            
-            f.seek(self.data_2_header_position)
-            self._write_header("data_2", len(self.real_var_ref)+len(self.int_var_ref)+len(self.bool_var_ref)+1, self.nbr_points, "double")
-            
             f.close()
             self._file = None
             
