@@ -557,6 +557,36 @@ class TestResultFileBinary:
         nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5)
     
     @testattr(stddist = True)
+    def test_work_flow_me2_aborted(self):
+        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model.setup_experiment()
+        model.initialize()
+        
+        bouncingBall = ResultHandlerBinaryFile(model)
+        
+        bouncingBall.set_options(model.simulate_options())
+        bouncingBall.simulation_start()
+        bouncingBall.initialize_complete()
+        bouncingBall.integration_point()
+        bouncingBall.integration_point()
+        bouncingBall.integration_point()
+        #No call to simulation end to mimic an aborted simulation
+        bouncingBall._file.close()
+        
+        res = ResultDymolaBinary('bouncingBall_result.mat')
+        
+        h = res.get_variable_data('h')
+        derh = res.get_variable_data('der(h)')
+        g = res.get_variable_data('g')
+
+        nose.tools.assert_almost_equal(h.x[0], 1.000000, 5)
+        nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5)
+        nose.tools.assert_almost_equal(h.x[1], 1.000000, 5)
+        nose.tools.assert_almost_equal(derh.x[1], 0.000000, 5)
+        nose.tools.assert_almost_equal(h.x[2], 1.000000, 5)
+        nose.tools.assert_almost_equal(derh.x[2], 0.000000, 5)
+    
+    @testattr(stddist = True)
     def test_filter_no_variables(self):
         model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()

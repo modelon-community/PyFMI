@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- TBD: Unreleased ---
+    * Fixed so that the written binary file is always consistent (i.e.
+      if a simulation aborts, it can still be read)
     * Fixed so that .initial is set properly on ScalarVariable2.
     * Fixed get_variable_nominal when called for valueref of variable.
     
