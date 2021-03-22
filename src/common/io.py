@@ -116,7 +116,7 @@ class ResultDymola:
     Base class for representation of a result file.
     """
     def _get_name(self):
-        return [decode(n) for n in self._name]
+        return [decode(n) for n in self.name_lookup.keys()]
     
     name = property(fget = _get_name)
     
@@ -184,7 +184,7 @@ class ResultDymola:
         #Loop through all alias
         for ind in alias_index:
             #Get the trial name
-            trial_name = self._name[ind]
+            trial_name = list(self.name_lookup.keys())[ind]
             
             #Create the derivative name
             if python3_flag and isinstance(self, ResultDymolaBinary): 
@@ -1106,13 +1106,37 @@ class ResultDymolaTextual(ResultDymola):
         self.data[1] = N.vstack((self.data[1],res.data[1]))
         self.data[1][n_points:,0] = self.data[1][n_points:,0] + time_shift 
 
+
+from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template
+import struct
+
+#Overriding SCIPYs default reader for MATLAB v4 format
+class DelayedVarReader4(VarReader4):
+    def read_sub_array(self, hdr, copy=True):
+        if hdr.name == b"data_2":
+            return {"section": "data_2", "file_position": self.mat_stream.tell(), "sizeof_type": hdr.dtype.itemsize, "nbr_points": hdr.dims[1], "nbr_variables": hdr.dims[0]}
+        elif hdr.name == b"name":
+            return {"section": "name", "file_position": self.mat_stream.tell(), "sizeof_type": hdr.dtype.itemsize, "max_length": hdr.dims[0], "nbr_variables": hdr.dims[1]}
+        else:
+            arr = super(DelayedVarReader4, self).read_sub_array(hdr, copy)
+            return arr
+    
+    def read_char_array(self, hdr):
+        return self.read_sub_array(hdr)
+
+#Need to hook in the variable reader above
+class DelayedVariableLoad(MatFile4Reader):
+    def initialize_read(self):
+        self.dtypes = convert_dtypes(mdtypes_template, self.byte_order)
+        self._matrix_reader = DelayedVarReader4(self)
+
 class ResultDymolaBinary(ResultDymola):
     """ 
     Class representing a simulation or optimization result loaded from a Dymola 
     binary file.
     """
 
-    def __init__(self,fname):
+    def __init__(self, fname, delayed_trajectory_loading = True):
         """
         Load a result file written on Dymola binary format.
 
@@ -1122,16 +1146,70 @@ class ResultDymolaBinary(ResultDymola):
                 Name of file.
         """
         self._fname = fname
-        self.raw = scipy.io.loadmat(fname,chars_as_strings=False, variable_names=["name", "dataInfo", "data_1", "data_2"])
-        name = self.raw['name']
-        self.raw_name = name
-
-        self._name = fmi_util.convert_array_names_list_names_int(name.view(np.int32))
-        self.dataInfo = self.raw['dataInfo'].transpose()
-        self.name_lookup = {key:ind for ind,key in enumerate(self._name)}
         
+        if delayed_trajectory_loading:
+            with open(fname, "rb") as f:
+                delayed = DelayedVariableLoad(f, chars_as_strings=False)
+                self.raw = delayed.get_variables(variable_names=["name", "dataInfo", "data_2"])
+            
+            self._data_2_info = self.raw["data_2"]
+            self._data_2 = {}
+            self._name_info   = self.raw["name"]
+            
+            self.name_lookup = self._get_name_dict()
+        else:
+            self.raw = scipy.io.loadmat(fname,chars_as_strings=False, variable_names=["name", "dataInfo", "data_2"])
+            self._data_2 = self.raw["data_2"]
+            
+            name = self.raw['name']
+
+            self._name = fmi_util.convert_array_names_list_names_int(name.view(np.int32))
+            self.name_lookup = {key:ind for ind,key in enumerate(self._name)}
+        
+        self.dataInfo = self.raw['dataInfo'].transpose()
+        
+        self._delayed_loading = delayed_trajectory_loading
         self._description = None  
+        self._data_1      = None
+        
+    def _get_data_1(self):
+        if self._data_1 is None:
+            data_1 = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["data_1"])["data_1"]
+            self._data_1 = data_1
+            
+        return self._data_1
+
+    data_1 = property(_get_data_1, doc = 
+    """
+    Property for accessing the constant/parameter vector.
+    """)
     
+    def _get_name_dict(self):
+        file_position  = self._name_info["file_position"]
+        sizeof_type    = self._name_info["sizeof_type"]
+        max_length     = self._name_info["max_length"]
+        nbr_variables  = self._name_info["nbr_variables"]
+
+        name_dict = fmi_util.read_name_list(encode(self._fname), file_position, sizeof_type, int(nbr_variables), int(max_length))
+        
+        return name_dict
+        
+    def _get_trajectory(self, data_index):
+        if isinstance(self._data_2, dict):
+            if data_index in self._data_2:
+                return self._data_2[data_index]
+            
+            file_position  = self._data_2_info["file_position"]
+            sizeof_type    = self._data_2_info["sizeof_type"]
+            nbr_points     = self._data_2_info["nbr_points"]
+            nbr_variables  = self._data_2_info["nbr_variables"]
+
+            self._data_2[data_index] = fmi_util.read_trajectory(encode(self._fname), data_index, file_position, sizeof_type, int(nbr_points), int(nbr_variables))
+            
+            return self._data_2[data_index]
+        else:
+            return self._data_2[data_index,:]
+       
     def _get_description(self):
         if not self._description:
             description = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["description"])["description"]
@@ -1168,8 +1246,9 @@ class ResultDymolaBinary(ResultDymola):
             
         dataInd = self.raw['dataInfo'][1][varInd]
         dataMat = self.raw['dataInfo'][0][varInd]
+        
         factor = 1
-        if dataInd<0:
+        if dataInd < 0:
             factor = -1
             dataInd = -dataInd -1
         else:
@@ -1179,8 +1258,11 @@ class ResultDymolaBinary(ResultDymola):
             # Take into account that the 'Time' variable has data matrix index 0
             # and that 'time' is called 'Time' in Dymola results
             dataMat = 2 if len(self.raw['data_2'])> 0 else 1
-                
-        return Trajectory(self.raw['data_%d'%dataMat][0,:],factor*self.raw['data_%d'%dataMat][dataInd,:])
+        
+        if dataMat == 1:
+            return Trajectory(self.data_1[0,:],factor*self.data_1[dataInd,:])
+        else:
+            return Trajectory(self._get_trajectory(0),factor*self._get_trajectory(dataInd))
 
     def is_variable(self, name):
         """
@@ -1266,7 +1348,7 @@ class ResultDymolaBinary(ResultDymola):
         
             The result data matrix.
         """
-        return self.raw['data_%d'%2]
+        return self._data_2
         
 
 

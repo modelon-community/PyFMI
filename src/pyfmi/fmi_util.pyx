@@ -1000,99 +1000,81 @@ cdef class DumpData:
             if self.bool_size > 0:
                 b = self.model.get_boolean(self.bool_var_ref).astype(float)
                 self.dump_data(b)
-            
-"""
-cdef class FastPointSave:
-    cdef np.ndarray real_var_ref, 
-    cdef np.ndarray int_var_ref, 
-    cdef np.ndarray bool_var_ref
-    cdef np.ndarray data_order
-    cdef np.ndarray _cache
-    cdef int nvariables
-    cdef object model
-    cdef list cache
-    cdef np.ndarray data
-    cdef int rs, ris, ribs, used_length_cache
+                
+
+from libc.stdio cimport *                                                                
+
+cdef extern from "stdio.h":
+    FILE *fdopen(int, const char *)
+
+DTYPE = np.double
+ctypedef np.double_t DTYPE_t
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def read_trajectory(file_name, int data_index, int file_position, int sizeof_type, int nbr_points, int nbr_variables):
+    cdef int i = 0
+    cdef unsigned long int offset
+    cdef unsigned long int start_point = data_index*sizeof_type
+    cdef unsigned long int end_point   = sizeof_type*(nbr_points*nbr_variables)
+    cdef unsigned long int interval    = sizeof_type*nbr_variables
+    cdef FILE* cfile
+    cdef np.ndarray[DTYPE_t, ndim=1] data
+    cdef DTYPE_t* data_ptr
+    cdef size_t sizeof_dtype = sizeof(DTYPE_t)
+
+    cfile = fopen(file_name, 'rb')
+    data = np.empty(nbr_points, dtype=DTYPE)
+    data_ptr = <DTYPE_t*>data.data
+
     
-    def __init__(self, model, np.ndarray[np.uint32_t, ndim=1, mode='c'] real_var_ref, 
-                              np.ndarray[np.uint32_t, ndim=1, mode='c'] int_var_ref, 
-                              np.ndarray[np.uint32_t, ndim=1, mode='c'] bool_var_ref, 
-                              np.ndarray[np.int32_t, ndim=1, mode='c']  data_order, int nvariables):
-        
-        self.real_var_ref = real_var_ref
-        self.int_var_ref  = int_var_ref
-        self.bool_var_ref = bool_var_ref
-        self.data_order   = data_order
-        self.model = model
-        self.nvariables = nvariables
-        self.cache = range(nvariables-1)
-        #self.data = range(nvariables-1)
-        self.data = np.empty(nvariables)
-        self._cache = np.empty(nvariables-1)
-        
-        self.rs = self.real_var_ref.size
-        self.ris = self.real_var_ref.size+self.int_var_ref.size
-        self.ribs = self.real_var_ref.size+self.int_var_ref.size+self.bool_var_ref.size
+    fseek(cfile, file_position, 0)
+    #for offset in range(start_point, end_point, interval):
+    for offset from start_point <= offset < end_point by interval:
+        fseek(cfile, file_position+offset, 0)
+        fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
+        i = i + 1
 
-    def save_point(self):
-            cdef int k,j,l
-            
-            cdef np.ndarray correct_order
-            cdef np.ndarray[double, ndim=1, mode='c'] r
-            cdef np.ndarray[int,    ndim=1, mode='c'] i
-            cdef np.ndarray b
+    fclose(cfile)
 
-            #Retrieves the time-point
-            r = self.model.get_real(self.real_var_ref)
-            i = self.model.get_integer(self.int_var_ref)
-            b = self.model.get_boolean(self.bool_var_ref)
-            
-            for k in range(self.rs):
-                self.data[k] = r[k]
-            for k in range(self.rs, self.ris):
-                self.data[k] = i[k-self.rs]
-            for k in range(self.ris, self.ribs):
-                self.data[k] = b[k-self.ris]
-            
-            return self._create_string(self.data)
+    return data
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def read_name_list(file_name, int file_position, int sizeof_type, int nbr_variables, int max_length):
+    cdef int i = 0, j = 0, py3, need_replace = 0
+    cdef FILE* cfile
+    cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
+    cdef bytes py_str
+    cdef dict data = {}
     
-    cpdef _create_string(self, np.ndarray[double, ndim=1, mode='c'] data):
-        cdef int j, used_length_cache, cn = 0
-        cdef char temp_str[4094]
-        cdef char* temp_str_ptr = &temp_str[0]
-        
-        used_length_cache = 0
-        for j in range(0, self.nvariables-5, 5):
-        #    self.cache[j] = " %.14E"%self.data[self.data_order[j]]
-            #temp_str_ptr += FMIL.sprintf(temp_str_ptr, " %.14E", <double>data[self.data_order[j]])
-            #cn += FMIL.snprintf(temp_str_ptr+cn, 4094, " %.14E", <double>data[self.data_order[j]])
-            cn += FMIL.snprintf(temp_str_ptr+cn, 4094, " %.14E %.14E %.14E %.14E %.14E", 
-                                                <double>data[self.data_order[j]],
-                                                <double>data[self.data_order[j+1]],
-                                                <double>data[self.data_order[j+2]],
-                                                <double>data[self.data_order[j+3]],
-                                                <double>data[self.data_order[j+4]])
-            if j > 0 and not (j) % 150:
-                self.cache[used_length_cache] = temp_str
-                used_length_cache += 1
-                cn = 0
-                temp_str_ptr = &temp_str[0]
-        else:
-            for j in range(j, self.nvariables-1):
-                cn += FMIL.snprintf(temp_str_ptr+cn, 4094, " %.14E", <double>data[self.data_order[j]])
-        if j % 150:
-            self.cache[used_length_cache] = temp_str[:cn]
-            used_length_cache += 1
-            
-        return self._join_string(used_length_cache)
+    if python3_flag:
+        py3 = 1
+    else:
+        py3 = 0
+
+    cfile = fopen(file_name, 'rb')
     
-    cpdef _join_string(self, int used_length_cache):
-        cdef int j
+    fseek(cfile, file_position, 0)
+    for i in range(nbr_variables):
+        fread(<void*>(tmp), max_length, 1, cfile)
+        py_str = tmp
         
-        return "%.14E "%self.model.time + ' '.join(self.cache[:used_length_cache])
+        if i == 0:
+            if len(py_str) == max_length:
+                need_replace = 1
+        
+        if need_replace:
+            if py3:
+                py_str = py_str.replace(b" ", b"")
+            else:
+                py_str = py_str.replace(" ", "")
+        
+        data[py_str] = i
+        i = i + 1
 
-        
-        
-"""
+    fclose(cfile)
+    FMIL.free(tmp)
 
+    return data
 
