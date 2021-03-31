@@ -22,6 +22,7 @@ import array
 import codecs
 import re
 import sys
+import io
 
 import numpy as N
 import numpy as np
@@ -1146,11 +1147,17 @@ class ResultDymolaBinary(ResultDymola):
                 Name of file.
         """
         self._fname = fname
+        self._is_filestream = isinstance(fname, io.IOBase)
         
         if delayed_trajectory_loading:
-            with open(fname, "rb") as f:
-                delayed = DelayedVariableLoad(f, chars_as_strings=False)
+            
+            if self._is_filestream:
+                delayed = DelayedVariableLoad(self._fname, chars_as_strings=False)
                 self.raw = delayed.get_variables(variable_names=["name", "dataInfo", "data_2"])
+            else:
+                with open(fname, "rb") as f:
+                    delayed = DelayedVariableLoad(f, chars_as_strings=False)
+                    self.raw = delayed.get_variables(variable_names=["name", "dataInfo", "data_2"])
             
             self._data_2_info = self.raw["data_2"]
             self._data_2 = {}
@@ -1190,7 +1197,10 @@ class ResultDymolaBinary(ResultDymola):
         max_length     = self._name_info["max_length"]
         nbr_variables  = self._name_info["nbr_variables"]
 
-        name_dict = fmi_util.read_name_list(encode(self._fname), file_position, sizeof_type, int(nbr_variables), int(max_length))
+        if self._is_filestream:
+            name_dict = fmi_util.read_name_list(self._fname.fileno(), file_position, sizeof_type, int(nbr_variables), int(max_length))
+        else:
+            name_dict = fmi_util.read_name_list(encode(self._fname), file_position, sizeof_type, int(nbr_variables), int(max_length))
         
         return name_dict
         
@@ -1203,8 +1213,11 @@ class ResultDymolaBinary(ResultDymola):
             sizeof_type    = self._data_2_info["sizeof_type"]
             nbr_points     = self._data_2_info["nbr_points"]
             nbr_variables  = self._data_2_info["nbr_variables"]
-
-            self._data_2[data_index] = fmi_util.read_trajectory(encode(self._fname), data_index, file_position, sizeof_type, int(nbr_points), int(nbr_variables))
+            
+            if self._is_filestream:
+                self._data_2[data_index] = fmi_util.read_trajectory(self._fname.fileno(), data_index, file_position, sizeof_type, int(nbr_points), int(nbr_variables))
+            else:
+                self._data_2[data_index] = fmi_util.read_trajectory(encode(self._fname), data_index, file_position, sizeof_type, int(nbr_points), int(nbr_variables))
             
             return self._data_2[data_index]
         else:

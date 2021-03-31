@@ -509,7 +509,14 @@ class TestResultFileBinary:
         for var in res.name:
             res.get_variable_data(var)
     
-    
+    @testattr(stddist = True)
+    def test_read_all_variables_from_stream(self):
+        
+        with open(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), "rb") as f:
+            res = ResultDymolaBinary(f)
+        
+            for var in res.name:
+                res.get_variable_data(var)
     
     @testattr(stddist = True)
     def test_work_flow_me1(self):
