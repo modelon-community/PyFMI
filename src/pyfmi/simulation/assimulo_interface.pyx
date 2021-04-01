@@ -663,8 +663,8 @@ cdef class FMIODE2(cExplicit_Problem):
                 input_names = [input_names]
                 
             for i,name in enumerate(input_names):
-                if self._model.get_variable_causality(name) != fmi.FMI2_INPUT:
-                    raise fmi.FMUException("Variable '%s' is not an input. Only variables specified to be inputs are allowed."%name)
+                if self._model.get_variable_causality(name) not in [fmi.FMI2_INPUT, fmi.FMI2_PARAMETER]:
+                    raise fmi.FMUException("Variable '%s' is not an input/parameter. Only variables specified to be inputs or parameters are allowed."%name)
                 
                 if self._model.get_variable_data_type(name) == fmi.FMI2_REAL:
                     self.input_real_value_refs.append(self._model.get_variable_valueref(name))
