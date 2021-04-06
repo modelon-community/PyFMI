@@ -1078,7 +1078,7 @@ cdef class Master:
                         raise fmi.FMUException("Block initialization is currently not supported when discrete connections (inputs or outputs) results in an algebraic loop. Please set 'block_initialization' to False.")
                     
                     #Assert models has entered initialization mode
-                    for model in block["inputs"].keys()+block["outputs"].keys(): #Possible only need outputs?
+                    for model in list(block["inputs"].keys())+list(block["outputs"].keys()): #Possible only need outputs?
                         if model_in_init_mode[model] is False:
                             enter_initialization_mode([model], start_time, final_time, opts, self.elapsed_time_init)
                             model_in_init_mode[model] = True
