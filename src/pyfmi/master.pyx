@@ -281,7 +281,10 @@ class MasterAlgOptions(OptionBase):
 
         result_file_name --
             Specifies the name of the file where the simulation result is
-            written. Note that there should be one name for each model.
+            written. Note that there should be one name for each model and
+            the names of the files should be provided in a dict with the
+            model as 'key' and the name of the file as 'value' in the
+            dict.
             Default: Model name + "_result." + filetype
 
         result_handling --
@@ -327,12 +330,6 @@ class MasterAlgOptions(OptionBase):
             pros and cons, for best performance, please test.
             Default: "greedy"
 
-        block_initialization_order --
-            If set, manually overrrides the order in which the connected
-            models should be initialized. This only has an effect when
-            the option 'block_initialization' is set to True.
-            Default: None
-        
         force_finite_difference_outputs --
             If set, forces the use of finite difference (first order)
             between communication points. I.e. instead of using the 
@@ -362,7 +359,7 @@ class MasterAlgOptions(OptionBase):
         "execution"                : "serial",
         "block_initialization"     : False,
         "block_initialization_type" : "greedy",
-        "block_initialization_order" : None,
+        "experimental_block_initialization_order" : None,
         "experimental_output_derivative": False,
         "experimental_finite_difference_D": False,
         "experimental_output_solve":False,
@@ -1077,7 +1074,7 @@ cdef class Master:
         
         if opts["block_initialization"]:
             
-            order, blocks, compressed = self.compute_evaluation_order(opts["block_initialization_type"], order=opts["block_initialization_order"])
+            order, blocks, compressed = self.compute_evaluation_order(opts["block_initialization_type"], order=opts["experimental_block_initialization_order"])
             model_in_init_mode = {model:False for model in self.models}
             
             #Global outputs vector
@@ -1201,7 +1198,6 @@ cdef class Master:
             from pyfmi.fmi_algorithm_drivers import FMICSAlgOptions
             local_opts = FMICSAlgOptions()
             prefix = "txt" if opts["result_handling"] == "file" else "mat"
-            print(opts["result_file_name"])
             try:
                 if opts["result_file_name"][model] is None:
                     local_opts["result_file_name"] = model.get_identifier()+'_'+str(i)+'_result.'+prefix
