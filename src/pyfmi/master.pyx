@@ -272,11 +272,20 @@ class MasterAlgOptions(OptionBase):
             with an error controlled simulation.
             Default: 0.0 (i.e. inactive)
 
+        local_rtol --
+            Defines the relative tolerance that will be provided to the 
+            connected FMUs during initialization of the underlying 
+            models. Note, only have an effect if 'initialize' is set to
+            True.
+            Default: 1e-6
+
         result_file_name --
             Specifies the name of the file where the simulation result is
-            written. Setting this option to an empty string results in a default
-            file name that is based on the name of the model class.
-            Default: Empty string
+            written. Note that there should be one name for each model and
+            the names of the files should be provided in a dict with the
+            model as 'key' and the name of the file as 'value' in the
+            dict.
+            Default: Model name + "_result." + filetype
 
         result_handling --
             Specifies how the result should be handled. Either stored to
@@ -299,8 +308,35 @@ class MasterAlgOptions(OptionBase):
             'der'. Can also be a list. Note that there should be one
             filter for each model.
             Default: None
+            
+        logging --
+            If True, store additional debug data during the simulation.
+            The option is currently only useful for internal purposes.
+            Default: False
+        
+        store_step_before_update --
+            If True, store additionally the values in the underlying 
+            FMUs to the result file before data has been exchange 
+            between the connected models. The values will always be 
+            stored after data has been exhanged between the connected
+            models.
+            Default: False
+        
+        block_initialization_type --
+            Specifies which algorithm should be used to find the best
+            grouping of input/outputs. This only has an effect when the
+            option 'block_initialization' is set to True. The available
+            values are: "greedy", "simply", "grouping". Each has their
+            pros and cons, for best performance, please test.
+            Default: "greedy"
 
-
+        force_finite_difference_outputs --
+            If set, forces the use of finite difference (first order)
+            between communication points. I.e. instead of using the 
+            underlying models capabilities to compute derivatives of 
+            outputs, finite differences between communication points 
+            will be used.
+            Default: False
     """
     def __init__(self, master, *args, **kw):
         _defaults= {
@@ -311,9 +347,9 @@ class MasterAlgOptions(OptionBase):
         "step_size"  : 0.01,
         "maxh"       : 0.0,
         "filter"     : dict((model,None) for model in master.models),
+        "result_file_name"    : dict((model,None) for model in master.models),
         "result_handling"     : "binary",
         "result_handler"      : None,
-        "inputs"              : None,
         "linear_correction"   : False,
         "error_controlled"    : False if master.support_storing_fmu_states else False,
         "logging"             : False,
@@ -323,7 +359,7 @@ class MasterAlgOptions(OptionBase):
         "execution"                : "serial",
         "block_initialization"     : False,
         "block_initialization_type" : "greedy",
-        "block_initialization_order" : None,
+        "experimental_block_initialization_order" : None,
         "experimental_output_derivative": False,
         "experimental_finite_difference_D": False,
         "experimental_output_solve":False,
@@ -1038,7 +1074,7 @@ cdef class Master:
         
         if opts["block_initialization"]:
             
-            order, blocks, compressed = self.compute_evaluation_order(opts["block_initialization_type"], order=opts["block_initialization_order"])
+            order, blocks, compressed = self.compute_evaluation_order(opts["block_initialization_type"], order=opts["experimental_block_initialization_order"])
             model_in_init_mode = {model:False for model in self.models}
             
             #Global outputs vector
@@ -1157,10 +1193,18 @@ cdef class Master:
                 result_object = ResultHandlerDummy(model)
             else:
                 raise fmi.FMUException("Currently only writing result to file (txt and binary) and none is supported.")
+            if not isinstance(opts["result_file_name"], dict):
+                raise fmi.FMUException("The result file names needs to be stored in a dict with the individual models as key.")
             from pyfmi.fmi_algorithm_drivers import FMICSAlgOptions
             local_opts = FMICSAlgOptions()
             prefix = "txt" if opts["result_handling"] == "file" else "mat"
-            local_opts["result_file_name"] = model.get_identifier()+'_'+str(i)+'_result.'+prefix
+            try:
+                if opts["result_file_name"][model] is None:
+                    local_opts["result_file_name"] = model.get_identifier()+'_'+str(i)+'_result.'+prefix
+                else:
+                    local_opts["result_file_name"] = opts["result_file_name"][model]
+            except KeyError:
+                raise fmi.FMUException("Incorrect definition of the result file name option. No result file name found for model %s"%model.get_identifier())
             local_opts["filter"] = opts["filter"][model]
             
             result_object.set_options(local_opts)
@@ -1476,15 +1520,13 @@ cdef class Master:
         for i,model in enumerate(self.models):
             if opts["result_handling"] == "file" or opts["result_handling"] == "binary":
                 from pyfmi.fmi_algorithm_drivers import AssimuloSimResult
-                prefix = "txt" if opts["result_handling"] == "file" else "mat"
-                ResClass = ResultDymolaTextual if opts["result_handling"] == "file" else ResultDymolaBinary
-                dym_res = ResClass(model.get_identifier()+'_'+str(i)+'_result.'+prefix)
-                res[i] = AssimuloSimResult(model, model.get_identifier()+'_'+str(i)+'_result.'+prefix, None, dym_res, None)
+                stored_res = self.models_dict[model]["result"].get_result()
+                res[i] = AssimuloSimResult(model, self.models_dict[model]["result"].file_name, None, stored_res, None)
                 res[model] = res[i]
             elif opts["result_handling"] == "none":
                 res[model] = None
             else:
-                raise fmi.FMUException("Currently only writing result to file or none is supported.")
+                raise fmi.FMUException("Currently only writing result to file/binary or none is supported.")
         
         return res
     

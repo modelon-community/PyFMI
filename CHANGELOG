@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- TBD: Unreleased ---
+    * Updated Master algorithm options documentation and fixed result
+      file naming.
     * Fixed 'block_initialization' in Master algorithm when using 
       Python 3
     * Fixed so that .initial is set properly on ScalarVariable2.
