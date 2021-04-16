@@ -1190,7 +1190,8 @@ cdef class FMUModelBase(ModelBase):
     """
     An FMI Model loaded from a DLL.
     """
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+                 _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor.
         """
@@ -1212,6 +1213,9 @@ cdef class FMUModelBase(ModelBase):
         self._allocated_list = False
         self._fmu_temp_dir = NULL
         self._fmu_log_name = NULL
+
+        # Used to adjust behaviour if FMU is unzipped
+        self._allow_unzipped_fmu = 1 if allow_unzipped_fmu else 0
 
         #Specify the general callback functions
         self.callbacks.malloc  = FMIL.malloc
@@ -1235,17 +1239,26 @@ cdef class FMUModelBase(ModelBase):
             logging.warning("The attribute 'enable_logging' is deprecated. Please use 'log_level' instead. Setting 'log_level' to INFO...")
             self.callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
 
-        fmu_full_path = os.path.abspath(os.path.join(path,fmu))
+        self._fmu_full_path = os.path.abspath(os.path.join(path,fmu))
         if _unzipped_dir:
             fmu_temp_dir = encode(_unzipped_dir)
+        elif self._allow_unzipped_fmu:
+            fmu_temp_dir = encode(fmu)
         else:
             fmu_temp_dir  = encode(create_temp_dir())
         self._fmu_temp_dir = <char*>FMIL.malloc((FMIL.strlen(fmu_temp_dir)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_temp_dir, fmu_temp_dir)
 
-        # Check that the file referenced by fmu has the correct file-ending
-        if not fmu_full_path.endswith(".fmu"):
-            raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
+        if self._allow_unzipped_fmu:
+            if not os.path.isdir(fmu):
+                msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+                raise FMUException(msg)
+        else:
+            # Check that the file referenced by fmu is appropriate
+            if not self._fmu_full_path.endswith(".fmu"):
+                raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
+            if not os.path.isfile(self._fmu_full_path):
+                raise FMUException('Could not locate the FMU in the specified directory.')
 
         #Specify FMI related callbacks
         self.callBackFunctions.logger = FMIL.fmi1_log_forwarding;
@@ -1257,24 +1270,26 @@ cdef class FMUModelBase(ModelBase):
         self._allocated_context = 1
 
         #Get the FMI version of the provided model
-        fmu_full_path = encode(fmu_full_path)
+        self._fmu_full_path = encode(self._fmu_full_path)
 
         if _unzipped_dir:
             #If the unzipped directory is provided we assume that the version
             #is correct. This is due to that the method to get the version
             #unzipps the FMU which we already have done.
-            version = FMIL.fmi_version_1_enu
+            self._version = FMIL.fmi_version_1_enu
+        elif self._allow_unzipped_fmu:
+            model_description_path = encode(os.path.join(decode(fmu_temp_dir), 'modelDescription.xml'))
+            self._version = FMIL.fmi_import_get_fmi_version_tmp(self.context, model_description_path)
         else:
-            version = FMIL.fmi_import_get_fmi_version(self.context, fmu_full_path, fmu_temp_dir)
-        self._version = version #Store version
+            self._version = FMIL.fmi_import_get_fmi_version(self.context, self._fmu_full_path, fmu_temp_dir)
 
-        if version == FMIL.fmi_version_unknown_enu:
+        if self._version == FMIL.fmi_version_unknown_enu:
             last_error = decode(FMIL.jm_get_last_error(&self.callbacks))
             if self.callbacks.log_level >= FMIL.jm_log_level_error:
                 raise FMUException("The FMU version could not be determined. "+last_error)
             else:
                 raise FMUException("The FMU version could not be determined. Enable logging for possibly more information.")
-        if version != 1:
+        if self._version != 1:
             raise FMUException("This class only supports FMI 1.0 (Model Exchange and Co-Simulation).")
 
         #Parse the XML
@@ -2620,9 +2635,10 @@ cdef class FMUModelCS1(FMUModelBase):
     #First step only support fmi1_fmu_kind_enu_cs_standalone
     #stepFinished not supported
 
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+                 _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll)
+        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
         if self._fmu_kind != FMI_CS_STANDALONE and self._fmu_kind != FMI_CS_TOOL:
             raise FMUException("This class only supports FMI 1.0 for Co-simulation.")
@@ -2677,7 +2693,8 @@ cdef class FMUModelCS1(FMUModelBase):
             FMIL.fmi1_import_free(self._fmu)
 
         if self._fmu_temp_dir != NULL:
-            FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+            if not self._allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
             FMIL.free(self._fmu_temp_dir)
             self._fmu_temp_dir = NULL
 
@@ -3138,9 +3155,10 @@ cdef class FMUModelME1(FMUModelBase):
     An FMI Model loaded from a DLL.
     """
 
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+                 _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll)
+        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
         if self._fmu_kind != FMI_ME:
             raise FMUException("This class only supports FMI 1.0 for Model Exchange.")
@@ -3237,7 +3255,8 @@ cdef class FMUModelME1(FMUModelBase):
             FMIL.fmi1_import_free(self._fmu)
 
         if self._fmu_temp_dir != NULL:
-            FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+            if not self._allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
             FMIL.free(self._fmu_temp_dir)
             self._fmu_temp_dir = NULL
 
@@ -3758,7 +3777,8 @@ cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
     """
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
+    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+                 _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
 
@@ -3767,7 +3787,7 @@ cdef class FMUModelBase2(ModelBase):
             fmu --
                 Name of the fmu as a string.
 
-            path --
+            path TODO [DEPRECATED] --
                 Path to the fmu-directory.
                 Default: '.' (working directory)
 
@@ -3783,6 +3803,7 @@ cdef class FMUModelBase2(ModelBase):
                 Determines the logging output. Can be set between 0
                 (no logging) and 7 (everything).
                 Default: 2 (log error messages)
+            TODO
 
         Returns::
 
@@ -3810,6 +3831,9 @@ cdef class FMUModelBase2(ModelBase):
         self._initialized_fmu = 0
         self._fmu_temp_dir = NULL
         self._fmu_log_name = NULL
+
+        # Used to adjust behaviour if FMU is unzipped
+        self._allow_unzipped_fmu = 1 if allow_unzipped_fmu else 0
 
         #Default values
         self.__t = None
@@ -3865,14 +3889,18 @@ cdef class FMUModelBase2(ModelBase):
             logging.warning("The attribute 'enable_logging' is deprecated. Please use 'log_level' instead. Setting 'log_level' to INFO...")
             self.callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
 
-        # Check that the file referenced by fmu has the correct file-ending
-        if not fmu.endswith('.fmu'):
-            raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
-
-        #Check that the file exists
         self._fmu_full_path = encode(os.path.abspath(os.path.join(path,fmu)))
-        if not os.path.isfile(self._fmu_full_path):
-            raise FMUException('Could not locate the FMU in the specified directory.')
+        if self._allow_unzipped_fmu:
+            if not os.path.isdir(fmu):
+                msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+                raise FMUException(msg)
+        else:
+            # Check that the file referenced by fmu is appropriate
+            if not fmu.endswith('.fmu'):
+                raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
+
+            if not os.path.isfile(self._fmu_full_path):
+                raise FMUException('Could not locate the FMU in the specified directory.')
 
         # Create a struct for allocation
         self._context           = FMIL.fmi_import_allocate_context(&self.callbacks)
@@ -3881,6 +3909,8 @@ cdef class FMUModelBase2(ModelBase):
         #Get the FMI version of the provided model
         if _unzipped_dir:
             fmu_temp_dir  = encode(_unzipped_dir)
+        elif self._allow_unzipped_fmu:
+            fmu_temp_dir = encode(fmu)
         else:
             fmu_temp_dir  = encode(create_temp_dir())
         self._fmu_temp_dir = <char*>FMIL.malloc((FMIL.strlen(fmu_temp_dir)+1)*sizeof(char))
@@ -3891,8 +3921,11 @@ cdef class FMUModelBase2(ModelBase):
             #is correct. This is due to that the method to get the version
             #unzipps the FMU which we already have done.
             self._version = FMIL.fmi_version_2_0_enu
+        elif self._allow_unzipped_fmu:
+            model_description_path = encode(os.path.join(decode(fmu_temp_dir), 'modelDescription.xml'))
+            self._version = FMIL.fmi_import_get_fmi_version_tmp(self._context, model_description_path)
         else:
-            self._version      = FMIL.fmi_import_get_fmi_version(self._context, self._fmu_full_path, self._fmu_temp_dir)
+            self._version = FMIL.fmi_import_get_fmi_version(self._context, self._fmu_full_path, self._fmu_temp_dir)
 
         #Check the version
         if self._version == FMIL.fmi_version_unknown_enu:
@@ -6748,7 +6781,8 @@ cdef class FMUModelCS2(FMUModelBase2):
     """
     Co-simulation model loaded from a dll
     """
-    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
+    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
+                 _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
 
@@ -6757,7 +6791,7 @@ cdef class FMUModelCS2(FMUModelBase2):
             fmu --
                 Name of the fmu as a string.
 
-            path --
+            path TODO [DEPRECATED]--
                 Path to the fmu-directory.
                 Default: '.' (working directory)
 
@@ -6773,6 +6807,7 @@ cdef class FMUModelCS2(FMUModelBase2):
                 Determines the logging output. Can be set between 0
                 (no logging) and 7 (everything).
                 Default: 2 (log error messages)
+            TODO
 
         Returns::
 
@@ -6780,7 +6815,8 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
 
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, _unzipped_dir, _connect_dll)
+        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level,
+                               _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_cs:
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
@@ -6811,7 +6847,8 @@ cdef class FMUModelCS2(FMUModelBase2):
             FMIL.fmi2_import_free(self._fmu)
 
         if self._fmu_temp_dir != NULL:
-            FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+            if not self._allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
             FMIL.free(self._fmu_temp_dir)
             self._fmu_temp_dir = NULL
 
@@ -7358,7 +7395,8 @@ cdef class FMUModelME2(FMUModelBase2):
     Model-exchange model loaded from a dll
     """
 
-    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL, _unzipped_dir=None, _connect_dll=True):
+    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
+                 _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
 
@@ -7367,7 +7405,7 @@ cdef class FMUModelME2(FMUModelBase2):
             fmu --
                 Name of the fmu as a string.
 
-            path --
+            path TODO [DEPRECATED] --
                 Path to the fmu-directory.
                 Default: '.' (working directory)
 
@@ -7383,13 +7421,15 @@ cdef class FMUModelME2(FMUModelBase2):
                 Determines the logging output. Can be set between 0
                 (no logging) and 7 (everything).
                 Default: 2 (log error messages)
+            TODO
 
         Returns::
 
             A model as an object from the class FMUModelME2
         """
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level, _unzipped_dir, _connect_dll)
+        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level,
+                               _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_me:
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
@@ -7430,7 +7470,8 @@ cdef class FMUModelME2(FMUModelBase2):
             FMIL.fmi2_import_free(self._fmu)
 
         if self._fmu_temp_dir != NULL:
-            FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
+            if not self._allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
             FMIL.free(self._fmu_temp_dir)
             self._fmu_temp_dir = NULL
 
@@ -8227,7 +8268,8 @@ def _handle_load_fmu_exception(fmu, log_data):
     for log in log_data:
         print(log)
 
-def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 'auto', log_level=FMI_DEFAULT_LOG_LEVEL):
+def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 'auto',
+             log_level=FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):
     """
     Helper method for creating a model instance.
 
@@ -8236,7 +8278,9 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         fmu --
             Name of the fmu as a string.
 
-        path --
+        path [DEPRECATED] --
+            This option is DEPRECATED and will be removed. Please use
+            argument 'fmu' specifying path to the FMU.
             Path to the fmu-directory.
             Default: '.' (working directory)
 
@@ -8266,7 +8310,6 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
 
         A model instance corresponding to the loaded FMU.
     """
-
     #NOTE: This method can be made more efficient by providing
     #the unzipped part and the already read XML object to the different
     #FMU classes.
@@ -8286,14 +8329,18 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     fmu_temp_dir = None
     model        = None
 
-    # Check that the file referenced by fmu has the correct file-ending
-    fmu_full_path = os.path.abspath(os.path.join(path,fmu))
-    if not fmu_full_path.endswith('.fmu'):
-        raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
+    if allow_unzipped_fmu:
+        if not os.path.isdir(fmu):
+            msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+            raise FMUException(msg)
+    else:
+        # Check that the file referenced by fmu is appropriate
+        fmu_full_path = os.path.abspath(os.path.join(path,fmu))
+        if not fmu_full_path.endswith('.fmu'):
+            raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
 
-    #Check that the file exists
-    if not os.path.isfile(fmu_full_path):
-        raise FMUException('Could not locate the FMU in the specified directory.')
+        if not os.path.isfile(fmu_full_path):
+            raise FMUException('Could not locate the FMU in the specified directory.')
 
     #Check that kind-argument is well-defined
     if not kind.lower() == 'auto':
@@ -8327,16 +8374,21 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     context = FMIL.fmi_import_allocate_context(&callbacks)
 
     #Get the FMI version of the provided model
-    fmu_temp_dir = encode(create_temp_dir())
-    fmu_full_path = encode(fmu_full_path)
-    version = FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
+    fmu_temp_dir = encode(fmu) if allow_unzipped_fmu else encode(create_temp_dir())
+    if allow_unzipped_fmu:
+        model_description_path = encode(os.path.join(decode(fmu_temp_dir), 'modelDescription.xml'))
+        version = FMIL.fmi_import_get_fmi_version_tmp(context, model_description_path)
+    else:
+        fmu_full_path = encode(fmu_full_path)
+        version = FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
 
     #Check the version
     if version == FMIL.fmi_version_unknown_enu:
         #Delete context
         last_error = FMIL.jm_get_last_error(&callbacks)
         FMIL.fmi_import_free_context(context)
-        FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+        if not allow_unzipped_fmu:
+            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
             _handle_load_fmu_exception(fmu, log_data)
             raise FMUException("The FMU version could not be determined. "+decode(last_error))
@@ -8348,7 +8400,8 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         #Delete the context
         last_error = FMIL.jm_get_last_error(&callbacks)
         FMIL.fmi_import_free_context(context)
-        FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+        if not allow_unzipped_fmu:
+            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
             _handle_load_fmu_exception(fmu, log_data)
             raise FMUException("The FMU version is unsupported. "+decode(last_error))
@@ -8365,7 +8418,8 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             #Delete the context
             last_error = FMIL.jm_get_last_error(&callbacks)
             FMIL.fmi_import_free_context(context)
-            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            if not allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if callbacks.log_level >= FMIL.jm_log_level_error:
                 _handle_load_fmu_exception(fmu, log_data)
                 raise FMUException("The XML-could not be read. "+decode(last_error))
@@ -8377,13 +8431,16 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
 
         #Compare fmu_kind with input-specified kind
         if fmu_1_kind == FMI_ME and kind.upper() != 'CS':
-            model=FMUModelME1(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir)
+            model=FMUModelME1(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                              allow_unzipped_fmu = allow_unzipped_fmu)
         elif (fmu_1_kind == FMI_CS_STANDALONE or fmu_1_kind == FMI_CS_TOOL) and kind.upper() != 'ME':
-            model=FMUModelCS1(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir)
+            model=FMUModelCS1(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                              allow_unzipped_fmu = allow_unzipped_fmu)
         else:
             FMIL.fmi1_import_free(fmu_1)
             FMIL.fmi_import_free_context(context)
-            FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+            if not allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
             _handle_load_fmu_exception(fmu, log_data)
             raise FMUException("FMU is a {} and not a {}".format(decode(FMIL.fmi1_fmu_kind_to_string(fmu_1_kind)), kind.upper()))
 
@@ -8395,7 +8452,8 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             #Delete the context
             last_error = FMIL.jm_get_last_error(&callbacks)
             FMIL.fmi_import_free_context(context)
-            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            if not allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if callbacks.log_level >= FMIL.jm_log_level_error:
                 _handle_load_fmu_exception(fmu, log_data)
                 raise FMUException("The XML-could not be read. "+decode(last_error))
@@ -8410,7 +8468,8 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             last_error = FMIL.jm_get_last_error(&callbacks)
             FMIL.fmi2_import_free(fmu_2)
             FMIL.fmi_import_free_context(context)
-            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            if not allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if callbacks.log_level >= FMIL.jm_log_level_error:
                 _handle_load_fmu_exception(fmu, log_data)
                 raise FMUException("The FMU kind could not be determined. "+decode(last_error))
@@ -8421,21 +8480,26 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         #FMU kind is known
         if kind.lower() == 'auto':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs:
-                model = FMUModelCS2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir)
+                model = FMUModelCS2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                                    allow_unzipped_fmu = allow_unzipped_fmu)
             elif fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir)
+                model = FMUModelME2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                                    allow_unzipped_fmu = allow_unzipped_fmu)
         elif kind.upper() == 'CS':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelCS2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir)
+                model = FMUModelCS2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                                    allow_unzipped_fmu = allow_unzipped_fmu)
         elif kind.upper() == 'ME':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir)
+                model = FMUModelME2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                                    allow_unzipped_fmu = allow_unzipped_fmu)
 
         #Could not match FMU kind with input-specified kind
         if model is None:
             FMIL.fmi2_import_free(fmu_2)
             FMIL.fmi_import_free_context(context)
-            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            if not allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             _handle_load_fmu_exception(fmu, log_data)
             raise FMUException("FMU is a {} and not a {}".format(decode(FMIL.fmi2_fmu_kind_to_string(fmu_2_kind)),  decode(kind.upper())))
 
@@ -8445,7 +8509,8 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         #Delete the context
         last_error = FMIL.jm_get_last_error(&callbacks)
         FMIL.fmi_import_free_context(context)
-        FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+        if not allow_unzipped_fmu:
+            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
             _handle_load_fmu_exception(fmu, log_data)
             raise FMUException("The FMU version is not found. "+decode(last_error))

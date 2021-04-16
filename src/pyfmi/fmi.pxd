@@ -117,6 +117,7 @@ cdef class FMUModelBase(ModelBase):
     cdef public object _pyEventInfo
     cdef int _version
     cdef int _instantiated_fmu
+    cdef int _allow_unzipped_fmu
     cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
     cdef object _allocated_list
     cdef object _modelid
@@ -172,6 +173,7 @@ cdef class FMUModelBase2(ModelBase):
     cdef public float  _last_accepted_time, _relative_tolerance
     cdef object         _fmu_full_path
     cdef public object  _enable_logging
+    cdef int _allow_unzipped_fmu
     cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu, _initialized_fmu
     cdef object         _modelId
     cdef object         _modelName
