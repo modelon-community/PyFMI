@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2014 Modelon AB
@@ -43,7 +43,7 @@ cdef class ModelBase:
     cdef public object _additional_logger
     cdef public object _max_log_size_msg_sent
     cdef public unsigned long long int _current_log_size, _max_log_size
-    
+
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
 
 
@@ -76,13 +76,13 @@ cdef class DeclaredType2:
     cdef object _name
     cdef object _description
     cdef object _quantity
-    
+
 cdef class EnumerationType2(DeclaredType2):
     cdef object _items
 
 cdef class IntegerType2(DeclaredType2):
     cdef int _min, _max
-    
+
 cdef class RealType2(DeclaredType2):
     cdef float _min, _max, _nominal
     cdef object _unbounded, _relativeQuantity, _unit, _display_unit
@@ -128,7 +128,7 @@ cdef class FMUModelBase(ModelBase):
     cdef public list _save_bool_variables_val
     cdef int _fmu_kind
     cdef char* _fmu_temp_dir
-    
+
     cpdef _internal_set_fmu_null(self)
     cpdef get_variable_description(self, variablename)
     cpdef FMIL.fmi1_base_type_enu_t get_variable_data_type(self, variablename) except *
@@ -142,12 +142,12 @@ cdef class FMUModelBase(ModelBase):
     cdef _add_scalar_variable(self, FMIL.fmi1_import_variable_t* variable)
 
 cdef class FMUModelCS1(FMUModelBase):
-    
+
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi1_real_t t)
 
 cdef class FMUModelME1(FMUModelBase):
-    
+
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi1_real_t t)
     cpdef get_derivatives(self)
@@ -156,7 +156,7 @@ cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
     """
-    
+
     #FMIL related variables
     cdef FMIL.fmi_import_context_t*     _context
     cdef FMIL.fmi2_callback_functions_t callBackFunctions
@@ -194,12 +194,12 @@ cdef class FMUModelBase2(ModelBase):
     cdef object         _outputs_states_dependencies_kind
     cdef object         _outputs_inputs_dependencies_kind
     cdef object         _A, _B, _C, _D
-    cdef public object         _group_A, _group_B, _group_C, _group_D 
+    cdef public object         _group_A, _group_B, _group_C, _group_D
     cdef object         _mask_A
     cdef object         _A_row_ind, _A_col_ind
     cdef public object  _has_entered_init_mode
     cdef WorkerClass2 _worker_object
-    
+
     cpdef FMIL.fmi2_value_reference_t get_variable_valueref(self, variablename) except *
     cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, variablename) except *
     cpdef get_variable_description(self, variablename)
@@ -234,7 +234,7 @@ cdef class FMUModelCS2(FMUModelBase2):
     cpdef int do_step(self, FMIL.fmi2_real_t current_t, FMIL.fmi2_real_t step_size, new_step=*)
     cdef int _set_input_derivatives(self, N.ndarray value_refs, N.ndarray values, N.ndarray orders)
     cdef int _get_output_derivatives(self, N.ndarray value_refs, N.ndarray values, N.ndarray orders)
-    
+
 cdef class FMUModelME2(FMUModelBase2):
 
     cpdef _get_time(self)
@@ -246,10 +246,10 @@ cdef class FMUModelME2(FMUModelBase2):
     cdef int __set_continuous_states(self, FMIL.fmi2_real_t[:] ndx)
     cdef int _get_event_indicators(self, FMIL.fmi2_real_t[:] values)
     cdef int _completed_integrator_step(self, int* enter_event_mode, int* terminate_simulation)
-    
+
 cdef class WorkerClass2:
     cdef int _dim
-    
+
     cdef N.ndarray _tmp1_val, _tmp2_val, _tmp3_val, _tmp4_val
     cdef N.ndarray _tmp1_ref, _tmp2_ref, _tmp3_ref, _tmp4_ref
 
