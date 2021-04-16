@@ -3943,6 +3943,9 @@ cdef class FMUModelBase2(ModelBase):
             #is correct. This is due to that the method to get the version
             #unzipps the FMU which we already have done.
             self._version = FMIL.fmi_version_2_0_enu
+        elif self._allow_unzipped_fmu:
+            model_description_path = encode(os.path.join(decode(fmu_temp_dir), 'modelDescription.xml'))
+            self._version = FMIL.fmi_import_get_fmi_version_tmp(self._context, model_description_path)
         else:
             self._version = import_and_get_version(self._context, self._fmu_full_path,
                                                    fmu_temp_dir, self._allow_unzipped_fmu)
