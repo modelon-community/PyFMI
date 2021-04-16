@@ -1225,6 +1225,7 @@ cdef class FMUModelBase(ModelBase):
         self.callbacks.logger  = importlogger
         self.callbacks.context = <void*>self #Class loggger
 
+        display_path_deprecation(path)
 
         if enable_logging==None:
             if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
@@ -3787,7 +3788,9 @@ cdef class FMUModelBase2(ModelBase):
             fmu --
                 Name of the fmu as a string.
 
-            path TODO [DEPRECATED] --
+            path [DEPRECATED] --
+                This option is DEPRECATED and will be removed. Please
+                use the option "fmu" instead.
                 Path to the fmu-directory.
                 Default: '.' (working directory)
 
@@ -3803,7 +3806,11 @@ cdef class FMUModelBase2(ModelBase):
                 Determines the logging output. Can be set between 0
                 (no logging) and 7 (everything).
                 Default: 2 (log error messages)
-            TODO
+            allow_unzipped_fmu --
+                If set to True, the argument 'fmu' can be a path specifying a directory
+                to an unzipped FMU. The structure of the unzipped FMU must conform
+                to the FMI specification.
+                Default: False
 
         Returns::
 
@@ -3875,6 +3882,8 @@ cdef class FMUModelBase2(ModelBase):
         self.callBackFunctions.freeMemory           = FMIL.free
         self.callBackFunctions.stepFinished         = NULL
         self.callBackFunctions.componentEnvironment = NULL
+
+        display_path_deprecation(path)
 
         if enable_logging==None:
             if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
@@ -6791,7 +6800,9 @@ cdef class FMUModelCS2(FMUModelBase2):
             fmu --
                 Name of the fmu as a string.
 
-            path TODO [DEPRECATED]--
+            path [DEPRECATED] --
+                This option is DEPRECATED and will be removed. Please
+                use the option "fmu" instead.
                 Path to the fmu-directory.
                 Default: '.' (working directory)
 
@@ -6807,7 +6818,11 @@ cdef class FMUModelCS2(FMUModelBase2):
                 Determines the logging output. Can be set between 0
                 (no logging) and 7 (everything).
                 Default: 2 (log error messages)
-            TODO
+            allow_unzipped_fmu --
+                If set to True, the argument 'fmu' can be a path specifying a directory
+                to an unzipped FMU. The structure of the unzipped FMU must conform
+                to the FMI specification.
+                Default: False
 
         Returns::
 
@@ -7405,7 +7420,9 @@ cdef class FMUModelME2(FMUModelBase2):
             fmu --
                 Name of the fmu as a string.
 
-            path TODO [DEPRECATED] --
+            path [DEPRECATED] --
+                This option is DEPRECATED and will be removed. Please
+                use the option "fmu" instead.
                 Path to the fmu-directory.
                 Default: '.' (working directory)
 
@@ -7421,7 +7438,11 @@ cdef class FMUModelME2(FMUModelBase2):
                 Determines the logging output. Can be set between 0
                 (no logging) and 7 (everything).
                 Default: 2 (log error messages)
-            TODO
+            allow_unzipped_fmu --
+                If set to True, the argument 'fmu' can be a path specifying a directory
+                to an unzipped FMU. The structure of the unzipped FMU must conform
+                to the FMI specification.
+                Default: False
 
         Returns::
 
@@ -8268,6 +8289,13 @@ def _handle_load_fmu_exception(fmu, log_data):
     for log in log_data:
         print(log)
 
+def display_path_deprecation(path):
+    if path != '.':
+        w = "The argument 'path' is deprecated and will be removed in a future version."
+        w += " Please specify a full path to fmu via the argument 'fmu' instead."
+        logging.warning(w)
+
+
 def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 'auto',
              log_level=FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):
     """
@@ -8305,6 +8333,11 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             Determines the logging output. Can be set between 0
             (no logging) and 7 (everything).
             Default: 2 (log error messages)
+        allow_unzipped_fmu --
+            If set to True, the argument 'fmu' can be a path specifying a directory
+            to an unzipped FMU. The structure of the unzipped FMU must conform
+            to the FMI specification.
+            Default: False
 
     Returns::
 
