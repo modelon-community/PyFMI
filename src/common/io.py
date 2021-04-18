@@ -1146,6 +1146,11 @@ class ResultDymolaBinary(ResultDymola):
         
             fname --
                 Name of file.
+                
+            delayed_trajectory_loading --
+                Determines if the trajectories are loaded on demand or 
+                all at the same time.
+                Default: True
         """
         if isinstance(fname, io.IOBase):
             if hasattr(fname, "name") and os.path.isfile(fname.name):
