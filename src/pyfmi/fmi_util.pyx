@@ -1023,13 +1023,9 @@ def read_trajectory(file_name, int data_index, int file_position, int sizeof_typ
     cdef DTYPE_t* data_ptr
     cdef size_t sizeof_dtype = sizeof(DTYPE_t)
 
-    if isinstance(file_name, int): #File descriptor
-        cfile = fdopen(file_name, 'rb')
-    else:
-        cfile = fopen(file_name, 'rb')
+    cfile = fopen(file_name, 'rb')
     data = np.empty(nbr_points, dtype=DTYPE)
     data_ptr = <DTYPE_t*>data.data
-
     
     fseek(cfile, file_position, 0)
     #for offset in range(start_point, end_point, interval):
@@ -1038,8 +1034,7 @@ def read_trajectory(file_name, int data_index, int file_position, int sizeof_typ
         fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
         i = i + 1
 
-    if not isinstance(file_name, int): #File descriptor
-        fclose(cfile)
+    fclose(cfile)
 
     return data
 
@@ -1057,10 +1052,7 @@ def read_name_list(file_name, int file_position, int sizeof_type, int nbr_variab
     else:
         py3 = 0
     
-    if isinstance(file_name, int): #File descriptor
-        cfile = fdopen(file_name, 'rb')
-    else:
-        cfile = fopen(file_name, 'rb')
+    cfile = fopen(file_name, 'rb')
     
     fseek(cfile, file_position, 0)
     for i in range(nbr_variables):
@@ -1078,10 +1070,8 @@ def read_name_list(file_name, int file_position, int sizeof_type, int nbr_variab
                 py_str = py_str.replace(" ", "")
         
         data[py_str] = i
-        i = i + 1
 
-    if not isinstance(file_name, int): #File descriptor
-        fclose(cfile)
+    fclose(cfile)
     FMIL.free(tmp)
 
     return data

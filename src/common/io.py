@@ -23,6 +23,7 @@ import codecs
 import re
 import sys
 import io
+import os
 
 import numpy as N
 import numpy as np
@@ -1146,26 +1147,26 @@ class ResultDymolaBinary(ResultDymola):
             fname --
                 Name of file.
         """
-        self._fname = fname
-        self._is_filestream = isinstance(fname, io.IOBase)
-        
-        if delayed_trajectory_loading:
-            
-            if self._is_filestream:
-                delayed = DelayedVariableLoad(self._fname, chars_as_strings=False)
-                self.raw = delayed.get_variables(variable_names=["name", "dataInfo", "data_2"])
+        if isinstance(fname, io.IOBase):
+            if hasattr(fname, "name") and os.path.isfile(fname.name):
+                self._fname = fname.name
             else:
-                with open(fname, "rb") as f:
-                    delayed = DelayedVariableLoad(f, chars_as_strings=False)
-                    self.raw = delayed.get_variables(variable_names=["name", "dataInfo", "data_2"])
-            
+                raise JIOError("Not supported file format, needs to be a filename or a stream based on a file.")
+        else:
+            self._fname = fname
+
+        if delayed_trajectory_loading:
+            with open(self._fname, "rb") as f:
+                delayed = DelayedVariableLoad(f, chars_as_strings=False)
+                self.raw = delayed.get_variables(variable_names=["name", "dataInfo", "data_2"])
+        
             self._data_2_info = self.raw["data_2"]
             self._data_2 = {}
             self._name_info   = self.raw["name"]
             
             self.name_lookup = self._get_name_dict()
         else:
-            self.raw = scipy.io.loadmat(fname,chars_as_strings=False, variable_names=["name", "dataInfo", "data_2"])
+            self.raw = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["name", "dataInfo", "data_2"])
             self._data_2 = self.raw["data_2"]
             
             name = self.raw['name']
@@ -1197,10 +1198,7 @@ class ResultDymolaBinary(ResultDymola):
         max_length     = self._name_info["max_length"]
         nbr_variables  = self._name_info["nbr_variables"]
 
-        if self._is_filestream:
-            name_dict = fmi_util.read_name_list(self._fname.fileno(), file_position, sizeof_type, int(nbr_variables), int(max_length))
-        else:
-            name_dict = fmi_util.read_name_list(encode(self._fname), file_position, sizeof_type, int(nbr_variables), int(max_length))
+        name_dict = fmi_util.read_name_list(encode(self._fname), file_position, sizeof_type, int(nbr_variables), int(max_length))
         
         return name_dict
         
@@ -1214,10 +1212,7 @@ class ResultDymolaBinary(ResultDymola):
             nbr_points     = self._data_2_info["nbr_points"]
             nbr_variables  = self._data_2_info["nbr_variables"]
             
-            if self._is_filestream:
-                self._data_2[data_index] = fmi_util.read_trajectory(self._fname.fileno(), data_index, file_position, sizeof_type, int(nbr_points), int(nbr_variables))
-            else:
-                self._data_2[data_index] = fmi_util.read_trajectory(encode(self._fname), data_index, file_position, sizeof_type, int(nbr_points), int(nbr_variables))
+            self._data_2[data_index] = fmi_util.read_trajectory(encode(self._fname), data_index, file_position, sizeof_type, int(nbr_points), int(nbr_variables))
             
             return self._data_2[data_index]
         else:
