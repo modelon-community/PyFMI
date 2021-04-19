@@ -1,5 +1,5 @@
 --- CHANGELOG ---
---- TBD: Unreleased ---
+--- PyFMI-2.8.6 ---
     * Fixed so that the written binary file is always consistent (i.e.
       if a simulation aborts, it can still be read)
     * Changed default loading strategiy for binary files, now the
