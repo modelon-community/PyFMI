@@ -1,5 +1,9 @@
 --- CHANGELOG ---
 --- TBD: Unreleased ---
+    * Fixed so that the written binary file is always consistent (i.e.
+      if a simulation aborts, it can still be read)
+    * Changed default loading strategiy for binary files, now the
+      trajectories are loaded on demand instead of all at the same time.
     * Updated Master algorithm options documentation and fixed result
       file naming.
     * Fixed 'block_initialization' in Master algorithm when using 

@@ -506,11 +506,37 @@ class TestResultFileBinary:
     def test_read_all_variables(self):
         res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
         
+        assert len(res.name) == 1097, "Incorrect number of variables found, should be 1097"
+        
         for var in res.name:
             res.get_variable_data(var)
     
-    
-    
+    @testattr(stddist = True)
+    def test_read_all_variables_from_stream(self):
+        
+        with open(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), "rb") as f:
+            res = ResultDymolaBinary(f)
+            
+            assert len(res.name) == 1097, "Incorrect number of variables found, should be 1097"
+        
+            for var in res.name:
+                res.get_variable_data(var)
+
+    @testattr(stddist = True)
+    def test_compare_all_variables_from_stream(self):
+        res_file = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
+        
+        assert len(res_file.name) == 1097, "Incorrect number of variables found, should be 1097"
+
+        with open(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), "rb") as f:
+            res_stream = ResultDymolaBinary(f)
+            
+            for var in res_file.name:
+                x_file   = res_file.get_variable_data(var)
+                x_stream = res_stream.get_variable_data(var)
+                
+                np.testing.assert_array_equal(x_file.x, x_stream.x, err_msg="Mismatch in array values for var=%s"%var)
+                
     @testattr(stddist = True)
     def test_work_flow_me1(self):
         model = Dummy_FMUModelME1([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
@@ -555,6 +581,35 @@ class TestResultFileBinary:
 
         nose.tools.assert_almost_equal(h.x[0], 1.000000, 5)
         nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5)
+    
+    @testattr(stddist = True)
+    def test_work_flow_me2_aborted(self):
+        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model.setup_experiment()
+        model.initialize()
+        
+        bouncingBall = ResultHandlerBinaryFile(model)
+        
+        bouncingBall.set_options(model.simulate_options())
+        bouncingBall.simulation_start()
+        bouncingBall.initialize_complete()
+        bouncingBall.integration_point()
+        bouncingBall.integration_point()
+        bouncingBall.integration_point()
+        #No call to simulation end to mimic an aborted simulation
+        bouncingBall._file.close()
+        
+        res = ResultDymolaBinary('bouncingBall_result.mat')
+        
+        h = res.get_variable_data('h')
+        derh = res.get_variable_data('der(h)')
+
+        nose.tools.assert_almost_equal(h.x[0], 1.000000, 5, msg="Incorrect initial value for 'h', should be 1.0")
+        nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5, msg="Incorrect  value for 'derh', should be 0.0")
+        nose.tools.assert_almost_equal(h.x[1], 1.000000, 5, msg="Incorrect value for 'h', should be 1.0")
+        nose.tools.assert_almost_equal(derh.x[1], 0.000000, 5, msg="Incorrect value for 'derh', should be 0.0")
+        nose.tools.assert_almost_equal(h.x[2], 1.000000, 5, msg="Incorrect value for 'h', should be 1.0")
+        nose.tools.assert_almost_equal(derh.x[2], 0.000000, 5, msg="Incorrect value for 'derh', should be 0.0")
     
     @testattr(stddist = True)
     def test_filter_no_variables(self):
