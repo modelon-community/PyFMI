@@ -100,7 +100,7 @@ class Test_Master:
         sim = Master(models, connections)
         assert not sim.algebraic_loops
     
-    def _basic_simulation(self, result_handling):
+    def _load_basic_simulation(self):
         model_sub1 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem1.fmu", cs2_xml_path, _connect_dll=False)
         model_sub2 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem2.fmu", cs2_xml_path, _connect_dll=False)
         
@@ -113,7 +113,7 @@ class Test_Master:
         b2 = model_sub2.values[model_sub2.get_variable_valueref("b2")]
         c2 = model_sub2.values[model_sub2.get_variable_valueref("c2")]
         d2 = model_sub2.values[model_sub2.get_variable_valueref("d2")]
-        
+
         def do_step1(current_t, step_size, new_step=True):
             u1 = model_sub1.values[model_sub1.get_variable_valueref("u1")]
             
@@ -136,25 +136,81 @@ class Test_Master:
         models = [model_sub1, model_sub2]
         connections = [(model_sub1,"y1",model_sub2,"u2"),
                    (model_sub2,"y2",model_sub1,"u1")]
-                   
+                
+        return models, connections
+    
+    def _sim_basic_simulation(self, models, connections, opts_update):
         master = Master(models, connections)
        
         opts = master.simulate_options()
         opts["step_size"] = 0.0005
-        opts["result_handling"] = result_handling
-        
+        opts.update(opts_update)
         res = master.simulate(options=opts)
         
-        nose.tools.assert_almost_equal(res[model_sub1].final("x1"), 0.0859764038708439, 3)
-        nose.tools.assert_almost_equal(res[model_sub2].final("x2"), 0.008392664839635064, 4)
+        nose.tools.assert_almost_equal(res[models[0]].final("x1"), 0.0859764038708439, 3)
+        nose.tools.assert_almost_equal(res[models[1]].final("x2"), 0.008392664839635064, 4)
+        
+        return res
+    
+    def _basic_simulation(self, opts_update):
+        models, connections = self._load_basic_simulation()
+        self._sim_basic_simulation(models, connections, opts_update)
+        
     
     @testattr(stddist = True)
     def test_basic_simulation_txt_file(self):
-        self._basic_simulation(result_handling="file")
+        opts = {"result_handling":"file"}
+        self._basic_simulation(opts)
     
     @testattr(stddist = True)
     def test_basic_simulation_mat_file(self):
-        self._basic_simulation(result_handling="binary")
+        opts = {"result_handling":"binary"}
+        self._basic_simulation(opts)
+    
+    @testattr(stddist = True)
+    def test_basic_simulation_mat_file_naming(self):
+        from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
+        
+        opts = {"result_handling":"binary", "result_file_name": "Should fail..."}
+        
+        try:
+            self._basic_simulation(opts)
+        except UnrecognizedOptionError:
+            pass
+        
+        opts = {"result_handling":"binary", "result_file_name": {"Should fail..."}}
+        
+        try:
+            self._basic_simulation(opts)
+        except UnrecognizedOptionError:
+            pass
+    
+    @testattr(stddist = True)
+    def test_basic_simulation_mat_file_naming_exists(self):
+        models, connections = self._load_basic_simulation()
+        
+        opts = {"result_handling":"binary", "result_file_name": {models[0]: "Test1.mat", models[1]: "Test2.mat"}}
+        
+        res = self._sim_basic_simulation(models, connections, opts)
+        
+        assert os.path.isfile("Test1.mat"), "Test1.mat does not exists"
+        assert os.path.isfile("Test2.mat"), "Test2.mat does not exists"
+    
+    @testattr(stddist = True)
+    def test_basic_simulation_txt_file_naming_exists(self):
+        models, connections = self._load_basic_simulation()
+        
+        opts = {"result_handling":"file", "result_file_name": {models[0]: "Test1.txt", models[1]: "Test2.txt"}}
+        
+        res = self._sim_basic_simulation(models, connections, opts)
+        
+        assert os.path.isfile("Test1.txt"), "Test1.txt does not exists"
+        assert os.path.isfile("Test2.txt"), "Test2.txt does not exists"
+        
+    @testattr(stddist = True)
+    def test_basic_simulation_with_block_initialization(self):
+        opts = {"block_initialization": True}
+        self._basic_simulation(opts)
     
     @testattr(stddist = True)
     def test_integer_connections(self):
