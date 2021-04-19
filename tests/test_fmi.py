@@ -339,6 +339,14 @@ class Test_FMUModelCS2:
         path, file_name = os.path.split(full_path)
         assert model.get_log_file_name() == file_name.replace(".","_")[:-4]+"_log.txt"
 
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exceptions(self):
+        """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelCS2. """
+        err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0")
+        with nose.tools.assert_raises_regex(FMUException, err_msg):
+            model = FMUModelCS2("LinearStability.SubSystem1.fmu", full_path, _connect_dll=False, allow_unzipped_fmu=True)
+
 if assimulo_installed:
     class Test_FMUModelME2_Simulation:
         @testattr(stddist = True)
@@ -613,7 +621,15 @@ if assimulo_installed:
 
             
 class Test_FMUModelME2:
-    
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exceptions(self):
+        """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelME2. """
+        err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0")
+        with nose.tools.assert_raises_regex(FMUException, err_msg):
+            model = FMUModelME2("LinearStability.SubSystem2.fmu", full_path, _connect_dll=False, allow_unzipped_fmu=True)
+
     @testattr(stddist = True)
     def test_estimate_directional_derivatives_linearstate(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStateSpace.fmu")
@@ -764,7 +780,22 @@ class Test_FMUModelME2:
         
         assert len(state_dep.keys()) == 0, len(state_dep.keys())
         assert len(input_dep.keys()) == 0, len(input_dep.keys())
-    
+
+    @testattr(stddist = True)
+    def test_exception_with_load_fmu(self):
+        """ Verify exception is raised. """
+        err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+        test_file = 'abcdefgh1234567qwertyuiop.txt'
+        rm_file = False
+        if not os.path.isfile(test_file):
+            with open(test_file, 'w') as fh:
+                fh.write('')
+            rm_file = True
+        with nose.tools.assert_raises_regex(FMUException, err_msg):
+            fmu = load_fmu(test_file,  allow_unzipped_fmu = True)
+        if rm_file:
+            os.remove(test_file)
+
     @testattr(stddist = True)
     def test_malformed_xml(self):
         nose.tools.assert_raises(FMUException, load_fmu, os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "MalFormed.fmu"))
