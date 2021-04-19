@@ -1013,6 +1013,34 @@ ctypedef np.double_t DTYPE_t
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def read_trajectory(file_name, int data_index, int file_position, int sizeof_type, int nbr_points, int nbr_variables):
+    """
+    Reads a trajectory from a binary file.
+    
+    Parameters::
+    
+        file_name --
+            File to read from.
+        
+        data_index --
+            Which position has the variable for which the trajectory is
+            to be read.
+            
+        file_position --
+            Where in the file does the matrix of a trajectories start.
+        
+        sizeof_type --
+            Size of the data type that the result is stored in
+            
+        nbr_points --
+            Number of points in the result
+            
+        nbr_variables --
+            Number of variables in the result
+            
+    Returns::
+    
+        A numpy array with the trajectory
+    """
     cdef int i = 0
     cdef unsigned long int offset
     cdef unsigned long int start_point = data_index*sizeof_type
@@ -1040,7 +1068,28 @@ def read_trajectory(file_name, int data_index, int file_position, int sizeof_typ
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def read_name_list(file_name, int file_position, int sizeof_type, int nbr_variables, int max_length):
+def read_name_list(file_name, int file_position, int nbr_variables, int max_length):
+    """
+    Reads a list of names from a binary file.
+    
+    Parameters::
+    
+        file_name --
+            File to read from.
+        
+        file_position --
+            Where in the file does the list of names start
+            
+        nbr_variables --
+            Number of variables to read.
+            
+        max_length --
+            Maximum length of a variable
+            
+    Returns::
+    
+        A dict with the names as key and an index as value
+    """
     cdef int i = 0, j = 0, py3, need_replace = 0
     cdef FILE* cfile
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))

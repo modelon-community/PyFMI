@@ -33,6 +33,9 @@ import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
 from pyfmi.common import python3_flag, encode, decode
 
+from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template
+import struct
+
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
 
 class Trajectory:
@@ -1108,17 +1111,23 @@ class ResultDymolaTextual(ResultDymola):
         self.data[1] = N.vstack((self.data[1],res.data[1]))
         self.data[1][n_points:,0] = self.data[1][n_points:,0] + time_shift 
 
-
-from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template
-import struct
-
 #Overriding SCIPYs default reader for MATLAB v4 format
 class DelayedVarReader4(VarReader4):
     def read_sub_array(self, hdr, copy=True):
         if hdr.name == b"data_2":
-            return {"section": "data_2", "file_position": self.mat_stream.tell(), "sizeof_type": hdr.dtype.itemsize, "nbr_points": hdr.dims[1], "nbr_variables": hdr.dims[0]}
+            ret = {"section": "data_2", 
+                   "file_position": self.mat_stream.tell(), 
+                   "sizeof_type": hdr.dtype.itemsize, 
+                   "nbr_points": hdr.dims[1], 
+                   "nbr_variables": hdr.dims[0]}
+            return ret
         elif hdr.name == b"name":
-            return {"section": "name", "file_position": self.mat_stream.tell(), "sizeof_type": hdr.dtype.itemsize, "max_length": hdr.dims[0], "nbr_variables": hdr.dims[1]}
+            ret = {"section": "name", 
+                   "file_position": self.mat_stream.tell(), 
+                   "sizeof_type": hdr.dtype.itemsize, 
+                   "max_length": hdr.dims[0], 
+                   "nbr_variables": hdr.dims[1]}
+            return ret
         else:
             arr = super(DelayedVarReader4, self).read_sub_array(hdr, copy)
             return arr
@@ -1159,11 +1168,13 @@ class ResultDymolaBinary(ResultDymola):
                 raise JIOError("Not supported file format, needs to be a filename or a stream based on a file.")
         else:
             self._fname = fname
+            
+        data_sections = ["name", "dataInfo", "data_2"]
 
         if delayed_trajectory_loading:
             with open(self._fname, "rb") as f:
                 delayed = DelayedVariableLoad(f, chars_as_strings=False)
-                self.raw = delayed.get_variables(variable_names=["name", "dataInfo", "data_2"])
+                self.raw = delayed.get_variables(variable_names = data_sections)
         
             self._data_2_info = self.raw["data_2"]
             self._data_2 = {}
@@ -1171,7 +1182,7 @@ class ResultDymolaBinary(ResultDymola):
             
             self.name_lookup = self._get_name_dict()
         else:
-            self.raw = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["name", "dataInfo", "data_2"])
+            self.raw = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names = data_sections)
             self._data_2 = self.raw["data_2"]
             
             name = self.raw['name']
@@ -1187,9 +1198,8 @@ class ResultDymolaBinary(ResultDymola):
         
     def _get_data_1(self):
         if self._data_1 is None:
-            data_1 = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["data_1"])["data_1"]
-            self._data_1 = data_1
-            
+            self._data_1 = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["data_1"])["data_1"]
+
         return self._data_1
 
     data_1 = property(_get_data_1, doc = 
@@ -1203,7 +1213,7 @@ class ResultDymolaBinary(ResultDymola):
         max_length     = self._name_info["max_length"]
         nbr_variables  = self._name_info["nbr_variables"]
 
-        name_dict = fmi_util.read_name_list(encode(self._fname), file_position, sizeof_type, int(nbr_variables), int(max_length))
+        name_dict = fmi_util.read_name_list(encode(self._fname), file_position, int(nbr_variables), int(max_length))
         
         return name_dict
         
@@ -2168,10 +2178,16 @@ class ResultHandlerBinaryFile(ResultHandler):
         return header
         
     def __write_header(self, header, name):
+        """
+        Dumps the header and name to file.
+        """
         self._file.write(header.tostring(order="F"))
         self._file.write(np.compat.asbytes(name +"\0"))
         
     def _write_header(self, name, nbr_rows, nbr_cols, data_type):
+        """
+        Computes the header as well as dumps the header to file.
+        """
         header = self._data_header(name, nbr_rows, nbr_cols, data_type)
         
         self.__write_header(header, name)
