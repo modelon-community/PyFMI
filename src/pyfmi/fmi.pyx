@@ -1962,7 +1962,7 @@ cdef class FMUModelBase(ModelBase):
         
         if _override_erroneous_nominal:
             if variable_name == None:
-                variable_name = self.get_variable_by_valueref(valueref)
+                variable_name = encode(self.get_variable_by_valueref(valueref))
                 variablename = variable_name
                 
             if value == 0.0:
@@ -6030,10 +6030,11 @@ cdef class FMUModelBase2(ModelBase):
         data_variability = FMIL.fmi2_import_get_variability(variable)
         data_causality   = FMIL.fmi2_import_get_causality(variable)
         desc             = FMIL.fmi2_import_get_variable_description(variable)
+        initial          = FMIL.fmi2_import_get_initial(variable)
 
         return ScalarVariable2(name, value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                     data_variability, data_causality,
-                                    alias_kind)
+                                    alias_kind, initial)
     
     def get_derivatives_list(self):
         """

@@ -1,5 +1,16 @@
 --- CHANGELOG ---
-
+--- PyFMI-2.8.6 ---
+    * Fixed so that the written binary file is always consistent (i.e.
+      if a simulation aborts, it can still be read)
+    * Changed default loading strategiy for binary files, now the
+      trajectories are loaded on demand instead of all at the same time.
+    * Updated Master algorithm options documentation and fixed result
+      file naming.
+    * Fixed 'block_initialization' in Master algorithm when using 
+      Python 3
+    * Fixed so that .initial is set properly on ScalarVariable2.
+    * Fixed get_variable_nominal when called for valueref of variable.
+    
 --- PyFMI-2.8.5 ---
     * Added support for option 'logging' for different ODE solvers.
     

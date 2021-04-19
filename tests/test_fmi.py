@@ -119,6 +119,11 @@ class Test_FMUModelME1:
 
         nose.tools.assert_raises(FMUException, bounce.get_variable_by_valueref,7)
     
+    @testattr(stddist = True)
+    def test_get_variable_nominal_valueref(self):
+        bounce = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        assert bounce.get_variable_nominal("v") == bounce.get_variable_nominal(valueref=2)
+
     @testattr(windows_full = True)
     def test_default_experiment(self):
         model = FMUModelME1("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
@@ -943,6 +948,7 @@ class Test_FMUModelBase2:
         assert sc_x.type == fmi.FMI2_REAL, sc_x.type
         assert sc_x.variability == fmi.FMI2_CONTINUOUS, sc_x.variability
         assert sc_x.causality == fmi.FMI2_LOCAL, sc_x.causality
+        assert sc_x.initial == fmi.FMI2_INITIAL_APPROX, sc_x.initial
 
         nose.tools.assert_raises(FMUException, negated_alias.get_scalar_variable, "not_existing")
     
