@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2014 Modelon AB
+# Copyright (C) 2014-2021 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -8281,6 +8281,10 @@ def check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path):
         if not os.path.isdir(fmu):
             msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
             raise FMUException(msg)
+        if not os.path.isfile(os.path.join(fmu, 'modelDescription.xml')):
+            err_msg = "Specified fmu path '{}' needs".format(fmu)
+            err_msg += " to contain a modelDescription.xml according to the FMI specification."
+            raise FMUException(err_msg)
     else:
         # Check that the file referenced by fmu is appropriate
         if not fmu_full_path.endswith('.fmu' if isinstance(fmu_full_path, str) else encode('.fmu')):
@@ -8295,10 +8299,9 @@ cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t* co
     """
     if allow_unzipped_fmu:
         model_description_path = encode(os.path.join(decode(fmu_temp_dir), 'modelDescription.xml'))
-        version = FMIL.fmi_import_get_fmi_version_tmp(context, model_description_path)
+        return FMIL.fmi_import_get_fmi_version_tmp(context, model_description_path)
     else:
-        version = FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
-    return version
+        return FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
 
 def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 'auto',
              log_level=FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):

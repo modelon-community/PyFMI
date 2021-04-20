@@ -43,6 +43,24 @@ example_files_me1 = os.path.join(file_path, '..', 'examples', 'files', 'FMUs', '
 example_files_cs2 = os.path.join(file_path, '..', 'examples', 'files', 'FMUs', 'CS2.0')
 example_files_cs1 = os.path.join(file_path, '..', 'examples', 'files', 'FMUs', 'CS1.0')
 
+
+def _helper_unzipped_fmu_exception_invalid_dir(fmu_loader):
+    """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification.
+        The input argument is any of the FMU interfaces FMUModelME1, FMUModelME2, FMUModelCS1, FMUModelCS2 and load_fmu from pyfmi.fmi.
+    """
+    dirname = 'testingdirabc'
+    while True:
+        dirname = dirname + 'a'
+        if os.path.isdir(dirname):
+            dirname = dirname + 'a'
+        else:
+            break
+    os.mkdir(dirname)
+    err_msg = "Specified fmu path '{}' needs to contain a modelDescription.xml according to the FMI specification".format(dirname)
+    with nose.tools.assert_raises_regex(FMUException, err_msg):
+        fmu = fmu_loader(dirname, allow_unzipped_fmu = True)
+    os.removedirs(dirname)
+
 if assimulo_installed:
     class Test_FMUModelME1_Simulation:
         @testattr(stddist = True)
@@ -98,6 +116,11 @@ if assimulo_installed:
         
 
 class Test_FMUModelME1:
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exception_invalid_dir(self):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
+        _helper_unzipped_fmu_exception_invalid_dir(FMUModelME1)
 
     def _test_unzipped_fmu_helper(self, fmu_loader):
         """ Simulates the bouncing ball FMU ME1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME1 or load_fmu. """
@@ -209,6 +232,11 @@ class Test_FMUModelME1:
         assert isinstance(bounce.simulate_options(), fmi_algorithm_drivers.AssimuloFMIAlgOptions)
 
 class Test_FMUModelCS1:
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exception_invalid_dir(self):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
+        _helper_unzipped_fmu_exception_invalid_dir(FMUModelCS1)
     
     def _test_unzipped_fmu_helper(self, fmu_loader):
         """ Simulates the bouncing ball FMU CS1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS1 or load_fmu. """
@@ -384,7 +412,19 @@ class Test_FMUModelBase:
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
         
 
+class Test_LoadFMU:
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exception_invalid_dir(self):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
+        _helper_unzipped_fmu_exception_invalid_dir(load_fmu)
+
 class Test_FMUModelCS2:
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exception_invalid_dir(self):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
+        _helper_unzipped_fmu_exception_invalid_dir(FMUModelCS2)
 
     def _test_unzipped_fmu_helper(self, fmu_loader):
         """ Simulates the bouncing ball FMU CS2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS2 or load_fmu. """
@@ -699,6 +739,11 @@ if assimulo_installed:
 
             
 class Test_FMUModelME2:
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exception_invalid_dir(self):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
+        _helper_unzipped_fmu_exception_invalid_dir(FMUModelME2)
     
     def _test_unzipped_fmu_helper(self, fmu_loader):
         """ Simulates the bouncing ball FMU ME2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME2 or load_fmu. """
