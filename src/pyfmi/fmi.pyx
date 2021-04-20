@@ -1250,16 +1250,7 @@ cdef class FMUModelBase(ModelBase):
         self._fmu_temp_dir = <char*>FMIL.malloc((FMIL.strlen(fmu_temp_dir)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_temp_dir, fmu_temp_dir)
 
-        if self._allow_unzipped_fmu:
-            if not os.path.isdir(fmu):
-                msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
-                raise FMUException(msg)
-        else:
-            # Check that the file referenced by fmu is appropriate
-            if not self._fmu_full_path.endswith(".fmu"):
-                raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
-            if not os.path.isfile(self._fmu_full_path):
-                raise FMUException('Could not locate the FMU in the specified directory.')
+        check_fmu_args(self._allow_unzipped_fmu, fmu, self._fmu_full_path)
 
         #Specify FMI related callbacks
         self.callBackFunctions.logger = FMIL.fmi1_log_forwarding;
@@ -3899,17 +3890,7 @@ cdef class FMUModelBase2(ModelBase):
             self.callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
 
         self._fmu_full_path = encode(os.path.abspath(os.path.join(path,fmu)))
-        if self._allow_unzipped_fmu:
-            if not os.path.isdir(fmu):
-                msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
-                raise FMUException(msg)
-        else:
-            # Check that the file referenced by fmu is appropriate
-            if not fmu.endswith('.fmu'):
-                raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
-
-            if not os.path.isfile(self._fmu_full_path):
-                raise FMUException('Could not locate the FMU in the specified directory.')
+        check_fmu_args(self._allow_unzipped_fmu, fmu, self._fmu_full_path)
 
         # Create a struct for allocation
         self._context           = FMIL.fmi_import_allocate_context(&self.callbacks)
@@ -8295,6 +8276,22 @@ def display_path_deprecation(path):
         w += " Please specify a full path to fmu via the argument 'fmu' instead."
         logging.warning(w)
 
+def check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path):
+    """ Function utilized by two base classes and load_fmu that does the
+        error checking for the three input arguments named 'allow_unzipped_fmu', 'fmu' and
+        the constructed variable 'fmu_full_path'.
+    """
+    if allow_unzipped_fmu:
+        if not os.path.isdir(fmu):
+            msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+            raise FMUException(msg)
+    else:
+        # Check that the file referenced by fmu is appropriate
+        if not fmu_full_path.endswith('.fmu'):
+            raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
+
+        if not os.path.isfile(fmu_full_path):
+            raise FMUException('Could not locate the FMU in the specified directory.')
 
 def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 'auto',
              log_level=FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):
@@ -8362,18 +8359,8 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     fmu_temp_dir = None
     model        = None
 
-    if allow_unzipped_fmu:
-        if not os.path.isdir(fmu):
-            msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
-            raise FMUException(msg)
-    else:
-        # Check that the file referenced by fmu is appropriate
-        fmu_full_path = os.path.abspath(os.path.join(path,fmu))
-        if not fmu_full_path.endswith('.fmu'):
-            raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
-
-        if not os.path.isfile(fmu_full_path):
-            raise FMUException('Could not locate the FMU in the specified directory.')
+    fmu_full_path = os.path.abspath(os.path.join(path,fmu))
+    check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path)
 
     #Check that kind-argument is well-defined
     if not kind.lower() == 'auto':
