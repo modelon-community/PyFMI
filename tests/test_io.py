@@ -512,6 +512,28 @@ class TestResultFileBinary:
             res.get_variable_data(var)
     
     @testattr(stddist = True)
+    def test_data_matrix_delayed_loading(self):
+        res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), delayed_trajectory_loading=True)
+        
+        data_matrix = res.get_data_matrix()
+        
+        [nbr_continuous_variables, nbr_points] = data_matrix.shape
+        
+        assert nbr_continuous_variables == 68, "Number of variables is incorrect, should be 68"
+        assert nbr_points == 502, "Number of points is incorrect, should be 502"
+    
+    @testattr(stddist = True)
+    def test_data_matrix_loading(self):
+        res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), delayed_trajectory_loading=False)
+        
+        data_matrix = res.get_data_matrix()
+        
+        [nbr_continuous_variables, nbr_points] = data_matrix.shape
+        
+        assert nbr_continuous_variables == 68, "Number of variables is incorrect, should be 68"
+        assert nbr_points == 502, "Number of points is incorrect, should be 502"
+    
+    @testattr(stddist = True)
     def test_read_all_variables_from_stream(self):
         
         with open(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), "rb") as f:

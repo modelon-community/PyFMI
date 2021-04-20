@@ -1365,15 +1365,16 @@ class ResultDymolaBinary(ResultDymola):
     
     def get_data_matrix(self):
         """
-        Returns the result matrix.
+        Returns the result matrix. If delayed loading is used, this will
+        force loading of the full result matrix.
                 
         Returns::
         
-            The result data matrix.
+            The result data matrix as a numpy array
         """
+        if isinstance(self._data_2, dict):
+            return scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["data_2"])["data_2"]
         return self._data_2
-        
-
 
 class ResultHandlerMemory(ResultHandler):
     def __init__(self, model):
