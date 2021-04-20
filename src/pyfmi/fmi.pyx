@@ -1269,11 +1269,9 @@ cdef class FMUModelBase(ModelBase):
             #is correct. This is due to that the method to get the version
             #unzipps the FMU which we already have done.
             self._version = FMIL.fmi_version_1_enu
-        elif self._allow_unzipped_fmu:
-            model_description_path = encode(os.path.join(decode(fmu_temp_dir), 'modelDescription.xml'))
-            self._version = FMIL.fmi_import_get_fmi_version_tmp(self.context, model_description_path)
         else:
-            self._version = FMIL.fmi_import_get_fmi_version(self.context, self._fmu_full_path, fmu_temp_dir)
+            self._version = import_and_get_version(self.context, self._fmu_full_path,
+                                                   fmu_temp_dir, self._allow_unzipped_fmu)
 
         if self._version == FMIL.fmi_version_unknown_enu:
             last_error = decode(FMIL.jm_get_last_error(&self.callbacks))
@@ -3911,11 +3909,9 @@ cdef class FMUModelBase2(ModelBase):
             #is correct. This is due to that the method to get the version
             #unzipps the FMU which we already have done.
             self._version = FMIL.fmi_version_2_0_enu
-        elif self._allow_unzipped_fmu:
-            model_description_path = encode(os.path.join(decode(fmu_temp_dir), 'modelDescription.xml'))
-            self._version = FMIL.fmi_import_get_fmi_version_tmp(self._context, model_description_path)
         else:
-            self._version = FMIL.fmi_import_get_fmi_version(self._context, self._fmu_full_path, self._fmu_temp_dir)
+            self._version = import_and_get_version(self._context, self._fmu_full_path,
+                                                   fmu_temp_dir, self._allow_unzipped_fmu)
 
         #Check the version
         if self._version == FMIL.fmi_version_unknown_enu:
@@ -8293,6 +8289,17 @@ def check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path):
         if not os.path.isfile(fmu_full_path):
             raise FMUException('Could not locate the FMU in the specified directory.')
 
+cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t* context, char* fmu_full_path, char* fmu_temp_dir, int allow_unzipped_fmu):
+    """ Invokes the necessary FMIL functions to retrieve FMI version while accounting
+        for the conditional 'allow_unzipped_fmu'.
+    """
+    if allow_unzipped_fmu:
+        model_description_path = encode(os.path.join(decode(fmu_temp_dir), 'modelDescription.xml'))
+        version = FMIL.fmi_import_get_fmi_version_tmp(context, model_description_path)
+    else:
+        version = FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
+    return version
+
 def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 'auto',
              log_level=FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):
     """
@@ -8395,12 +8402,8 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
 
     #Get the FMI version of the provided model
     fmu_temp_dir = encode(fmu) if allow_unzipped_fmu else encode(create_temp_dir())
-    if allow_unzipped_fmu:
-        model_description_path = encode(os.path.join(decode(fmu_temp_dir), 'modelDescription.xml'))
-        version = FMIL.fmi_import_get_fmi_version_tmp(context, model_description_path)
-    else:
-        fmu_full_path = encode(fmu_full_path)
-        version = FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
+    fmu_full_path = encode(fmu_full_path)
+    version = import_and_get_version(context, fmu_full_path, fmu_temp_dir, allow_unzipped_fmu)
 
     #Check the version
     if version == FMIL.fmi_version_unknown_enu:
