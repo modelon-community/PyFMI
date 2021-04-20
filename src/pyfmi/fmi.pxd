@@ -117,6 +117,7 @@ cdef class FMUModelBase(ModelBase):
     cdef public object _npoints
     cdef public object _enable_logging
     cdef public object _pyEventInfo
+    cdef object        _fmu_full_path
     cdef int _version
     cdef int _instantiated_fmu
     cdef int _allow_unzipped_fmu

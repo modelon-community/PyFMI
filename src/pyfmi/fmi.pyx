@@ -8283,7 +8283,7 @@ def check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path):
             raise FMUException(msg)
     else:
         # Check that the file referenced by fmu is appropriate
-        if not fmu_full_path.endswith('.fmu'):
+        if not fmu_full_path.endswith('.fmu' if isinstance(fmu_full_path, str) else encode('.fmu')):
             raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
 
         if not os.path.isfile(fmu_full_path):

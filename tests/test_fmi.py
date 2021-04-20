@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2019 Modelon AB
+# Copyright (C) 2019-2021 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 import nose
 import os
 import numpy as np
+from zipfile import ZipFile
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
@@ -27,6 +28,7 @@ import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
 from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
 from pyfmi.common.io import ResultHandler
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
+from pyfmi.common.core import create_temp_dir
 
 assimulo_installed = True
 try:
@@ -35,6 +37,11 @@ except ImportError:
     assimulo_installed = False
 
 file_path = os.path.dirname(os.path.abspath(__file__))
+
+example_files_me2 = os.path.join(file_path, '..', 'examples', 'files', 'FMUs', 'ME2.0')
+example_files_me1 = os.path.join(file_path, '..', 'examples', 'files', 'FMUs', 'ME1.0')
+example_files_cs2 = os.path.join(file_path, '..', 'examples', 'files', 'FMUs', 'CS2.0')
+example_files_cs1 = os.path.join(file_path, '..', 'examples', 'files', 'FMUs', 'CS1.0')
 
 if assimulo_installed:
     class Test_FMUModelME1_Simulation:
@@ -91,6 +98,30 @@ if assimulo_installed:
         
 
 class Test_FMUModelME1:
+
+    def _test_unzipped_fmu_helper(self, fmu_loader):
+        """ Simulates the bouncing ball FMU ME1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME1 or load_fmu. """
+        tol = 1e-4
+        fmu_dir = create_temp_dir()
+        fmu = os.path.join(example_files_me1, 'bouncingBall.fmu')
+        with ZipFile(fmu, 'r') as fmu_zip:
+            fmu_zip.extractall(path=fmu_dir)
+
+        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
+        res = unzipped_fmu.simulate(final_time = 2.0)
+        value = np.abs(res.final('h') - (0.0424044))
+        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu1(self):
+        """ Test load and simulate unzipped ME FMU 1.0 using FMUModelME1 """
+        self._test_unzipped_fmu_helper(FMUModelME1)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu2(self):
+        """ Test load and simulate unzipped ME FMU 1.0 using load_fmu """
+        self._test_unzipped_fmu_helper(load_fmu)
+
     @testattr(stddist = True)
     def test_get_time_varying_variables(self):
         model = FMUModelME1("RLC_Circuit.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
@@ -178,6 +209,29 @@ class Test_FMUModelME1:
         assert isinstance(bounce.simulate_options(), fmi_algorithm_drivers.AssimuloFMIAlgOptions)
 
 class Test_FMUModelCS1:
+    
+    def _test_unzipped_fmu_helper(self, fmu_loader):
+        """ Simulates the bouncing ball FMU CS1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS1 or load_fmu. """
+        tol = 1e-2
+        fmu_dir = create_temp_dir()
+        fmu = os.path.join(example_files_cs1, 'bouncingBall.fmu')
+        with ZipFile(fmu, 'r') as fmu_zip:
+            fmu_zip.extractall(path=fmu_dir)
+
+        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
+        res = unzipped_fmu.simulate(final_time = 2.0)
+        value = np.abs(res.final('h') - (0.0424044))
+        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu1(self):
+        """ Test load and simulate unzipped CS FMU 1.0 using FMUModelME1 """
+        self._test_unzipped_fmu_helper(FMUModelCS1)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu2(self):
+        """ Test load and simulate unzipped CS FMU 1.0 using load_fmu """
+        self._test_unzipped_fmu_helper(load_fmu)
     
     @testattr(stddist = True)
     def test_custom_result_handler(self):
@@ -331,6 +385,30 @@ class Test_FMUModelBase:
         
 
 class Test_FMUModelCS2:
+
+    def _test_unzipped_fmu_helper(self, fmu_loader):
+        """ Simulates the bouncing ball FMU CS2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS2 or load_fmu. """
+        tol = 1e-2
+        fmu_dir = create_temp_dir()
+        fmu = os.path.join(example_files_cs2, 'bouncingBall.fmu')
+        with ZipFile(fmu, 'r') as fmu_zip:
+            fmu_zip.extractall(path=fmu_dir)
+
+        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
+        res = unzipped_fmu.simulate(final_time = 2.0)
+        value = np.abs(res.final('h') - (0.0424044))
+        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu1(self):
+        """ Test load and simulate unzipped CS FMU 2.0 using FMUModelME1 """
+        self._test_unzipped_fmu_helper(FMUModelCS2)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu2(self):
+        """ Test load and simulate unzipped CS FMU 2.0 using load_fmu """
+        self._test_unzipped_fmu_helper(load_fmu)
+
     @testattr(stddist = True)
     def test_log_file_name(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu")
@@ -621,6 +699,29 @@ if assimulo_installed:
 
             
 class Test_FMUModelME2:
+    
+    def _test_unzipped_fmu_helper(self, fmu_loader):
+        """ Simulates the bouncing ball FMU ME2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME2 or load_fmu. """
+        tol = 1e-4
+        fmu_dir = create_temp_dir()
+        fmu = os.path.join(example_files_me2, 'bouncingBall.fmu')
+        with ZipFile(fmu, 'r') as fmu_zip:
+            fmu_zip.extractall(path=fmu_dir)
+
+        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
+        res = unzipped_fmu.simulate(final_time = 2.0)
+        value = np.abs(res.final('h') - (0.0424044))
+        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu1(self):
+        """ Test load and simulate unzipped ME FMU 2.0 using FMUModelME1 """
+        self._test_unzipped_fmu_helper(FMUModelME2)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu2(self):
+        """ Test load and simulate unzipped ME FMU 2.0 using load_fmu """
+        self._test_unzipped_fmu_helper(load_fmu)
 
     @testattr(stddist = True)
     def test_unzipped_fmu_exceptions(self):
