@@ -49,6 +49,24 @@ def _helper_unzipped_fmu_exception_invalid_dir(fmu_loader):
         with np.testing.assert_raises_regex(FMUException, err_msg):
             fmu = fmu_loader(temp_dir, allow_unzipped_fmu = True)
 
+
+def _helper_unzipped_fmu_exception_invalid_dir(fmu_loader):
+    """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification.
+        The input argument is any of the FMU interfaces FMUModelME1, FMUModelME2, FMUModelCS1, FMUModelCS2 and load_fmu from pyfmi.fmi.
+    """
+    dirname = 'testingdirabc'
+    while True:
+        dirname = dirname + 'a'
+        if os.path.isdir(dirname):
+            dirname = dirname + 'a'
+        else:
+            break
+    os.mkdir(dirname)
+    err_msg = "Specified fmu path '{}' needs to contain a modelDescription.xml according to the FMI specification".format(dirname)
+    with nose.tools.assert_raises_regex(FMUException, err_msg):
+        fmu = fmu_loader(dirname, allow_unzipped_fmu = True)
+    os.removedirs(dirname)
+
 if assimulo_installed:
     class Test_FMUModelME1_Simulation:
         @testattr(stddist = True)
@@ -220,7 +238,6 @@ class Test_FMUModelME1:
         assert isinstance(bounce.simulate_options(), fmi_algorithm_drivers.AssimuloFMIAlgOptions)
 
 class Test_FMUModelCS1:
-
     @testattr(stddist = True)
     def test_unzipped_fmu_exception_invalid_dir(self):
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
@@ -409,6 +426,13 @@ class Test_FMUModelBase:
 
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
 
+
+class Test_LoadFMU:
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exception_invalid_dir(self):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
+        _helper_unzipped_fmu_exception_invalid_dir(load_fmu)
 
 class Test_LoadFMU:
 
