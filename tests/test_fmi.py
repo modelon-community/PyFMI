@@ -750,6 +750,29 @@ if assimulo_installed:
 
 class Test_FMUModelME2:
 
+    def _test_unzipped_fmu_helper(self, fmu_loader):
+        """ Simulates the bouncing ball FMU ME2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME2 or load_fmu. """
+        tol = 1e-4
+        fmu_dir = create_temp_dir()
+        fmu = os.path.join(example_files_me2, 'bouncingBall.fmu')
+        with ZipFile(fmu, 'r') as fmu_zip:
+            fmu_zip.extractall(path=fmu_dir)
+
+        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
+        res = unzipped_fmu.simulate(final_time = 2.0)
+        value = np.abs(res.final('h') - (0.0424044))
+        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu1(self):
+        """ Test load and simulate unzipped ME FMU 2.0 using FMUModelME1 """
+        self._test_unzipped_fmu_helper(FMUModelME2)
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu2(self):
+        """ Test load and simulate unzipped ME FMU 2.0 using load_fmu """
+        self._test_unzipped_fmu_helper(load_fmu)
+
     @testattr(stddist = True)
     def test_unzipped_fmu_exception_invalid_dir(self):
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
