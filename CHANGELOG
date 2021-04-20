@@ -1,5 +1,5 @@
 --- CHANGELOG ---
---- TBD ---
+--- PyFMI-2.8.7 ---
     * Added safety check for updated binary files which can cause 
       issues.
     * Fixed so that a matrix of all the result from a binary file can 

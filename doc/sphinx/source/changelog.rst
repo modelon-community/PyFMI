@@ -2,6 +2,12 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.8.7 ---
+    * Added safety check for updated binary files which can cause 
+      issues.
+    * Fixed so that a matrix of all the result from a binary file can 
+      be retrieved even if delayed loading is used.
+      
 --- PyFMI-2.8.6 ---
     * Fixed so that the written binary file is always consistent (i.e.
       if a simulation aborts, it can still be read)
