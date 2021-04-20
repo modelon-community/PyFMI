@@ -1195,9 +1195,13 @@ class ResultDymolaBinary(ResultDymola):
         self._delayed_loading = delayed_trajectory_loading
         self._description = None  
         self._data_1      = None
+        self._mtime       = os.path.getmtime(self._fname)
         
     def _get_data_1(self):
         if self._data_1 is None:
+            if self._mtime != os.path.getmtime(self._fname):
+                raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
+            
             self._data_1 = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["data_1"])["data_1"]
 
         return self._data_1
@@ -1226,6 +1230,9 @@ class ResultDymolaBinary(ResultDymola):
             sizeof_type    = self._data_2_info["sizeof_type"]
             nbr_points     = self._data_2_info["nbr_points"]
             nbr_variables  = self._data_2_info["nbr_variables"]
+            
+            if self._mtime != os.path.getmtime(self._fname):
+                raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
             
             self._data_2[data_index] = fmi_util.read_trajectory(encode(self._fname), data_index, file_position, sizeof_type, int(nbr_points), int(nbr_variables))
             

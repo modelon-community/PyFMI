@@ -18,7 +18,7 @@
 import nose
 import os
 import numpy as np
-
+import time
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
@@ -501,6 +501,35 @@ class TestResultFileBinary:
         res = ResultDymolaBinary('CoupledClutches_result.mat')
         
         assert res.description[res.get_variable_index("J1.phi")] == "", "Description is not empty, " + res.description[res.get_variable_index("J1.phi")]
+    
+    @testattr(stddist = True)
+    def test_overwriting_results(self):
+        model = Dummy_FMUModelME1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model.initialize()
+        
+        opts = model.simulate_options()
+        opts["result_store_variable_description"] = False
+        
+        result_writer = ResultHandlerBinaryFile(model)
+        result_writer.set_options(opts)
+        result_writer.simulation_start()
+        result_writer.initialize_complete()
+        result_writer.integration_point()
+        result_writer.simulation_end()
+        
+        res = ResultDymolaBinary('CoupledClutches_result.mat')
+        
+        time.sleep(1) 
+        
+        result_writer = ResultHandlerBinaryFile(model)
+        result_writer.set_options(opts)
+        result_writer.simulation_start()
+        result_writer.initialize_complete()
+        result_writer.integration_point()
+        result_writer.integration_point()
+        result_writer.simulation_end()
+        
+        nose.tools.assert_raises(JIOError,res.get_variable_data, "J1.phi")
     
     @testattr(stddist = True)
     def test_read_all_variables(self):
