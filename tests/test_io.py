@@ -18,7 +18,7 @@
 import nose
 import os
 import numpy as np
-
+import time
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
@@ -503,6 +503,35 @@ class TestResultFileBinary:
         assert res.description[res.get_variable_index("J1.phi")] == "", "Description is not empty, " + res.description[res.get_variable_index("J1.phi")]
     
     @testattr(stddist = True)
+    def test_overwriting_results(self):
+        model = Dummy_FMUModelME1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model.initialize()
+        
+        opts = model.simulate_options()
+        opts["result_store_variable_description"] = False
+        
+        result_writer = ResultHandlerBinaryFile(model)
+        result_writer.set_options(opts)
+        result_writer.simulation_start()
+        result_writer.initialize_complete()
+        result_writer.integration_point()
+        result_writer.simulation_end()
+        
+        res = ResultDymolaBinary('CoupledClutches_result.mat')
+        
+        time.sleep(1) 
+        
+        result_writer = ResultHandlerBinaryFile(model)
+        result_writer.set_options(opts)
+        result_writer.simulation_start()
+        result_writer.initialize_complete()
+        result_writer.integration_point()
+        result_writer.integration_point()
+        result_writer.simulation_end()
+        
+        nose.tools.assert_raises(JIOError,res.get_variable_data, "J1.phi")
+    
+    @testattr(stddist = True)
     def test_read_all_variables(self):
         res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
         
@@ -510,6 +539,28 @@ class TestResultFileBinary:
         
         for var in res.name:
             res.get_variable_data(var)
+    
+    @testattr(stddist = True)
+    def test_data_matrix_delayed_loading(self):
+        res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), delayed_trajectory_loading=True)
+        
+        data_matrix = res.get_data_matrix()
+        
+        [nbr_continuous_variables, nbr_points] = data_matrix.shape
+        
+        assert nbr_continuous_variables == 68, "Number of variables is incorrect, should be 68"
+        assert nbr_points == 502, "Number of points is incorrect, should be 502"
+    
+    @testattr(stddist = True)
+    def test_data_matrix_loading(self):
+        res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), delayed_trajectory_loading=False)
+        
+        data_matrix = res.get_data_matrix()
+        
+        [nbr_continuous_variables, nbr_points] = data_matrix.shape
+        
+        assert nbr_continuous_variables == 68, "Number of variables is incorrect, should be 68"
+        assert nbr_points == 502, "Number of points is incorrect, should be 502"
     
     @testattr(stddist = True)
     def test_read_all_variables_from_stream(self):
