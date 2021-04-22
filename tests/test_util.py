@@ -21,6 +21,9 @@ import numpy as np
 
 from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, __ForTestingFMUModelME2
 
+def get_examples_folder():
+    return os.path.join(os.path.abspath(__file__), '..', 'examples')
+
 class Dummy_FMUModelME1(FMUModelME1):
     #Override properties
     time = None
