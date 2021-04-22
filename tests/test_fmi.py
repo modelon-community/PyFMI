@@ -19,6 +19,7 @@ import nose
 import os
 import numpy as np
 from zipfile import ZipFile
+import tempfile
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
@@ -43,18 +44,10 @@ def _helper_unzipped_fmu_exception_invalid_dir(fmu_loader):
     """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification.
         The input argument is any of the FMU interfaces FMUModelME1, FMUModelME2, FMUModelCS1, FMUModelCS2 and load_fmu from pyfmi.fmi.
     """
-    dirname = 'testingdirabc'
-    while True:
-        dirname = dirname + 'a'
-        if os.path.isdir(dirname):
-            dirname = dirname + 'a'
-        else:
-            break
-    os.mkdir(dirname)
-    err_msg = "Specified fmu path '{}' needs to contain a modelDescription.xml according to the FMI specification".format(dirname)
-    with nose.tools.assert_raises_regex(FMUException, err_msg):
-        fmu = fmu_loader(dirname, allow_unzipped_fmu = True)
-    os.removedirs(dirname)
+    err_msg = "Specified fmu path '.*\\' needs to contain a modelDescription.xml according to the FMI specification"
+    with tempfile.TemporaryDirectory() as temp_dir:
+        with np.testing.assert_raises_regex(FMUException, err_msg):
+            fmu = fmu_loader(temp_dir, allow_unzipped_fmu = True)
 
 if assimulo_installed:
     class Test_FMUModelME1_Simulation:
