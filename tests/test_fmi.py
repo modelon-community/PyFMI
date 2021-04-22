@@ -778,7 +778,7 @@ class Test_FMUModelME2:
         """ Simulates the bouncing ball FMU ME2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME2 or load_fmu. """
         tol = 1e-4
         fmu_dir = create_temp_dir()
-        fmu = os.path.join(example_files_me2, 'bouncingBall.fmu')
+        fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')
         with ZipFile(fmu, 'r') as fmu_zip:
             fmu_zip.extractall(path=fmu_dir)
 
@@ -789,7 +789,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_unzipped_fmu1(self):
-        """ Test load and simulate unzipped ME FMU 2.0 using FMUModelME1 """
+        """ Test load and simulate unzipped ME FMU 2.0 using FMUModelME2 """
         self._test_unzipped_fmu_helper(FMUModelME2)
 
     @testattr(stddist = True)
