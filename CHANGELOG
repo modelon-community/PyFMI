@@ -1,4 +1,8 @@
 --- CHANGELOG ---
+--- TBD ---
+    * Fixed segfault when storing data from models with a huge number of
+      variables.
+      
 --- PyFMI-2.8.7 ---
     * Added safety check for updated binary files which can cause 
       issues.

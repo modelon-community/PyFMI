@@ -371,8 +371,14 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars):
         if desc_length_trial+1 > desc_length:
              desc_length = desc_length_trial + 1
     
-    desc_output = <char*>FMIL.calloc((items+1)*desc_length,sizeof(char))
     name_output = <char*>FMIL.calloc((items+1)*name_length,sizeof(char))
+    if name_output == NULL:
+        raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
+                               "Please reduce the number of stored variables by using filters.")
+    desc_output = <char*>FMIL.calloc((items+1)*desc_length,sizeof(char))
+    if desc_output == NULL:
+        raise fmi.FMUException("Failed to allocate memory for storing the description of the variables. " \
+                               "Please reduce the number of stored variables or disable storing of the description.")
     
     for i in range(items+1):
         ctmp_name = name[i]
@@ -393,7 +399,44 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars):
     FMIL.free(desc_output)
     
     return name_length, py_name_string, desc_length, py_desc_string
+
+cpdef convert_sorted_vars_name(list sorted_vars):
+    cdef int items = len(sorted_vars)
+    cdef int i, name_length_trial, kn
+    cdef list name = [encode("time")]
+    cdef int name_length = len(name[0])+1
+    cdef char *name_output
+    cdef char *ctmp_name
     
+    for i in range(items):
+        var = sorted_vars[i]
+        tmp_name = encode(var.name)
+        name.append(tmp_name)
+        
+        name_length_trial = len(tmp_name)
+        
+        if name_length_trial+1 > name_length:
+             name_length = name_length_trial + 1
+    
+    name_output = <char*>FMIL.calloc((items+1)*name_length,sizeof(char))
+    if name_output == NULL:
+        raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
+                               "Please reduce the number of stored variables by using filters.")
+
+    for i in range(items+1):
+        ctmp_name = name[i]
+
+        name_length_trial = len(ctmp_name)
+        kn = i*name_length
+        
+        FMIL.memcpy(&name_output[kn], ctmp_name, name_length_trial)
+    
+    py_name_string = name_output[:(items+1)*name_length]
+    
+    FMIL.free(name_output)
+    
+    return name_length, py_name_string
+
 
 cpdef convert_scalarvariable_name_to_str(list data):
     cdef int length = 0
