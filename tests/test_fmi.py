@@ -250,6 +250,16 @@ class Test_FMUModelCS1:
         model = FMUModelCS1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False, log_file_name="Test_log.txt")
         assert os.path.exists("Test_log.txt")
 
+    @testattr(stddist = True)
+    def test_erreneous_ncp(self):
+        model = Dummy_FMUModelCS1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        
+        opts = model.simulate_options()
+        opts["ncp"] = 0
+        nose.tools.assert_raises(FMUException, model.simulate(options=opts))
+        opts["ncp"] = -1
+        nose.tools.assert_raises(FMUException, model.simulate(options=opts))
+
 class Test_FMUModelBase:
     @testattr(stddist = True)
     def test_unicode_description(self):
@@ -338,6 +348,17 @@ class Test_FMUModelCS2:
         
         path, file_name = os.path.split(full_path)
         assert model.get_log_file_name() == file_name.replace(".","_")[:-4]+"_log.txt"
+
+    @testattr(stddist = True)
+    def test_erreneous_ncp(self):
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu")
+        model = FMUModelCS2(full_path, _connect_dll=False)
+        
+        opts = model.simulate_options()
+        opts["ncp"] = 0
+        nose.tools.assert_raises(FMUException, model.simulate(options=opts))
+        opts["ncp"] = -1
+        nose.tools.assert_raises(FMUException, model.simulate(options=opts))
 
 if assimulo_installed:
     class Test_FMUModelME2_Simulation:
@@ -610,6 +631,7 @@ if assimulo_installed:
             run_case(0,1,"RodasODE")
             run_case(0,1,"LSODAR")
             run_case(0,1,"LSODAR")
+            
 
             
 class Test_FMUModelME2:
