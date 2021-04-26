@@ -834,6 +834,8 @@ class FMICSAlg(AlgorithmBase):
         Helper function that sets options for FMICS algorithm.
         """
         # no of communication points
+        if self.options['ncp'] <= 0:
+            raise fmi.FMUException(f"Setting {self.options['ncp']} as 'ncp' is not allowed for a CS FMU. Must be greater than 0.")
         self.ncp = self.options['ncp']
         
         self.write_scaled_result = self.options['write_scaled_result']
