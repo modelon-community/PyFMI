@@ -611,6 +611,20 @@ class TestResultFileBinary:
         nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
     
     @testattr(stddist = True)
+    def test_many_variables_long_descriptions(self):
+        """
+        Tests that large FMUs with lots of variables and huge length of descriptions gives
+        a proper exception instead of a segfault. The problem occurs around 100k variables
+        with 20k characters in the longest description.
+        """
+        model = FMUModelME2("Large.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        res = ResultHandlerBinaryFile(model)
+        
+        res.set_options(model.simulate_options())
+        nose.tools.assert_raises(FMUException,res.simulation_start)
+        
+    @testattr(stddist = True)
     def test_work_flow_me2(self):
         model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()

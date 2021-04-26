@@ -2274,14 +2274,15 @@ class ResultHandlerBinaryFile(ResultHandler):
         len_name_items = len(sorted_vars)+1
         len_desc_items = len_name_items
         
-        len_name_data, name_data, len_desc_data, desc_data = fmi_util.convert_sorted_vars_name_desc(sorted_vars)
+        if opts["result_store_variable_description"]:
+            len_name_data, name_data, len_desc_data, desc_data = fmi_util.convert_sorted_vars_name_desc(sorted_vars)
+        else:
+            len_name_data, name_data = fmi_util.convert_sorted_vars_name(sorted_vars)
+            len_desc_data = 1
+            desc_data = encode(" "*len_desc_items)
         
         self._write_header("name", len_name_data, len_name_items, "char")
         self.dump_native_data(name_data)
-        
-        if not opts["result_store_variable_description"]:
-            len_desc_data = 1
-            desc_data = encode(" "*len_desc_items)
         
         self._write_header("description", len_desc_data, len_desc_items, "char")
         self.dump_native_data(desc_data)
