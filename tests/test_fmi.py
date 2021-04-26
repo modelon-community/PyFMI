@@ -256,9 +256,9 @@ class Test_FMUModelCS1:
         
         opts = model.simulate_options()
         opts["ncp"] = 0
-        nose.tools.assert_raises(FMUException, model.simulate(options=opts))
+        nose.tools.assert_raises(FMUException, model.simulate, options=opts)
         opts["ncp"] = -1
-        nose.tools.assert_raises(FMUException, model.simulate(options=opts))
+        nose.tools.assert_raises(FMUException, model.simulate, options=opts)
 
 class Test_FMUModelBase:
     @testattr(stddist = True)
@@ -356,9 +356,9 @@ class Test_FMUModelCS2:
         
         opts = model.simulate_options()
         opts["ncp"] = 0
-        nose.tools.assert_raises(FMUException, model.simulate(options=opts))
+        nose.tools.assert_raises(FMUException, model.simulate, options=opts)
         opts["ncp"] = -1
-        nose.tools.assert_raises(FMUException, model.simulate(options=opts))
+        nose.tools.assert_raises(FMUException, model.simulate, options=opts)
 
 if assimulo_installed:
     class Test_FMUModelME2_Simulation:
