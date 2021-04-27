@@ -8298,8 +8298,7 @@ cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t* co
         for the conditional 'allow_unzipped_fmu'.
     """
     if allow_unzipped_fmu:
-        model_description_path = encode(os.path.join(decode(fmu_temp_dir), 'modelDescription.xml'))
-        return FMIL.fmi_import_get_fmi_version_tmp(context, model_description_path)
+        return FMIL.fmi_import_get_fmi_version(context, NULL, fmu_temp_dir)
     else:
         return FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
 
