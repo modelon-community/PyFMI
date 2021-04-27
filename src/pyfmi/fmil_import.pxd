@@ -587,7 +587,6 @@ cdef extern from 'fmilib.h':
     char * fmi1_get_platform()
     char * fmi1_status_to_string(int)
     fmi_version_enu_t fmi_import_get_fmi_version(fmi_import_context_t*, char*, char*)
-    fmi_version_enu_t fmi_import_get_fmi_version_tmp(fmi_import_context_t*, char*)
     int fmi_import_rmdir(jm_callbacks*, char *)
 
 
