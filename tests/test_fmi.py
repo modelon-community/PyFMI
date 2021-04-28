@@ -110,7 +110,7 @@ class Test_FMUModelME1:
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
         _helper_unzipped_fmu_exception_invalid_dir(FMUModelME1)
 
-    def _test_unzipped_fmu_helper(self, fmu_loader):
+    def _test_unzipped_bouncing_ball(self, fmu_loader):
         """ Simulates the bouncing ball FMU ME1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME1 or load_fmu. """
         tol = 1e-4
         fmu_dir = create_temp_dir()
@@ -126,12 +126,12 @@ class Test_FMUModelME1:
     @testattr(stddist = True)
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped ME FMU 1.0 using FMUModelME1 """
-        self._test_unzipped_fmu_helper(FMUModelME1)
+        self._test_unzipped_bouncing_ball(FMUModelME1)
     
     @testattr(stddist = True)
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped ME FMU 1.0 using load_fmu """
-        self._test_unzipped_fmu_helper(load_fmu)
+        self._test_unzipped_bouncing_ball(load_fmu)
 
     @testattr(stddist = True)
     def test_get_time_varying_variables(self):
@@ -226,7 +226,7 @@ class Test_FMUModelCS1:
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
         _helper_unzipped_fmu_exception_invalid_dir(FMUModelCS1)
     
-    def _test_unzipped_fmu_helper(self, fmu_loader):
+    def _test_unzipped_bouncing_ball(self, fmu_loader):
         """ Simulates the bouncing ball FMU CS1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS1 or load_fmu. """
         tol = 1e-2
         fmu_dir = create_temp_dir()
@@ -242,12 +242,12 @@ class Test_FMUModelCS1:
     @testattr(stddist = True)
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped CS FMU 1.0 using FMUModelCS1 """
-        self._test_unzipped_fmu_helper(FMUModelCS1)
+        self._test_unzipped_bouncing_ball(FMUModelCS1)
     
     @testattr(stddist = True)
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped CS FMU 1.0 using load_fmu """
-        self._test_unzipped_fmu_helper(load_fmu)
+        self._test_unzipped_bouncing_ball(load_fmu)
     
     @testattr(stddist = True)
     def test_custom_result_handler(self):
@@ -414,7 +414,7 @@ class Test_FMUModelCS2:
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
         _helper_unzipped_fmu_exception_invalid_dir(FMUModelCS2)
 
-    def _test_unzipped_fmu_helper(self, fmu_loader):
+    def _test_unzipped_bouncing_ball(self, fmu_loader):
         """ Simulates the bouncing ball FMU CS2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS2 or load_fmu. """
         tol = 1e-2
         fmu_dir = create_temp_dir()
@@ -430,12 +430,12 @@ class Test_FMUModelCS2:
     @testattr(stddist = True)
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped CS FMU 2.0 using FMUModelCS2 """
-        self._test_unzipped_fmu_helper(FMUModelCS2)
+        self._test_unzipped_bouncing_ball(FMUModelCS2)
     
     @testattr(stddist = True)
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped CS FMU 2.0 using load_fmu """
-        self._test_unzipped_fmu_helper(load_fmu)
+        self._test_unzipped_bouncing_ball(load_fmu)
 
     @testattr(stddist = True)
     def test_log_file_name(self):
@@ -733,7 +733,7 @@ class Test_FMUModelME2:
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
         _helper_unzipped_fmu_exception_invalid_dir(FMUModelME2)
     
-    def _test_unzipped_fmu_helper(self, fmu_loader):
+    def _test_unzipped_bouncing_ball(self, fmu_loader):
         """ Simulates the bouncing ball FMU ME2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME2 or load_fmu. """
         tol = 1e-4
         fmu_dir = create_temp_dir()
@@ -749,12 +749,12 @@ class Test_FMUModelME2:
     @testattr(stddist = True)
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped ME FMU 2.0 using FMUModelME2 """
-        self._test_unzipped_fmu_helper(FMUModelME2)
+        self._test_unzipped_bouncing_ball(FMUModelME2)
     
     @testattr(stddist = True)
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped ME FMU 2.0 using load_fmu """
-        self._test_unzipped_fmu_helper(load_fmu)
+        self._test_unzipped_bouncing_ball(load_fmu)
 
     @testattr(stddist = True)
     def test_unzipped_fmu_exceptions(self):
