@@ -1193,7 +1193,41 @@ cdef class FMUModelBase(ModelBase):
     def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
-        Constructor.
+        Constructor of the model.
+
+        Parameters::
+
+            fmu --
+                Name of the fmu as a string.
+
+            path [DEPRECATED] --
+                This option is DEPRECATED and will be removed. Please
+                use the option "fmu" instead.
+                Path to the fmu-directory.
+                Default: '.' (working directory)
+
+            enable_logging [DEPRECATED] --
+                This option is DEPRECATED and will be removed. Please
+                use the option "log_level" instead.
+
+            log_file_name --
+                Filename for file used to save logmessages.
+                Default: "" (Generates automatically)
+
+            log_level --
+                Determines the logging output. Can be set between 0
+                (no logging) and 7 (everything).
+                Default: 2 (log error messages)
+
+            allow_unzipped_fmu --
+                If set to True, the argument 'fmu' can be a path specifying a directory
+                to an unzipped FMU. The structure of the unzipped FMU must conform
+                to the FMI specification.
+                Default: False
+
+        Returns::
+
+            A model as an object from the class FMUModelBase
         """
         cdef int status
         cdef int version
