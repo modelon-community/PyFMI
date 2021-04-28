@@ -145,7 +145,6 @@ class Test_FMUModelME1:
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped ME FMU 1.0 using FMUModelME1 """
         self._test_unzipped_bouncing_ball(FMUModelME1)
-
     @testattr(stddist = True)
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped ME FMU 1.0 using load_fmu """
@@ -242,7 +241,6 @@ class Test_FMUModelCS1:
     def test_unzipped_fmu_exception_invalid_dir(self):
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
         _helper_unzipped_fmu_exception_invalid_dir(FMUModelCS1)
-
     def _test_unzipped_bouncing_ball(self, fmu_loader):
         """ Simulates the bouncing ball FMU CS1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS1 or load_fmu. """
         tol = 1e-2
@@ -260,12 +258,10 @@ class Test_FMUModelCS1:
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped CS FMU 1.0 using FMUModelCS1 """
         self._test_unzipped_bouncing_ball(FMUModelCS1)
-
     @testattr(stddist = True)
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped CS FMU 1.0 using load_fmu """
         self._test_unzipped_bouncing_ball(load_fmu)
-
     @testattr(stddist = True)
     def test_custom_result_handler(self):
         model = Dummy_FMUModelCS1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
@@ -465,7 +461,6 @@ class Test_FMUModelCS2:
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped CS FMU 2.0 using FMUModelCS2 """
         self._test_unzipped_bouncing_ball(FMUModelCS2)
-
     @testattr(stddist = True)
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped CS FMU 2.0 using load_fmu """
@@ -801,7 +796,6 @@ class Test_FMUModelME2:
     def test_unzipped_fmu_exception_invalid_dir(self):
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
         _helper_unzipped_fmu_exception_invalid_dir(FMUModelME2)
-
     def _test_unzipped_bouncing_ball(self, fmu_loader):
         """ Simulates the bouncing ball FMU ME2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME2 or load_fmu. """
         tol = 1e-4
