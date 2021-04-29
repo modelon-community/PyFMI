@@ -3346,9 +3346,6 @@ cdef class FMUModelME1(FMUModelBase):
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
 
-        if self._log_stream:
-            self._log_stream = None
-
     cpdef _get_time(self):
         return self.__t
 
@@ -6954,9 +6951,6 @@ cdef class FMUModelCS2(FMUModelBase2):
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
 
-        if self._log_stream:
-            self._log_stream = None
-
     cpdef _get_time(self):
         """
         Returns the current time of the simulation.
@@ -7588,9 +7582,6 @@ cdef class FMUModelME2(FMUModelBase2):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
-
-        if self._log_stream:
-            self._log_stream = None
 
     cpdef _get_time(self):
         """
