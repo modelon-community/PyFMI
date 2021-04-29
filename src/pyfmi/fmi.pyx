@@ -30,6 +30,7 @@ import fnmatch
 import re
 from collections import OrderedDict
 cimport cython
+from io import StringIO, TextIOWrapper
 
 import scipy.sparse as sp
 import numpy as N
@@ -187,13 +188,24 @@ cdef class ModelBase:
     Abstract Model class containing base functionality.
     """
 
-    def __init__(self):
+    def __init__(self, log_is_stream= False):
         self.cache = {}
         self.file_object = None
+        self.log_is_stream = 1 if log_is_stream else 0
         self._additional_logger = None
         self._current_log_size = 0
         self._max_log_size = 1024**3*2 #About 2GB limit
         self._max_log_size_msg_sent = False
+        self.log_stream = None
+
+    def _set_log_stream(self, stream):
+        """ Function that sets the class property 'log_stream' and does error handling. """
+        if not isinstance(stream, (StringIO, TextIOWrapper)):
+            raise FMUException("TODO")
+        if stream.closed:
+            raise FMUException("TODO1")
+
+        self.log_stream = stream
 
     def set(self, variable_name, value):
         """
@@ -565,11 +577,22 @@ cdef class ModelBase:
     def _log_open(self):
         if self.file_object:
             return True
+        elif self._log_stream_is_set():
+            return True
         else:
             return False
 
+    def _log_stream_is_open(self):
+        """ Returns True or False based on if logging is done to a stream and if it is open or closed. """
+        return self._log_stream_is_set() and not self.log_stream.closed
+
+    def _log_stream_is_set(self):
+        """ Retrurns True or False based on if logging is done to a stream. """
+        return self.log_is_stream and self.log_stream is not None
+
     def _open_log_file(self):
-        if self._fmu_log_name != NULL:
+        """ Opens the log file if we are not logging into a given stream. """
+        if not self.log_is_stream and self._fmu_log_name != NULL:
             self.file_object = open(self._fmu_log_name,'a')
 
     def _close_log_file(self):
@@ -607,6 +630,8 @@ cdef class ModelBase:
                     if (f != NULL):
                         FMIL.fprintf(f, "FMIL: module = %s, log level = %d: %s\n",c_module, log_level, c_message)
                         FMIL.fclose(f)
+        elif self._log_stream_is_open():
+            self.log_stream.write(msg)
         else:
             self._log.append([module,log_level,message])
 
@@ -614,12 +639,15 @@ cdef class ModelBase:
         if self._additional_logger:
             self._additional_logger(module, log_level, message)
 
+        full_msg = "FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message)
         if self._fmu_log_name != NULL:
             if self.file_object:
-                self.file_object.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+                self.file_object.write(full_msg)
             else:
                 with open(self._fmu_log_name,'a') as file:
-                    file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+                    file.write(full_msg)
+        elif self._log_stream_is_set():
+            self.log_stream.write(full_msg)
         else:
             self._log.append([module,log_level,message])
 
@@ -1233,7 +1261,7 @@ cdef class FMUModelBase(ModelBase):
         cdef int version
 
         #Call super
-        ModelBase.__init__(self)
+        ModelBase.__init__(self, log_is_stream = not isinstance(log_file_name, str)) # TODO
 
         #Contains the log information
         self._log = []
@@ -1359,15 +1387,22 @@ cdef class FMUModelBase(ModelBase):
         self._modelname = decode(FMIL.fmi1_import_get_model_name(self._fmu))
         self._nEventIndicators = FMIL.fmi1_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
-        fmu_log_name = encode((self._modelid + "_log.txt") if log_file_name=="" else log_file_name)
-        self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
-        FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
-        #Create the log file
-        with open(self._fmu_log_name,'w') as file:
+        if self.log_is_stream:
+            self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
-                file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
-            self._log = []
+                self.log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+        else:
+            fmu_log_name = encode((self._modelid + "_log.txt") if log_file_name=="" else log_file_name)
+            self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
+            FMIL.strcpy(self._fmu_log_name, fmu_log_name)
+
+            #Create the log file
+            with open(self._fmu_log_name,'w') as file:
+                for i in range(len(self._log)):
+                    file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+
+        self._log = []
 
     cpdef _internal_set_fmu_null(self):
         """
@@ -3847,7 +3882,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef dict bool_discrete
 
         #Call super
-        ModelBase.__init__(self)
+        ModelBase.__init__(self, log_is_stream = not isinstance(log_file_name, str)) # TODO
 
         #Contains the log information
         self._log               = []
@@ -4014,15 +4049,22 @@ cdef class FMUModelBase2(ModelBase):
         self._modelName         = decode(FMIL.fmi2_import_get_model_name(self._fmu))
         self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
-        fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
-        self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
-        FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
-        #Create the log file
-        with open(self._fmu_log_name,'w') as file:
+        if self.log_is_stream:
+            self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
-                file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
-            self._log = []
+                self.log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+        else:
+            fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
+            self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
+            FMIL.strcpy(self._fmu_log_name, fmu_log_name)
+
+            #Create the log file
+            with open(self._fmu_log_name,'w') as file:
+                for i in range(len(self._log)):
+                    file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+
+        self._log = []
 
     cpdef N.ndarray get_real(self, valueref):
         """
