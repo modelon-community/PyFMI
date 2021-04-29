@@ -188,24 +188,24 @@ cdef class ModelBase:
     Abstract Model class containing base functionality.
     """
 
-    def __init__(self, log_is_stream= False):
+    def __init__(self):
         self.cache = {}
         self.file_object = None
-        self.log_is_stream = 1 if log_is_stream else 0
+        self.log_is_stream = 0
         self._additional_logger = None
         self._current_log_size = 0
         self._max_log_size = 1024**3*2 #About 2GB limit
         self._max_log_size_msg_sent = False
-        self.log_stream = None
+        self._log_stream = None
+        self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
 
     def _set_log_stream(self, stream):
         """ Function that sets the class property 'log_stream' and does error handling. """
-        if not isinstance(stream, (StringIO, TextIOWrapper)):
-            raise FMUException("TODO")
-        if stream.closed:
+        if not hasattr(stream, 'write'):
             raise FMUException("TODO1")
 
-        self.log_stream = stream
+        self._log_stream = stream
+        self.log_is_stream = 1
 
     def set(self, variable_name, value):
         """
@@ -577,18 +577,18 @@ cdef class ModelBase:
     def _log_open(self):
         if self.file_object:
             return True
-        elif self._log_stream_is_set():
+        elif self._log_stream_is_open():
             return True
         else:
             return False
 
     def _log_stream_is_open(self):
         """ Returns True or False based on if logging is done to a stream and if it is open or closed. """
-        return self._log_stream_is_set() and not self.log_stream.closed
+        return self._log_stream_is_set() and not self._log_stream.closed
 
     def _log_stream_is_set(self):
         """ Retrurns True or False based on if logging is done to a stream. """
-        return self.log_is_stream and self.log_stream is not None
+        return self._log_stream is not None
 
     def _open_log_file(self):
         """ Opens the log file if we are not logging into a given stream. """
@@ -630,8 +630,15 @@ cdef class ModelBase:
                     if (f != NULL):
                         FMIL.fprintf(f, "FMIL: module = %s, log level = %d: %s\n",c_module, log_level, c_message)
                         FMIL.fclose(f)
-        elif self._log_stream_is_open():
-            self.log_stream.write(msg)
+        elif self._log_stream:
+            try:
+                self._log_stream.write(msg)
+            except:
+                if not self._invoked_dealloc:
+                    if hasattr(self._log_stream, 'closed') and self._log_stream.closed:
+                        logging.warning("Unable to log to closed stream.")
+                    logging.warning("Unable to log to stream.")
+                self._log_stream = None
         else:
             self._log.append([module,log_level,message])
 
@@ -647,7 +654,7 @@ cdef class ModelBase:
                 with open(self._fmu_log_name,'a') as file:
                     file.write(full_msg)
         elif self._log_stream_is_set():
-            self.log_stream.write(full_msg)
+            self._log_stream.write(full_msg)
         else:
             self._log.append([module,log_level,message])
 
@@ -1261,7 +1268,7 @@ cdef class FMUModelBase(ModelBase):
         cdef int version
 
         #Call super
-        ModelBase.__init__(self, log_is_stream = not isinstance(log_file_name, str)) # TODO
+        ModelBase.__init__(self)
 
         #Contains the log information
         self._log = []
@@ -1388,10 +1395,15 @@ cdef class FMUModelBase(ModelBase):
         self._nEventIndicators = FMIL.fmi1_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
 
-        if self.log_is_stream:
+        if not isinstance(log_file_name, str): # TODO
             self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
-                self.log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+                try:
+                    self._log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+                except:
+                    if hasattr(self._log_stream, 'closed') and self._log_stream.closed:
+                        logging.warning("Unable to log to closed stream.")
+                    logging.warning("Unable to log to stream.")
         else:
             fmu_log_name = encode((self._modelid + "_log.txt") if log_file_name=="" else log_file_name)
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
@@ -2739,6 +2751,10 @@ cdef class FMUModelCS1(FMUModelBase):
         """
         Deallocate memory allocated
         """
+        self._invoked_dealloc = 1
+        if self._log_stream:
+            self._log_stream = None
+
         if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate_slave(self._fmu)
 
@@ -3301,6 +3317,10 @@ cdef class FMUModelME1(FMUModelBase):
         """
         Deallocate memory allocated
         """
+        self._invoked_dealloc = 1
+        if self._log_stream:
+            self._log_stream = None
+
         if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate(self._fmu)
 
@@ -3325,6 +3345,9 @@ cdef class FMUModelME1(FMUModelBase):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+        if self._log_stream:
+            self._log_stream = None
 
     cpdef _get_time(self):
         return self.__t
@@ -3882,7 +3905,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef dict bool_discrete
 
         #Call super
-        ModelBase.__init__(self, log_is_stream = not isinstance(log_file_name, str)) # TODO
+        ModelBase.__init__(self)
 
         #Contains the log information
         self._log               = []
@@ -4050,10 +4073,10 @@ cdef class FMUModelBase2(ModelBase):
         self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
 
-        if self.log_is_stream:
+        if not isinstance(log_file_name, str): # TODO
             self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
-                self.log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+                self._log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
         else:
             fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
@@ -6902,6 +6925,10 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         Deallocate memory allocated
         """
+        self._invoked_dealloc = 1
+        if self._log_stream:
+            self._log_stream = None
+
         if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
 
@@ -6926,6 +6953,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+        if self._log_stream:
+            self._log_stream = None
 
     cpdef _get_time(self):
         """
@@ -7530,6 +7560,9 @@ cdef class FMUModelME2(FMUModelBase2):
         """
         Deallocate memory allocated
         """
+        self._invoked_dealloc = 1
+        if self._log_stream:
+            self._log_stream = None
 
         if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
@@ -7555,6 +7588,9 @@ cdef class FMUModelME2(FMUModelBase2):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+        if self._log_stream:
+            self._log_stream = None
 
     cpdef _get_time(self):
         """
