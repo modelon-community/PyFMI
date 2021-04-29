@@ -41,11 +41,13 @@ cdef class ModelBase:
     cdef char* _fmu_log_name
     cdef FMIL.jm_callbacks callbacks
     cdef public dict cache
+    cdef public object log_stream
     cdef public object file_object
     cdef public object _additional_logger
     cdef public object _max_log_size_msg_sent
+    cdef public int log_is_stream
     cdef public unsigned long long int _current_log_size, _max_log_size
-
+    
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
 
 
