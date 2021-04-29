@@ -8322,7 +8322,7 @@ def check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path):
     else:
         # Check that the file referenced by fmu is appropriate
         if not fmu_full_path.endswith('.fmu' if isinstance(fmu_full_path, str) else encode('.fmu')):
-            raise FMUException("FMUModel must be instantiated with an FMU (.fmu) file.")
+            raise FMUException("Instantiating an FMU requires an FMU (.fmu) file, specified file has extension {}".format(os.path.splitext(fmu_full_path)[1]))
 
         if not os.path.isfile(fmu_full_path):
             raise FMUException('Could not locate the FMU in the specified directory.')
