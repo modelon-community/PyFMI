@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2019 Modelon AB
+# Copyright (C) 2019-2021 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@ import os
 import numpy as np
 
 from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, __ForTestingFMUModelME2
+
+def get_examples_folder():
+    return os.path.join(os.path.dirname(__file__), '..', 'examples')
 
 class Dummy_FMUModelME1(FMUModelME1):
     #Override properties
