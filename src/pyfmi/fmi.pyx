@@ -30,7 +30,7 @@ import fnmatch
 import re
 from collections import OrderedDict
 cimport cython
-from io import StringIO, TextIOWrapper
+from io import StringIO, TextIOWrapper, UnsupportedOperation
 
 import scipy.sparse as sp
 import numpy as N
@@ -197,6 +197,7 @@ cdef class ModelBase:
         self._max_log_size = 1024**3*2 #About 2GB limit
         self._max_log_size_msg_sent = False
         self._log_stream = None
+        self._modelid = None
         self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
 
     def _set_log_stream(self, stream):
@@ -481,7 +482,10 @@ cdef class ModelBase:
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
     def get_log_filename(self):
-        return decode(self._fmu_log_name)
+        """ Returns a name of the logfile, if logging is done to a stream it returns
+            a string formatted base on the model identifier.
+        """
+        return '{}_log'.format(self._modelid) if self.log_is_stream else decode(self._fmu_log_name)
 
     def get_log_file_name(self):
         logging.warning("The method 'get_log_file_name()' is deprecated and will be removed. Please use 'get_log_filename()' instead.")
@@ -489,7 +493,8 @@ cdef class ModelBase:
 
     def get_number_of_lines_log(self):
         """
-        Returns the number of lines in the log file.
+            Returns the number of lines in the log file.
+            If logging was done to a stream, this function returns 0.
         """
         num_lines = 0
         if self._fmu_log_name != NULL:
@@ -508,7 +513,7 @@ cdef class ModelBase:
         for i in range(N):
             print(log[i])
 
-    def extract_xml_log(self, file_name=None):
+    def extract_xml_log(self, file_name=None, stream = None):
         """
         Extract the XML contents of a FMU log and write as a new file.
 
@@ -517,6 +522,12 @@ cdef class ModelBase:
             file_name --
                 Name of the file which holds the extracted log
                 Default: get_log_filename() + xml
+            stream --
+                A stream that is readable to extract the log from.
+                This requires that the stream is readable and supports the attributes 'seek' and 'readlines'.
+                For information about these attributes, see the class
+                IOBase in the module 'io', that is part of the Python standard library.
+                Default: Use the stream that was used during simulation.
 
         Returns::
 
@@ -525,14 +536,21 @@ cdef class ModelBase:
         from pyfmi.common.log import extract_xml_log
 
         if file_name is None:
-            file_name = self.get_log_filename()[:-3] + "xml"
+            file_name = "{}.{}".format(os.path.splitext(self.get_log_filename())[0], 'xml')
 
-        if isinstance(self, FMUModelCS1):
-            module_name = "Slave"
-        else:
-            module_name = "Model"
+        module_name = 'Slave' if isinstance(self, FMUModelCS1) else 'Model'
 
-        extract_xml_log(file_name, self.get_log_filename(), module_name)
+        is_stream = False
+        if stream is not None:
+            # In case the user has set the stream to readable again from the outside
+            is_stream = True
+        elif self.log_is_stream and self._log_stream:
+            # Use the one used during simulation
+            is_stream = True
+            stream = self._log_stream
+
+        extract_xml_log(file_name, stream if is_stream else self.get_log_filename(), module_name)
+
         return os.path.abspath(file_name)
 
     def get_log(self, int start_lines=-1, int end_lines=-1):
@@ -543,6 +561,11 @@ cdef class ModelBase:
         first log message to the log and consists of, in the following
         order, the instance name, the status, the category and the
         message.
+
+        This function also works if logging was done to a stream if and only if
+        the stream is readable and supports the attributes 'seek' and 'readlines'.
+        For information about these attributes, see the class
+        IOBase in the module 'io', that is part of the Python standard library.
 
         Returns::
 
@@ -572,6 +595,23 @@ cdef class ModelBase:
                         if i > start_lines and i < num_lines - end_lines + 1:
                             continue
                     log.append(line.strip("\n"))
+        elif self._log_stream_is_open():
+            try:
+                self._log_stream.seek(0)
+                return [line.strip("\n") for line in self._log_stream.readlines() if line]
+            except AttributeError as e:
+                err_msg = "Unable to get log from stream if it does not support the attribute 'readlines'."
+                raise FMUException(err_msg) from e
+            except UnsupportedOperation as e:
+                # This happens if we are not allowed to read from given stream
+                err_msg = "Unable to read from given stream, make sure the stream is readable."
+                raise FMUException(err_msg) from e
+        elif self._log_stream_is_set():
+            if hasattr(self._log_stream, 'closed') and self._log_stream.closed:
+                raise FMUException("Unable to get log from closed stream.")
+            else:
+                raise FMUException("Unable to get log from stream, please verify that it is open.")
+
         return log
 
     def _log_open(self):
@@ -640,7 +680,8 @@ cdef class ModelBase:
                     logging.warning("Unable to log to stream.")
                 self._log_stream = None
         else:
-            self._log.append([module,log_level,message])
+            if isinstance(self._log, list):
+                self._log.append([module,log_level,message])
 
     def append_log_message(self, module, log_level, message):
         if self._additional_logger:
@@ -656,7 +697,8 @@ cdef class ModelBase:
         elif self._log_stream_is_set():
             self._log_stream.write(full_msg)
         else:
-            self._log.append([module,log_level,message])
+            if isinstance(self._log, list):
+                self._log.append([module,log_level,message])
 
     def set_max_log_size(self, number_of_characters):
         """
@@ -4059,9 +4101,9 @@ cdef class FMUModelBase2(ModelBase):
 
         #Load information from model
         if isinstance(self,FMUModelME2):
-            self._modelId           = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
+            self._modelid           = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
         elif isinstance(self,FMUModelCS2):
-            self._modelId           = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
+            self._modelid           = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
         else:
             raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
 
@@ -4075,7 +4117,7 @@ cdef class FMUModelBase2(ModelBase):
             for i in range(len(self._log)):
                 self._log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
         else:
-            fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
+            fmu_log_name = encode((self._modelid + "_log.txt") if log_file_name=="" else log_file_name)
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
             FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
@@ -6849,7 +6891,7 @@ cdef class FMUModelBase2(ModelBase):
         Return the model identifier, name of binary model file and prefix in
         the C-function names of the model.
         """
-        return self._modelId
+        return self._modelid
 
     def get_model_types_platform(self):
         """
@@ -6913,7 +6955,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         if self.get_capability_flags()['needsExecutionTool'] == True:
             raise FMUException('Models that need an execution tool are not supported')
 
-        self._modelId = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
+        self._modelid = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
 
         if _connect_dll:
             self.instantiate()
@@ -7545,7 +7587,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         self.force_finite_differences = 0
 
-        self._modelId = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
+        self._modelid = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
 
         if _connect_dll:
             self.instantiate()
