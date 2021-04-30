@@ -1,7 +1,7 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2020 Modelon AB
+# Copyright (C) 2020-2021 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -20,11 +20,12 @@ Parser for a XML based FMU log format
 
 from xml import sax
 import re
+import os
 import numpy as np
 from distutils.util import strtobool
 from .tree import *
 from pyfmi.fmi_util import python3_flag
-
+from pyfmi.fmi import FMUException
 
 ## Leaf parser ##
 
@@ -57,12 +58,12 @@ def parse_value(text):
         if quoted_string_pattern.match(text):
             text = text[1:-1].replace('""','"')
         else:
-            assert '"' not in text            
+            assert '"' not in text
         # for python 2 we need to avoid printing all strings as u'...'
         return text if python3_flag else text.encode('ascii', 'xmlcharrefreplace')
 
 def parse_vector(text):
-    
+
     text = text.strip()
     if text == "":
         return np.zeros(0)
@@ -77,7 +78,7 @@ def parse_matrix(text):
     parts = semicolon_pattern.split(text)
     parts = filter(None, map(str, parts))
     return np.asarray([parse_vector(part) for part in parts])
-    
+
 
 ## SAX based parser ##
 
@@ -113,7 +114,7 @@ class ContentHandler(sax.ContentHandler):
 
     def startElement(self, type, attrs):
         self.create_comment()
-        
+
         key = attrs.get('name')
         # convert to string if key is not None
         # because Python 2.x returns unicode while Python 3.x does not
@@ -121,7 +122,7 @@ class ContentHandler(sax.ContentHandler):
 
         self.chars = []
         self.leafkey = self.leafparser = None
-        
+
         if   type == 'value' or type == 'boolean':  self.leafparser = parse_value
         elif type == 'vector': self.leafparser = parse_vector
         elif type == 'matrix': self.leafparser = parse_matrix
@@ -129,12 +130,12 @@ class ContentHandler(sax.ContentHandler):
         if self.leafparser is not None:
             self.leafkey = key
         else:
-            node = Node(type)            
+            node = Node(type)
             #if len(self.nodes) > 0:
             self.nodes[-1].add(node, key)
             self.nodes.append(node)
-            
-    def endElement(self, type):        
+
+    def endElement(self, type):
         # todo: verify name matching?
         if self.leafparser is not None:
             node = self.leafparser(self.take_chars())
@@ -168,7 +169,7 @@ def parse_xml_log(filename, accept_errors=False):
             print('Parsed log will be incomplete.')
         else:
             raise Exception('Failed to parse XML FMU log:\n' + repr(e))
-        
+
     return handler.get_root()
 
 
@@ -192,19 +193,42 @@ def parse_fmu_xml_log(filename, modulename = 'Model', accept_errors=False):
             print('Parsed log will be incomplete')
         else:
             raise Exception('Failed to parse XML FMU log:\n' + repr(e))
-    
+
     return handler.get_root()
 
-def extract_xml_log(destfilename, filename, modulename = 'Model'):
+def extract_xml_log(destfilename, log, modulename = 'Model'):
     """
     Extract the XML contents of a FMU log and write as a new file destfilename.
-
-    modulename selects the module as recorded in the beginning of each line by
+    Input argument 'modulename' selects the module as recorded in the beginning of each line by
     FMI Library.
+
+        destfilename::
+
+            file_name --
+                Name of the file which holds the extracted log
+                Default: get_log_filename() + xml
+            log --
+                String of filename to extract log from or a stream. The support for stream
+                requires that the stream is readable and supports the attributes 'seek' and 'readlines'.
+                For information about these attributes, see the class
+                IOBase in the module 'io', that is part of the Python standard library.
+                Default: get_log_filename() + xml
+            modulename --
+                Selects the module as recorded in the beginning of each line by FMI Library.
+                Default: 'Model'
     """
-    with open(filename, 'r') as sourcefile:
-        with open(destfilename, 'w') as destfile:
-            filter_xml_log(destfile.write, sourcefile, modulename)
+    if isinstance(log, str):
+        with open(log, 'r') as sourcefile:
+            with open(destfilename, 'w') as destfile:
+                filter_xml_log(destfile.write, sourcefile, modulename)
+    elif hasattr(log, 'seek') and hasattr(log, 'readlines'):
+            log.seek(0) # Return to the start of the stream
+            with open(destfilename, 'w') as destfile:
+                filter_xml_log(destfile.write, log.readlines(), modulename)
+    else:
+        msg = "Input argument 'log' needs to be either a file or a stream that supports"
+        msg += " the two attributes 'seek' and 'readlines'."
+        raise FMUException(msg)
 
 def filter_xml_log(write, sourcefile, modulename = 'Model'):
     write('<?xml version="1.0" encoding="UTF-8"?>\n<JMILog category="info">\n')
