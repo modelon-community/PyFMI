@@ -508,7 +508,7 @@ class Graph:
                 self._strongly_connected_components(node)
         return self.connected_components
 """
-class OrderedSet(collections.MutableSet):
+class OrderedSet(collections.abc.MutableSet):
 
     def __init__(self, iterable=None):
         self.end = end = []
@@ -1025,8 +1025,8 @@ cdef class DumpData:
             self.model = model
 
     cdef dump_data(self, np.ndarray data):
-        self._file.write(data.tostring(order="F"))
-
+        self._file.write(data.tobytes(order="F"))
+    
     def save_point(self):
         if self.model_me2_instance:
             self.time_tmp[0] = self.model_me2._get_time()
