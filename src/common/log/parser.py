@@ -196,16 +196,17 @@ def parse_fmu_xml_log(filename, modulename = 'Model', accept_errors=False):
 
     return handler.get_root()
 
-def extract_xml_log(destfilename, log, modulename = 'Model'):
+def extract_xml_log(dest, log, modulename = 'Model'):
     """
-    Extract the XML contents of a FMU log and write as a new file destfilename.
+    Extract the XML contents of a FMU log and write as a new file dest, or extract into a stream.
     Input argument 'modulename' selects the module as recorded in the beginning of each line by
     FMI Library.
 
-        destfilename::
+        dest::
 
-            file_name --
-                Name of the file which holds the extracted log
+            file_name  --
+                Name of the file which holds the extracted log, or a stream to write to
+                that supports the function 'write'. Default behaviour is to write to a file.
                 Default: get_log_filename() + xml
             log --
                 String of filename to extract log from or a stream. The support for stream
@@ -217,14 +218,26 @@ def extract_xml_log(destfilename, log, modulename = 'Model'):
                 Selects the module as recorded in the beginning of each line by FMI Library.
                 Default: 'Model'
     """
+    # if it is a string, we assume we write to a file (since the file doesnt exist yet)
+    dest_is_file = isinstance(dest, str)
+    if not dest_is_file:
+        if not hasattr(dest, 'write'):
+            raise FMUException("If input argument 'dest' is a stream it needs to support the attribute 'write'.")
+
     if isinstance(log, str):
         with open(log, 'r') as sourcefile:
-            with open(destfilename, 'w') as destfile:
-                filter_xml_log(destfile.write, sourcefile, modulename)
+            if dest_is_file:
+                with open(dest, 'w') as destfile:
+                    filter_xml_log(destfile.write, sourcefile, modulename)
+            else:
+                filter_xml_log(dest.write, sourcefile, modulename)
     elif hasattr(log, 'seek') and hasattr(log, 'readlines'):
             log.seek(0) # Return to the start of the stream
-            with open(destfilename, 'w') as destfile:
-                filter_xml_log(destfile.write, log.readlines(), modulename)
+            if dest_is_file:
+                with open(dest, 'w') as destfile:
+                    filter_xml_log(destfile.write, log.readlines(), modulename)
+            else:
+                filter_xml_log(dest.write, log.readlines(), modulename)
     else:
         msg = "Input argument 'log' needs to be either a file or a stream that supports"
         msg += " the two attributes 'seek' and 'readlines'."
