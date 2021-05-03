@@ -28,6 +28,7 @@ import sys
 import logging
 import fnmatch
 import re
+import tempfile
 from collections import OrderedDict
 cimport cython
 
@@ -1320,7 +1321,16 @@ cdef class FMUModelBase(ModelBase):
         self._modelname = decode(FMIL.fmi1_import_get_model_name(self._fmu))
         self._nEventIndicators = FMIL.fmi1_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
-        fmu_log_name = encode((self._modelid + "_log.txt") if log_file_name=="" else log_file_name)
+        if log_file_name == "":
+            fmu_log_name = (self._modelid + "_log.txt")
+            try:
+                with open(fmu_log_name, 'w') as file:
+                    pass
+            except PermissionError:
+                fmu_log_name = os.path.join(tempfile.gettempdir(), fmu_log_name)
+        else:
+            fmu_log_name = log_file_name
+        fmu_log_name = encode(fmu_log_name)
         self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
@@ -3961,7 +3971,16 @@ cdef class FMUModelBase2(ModelBase):
         self._modelName         = decode(FMIL.fmi2_import_get_model_name(self._fmu))
         self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
-        fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
+        if log_file_name == "":
+            fmu_log_name = (self._modelId + "_log.txt")
+            try:
+                with open(fmu_log_name, 'w') as file:
+                    pass
+            except PermissionError:
+                fmu_log_name = os.path.join(tempfile.gettempdir(), fmu_log_name)
+        else:
+            fmu_log_name = log_file_name
+        fmu_log_name = encode(fmu_log_name)
         self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 

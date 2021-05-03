@@ -24,6 +24,7 @@ import re
 import sys
 import io
 import os
+import tempfile
 
 import numpy as N
 import numpy as np
@@ -2248,6 +2249,11 @@ class ResultHandlerBinaryFile(ResultHandler):
         
         if self.file_name == "":
             self.file_name=self.model.get_identifier() + '_result.mat'
+            try:
+                with open(self.file_name, 'wb') as file:
+                    pass
+            except PermissionError:
+                self.file_name = os.path.join(tempfile.gettempdir(), self.file_name)
         
         file_name = self.file_name
         parameters = self.parameters
