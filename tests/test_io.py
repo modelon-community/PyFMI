@@ -18,7 +18,7 @@
 import nose
 import os
 import numpy as np
-
+import time
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
@@ -503,14 +503,91 @@ class TestResultFileBinary:
         assert res.description[res.get_variable_index("J1.phi")] == "", "Description is not empty, " + res.description[res.get_variable_index("J1.phi")]
     
     @testattr(stddist = True)
+    def test_overwriting_results(self):
+        model = Dummy_FMUModelME1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model.initialize()
+        
+        opts = model.simulate_options()
+        opts["result_store_variable_description"] = False
+        
+        result_writer = ResultHandlerBinaryFile(model)
+        result_writer.set_options(opts)
+        result_writer.simulation_start()
+        result_writer.initialize_complete()
+        result_writer.integration_point()
+        result_writer.simulation_end()
+        
+        res = ResultDymolaBinary('CoupledClutches_result.mat')
+        
+        time.sleep(1) 
+        
+        result_writer = ResultHandlerBinaryFile(model)
+        result_writer.set_options(opts)
+        result_writer.simulation_start()
+        result_writer.initialize_complete()
+        result_writer.integration_point()
+        result_writer.integration_point()
+        result_writer.simulation_end()
+        
+        nose.tools.assert_raises(JIOError,res.get_variable_data, "J1.phi")
+    
+    @testattr(stddist = True)
     def test_read_all_variables(self):
         res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
+        
+        assert len(res.name) == 1097, "Incorrect number of variables found, should be 1097"
         
         for var in res.name:
             res.get_variable_data(var)
     
+    @testattr(stddist = True)
+    def test_data_matrix_delayed_loading(self):
+        res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), delayed_trajectory_loading=True)
+        
+        data_matrix = res.get_data_matrix()
+        
+        [nbr_continuous_variables, nbr_points] = data_matrix.shape
+        
+        assert nbr_continuous_variables == 68, "Number of variables is incorrect, should be 68"
+        assert nbr_points == 502, "Number of points is incorrect, should be 502"
     
+    @testattr(stddist = True)
+    def test_data_matrix_loading(self):
+        res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), delayed_trajectory_loading=False)
+        
+        data_matrix = res.get_data_matrix()
+        
+        [nbr_continuous_variables, nbr_points] = data_matrix.shape
+        
+        assert nbr_continuous_variables == 68, "Number of variables is incorrect, should be 68"
+        assert nbr_points == 502, "Number of points is incorrect, should be 502"
     
+    @testattr(stddist = True)
+    def test_read_all_variables_from_stream(self):
+        
+        with open(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), "rb") as f:
+            res = ResultDymolaBinary(f)
+            
+            assert len(res.name) == 1097, "Incorrect number of variables found, should be 1097"
+        
+            for var in res.name:
+                res.get_variable_data(var)
+
+    @testattr(stddist = True)
+    def test_compare_all_variables_from_stream(self):
+        res_file = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
+        
+        assert len(res_file.name) == 1097, "Incorrect number of variables found, should be 1097"
+
+        with open(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), "rb") as f:
+            res_stream = ResultDymolaBinary(f)
+            
+            for var in res_file.name:
+                x_file   = res_file.get_variable_data(var)
+                x_stream = res_stream.get_variable_data(var)
+                
+                np.testing.assert_array_equal(x_file.x, x_stream.x, err_msg="Mismatch in array values for var=%s"%var)
+                
     @testattr(stddist = True)
     def test_work_flow_me1(self):
         model = Dummy_FMUModelME1([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
@@ -534,6 +611,20 @@ class TestResultFileBinary:
         nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
     
     @testattr(stddist = True)
+    def test_many_variables_long_descriptions(self):
+        """
+        Tests that large FMUs with lots of variables and huge length of descriptions gives
+        a proper exception instead of a segfault. The problem occurs around 100k variables
+        with 20k characters in the longest description.
+        """
+        model = FMUModelME2("Large.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        
+        res = ResultHandlerBinaryFile(model)
+        
+        res.set_options(model.simulate_options())
+        nose.tools.assert_raises(FMUException,res.simulation_start)
+        
+    @testattr(stddist = True)
     def test_work_flow_me2(self):
         model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()
@@ -555,6 +646,35 @@ class TestResultFileBinary:
 
         nose.tools.assert_almost_equal(h.x[0], 1.000000, 5)
         nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5)
+    
+    @testattr(stddist = True)
+    def test_work_flow_me2_aborted(self):
+        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model.setup_experiment()
+        model.initialize()
+        
+        bouncingBall = ResultHandlerBinaryFile(model)
+        
+        bouncingBall.set_options(model.simulate_options())
+        bouncingBall.simulation_start()
+        bouncingBall.initialize_complete()
+        bouncingBall.integration_point()
+        bouncingBall.integration_point()
+        bouncingBall.integration_point()
+        #No call to simulation end to mimic an aborted simulation
+        bouncingBall._file.close()
+        
+        res = ResultDymolaBinary('bouncingBall_result.mat')
+        
+        h = res.get_variable_data('h')
+        derh = res.get_variable_data('der(h)')
+
+        nose.tools.assert_almost_equal(h.x[0], 1.000000, 5, msg="Incorrect initial value for 'h', should be 1.0")
+        nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5, msg="Incorrect  value for 'derh', should be 0.0")
+        nose.tools.assert_almost_equal(h.x[1], 1.000000, 5, msg="Incorrect value for 'h', should be 1.0")
+        nose.tools.assert_almost_equal(derh.x[1], 0.000000, 5, msg="Incorrect value for 'derh', should be 0.0")
+        nose.tools.assert_almost_equal(h.x[2], 1.000000, 5, msg="Incorrect value for 'h', should be 1.0")
+        nose.tools.assert_almost_equal(derh.x[2], 0.000000, 5, msg="Incorrect value for 'derh', should be 0.0")
     
     @testattr(stddist = True)
     def test_filter_no_variables(self):

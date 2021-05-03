@@ -371,8 +371,14 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars):
         if desc_length_trial+1 > desc_length:
              desc_length = desc_length_trial + 1
     
-    desc_output = <char*>FMIL.calloc((items+1)*desc_length,sizeof(char))
     name_output = <char*>FMIL.calloc((items+1)*name_length,sizeof(char))
+    if name_output == NULL:
+        raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
+                               "Please reduce the number of stored variables by using filters.")
+    desc_output = <char*>FMIL.calloc((items+1)*desc_length,sizeof(char))
+    if desc_output == NULL:
+        raise fmi.FMUException("Failed to allocate memory for storing the description of the variables. " \
+                               "Please reduce the number of stored variables or disable storing of the description.")
     
     for i in range(items+1):
         ctmp_name = name[i]
@@ -393,7 +399,44 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars):
     FMIL.free(desc_output)
     
     return name_length, py_name_string, desc_length, py_desc_string
+
+cpdef convert_sorted_vars_name(list sorted_vars):
+    cdef int items = len(sorted_vars)
+    cdef int i, name_length_trial, kn
+    cdef list name = [encode("time")]
+    cdef int name_length = len(name[0])+1
+    cdef char *name_output
+    cdef char *ctmp_name
     
+    for i in range(items):
+        var = sorted_vars[i]
+        tmp_name = encode(var.name)
+        name.append(tmp_name)
+        
+        name_length_trial = len(tmp_name)
+        
+        if name_length_trial+1 > name_length:
+             name_length = name_length_trial + 1
+    
+    name_output = <char*>FMIL.calloc((items+1)*name_length,sizeof(char))
+    if name_output == NULL:
+        raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
+                               "Please reduce the number of stored variables by using filters.")
+
+    for i in range(items+1):
+        ctmp_name = name[i]
+
+        name_length_trial = len(ctmp_name)
+        kn = i*name_length
+        
+        FMIL.memcpy(&name_output[kn], ctmp_name, name_length_trial)
+    
+    py_name_string = name_output[:(items+1)*name_length]
+    
+    FMIL.free(name_output)
+    
+    return name_length, py_name_string
+
 
 cpdef convert_scalarvariable_name_to_str(list data):
     cdef int length = 0
@@ -1000,99 +1043,128 @@ cdef class DumpData:
             if self.bool_size > 0:
                 b = self.model.get_boolean(self.bool_var_ref).astype(float)
                 self.dump_data(b)
-            
-"""
-cdef class FastPointSave:
-    cdef np.ndarray real_var_ref, 
-    cdef np.ndarray int_var_ref, 
-    cdef np.ndarray bool_var_ref
-    cdef np.ndarray data_order
-    cdef np.ndarray _cache
-    cdef int nvariables
-    cdef object model
-    cdef list cache
-    cdef np.ndarray data
-    cdef int rs, ris, ribs, used_length_cache
+                
+
+from libc.stdio cimport *                                                                
+
+cdef extern from "stdio.h":
+    FILE *fdopen(int, const char *)
+
+DTYPE = np.double
+ctypedef np.double_t DTYPE_t
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def read_trajectory(file_name, int data_index, int file_position, int sizeof_type, int nbr_points, int nbr_variables):
+    """
+    Reads a trajectory from a binary file.
     
-    def __init__(self, model, np.ndarray[np.uint32_t, ndim=1, mode='c'] real_var_ref, 
-                              np.ndarray[np.uint32_t, ndim=1, mode='c'] int_var_ref, 
-                              np.ndarray[np.uint32_t, ndim=1, mode='c'] bool_var_ref, 
-                              np.ndarray[np.int32_t, ndim=1, mode='c']  data_order, int nvariables):
-        
-        self.real_var_ref = real_var_ref
-        self.int_var_ref  = int_var_ref
-        self.bool_var_ref = bool_var_ref
-        self.data_order   = data_order
-        self.model = model
-        self.nvariables = nvariables
-        self.cache = range(nvariables-1)
-        #self.data = range(nvariables-1)
-        self.data = np.empty(nvariables)
-        self._cache = np.empty(nvariables-1)
-        
-        self.rs = self.real_var_ref.size
-        self.ris = self.real_var_ref.size+self.int_var_ref.size
-        self.ribs = self.real_var_ref.size+self.int_var_ref.size+self.bool_var_ref.size
-
-    def save_point(self):
-            cdef int k,j,l
-            
-            cdef np.ndarray correct_order
-            cdef np.ndarray[double, ndim=1, mode='c'] r
-            cdef np.ndarray[int,    ndim=1, mode='c'] i
-            cdef np.ndarray b
-
-            #Retrieves the time-point
-            r = self.model.get_real(self.real_var_ref)
-            i = self.model.get_integer(self.int_var_ref)
-            b = self.model.get_boolean(self.bool_var_ref)
-            
-            for k in range(self.rs):
-                self.data[k] = r[k]
-            for k in range(self.rs, self.ris):
-                self.data[k] = i[k-self.rs]
-            for k in range(self.ris, self.ribs):
-                self.data[k] = b[k-self.ris]
-            
-            return self._create_string(self.data)
+    Parameters::
     
-    cpdef _create_string(self, np.ndarray[double, ndim=1, mode='c'] data):
-        cdef int j, used_length_cache, cn = 0
-        cdef char temp_str[4094]
-        cdef char* temp_str_ptr = &temp_str[0]
+        file_name --
+            File to read from.
         
-        used_length_cache = 0
-        for j in range(0, self.nvariables-5, 5):
-        #    self.cache[j] = " %.14E"%self.data[self.data_order[j]]
-            #temp_str_ptr += FMIL.sprintf(temp_str_ptr, " %.14E", <double>data[self.data_order[j]])
-            #cn += FMIL.snprintf(temp_str_ptr+cn, 4094, " %.14E", <double>data[self.data_order[j]])
-            cn += FMIL.snprintf(temp_str_ptr+cn, 4094, " %.14E %.14E %.14E %.14E %.14E", 
-                                                <double>data[self.data_order[j]],
-                                                <double>data[self.data_order[j+1]],
-                                                <double>data[self.data_order[j+2]],
-                                                <double>data[self.data_order[j+3]],
-                                                <double>data[self.data_order[j+4]])
-            if j > 0 and not (j) % 150:
-                self.cache[used_length_cache] = temp_str
-                used_length_cache += 1
-                cn = 0
-                temp_str_ptr = &temp_str[0]
-        else:
-            for j in range(j, self.nvariables-1):
-                cn += FMIL.snprintf(temp_str_ptr+cn, 4094, " %.14E", <double>data[self.data_order[j]])
-        if j % 150:
-            self.cache[used_length_cache] = temp_str[:cn]
-            used_length_cache += 1
+        data_index --
+            Which position has the variable for which the trajectory is
+            to be read.
             
-        return self._join_string(used_length_cache)
+        file_position --
+            Where in the file does the matrix of a trajectories start.
+        
+        sizeof_type --
+            Size of the data type that the result is stored in
+            
+        nbr_points --
+            Number of points in the result
+            
+        nbr_variables --
+            Number of variables in the result
+            
+    Returns::
     
-    cpdef _join_string(self, int used_length_cache):
-        cdef int j
-        
-        return "%.14E "%self.model.time + ' '.join(self.cache[:used_length_cache])
+        A numpy array with the trajectory
+    """
+    cdef int i = 0
+    cdef unsigned long int offset
+    cdef unsigned long int start_point = data_index*sizeof_type
+    cdef unsigned long int end_point   = sizeof_type*(nbr_points*nbr_variables)
+    cdef unsigned long int interval    = sizeof_type*nbr_variables
+    cdef FILE* cfile
+    cdef np.ndarray[DTYPE_t, ndim=1] data
+    cdef DTYPE_t* data_ptr
+    cdef size_t sizeof_dtype = sizeof(DTYPE_t)
 
-        
-        
-"""
+    cfile = fopen(file_name, 'rb')
+    data = np.empty(nbr_points, dtype=DTYPE)
+    data_ptr = <DTYPE_t*>data.data
+    
+    fseek(cfile, file_position, 0)
+    #for offset in range(start_point, end_point, interval):
+    for offset from start_point <= offset < end_point by interval:
+        fseek(cfile, file_position+offset, 0)
+        fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
+        i = i + 1
 
+    fclose(cfile)
+
+    return data
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def read_name_list(file_name, int file_position, int nbr_variables, int max_length):
+    """
+    Reads a list of names from a binary file.
+    
+    Parameters::
+    
+        file_name --
+            File to read from.
+        
+        file_position --
+            Where in the file does the list of names start
+            
+        nbr_variables --
+            Number of variables to read.
+            
+        max_length --
+            Maximum length of a variable
+            
+    Returns::
+    
+        A dict with the names as key and an index as value
+    """
+    cdef int i = 0, j = 0, py3, need_replace = 0
+    cdef FILE* cfile
+    cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
+    cdef bytes py_str
+    cdef dict data = {}
+    
+    if python3_flag:
+        py3 = 1
+    else:
+        py3 = 0
+    
+    cfile = fopen(file_name, 'rb')
+    
+    fseek(cfile, file_position, 0)
+    for i in range(nbr_variables):
+        fread(<void*>(tmp), max_length, 1, cfile)
+        py_str = tmp
+        
+        if i == 0:
+            if len(py_str) == max_length:
+                need_replace = 1
+        
+        if need_replace:
+            if py3:
+                py_str = py_str.replace(b" ", b"")
+            else:
+                py_str = py_str.replace(" ", "")
+        
+        data[py_str] = i
+
+    fclose(cfile)
+    FMIL.free(tmp)
+
+    return data
 
