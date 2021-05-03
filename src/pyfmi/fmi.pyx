@@ -520,7 +520,8 @@ cdef class ModelBase:
         Parameters::
 
             file_name --
-                Name of the file which holds the extracted log
+                Name of the file which holds the extracted log, or a stream to write to
+                that supports the function 'write'. Default behaviour is to write to a file.
                 Default: get_log_filename() + xml
             stream --
                 A stream that is readable to extract the log from.
@@ -530,8 +531,9 @@ cdef class ModelBase:
                 Default: Use the stream that was used during simulation.
 
         Returns::
-
-            file_path -- path to extracted XML file
+            If extract to a file:
+                file_path -- path to extracted XML file
+            otherwise function returns nothing
         """
         from pyfmi.common.log import extract_xml_log
 
@@ -551,8 +553,11 @@ cdef class ModelBase:
 
         extract_xml_log(file_name, stream if is_stream else self.get_log_filename(), module_name)
 
-        return os.path.abspath(file_name)
-
+        if isinstance(file_name, str):
+            return os.path.abspath(file_name)
+        else:
+            # If we extract into a stream, return None
+            return None
     def get_log(self, int start_lines=-1, int end_lines=-1):
         """
         Returns the log information as a list. To turn on the logging

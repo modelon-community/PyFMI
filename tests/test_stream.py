@@ -250,3 +250,31 @@ class TestXML:
         nose.tools.assert_equal(fmu.get_number_of_lines_log(), 0)
         res = fmu.simulate()
         nose.tools.assert_equal(fmu.get_number_of_lines_log(), 0)
+
+    @testattr(stddist = True)
+    def test_extract_xml_log_into_stream(self):
+        """ Compare contents of XML log when extract XML into a stream. """
+        stream = TestIO("")
+        extracted_xml_stream = StringIO("")
+        fmu_s = load_fmu(self.example_fmu, log_file_name = stream, log_level = 4)
+        res_s = fmu_s.simulate()
+        fmu_s.extract_xml_log(extracted_xml_stream)
+
+        # write the contents of extract_xml_stream to a file for test
+        xml_file1 = "my_new_file.xml"
+        if os.path.isfile(xml_file1):
+            os.remove(xml_file1)
+        write_stream_to_file(extracted_xml_stream, xml_file1)
+
+        log_file_name = 'test_cmp_xml_files.txt'
+        if os.path.isfile(log_file_name):
+            os.remove(log_file_name)
+        fmu = load_fmu(self.example_fmu, log_file_name = log_file_name, log_level = 4)
+        xml_file2 = 'test_cmp_xml_files.xml'
+        if os.path.isfile(xml_file2):
+            os.remove(xml_file2)
+        res = fmu.simulate()
+        xml_log = fmu.extract_xml_log()
+
+        err_msg = "Unequal xml files, please compare the contents of:\n{}\nand\n{}".format(xml_file1, xml_log)
+        nose.tools.assert_true(compare_files(xml_file1, xml_log), err_msg)
