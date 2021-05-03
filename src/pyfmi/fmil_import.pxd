@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2014 Modelon AB
@@ -88,15 +88,15 @@ cdef extern from 'fmilib.h':
         fmi1_status_error = 3
         fmi1_status_fatal = 4
         fmi1_status_pending = 5
-        
+
     ctypedef enum fmi2_boolean_enu_t:
         fmi2_true = 1
         fmi2_false = 0
-    
+
     ctypedef enum fmi2_type_t:
         fmi2_model_exchange,
         fmi2_cosimulation
-    
+
     ctypedef enum fmi2_status_t:
         fmi2_status_ok = 0
         fmi2_status_warning = 1
@@ -555,16 +555,16 @@ cdef extern from 'fmilib.h':
     char * fmi2_import_get_generation_date_and_time(fmi2_import_t *)
     fmi2_variable_naming_convension_enu_t fmi2_import_get_naming_convention(fmi2_import_t *)
     char * fmi2_import_get_model_name(fmi2_import_t *)
-    
+
     fmi2_fmu_kind_enu_t fmi2_import_get_fmu_kind(fmi2_import_t *)
-    
+
     int fmi2_import_create_dllfmu(fmi2_import_t *, fmi2_fmu_kind_enu_t, fmi2_callback_functions_t *)
-    
+
     unsigned int fmi2_import_get_capability(fmi2_import_t *, fmi2_capabilities_enu_t)
     double fmi2_import_get_default_experiment_stop(fmi2_import_t *)
     double fmi2_import_get_default_experiment_start(fmi2_import_t *)
     double fmi2_import_get_default_experiment_step(fmi2_import_t*)
-    
+
 
     #FMI HELPER METHODS (1.0)
     char * fmi1_import_get_version(fmi1_import_t *)
@@ -646,7 +646,7 @@ cdef extern from 'fmilib.h':
     int fmi2_import_get_integer_variable_max(fmi2_import_integer_variable_t *)
     int fmi2_import_get_integer_variable_min(fmi2_import_integer_variable_t *)
     int fmi2_import_get_integer_variable_start(fmi2_import_integer_variable_t *)
-    
+
     fmi1_import_integer_typedef_t * fmi1_import_get_type_as_int(fmi1_import_variable_typedef_t *)
 
     #ENUMERATIONS
@@ -667,7 +667,7 @@ cdef extern from 'fmilib.h':
     fmi1_real_t fmi1_import_get_real_variable_start(fmi1_import_real_variable_t *)
     fmi1_real_t fmi1_import_get_real_variable_nominal(fmi1_import_real_variable_t *)
     fmi1_real_t fmi1_import_get_real_variable_min(fmi1_import_real_variable_t *)
-    
+
     fmi1_import_unit_t * fmi1_import_get_real_variable_unit(fmi1_import_real_variable_t *)
     fmi1_import_display_unit_t * fmi1_import_get_real_variable_display_unit(fmi1_import_real_variable_t *)
     fmi1_import_real_typedef_t * fmi1_import_get_type_as_real(fmi1_import_variable_typedef_t *)
@@ -708,7 +708,7 @@ cdef extern from 'fmilib.h':
     fmi1_import_variable_list_t * fmi1_import_create_var_list(fmi1_import_t *, fmi1_import_variable_t *)
 
 
-    
+
     fmi1_import_display_unit_t * fmi1_import_get_unit_display_unit(fmi1_import_unit_t *, size_t)
     char * fmi1_import_get_type_quantity(fmi1_import_variable_typedef_t *)
     unsigned int fmi1_import_get_unit_display_unit_number(fmi1_import_unit_t *)
@@ -746,7 +746,7 @@ cdef extern from 'fmilib.h':
     int fmi1_import_get_boolean_status(fmi1_import_t *, int, fmi1_boolean_t *)
     fmi1_import_variable_t * fmi1_import_get_variable_alias_base(fmi1_import_t *, fmi1_import_variable_t *)
     int fmi1_import_get_canHandleVariableCommunicationStepSize(fmi1_import_capabilities_t *)
-    
+
     char * fmi1_import_get_enum_type_item_name(fmi1_import_enumeration_typedef_t *, unsigned int)
     fmi1_variable_naming_convension_enu_t fmi1_import_get_naming_convention(fmi1_import_t *)
     fmi1_import_unit_t * fmi1_import_get_unit(fmi1_import_unit_definitions_t *, unsigned int)
@@ -754,7 +754,7 @@ cdef extern from 'fmilib.h':
     fmi1_real_t fmi1_import_get_display_unit_offset(fmi1_import_display_unit_t *)
     fmi1_import_variable_typedef_t * fmi1_import_get_variable_declared_type(fmi1_import_variable_t *)
     fmi1_import_variable_list_t * fmi1_import_join_var_list(fmi1_import_variable_list_t *, fmi1_import_variable_list_t *)
-    
+
     fmi1_import_variable_list_t * fmi1_import_clone_variable_list(fmi1_import_variable_list_t *)
 
     fmi1_import_display_unit_t * fmi1_import_get_type_display_unit(fmi1_import_real_typedef_t *)
@@ -766,7 +766,7 @@ cdef extern from 'fmilib.h':
     fmi1_import_variable_list_t * fmi1_import_get_direct_dependency(fmi1_import_t *, fmi1_import_variable_t *)
     int fmi1_import_get_canInterpolateInputs(fmi1_import_capabilities_t *)
     char * fmi1_import_get_model_standard_version(fmi1_import_t *)
-    
+
     fmi1_fmu_kind_enu_t fmi1_import_get_fmu_kind(fmi1_import_t *)
     fmi1_import_unit_t * fmi1_import_get_base_unit(fmi1_import_display_unit_t *)
     char * fmi1_import_get_annotation_value(fmi1_import_annotation_t *)
@@ -797,7 +797,7 @@ cdef extern from 'fmilib.h':
 
     #UNSORTED!!!
     size_t fmi2_import_get_derivative_index(fmi2_import_variable_t *)
-    
+
     void  fmi2_default_callback_logger(fmi2_component_t c, fmi2_string_t instanceName, fmi2_status_t status, fmi2_string_t category, fmi2_string_t message, ...)
 
 
@@ -863,7 +863,7 @@ cdef extern from 'fmilib.h':
 
     fmi2_import_variable_list_t* fmi2_import_get_derivatives_list(fmi2_import_t* fmu)
     fmi2_import_real_variable_t* fmi2_import_get_real_variable_derivative_of(fmi2_import_real_variable_t* v)
-    
+
     fmi2_causality_enu_t fmi2_import_get_causality(fmi2_import_variable_t *)
     fmi2_import_unit_definitions_t * fmi2_import_get_unit_definitions(fmi2_import_t *)
     void fmi2_import_get_dependencies_derivatives_on_inputs(fmi2_import_t *, size_t * *, size_t * *, char * *)
@@ -907,7 +907,7 @@ cdef extern from 'fmilib.h':
     fmi2_real_t fmi2_import_get_display_unit_offset(fmi2_import_display_unit_t *)
 
 
-    
+
 
     fmi2_import_variable_list_t * fmi2_import_get_sublist(fmi2_import_variable_list_t *, size_t, size_t)
     fmi2_import_variable_list_t * fmi2_import_clone_variable_list(fmi2_import_variable_list_t *)
@@ -1017,5 +1017,3 @@ cdef extern from 'fmilib.h':
 
     fmi2_real_t fmi2_import_get_display_unit_factor(fmi2_import_display_unit_t *)
     fmi2_boolean_t fmi2_import_get_real_variable_relative_quantity(fmi2_import_real_variable_t* v)
-
-

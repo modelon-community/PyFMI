@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2019 Modelon AB
+# Copyright (C) 2019-2021 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,15 +18,18 @@
 import nose
 import os
 import numpy as np
+from zipfile import ZipFile
+import tempfile
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
-from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
+from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2, get_examples_folder
 from pyfmi.common.io import ResultHandler
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
+from pyfmi.common.core import create_temp_dir
 
 assimulo_installed = True
 try:
@@ -35,6 +38,16 @@ except ImportError:
     assimulo_installed = False
 
 file_path = os.path.dirname(os.path.abspath(__file__))
+
+
+def _helper_unzipped_fmu_exception_invalid_dir(fmu_loader):
+    """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification.
+        The input argument is any of the FMU interfaces FMUModelME1, FMUModelME2, FMUModelCS1, FMUModelCS2 and load_fmu from pyfmi.fmi.
+    """
+    err_msg = "Specified fmu path '.*\\' needs to contain a modelDescription.xml according to the FMI specification"
+    with tempfile.TemporaryDirectory() as temp_dir:
+        with np.testing.assert_raises_regex(FMUException, err_msg):
+            fmu = fmu_loader(temp_dir, allow_unzipped_fmu = True)
 
 if assimulo_installed:
     class Test_FMUModelME1_Simulation:
@@ -91,6 +104,35 @@ if assimulo_installed:
         
 
 class Test_FMUModelME1:
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exception_invalid_dir(self):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
+        _helper_unzipped_fmu_exception_invalid_dir(FMUModelME1)
+
+    def _test_unzipped_bouncing_ball(self, fmu_loader):
+        """ Simulates the bouncing ball FMU ME1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME1 or load_fmu. """
+        tol = 1e-4
+        fmu_dir = create_temp_dir()
+        fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')
+        with ZipFile(fmu, 'r') as fmu_zip:
+            fmu_zip.extractall(path=fmu_dir)
+
+        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
+        res = unzipped_fmu.simulate(final_time = 2.0)
+        value = np.abs(res.final('h') - (0.0424044))
+        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu1(self):
+        """ Test load and simulate unzipped ME FMU 1.0 using FMUModelME1 """
+        self._test_unzipped_bouncing_ball(FMUModelME1)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu2(self):
+        """ Test load and simulate unzipped ME FMU 1.0 using load_fmu """
+        self._test_unzipped_bouncing_ball(load_fmu)
+
     @testattr(stddist = True)
     def test_get_time_varying_variables(self):
         model = FMUModelME1("RLC_Circuit.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
@@ -178,6 +220,34 @@ class Test_FMUModelME1:
         assert isinstance(bounce.simulate_options(), fmi_algorithm_drivers.AssimuloFMIAlgOptions)
 
 class Test_FMUModelCS1:
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exception_invalid_dir(self):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
+        _helper_unzipped_fmu_exception_invalid_dir(FMUModelCS1)
+    
+    def _test_unzipped_bouncing_ball(self, fmu_loader):
+        """ Simulates the bouncing ball FMU CS1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS1 or load_fmu. """
+        tol = 1e-2
+        fmu_dir = create_temp_dir()
+        fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')
+        with ZipFile(fmu, 'r') as fmu_zip:
+            fmu_zip.extractall(path=fmu_dir)
+
+        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
+        res = unzipped_fmu.simulate(final_time = 2.0)
+        value = np.abs(res.final('h') - (0.0424044))
+        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu1(self):
+        """ Test load and simulate unzipped CS FMU 1.0 using FMUModelCS1 """
+        self._test_unzipped_bouncing_ball(FMUModelCS1)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu2(self):
+        """ Test load and simulate unzipped CS FMU 1.0 using load_fmu """
+        self._test_unzipped_bouncing_ball(load_fmu)
     
     @testattr(stddist = True)
     def test_custom_result_handler(self):
@@ -340,7 +410,43 @@ class Test_FMUModelBase:
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
         
 
+class Test_LoadFMU:
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exception_invalid_dir(self):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
+        _helper_unzipped_fmu_exception_invalid_dir(load_fmu)
+
 class Test_FMUModelCS2:
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exception_invalid_dir(self):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
+        _helper_unzipped_fmu_exception_invalid_dir(FMUModelCS2)
+
+    def _test_unzipped_bouncing_ball(self, fmu_loader):
+        """ Simulates the bouncing ball FMU CS2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS2 or load_fmu. """
+        tol = 1e-2
+        fmu_dir = create_temp_dir()
+        fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')
+        with ZipFile(fmu, 'r') as fmu_zip:
+            fmu_zip.extractall(path=fmu_dir)
+
+        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
+        res = unzipped_fmu.simulate(final_time = 2.0)
+        value = np.abs(res.final('h') - (0.0424044))
+        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu1(self):
+        """ Test load and simulate unzipped CS FMU 2.0 using FMUModelCS2 """
+        self._test_unzipped_bouncing_ball(FMUModelCS2)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu2(self):
+        """ Test load and simulate unzipped CS FMU 2.0 using load_fmu """
+        self._test_unzipped_bouncing_ball(load_fmu)
+
     @testattr(stddist = True)
     def test_log_file_name(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu")
@@ -349,6 +455,14 @@ class Test_FMUModelCS2:
         path, file_name = os.path.split(full_path)
         assert model.get_log_file_name() == file_name.replace(".","_")[:-4]+"_log.txt"
 
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exceptions(self):
+        """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelCS2. """
+        err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0")
+        with nose.tools.assert_raises_regex(FMUException, err_msg):
+            model = FMUModelCS2("LinearStability.SubSystem1.fmu", full_path, _connect_dll=False, allow_unzipped_fmu=True)
+    
     @testattr(stddist = True)
     def test_erreneous_ncp(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu")
@@ -635,7 +749,43 @@ if assimulo_installed:
 
             
 class Test_FMUModelME2:
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exception_invalid_dir(self):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
+        _helper_unzipped_fmu_exception_invalid_dir(FMUModelME2)
     
+    def _test_unzipped_bouncing_ball(self, fmu_loader):
+        """ Simulates the bouncing ball FMU ME2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME2 or load_fmu. """
+        tol = 1e-4
+        fmu_dir = create_temp_dir()
+        fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')
+        with ZipFile(fmu, 'r') as fmu_zip:
+            fmu_zip.extractall(path=fmu_dir)
+
+        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
+        res = unzipped_fmu.simulate(final_time = 2.0)
+        value = np.abs(res.final('h') - (0.0424044))
+        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu1(self):
+        """ Test load and simulate unzipped ME FMU 2.0 using FMUModelME2 """
+        self._test_unzipped_bouncing_ball(FMUModelME2)
+    
+    @testattr(stddist = True)
+    def test_unzipped_fmu2(self):
+        """ Test load and simulate unzipped ME FMU 2.0 using load_fmu """
+        self._test_unzipped_bouncing_ball(load_fmu)
+
+    @testattr(stddist = True)
+    def test_unzipped_fmu_exceptions(self):
+        """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelME2. """
+        err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0")
+        with nose.tools.assert_raises_regex(FMUException, err_msg):
+            model = FMUModelME2("LinearStability.SubSystem2.fmu", full_path, _connect_dll=False, allow_unzipped_fmu=True)
+
     @testattr(stddist = True)
     def test_estimate_directional_derivatives_linearstate(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStateSpace.fmu")
@@ -786,7 +936,22 @@ class Test_FMUModelME2:
         
         assert len(state_dep.keys()) == 0, len(state_dep.keys())
         assert len(input_dep.keys()) == 0, len(input_dep.keys())
-    
+
+    @testattr(stddist = True)
+    def test_exception_with_load_fmu(self):
+        """ Verify exception is raised. """
+        err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+        test_file = 'abcdefgh1234567qwertyuiop.txt'
+        rm_file = False
+        if not os.path.isfile(test_file):
+            with open(test_file, 'w') as fh:
+                fh.write('')
+            rm_file = True
+        with nose.tools.assert_raises_regex(FMUException, err_msg):
+            fmu = load_fmu(test_file,  allow_unzipped_fmu = True)
+        if rm_file:
+            os.remove(test_file)
+
     @testattr(stddist = True)
     def test_malformed_xml(self):
         nose.tools.assert_raises(FMUException, load_fmu, os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "MalFormed.fmu"))
