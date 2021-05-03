@@ -525,9 +525,7 @@ cdef class ModelBase:
                 Default: get_log_filename() + xml
             stream --
                 A stream that is readable to extract the log from.
-                This requires that the stream is readable and supports the attributes 'seek' and 'readlines'.
-                For information about these attributes, see the class
-                IOBase in the module 'io', that is part of the Python standard library.
+                This requires that the stream is readable and supports 'seek' and 'readlines'.
                 Default: Use the stream that was used during simulation.
 
         Returns::
@@ -568,9 +566,7 @@ cdef class ModelBase:
         message.
 
         This function also works if logging was done to a stream if and only if
-        the stream is readable and supports the attributes 'seek' and 'readlines'.
-        For information about these attributes, see the class
-        IOBase in the module 'io', that is part of the Python standard library.
+        the stream is readable and supports 'seek' and 'readlines'.
 
         Returns::
 
@@ -605,7 +601,7 @@ cdef class ModelBase:
                 self._log_stream.seek(0)
                 return [line.strip("\n") for line in self._log_stream.readlines() if line]
             except AttributeError as e:
-                err_msg = "Unable to get log from stream if it does not support the attribute 'readlines'."
+                err_msg = "Unable to get log from stream if it does not support 'seek' and 'readlines'."
                 raise FMUException(err_msg) from e
             except UnsupportedOperation as e:
                 # This happens if we are not allowed to read from given stream

@@ -210,9 +210,7 @@ def extract_xml_log(dest, log, modulename = 'Model'):
                 Default: get_log_filename() + xml
             log --
                 String of filename to extract log from or a stream. The support for stream
-                requires that the stream is readable and supports the attributes 'seek' and 'readlines'.
-                For information about these attributes, see the class
-                IOBase in the module 'io', that is part of the Python standard library.
+                requires that the stream is readable and supports 'seek' and 'readlines'.
                 Default: get_log_filename() + xml
             modulename --
                 Selects the module as recorded in the beginning of each line by FMI Library.
@@ -240,7 +238,7 @@ def extract_xml_log(dest, log, modulename = 'Model'):
                 filter_xml_log(dest.write, log.readlines(), modulename)
     else:
         msg = "Input argument 'log' needs to be either a file or a stream that supports"
-        msg += " the two attributes 'seek' and 'readlines'."
+        msg += " 'seek' and 'readlines'."
         raise FMUException(msg)
 
 def filter_xml_log(write, sourcefile, modulename = 'Model'):
