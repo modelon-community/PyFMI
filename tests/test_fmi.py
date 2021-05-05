@@ -145,6 +145,7 @@ class Test_FMUModelME1:
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped ME FMU 1.0 using FMUModelME1 """
         self._test_unzipped_bouncing_ball(FMUModelME1)
+
     @testattr(stddist = True)
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped ME FMU 1.0 using load_fmu """
@@ -237,10 +238,12 @@ class Test_FMUModelME1:
         assert isinstance(bounce.simulate_options(), fmi_algorithm_drivers.AssimuloFMIAlgOptions)
 
 class Test_FMUModelCS1:
+
     @testattr(stddist = True)
     def test_unzipped_fmu_exception_invalid_dir(self):
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
         _helper_unzipped_fmu_exception_invalid_dir(FMUModelCS1)
+
     def _test_unzipped_bouncing_ball(self, fmu_loader):
         """ Simulates the bouncing ball FMU CS1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS1 or load_fmu. """
         tol = 1e-2
@@ -430,13 +433,6 @@ class Test_LoadFMU:
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
         _helper_unzipped_fmu_exception_invalid_dir(load_fmu)
 
-class Test_LoadFMU:
-
-    @testattr(stddist = True)
-    def test_unzipped_fmu_exception_invalid_dir(self):
-        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
-        _helper_unzipped_fmu_exception_invalid_dir(load_fmu)
-
 class Test_FMUModelCS2:
 
     @testattr(stddist = True)
@@ -492,6 +488,13 @@ class Test_FMUModelCS2:
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
         opts["ncp"] = -1
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
+
+    def test_unzipped_fmu_exceptions(self):
+        """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelCS2. """
+        err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+        full_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0")
+        with nose.tools.assert_raises_regex(FMUException, err_msg):
+            model = FMUModelCS2("LinearStability.SubSystem1.fmu", full_path, _connect_dll=False, allow_unzipped_fmu=True)
 
 if assimulo_installed:
     class Test_FMUModelME2_Simulation:
