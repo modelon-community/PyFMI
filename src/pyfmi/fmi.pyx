@@ -203,7 +203,7 @@ cdef class ModelBase:
     def _set_log_stream(self, stream):
         """ Function that sets the class property 'log_stream' and does error handling. """
         if not hasattr(stream, 'write'):
-            raise FMUException("TODO1")
+            raise FMUException("Only streams that support 'write' are supported.")
 
         self._log_stream = stream
         self.log_is_stream = 1
@@ -1290,6 +1290,9 @@ cdef class FMUModelBase(ModelBase):
 
             log_file_name --
                 Filename for file used to save logmessages.
+                This argument can also be a stream if it supports 'write', for full functionality
+                it must also support 'seek' and 'readlines'.
+                The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
             log_level --
@@ -1438,7 +1441,7 @@ cdef class FMUModelBase(ModelBase):
         self._nEventIndicators = FMIL.fmi1_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
 
-        if not isinstance(log_file_name, str): # TODO
+        if not isinstance(log_file_name, str):
             self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
                 try:
@@ -3921,6 +3924,9 @@ cdef class FMUModelBase2(ModelBase):
 
             log_file_name --
                 Filename for file used to save logmessages.
+                This argument can also be a stream if it supports 'write', for full functionality
+                it must also support 'seek' and 'readlines'.
+                The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
             log_level --
@@ -4113,7 +4119,7 @@ cdef class FMUModelBase2(ModelBase):
         self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
 
-        if not isinstance(log_file_name, str): # TODO
+        if not isinstance(log_file_name, str):
             self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
                 self._log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
@@ -6928,6 +6934,9 @@ cdef class FMUModelCS2(FMUModelBase2):
 
             log_file_name --
                 Filename for file used to save log messages.
+                This argument can also be a stream if it supports 'write', for full functionality
+                it must also support 'seek' and 'readlines'.
+                The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
             log_level --
@@ -7552,6 +7561,9 @@ cdef class FMUModelME2(FMUModelBase2):
 
             log_file_name --
                 Filename for file used to save logmessages.
+                This argument can also be a stream if it supports 'write', for full functionality
+                it must also support 'seek' and 'readlines'.
+                The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
             log_level --
@@ -8470,6 +8482,9 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
 
         log_file_name --
             Filename for file used to save logmessages.
+            This argument can also be a stream if it supports 'write', for full functionality
+            it must also support 'seek' and 'readlines'.
+            The stream must also be open and writable during the entire time.
             Default: "" (Generates automatically)
 
         kind --
