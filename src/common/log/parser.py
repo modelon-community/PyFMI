@@ -229,17 +229,16 @@ def extract_xml_log(dest, log, modulename = 'Model'):
                     filter_xml_log(destfile.write, sourcefile, modulename)
             else:
                 filter_xml_log(dest.write, sourcefile, modulename)
-    elif hasattr(log, 'seek') and hasattr(log, 'readlines'):
-            log.seek(0) # Return to the start of the stream
+    elif hasattr(log, 'readlines'):
             if dest_is_file:
                 with open(dest, 'w') as destfile:
                     filter_xml_log(destfile.write, log.readlines(), modulename)
             else:
                 filter_xml_log(dest.write, log.readlines(), modulename)
     else:
-        msg = "Input argument 'log' needs to be either a file or a stream that supports"
-        msg += " 'seek' and 'readlines'."
-        raise FMUException(msg)
+        raise FMUException(
+            "Input argument 'log' needs to be either a file, or a stream that supports 'readlines'."
+        )
 
 def filter_xml_log(write, sourcefile, modulename = 'Model'):
     write('<?xml version="1.0" encoding="UTF-8"?>\n<JMILog category="info">\n')
