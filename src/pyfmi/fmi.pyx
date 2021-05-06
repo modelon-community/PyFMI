@@ -1287,7 +1287,9 @@ cdef class FMUModelBase(ModelBase):
             log_file_name --
                 Filename for file used to save logmessages.
                 This argument can also be a stream if it supports 'write', for full functionality
-                it must also support 'seek' and 'readlines'.
+                it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
+                for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
+                on the stream instance after 'write' has been invoked on the PyFMI side.
                 The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
@@ -3924,7 +3926,9 @@ cdef class FMUModelBase2(ModelBase):
             log_file_name --
                 Filename for file used to save logmessages.
                 This argument can also be a stream if it supports 'write', for full functionality
-                it must also support 'seek' and 'readlines'.
+                it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
+                for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
+                on the stream instance after 'write' has been invoked on the PyFMI side.
                 The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
@@ -6932,9 +6936,11 @@ cdef class FMUModelCS2(FMUModelBase2):
                 use the option "log_level" instead.
 
             log_file_name --
-                Filename for file used to save log messages.
+                Filename for file used to save logmessages.
                 This argument can also be a stream if it supports 'write', for full functionality
-                it must also support 'seek' and 'readlines'.
+                it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
+                for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
+                on the stream instance after 'write' has been invoked on the PyFMI side.
                 The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
@@ -7562,7 +7568,9 @@ cdef class FMUModelME2(FMUModelBase2):
             log_file_name --
                 Filename for file used to save logmessages.
                 This argument can also be a stream if it supports 'write', for full functionality
-                it must also support 'seek' and 'readlines'.
+                it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
+                for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
+                on the stream instance after 'write' has been invoked on the PyFMI side.
                 The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
@@ -8484,7 +8492,9 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         log_file_name --
             Filename for file used to save logmessages.
             This argument can also be a stream if it supports 'write', for full functionality
-            it must also support 'seek' and 'readlines'.
+            it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
+            for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
+            on the stream instance after 'write' has been invoked on the PyFMI side.
             The stream must also be open and writable during the entire time.
             Default: "" (Generates automatically)
 
