@@ -1445,7 +1445,8 @@ cdef class FMUModelBase(ModelBase):
                 except:
                     if hasattr(self._log_stream, 'closed') and self._log_stream.closed:
                         logging.warning("Unable to log to closed stream.")
-                    logging.warning("Unable to log to stream.")
+                    else:
+                        logging.warning("Unable to log to stream.")
         else:
             fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
