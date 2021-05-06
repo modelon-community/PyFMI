@@ -197,7 +197,7 @@ cdef class ModelBase:
         self._max_log_size = 1024**3*2 #About 2GB limit
         self._max_log_size_msg_sent = False
         self._log_stream = None
-        self._modelid = None
+        self._modelId = None
         self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
 
     def _set_log_stream(self, stream):
@@ -485,7 +485,7 @@ cdef class ModelBase:
         """ Returns a name of the logfile, if logging is done to a stream it returns
             a string formatted base on the model identifier.
         """
-        return '{}_log'.format(self._modelid) if self._log_is_stream else decode(self._fmu_log_name)
+        return '{}_log'.format(self._modelId) if self._log_is_stream else decode(self._fmu_log_name)
 
     def get_log_file_name(self):
         logging.warning("The method 'get_log_file_name()' is deprecated and will be removed. Please use 'get_log_filename()' instead.")
@@ -1435,7 +1435,7 @@ cdef class FMUModelBase(ModelBase):
         self._pyEventInfo = PyEventInfo()
 
         #Load information from model
-        self._modelid = decode(FMIL.fmi1_import_get_model_identifier(self._fmu))
+        self._modelId = decode(FMIL.fmi1_import_get_model_identifier(self._fmu))
         self._modelname = decode(FMIL.fmi1_import_get_model_name(self._fmu))
         self._nEventIndicators = FMIL.fmi1_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
@@ -1450,7 +1450,7 @@ cdef class FMUModelBase(ModelBase):
                         logging.warning("Unable to log to closed stream.")
                     logging.warning("Unable to log to stream.")
         else:
-            fmu_log_name = encode((self._modelid + "_log.txt") if log_file_name=="" else log_file_name)
+            fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
             FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
@@ -2693,7 +2693,7 @@ cdef class FMUModelBase(ModelBase):
         Return the model identifier, name of binary model file and prefix in
         the C-function names of the model.
         """
-        return self._modelid
+        return self._modelId
 
     def get_author(self):
         """
@@ -4109,9 +4109,9 @@ cdef class FMUModelBase2(ModelBase):
 
         #Load information from model
         if isinstance(self,FMUModelME2):
-            self._modelid           = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
+            self._modelId           = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
         elif isinstance(self,FMUModelCS2):
-            self._modelid           = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
+            self._modelId           = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
         else:
             raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
 
@@ -4125,7 +4125,7 @@ cdef class FMUModelBase2(ModelBase):
             for i in range(len(self._log)):
                 self._log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
         else:
-            fmu_log_name = encode((self._modelid + "_log.txt") if log_file_name=="" else log_file_name)
+            fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
             FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
@@ -6899,7 +6899,7 @@ cdef class FMUModelBase2(ModelBase):
         Return the model identifier, name of binary model file and prefix in
         the C-function names of the model.
         """
-        return self._modelid
+        return self._modelId
 
     def get_model_types_platform(self):
         """
@@ -6966,7 +6966,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         if self.get_capability_flags()['needsExecutionTool'] == True:
             raise FMUException('Models that need an execution tool are not supported')
 
-        self._modelid = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
+        self._modelId = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
 
         if _connect_dll:
             self.instantiate()
@@ -7602,7 +7602,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         self.force_finite_differences = 0
 
-        self._modelid = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
+        self._modelId = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
 
         if _connect_dll:
             self.instantiate()
