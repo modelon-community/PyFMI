@@ -30,7 +30,7 @@ import fnmatch
 import re
 from collections import OrderedDict
 cimport cython
-from io import StringIO, TextIOWrapper, UnsupportedOperation
+from io import UnsupportedOperation
 
 import scipy.sparse as sp
 import numpy as N
