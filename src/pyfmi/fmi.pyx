@@ -607,7 +607,7 @@ cdef class ModelBase:
                 # This happens if we are not allowed to read from given stream
                 err_msg = "Unable to read from given stream, make sure the stream is readable."
                 raise FMUException(err_msg) from e
-        elif self._log_stream_is_set():
+        elif self._log_stream is not None:
             if hasattr(self._log_stream, 'closed') and self._log_stream.closed:
                 raise FMUException("Unable to get log from closed stream.")
             else:
@@ -625,11 +625,7 @@ cdef class ModelBase:
 
     def _log_stream_is_open(self):
         """ Returns True or False based on if logging is done to a stream and if it is open or closed. """
-        return self._log_stream_is_set() and not self._log_stream.closed
-
-    def _log_stream_is_set(self):
-        """ Retrurns True or False based on if logging is done to a stream. """
-        return self._log_stream is not None
+        return self._log_stream is not None and not self._log_stream.closed
 
     def _open_log_file(self):
         """ Opens the log file if we are not logging into a given stream. """
@@ -695,7 +691,7 @@ cdef class ModelBase:
             else:
                 with open(self._fmu_log_name,'a') as file:
                     file.write(full_msg)
-        elif self._log_stream_is_set():
+        elif self._log_stream is not None:
             self._log_stream.write(full_msg)
         else:
             if isinstance(self._log, list):
