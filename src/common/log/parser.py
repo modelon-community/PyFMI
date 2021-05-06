@@ -202,9 +202,9 @@ def extract_xml_log(dest, log, modulename = 'Model'):
     Input argument 'modulename' selects the module as recorded in the beginning of each line by
     FMI Library.
 
-        dest::
+        parameters::
 
-            file_name  --
+            dest  --
                 Name of the file which holds the extracted log, or a stream to write to
                 that supports the function 'write'. Default behaviour is to write to a file.
                 Default: get_log_filename() + xml
