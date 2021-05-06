@@ -191,7 +191,7 @@ cdef class ModelBase:
     def __init__(self):
         self.cache = {}
         self.file_object = None
-        self.log_is_stream = 0
+        self._log_is_stream = 0
         self._additional_logger = None
         self._current_log_size = 0
         self._max_log_size = 1024**3*2 #About 2GB limit
@@ -206,7 +206,7 @@ cdef class ModelBase:
             raise FMUException("Only streams that support 'write' are supported.")
 
         self._log_stream = stream
-        self.log_is_stream = 1
+        self._log_is_stream = 1
 
     def set(self, variable_name, value):
         """
@@ -485,7 +485,7 @@ cdef class ModelBase:
         """ Returns a name of the logfile, if logging is done to a stream it returns
             a string formatted base on the model identifier.
         """
-        return '{}_log'.format(self._modelid) if self.log_is_stream else decode(self._fmu_log_name)
+        return '{}_log'.format(self._modelid) if self._log_is_stream else decode(self._fmu_log_name)
 
     def get_log_file_name(self):
         logging.warning("The method 'get_log_file_name()' is deprecated and will be removed. Please use 'get_log_filename()' instead.")
@@ -544,7 +544,7 @@ cdef class ModelBase:
         if stream is not None:
             # In case the user has set the stream to readable again from the outside
             is_stream = True
-        elif self.log_is_stream and self._log_stream:
+        elif self._log_is_stream and self._log_stream:
             # Use the one used during simulation
             is_stream = True
             stream = self._log_stream
@@ -633,7 +633,7 @@ cdef class ModelBase:
 
     def _open_log_file(self):
         """ Opens the log file if we are not logging into a given stream. """
-        if not self.log_is_stream and self._fmu_log_name != NULL:
+        if not self._log_is_stream and self._fmu_log_name != NULL:
             self.file_object = open(self._fmu_log_name,'a')
 
     def _close_log_file(self):
