@@ -538,7 +538,7 @@ cdef class ModelBase:
 
         module_name = 'Slave' if isinstance(self, FMUModelCS1) else 'Model'
 
-        is_stream = self.log_is_stream and self._log_stream
+        is_stream = self._log_is_stream and self._log_stream
         if is_stream:
             try:
                 self._log_stream.seek(0)
