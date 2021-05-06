@@ -671,10 +671,13 @@ cdef class ModelBase:
             try:
                 self._log_stream.write(msg)
             except:
+                # Try to catch exception if stream is closed or not writable
+                # which could be due to the stream is given in 'read-mode.
                 if not self._invoked_dealloc:
                     if hasattr(self._log_stream, 'closed') and self._log_stream.closed:
                         logging.warning("Unable to log to closed stream.")
-                    logging.warning("Unable to log to stream.")
+                    else:
+                        logging.warning("Unable to log to stream.")
                 self._log_stream = None
         else:
             if isinstance(self._log, list):
@@ -2794,8 +2797,6 @@ cdef class FMUModelCS1(FMUModelBase):
         Deallocate memory allocated
         """
         self._invoked_dealloc = 1
-        if self._log_stream:
-            self._log_stream = None
 
         if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate_slave(self._fmu)
@@ -2821,6 +2822,9 @@ cdef class FMUModelCS1(FMUModelBase):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+        if self._log_stream:
+            self._log_stream = None
 
     def do_step(self, FMIL.fmi1_real_t current_t, FMIL.fmi1_real_t step_size, new_step=True):
         """
@@ -3360,8 +3364,6 @@ cdef class FMUModelME1(FMUModelBase):
         Deallocate memory allocated
         """
         self._invoked_dealloc = 1
-        if self._log_stream:
-            self._log_stream = None
 
         if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate(self._fmu)
@@ -3387,6 +3389,9 @@ cdef class FMUModelME1(FMUModelBase):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+        if self._log_stream:
+            self._log_stream = None
 
     cpdef _get_time(self):
         return self.__t
@@ -6971,8 +6976,6 @@ cdef class FMUModelCS2(FMUModelBase2):
         Deallocate memory allocated
         """
         self._invoked_dealloc = 1
-        if self._log_stream:
-            self._log_stream = None
 
         if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
@@ -6998,6 +7001,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+        if self._log_stream:
+            self._log_stream = None
 
     cpdef _get_time(self):
         """
@@ -7606,8 +7612,6 @@ cdef class FMUModelME2(FMUModelBase2):
         Deallocate memory allocated
         """
         self._invoked_dealloc = 1
-        if self._log_stream:
-            self._log_stream = None
 
         if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
@@ -7633,6 +7637,9 @@ cdef class FMUModelME2(FMUModelBase2):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+        if self._log_stream:
+            self._log_stream = None
 
     cpdef _get_time(self):
         """
