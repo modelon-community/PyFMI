@@ -30,6 +30,7 @@ import fnmatch
 import re
 from collections import OrderedDict
 cimport cython
+from io import UnsupportedOperation
 
 import scipy.sparse as sp
 import numpy as N
@@ -190,10 +191,22 @@ cdef class ModelBase:
     def __init__(self):
         self.cache = {}
         self.file_object = None
+        self._log_is_stream = 0
         self._additional_logger = None
         self._current_log_size = 0
         self._max_log_size = 1024**3*2 #About 2GB limit
         self._max_log_size_msg_sent = False
+        self._log_stream = None
+        self._modelId = None
+        self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
+
+    def _set_log_stream(self, stream):
+        """ Function that sets the class property 'log_stream' and does error handling. """
+        if not hasattr(stream, 'write'):
+            raise FMUException("Only streams that support 'write' are supported.")
+
+        self._log_stream = stream
+        self._log_is_stream = 1
 
     def set(self, variable_name, value):
         """
@@ -469,7 +482,10 @@ cdef class ModelBase:
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
     def get_log_filename(self):
-        return decode(self._fmu_log_name)
+        """ Returns a name of the logfile, if logging is done to a stream it returns
+            a string formatted base on the model identifier.
+        """
+        return '{}_log'.format(self._modelId) if self._log_is_stream else decode(self._fmu_log_name)
 
     def get_log_file_name(self):
         logging.warning("The method 'get_log_file_name()' is deprecated and will be removed. Please use 'get_log_filename()' instead.")
@@ -477,7 +493,8 @@ cdef class ModelBase:
 
     def get_number_of_lines_log(self):
         """
-        Returns the number of lines in the log file.
+            Returns the number of lines in the log file.
+            If logging was done to a stream, this function returns 0.
         """
         num_lines = 0
         if self._fmu_log_name != NULL:
@@ -499,29 +516,42 @@ cdef class ModelBase:
     def extract_xml_log(self, file_name=None):
         """
         Extract the XML contents of a FMU log and write as a new file.
+        If logging was done to a stream, it needs to support 'seek', otherwise an FMUException is raised
+        when invoking this function.
 
         Parameters::
 
             file_name --
-                Name of the file which holds the extracted log
+                Name of the file which holds the extracted log, or a stream to write to
+                that supports the function 'write'. Default behaviour is to write to a file.
                 Default: get_log_filename() + xml
 
         Returns::
-
-            file_path -- path to extracted XML file
+            If extract to a file:
+                file_path -- path to extracted XML file
+            otherwise function returns nothing
         """
         from pyfmi.common.log import extract_xml_log
 
         if file_name is None:
-            file_name = self.get_log_filename()[:-3] + "xml"
+            file_name = "{}.{}".format(os.path.splitext(self.get_log_filename())[0], 'xml')
 
-        if isinstance(self, FMUModelCS1):
-            module_name = "Slave"
+        module_name = 'Slave' if isinstance(self, FMUModelCS1) else 'Model'
+
+        is_stream = self._log_is_stream and self._log_stream
+        if is_stream:
+            try:
+                self._log_stream.seek(0)
+            except AttributeError:
+                raise FMUException("In order to extract the XML-log from a stream, it needs to support 'seek'")
+
+        extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name)
+
+        if isinstance(file_name, str):
+            return os.path.abspath(file_name)
         else:
-            module_name = "Model"
-
-        extract_xml_log(file_name, self.get_log_filename(), module_name)
-        return os.path.abspath(file_name)
+            # If we extract the log into a stream, return None
+            return None
 
     def get_log(self, int start_lines=-1, int end_lines=-1):
         """
@@ -531,6 +561,9 @@ cdef class ModelBase:
         first log message to the log and consists of, in the following
         order, the instance name, the status, the category and the
         message.
+
+        This function also works if logging was done to a stream if and only if
+        the stream is readable and supports 'seek' and 'readlines'.
 
         Returns::
 
@@ -560,16 +593,40 @@ cdef class ModelBase:
                         if i > start_lines and i < num_lines - end_lines + 1:
                             continue
                     log.append(line.strip("\n"))
+        elif self._log_stream_is_open():
+            try:
+                self._log_stream.seek(0)
+                return [line.strip("\n") for line in self._log_stream.readlines() if line]
+            except AttributeError as e:
+                err_msg = "Unable to get log from stream if it does not support 'seek' and 'readlines'."
+                raise FMUException(err_msg) from e
+            except UnsupportedOperation as e:
+                # This happens if we are not allowed to read from given stream
+                err_msg = "Unable to read from given stream, make sure the stream is readable."
+                raise FMUException(err_msg) from e
+        elif self._log_stream is not None:
+            if hasattr(self._log_stream, 'closed') and self._log_stream.closed:
+                raise FMUException("Unable to get log from closed stream.")
+            else:
+                raise FMUException("Unable to get log from stream, please verify that it is open.")
+
         return log
 
     def _log_open(self):
         if self.file_object:
             return True
+        elif self._log_stream_is_open():
+            return True
         else:
             return False
 
+    def _log_stream_is_open(self):
+        """ Returns True or False based on if logging is done to a stream and if it is open or closed. """
+        return self._log_stream is not None and not self._log_stream.closed
+
     def _open_log_file(self):
-        if self._fmu_log_name != NULL:
+        """ Opens the log file if we are not logging into a given stream. """
+        if not self._log_is_stream and self._fmu_log_name != NULL:
             self.file_object = open(self._fmu_log_name,'a')
 
     def _close_log_file(self):
@@ -607,21 +664,38 @@ cdef class ModelBase:
                     if (f != NULL):
                         FMIL.fprintf(f, "FMIL: module = %s, log level = %d: %s\n",c_module, log_level, c_message)
                         FMIL.fclose(f)
+        elif self._log_stream:
+            try:
+                self._log_stream.write(msg)
+            except:
+                # Try to catch exception if stream is closed or not writable
+                # which could be due to the stream is given in 'read-mode.
+                if not self._invoked_dealloc:
+                    if hasattr(self._log_stream, 'closed') and self._log_stream.closed:
+                        logging.warning("Unable to log to closed stream.")
+                    else:
+                        logging.warning("Unable to log to stream.")
+                self._log_stream = None
         else:
-            self._log.append([module,log_level,message])
+            if isinstance(self._log, list):
+                self._log.append([module,log_level,message])
 
     def append_log_message(self, module, log_level, message):
         if self._additional_logger:
             self._additional_logger(module, log_level, message)
 
+        full_msg = "FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message)
         if self._fmu_log_name != NULL:
             if self.file_object:
-                self.file_object.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+                self.file_object.write(full_msg)
             else:
                 with open(self._fmu_log_name,'a') as file:
-                    file.write("FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message))
+                    file.write(full_msg)
+        elif self._log_stream is not None:
+            self._log_stream.write(full_msg)
         else:
-            self._log.append([module,log_level,message])
+            if isinstance(self._log, list):
+                self._log.append([module,log_level,message])
 
     def set_max_log_size(self, number_of_characters):
         """
@@ -1212,6 +1286,11 @@ cdef class FMUModelBase(ModelBase):
 
             log_file_name --
                 Filename for file used to save logmessages.
+                This argument can also be a stream if it supports 'write', for full functionality
+                it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
+                for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
+                on the stream instance after 'write' has been invoked on the PyFMI side.
+                The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
             log_level --
@@ -1355,19 +1434,32 @@ cdef class FMUModelBase(ModelBase):
         self._pyEventInfo = PyEventInfo()
 
         #Load information from model
-        self._modelid = decode(FMIL.fmi1_import_get_model_identifier(self._fmu))
+        self._modelId = decode(FMIL.fmi1_import_get_model_identifier(self._fmu))
         self._modelname = decode(FMIL.fmi1_import_get_model_name(self._fmu))
         self._nEventIndicators = FMIL.fmi1_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
-        fmu_log_name = encode((self._modelid + "_log.txt") if log_file_name=="" else log_file_name)
-        self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
-        FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
-        #Create the log file
-        with open(self._fmu_log_name,'w') as file:
+        if not isinstance(log_file_name, str):
+            self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
-                file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
-            self._log = []
+                try:
+                    self._log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+                except:
+                    if hasattr(self._log_stream, 'closed') and self._log_stream.closed:
+                        logging.warning("Unable to log to closed stream.")
+                    else:
+                        logging.warning("Unable to log to stream.")
+        else:
+            fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
+            self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
+            FMIL.strcpy(self._fmu_log_name, fmu_log_name)
+
+            #Create the log file
+            with open(self._fmu_log_name,'w') as file:
+                for i in range(len(self._log)):
+                    file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+
+        self._log = []
 
     cpdef _internal_set_fmu_null(self):
         """
@@ -2601,7 +2693,7 @@ cdef class FMUModelBase(ModelBase):
         Return the model identifier, name of binary model file and prefix in
         the C-function names of the model.
         """
-        return self._modelid
+        return self._modelId
 
     def get_author(self):
         """
@@ -2704,6 +2796,8 @@ cdef class FMUModelCS1(FMUModelBase):
         """
         Deallocate memory allocated
         """
+        self._invoked_dealloc = 1
+
         if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate_slave(self._fmu)
 
@@ -2728,6 +2822,9 @@ cdef class FMUModelCS1(FMUModelBase):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+        if self._log_stream:
+            self._log_stream = None
 
     def do_step(self, FMIL.fmi1_real_t current_t, FMIL.fmi1_real_t step_size, new_step=True):
         """
@@ -3266,6 +3363,8 @@ cdef class FMUModelME1(FMUModelBase):
         """
         Deallocate memory allocated
         """
+        self._invoked_dealloc = 1
+
         if self._allocated_fmu == 1:
             FMIL.fmi1_import_terminate(self._fmu)
 
@@ -3290,6 +3389,9 @@ cdef class FMUModelME1(FMUModelBase):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+        if self._log_stream:
+            self._log_stream = None
 
     cpdef _get_time(self):
         return self.__t
@@ -3823,6 +3925,11 @@ cdef class FMUModelBase2(ModelBase):
 
             log_file_name --
                 Filename for file used to save logmessages.
+                This argument can also be a stream if it supports 'write', for full functionality
+                it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
+                for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
+                on the stream instance after 'write' has been invoked on the PyFMI side.
+                The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
             log_level --
@@ -4014,15 +4121,22 @@ cdef class FMUModelBase2(ModelBase):
         self._modelName         = decode(FMIL.fmi2_import_get_model_name(self._fmu))
         self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu)
         self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
-        fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
-        self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
-        FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
-        #Create the log file
-        with open(self._fmu_log_name,'w') as file:
+        if not isinstance(log_file_name, str):
+            self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
-                file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
-            self._log = []
+                self._log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+        else:
+            fmu_log_name = encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
+            self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
+            FMIL.strcpy(self._fmu_log_name, fmu_log_name)
+
+            #Create the log file
+            with open(self._fmu_log_name,'w') as file:
+                for i in range(len(self._log)):
+                    file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+
+        self._log = []
 
     cpdef N.ndarray get_real(self, valueref):
         """
@@ -6822,7 +6936,12 @@ cdef class FMUModelCS2(FMUModelBase2):
                 use the option "log_level" instead.
 
             log_file_name --
-                Filename for file used to save log messages.
+                Filename for file used to save logmessages.
+                This argument can also be a stream if it supports 'write', for full functionality
+                it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
+                for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
+                on the stream instance after 'write' has been invoked on the PyFMI side.
+                The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
             log_level --
@@ -6860,6 +6979,8 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         Deallocate memory allocated
         """
+        self._invoked_dealloc = 1
+
         if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
 
@@ -6884,6 +7005,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+        if self._log_stream:
+            self._log_stream = None
 
     cpdef _get_time(self):
         """
@@ -7443,6 +7567,11 @@ cdef class FMUModelME2(FMUModelBase2):
 
             log_file_name --
                 Filename for file used to save logmessages.
+                This argument can also be a stream if it supports 'write', for full functionality
+                it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
+                for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
+                on the stream instance after 'write' has been invoked on the PyFMI side.
+                The stream must also be open and writable during the entire time.
                 Default: "" (Generates automatically)
 
             log_level --
@@ -7488,6 +7617,7 @@ cdef class FMUModelME2(FMUModelBase2):
         """
         Deallocate memory allocated
         """
+        self._invoked_dealloc = 1
 
         if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
@@ -7513,6 +7643,9 @@ cdef class FMUModelME2(FMUModelBase2):
         if self._fmu_log_name != NULL:
             FMIL.free(self._fmu_log_name)
             self._fmu_log_name = NULL
+
+        if self._log_stream:
+            self._log_stream = None
 
     cpdef _get_time(self):
         """
@@ -8358,6 +8491,11 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
 
         log_file_name --
             Filename for file used to save logmessages.
+            This argument can also be a stream if it supports 'write', for full functionality
+            it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
+            for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
+            on the stream instance after 'write' has been invoked on the PyFMI side.
+            The stream must also be open and writable during the entire time.
             Default: "" (Generates automatically)
 
         kind --

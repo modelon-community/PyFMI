@@ -41,9 +41,12 @@ cdef class ModelBase:
     cdef char* _fmu_log_name
     cdef FMIL.jm_callbacks callbacks
     cdef public dict cache
+    cdef public object _log_stream
     cdef public object file_object
     cdef public object _additional_logger
     cdef public object _max_log_size_msg_sent
+    cdef object _modelId
+    cdef public int _log_is_stream, _invoked_dealloc
     cdef public unsigned long long int _current_log_size, _max_log_size
 
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
@@ -123,7 +126,6 @@ cdef class FMUModelBase(ModelBase):
     cdef int _allow_unzipped_fmu
     cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu
     cdef object _allocated_list
-    cdef object _modelid
     cdef object _modelname
     cdef unsigned int _nEventIndicators
     cdef unsigned int _nContinuousStates
@@ -178,7 +180,6 @@ cdef class FMUModelBase2(ModelBase):
     cdef public object  _enable_logging
     cdef int _allow_unzipped_fmu
     cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu, _initialized_fmu
-    cdef object         _modelId
     cdef object         _modelName
     cdef public list    _save_real_variables_val
     cdef public list    _save_int_variables_val
