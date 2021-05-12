@@ -267,7 +267,12 @@ class ResultDymola:
 class ResultCSVTextual:
     def __init__(self, filename, delimiter=";"):
         
-        fid = codecs.open(filename,'r','utf-8')
+        if isintance(filename, str):
+            fid = codecs.open(filename,'r','utf-8')
+        else: #assume stream
+            if not(hasattr(filename, 'readline')):
+                raise JIOError("Given stream does not support readline required to retrieve the results.")
+            fid = filename
         
         if delimiter == ";":
             name = fid.readline().strip().split(delimiter)
@@ -858,9 +863,14 @@ class ResultDymolaTextual(ResultDymola):
         Parameters::
         
             fname --
-                Name of file.
+                Name of file or stream object which the result is written to.
         """
-        fid = codecs.open(fname,'r','utf-8')
+        if isinstance(fname, str):
+            fid = codecs.open(fname,'r','utf-8')
+        else:
+            if not hasattr(fname, 'readline'):
+                raise JIOError("Given stream does not support readline required to retrieve the results.")
+            fid = fname
         
         result  = []
      
@@ -1154,13 +1164,14 @@ class ResultDymolaBinary(ResultDymola):
         Parameters::
         
             fname --
-                Name of file.
+                Name of file or stream object which the result is written to.
                 
             delayed_trajectory_loading --
                 Determines if the trajectories are loaded on demand or 
                 all at the same time.
                 Default: True
         """
+        # TODO check requirements for loading here!
         if isinstance(fname, io.IOBase):
             if hasattr(fname, "name") and os.path.isfile(fname.name):
                 self._fname = fname.name
@@ -1549,8 +1560,15 @@ class ResultHandlerCSV(ResultHandler):
                     cont_alias_bool.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
         
         # Open file
-        f = codecs.open(self.file_name,'w','utf-8')
-        self.file_open = True
+        if isinstance(self.file_name, str):
+            f = codecs.open(self.file_name,'w','utf-8')
+            self.file_open = True
+        else:
+            if not hasattr(self.file_name, 'write'):
+                raise fmi.FMUException("Given stream in file_name does not support 'write' as required.")
+            f = self.file_name #assume it is a stream
+            self.file_open = False 
+        
         
         if delimiter == ",":
             name_str = '"time"'
@@ -1678,6 +1696,7 @@ class ResultHandlerFile(ResultHandler):
         
         #Internal values
         self.file_open = False
+        self._is_stream = False
         self.nbr_points = 0
         
         self.file_name = opts["result_file_name"]
@@ -1696,7 +1715,13 @@ class ResultHandlerFile(ResultHandler):
         parameters = self.parameters
         
         # Open file
-        f = codecs.open(file_name,'w','utf-8')
+        if isinstance(self.file_name, str):
+            f = codecs.open(self.file_name,'w','utf-8')
+        else:
+            if not (hasattr(self.file_name, 'write') and hasattr(self.file_name, 'seek')):
+                raise fmi.FMUException("Given stream in file_name does not support 'write' and 'seek' as required.")
+            f = self.file_name #assume it is a stream
+            self._is_stream = True
         self.file_open = True
         
         # Write header
@@ -2076,7 +2101,8 @@ class ResultHandlerFile(ResultHandler):
             f.seek(-1,2)
             #Close the file
             f.write('\n')
-            f.close()
+            if not self._is_stream:
+                f.close()
             self.file_open = False
             
     def get_result(self):
@@ -2085,7 +2111,7 @@ class ResultHandlerFile(ResultHandler):
         result of an instance of ResultBase or of an instance of a 
         subclass of ResultBase.
         """
-        return ResultDymolaTextual(self.file_name)
+        return ResultDymolaTextual(self.file_name if not self._is_stream else self._file)
         
     def set_options(self, options):
         """
@@ -2235,6 +2261,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         
         #Internal values
         self.file_open = False
+        self._is_stream = False
         self.nbr_points = 0
         
         self.file_name = opts["result_file_name"]
@@ -2251,7 +2278,15 @@ class ResultHandlerBinaryFile(ResultHandler):
         
         file_name = self.file_name
         parameters = self.parameters
-        self._file = open(file_name,'wb')
+        if isinstance(self.file_name, str):
+            self._file = open(file_name,'wb')
+        else:
+            if not (hasattr(self.file_name, 'write') and hasattr(self.file_name, 'seek') and (hasattr(self.file_name, 'tell'))):
+                raise fmi.FMUException("Given stream in file_name does not support 'write' and 'seek' as required.")
+            self._file = self.file_name #assume it is a stream
+            self._is_stream = True
+        self.file_open = True 
+        
         
         aclass_data = ["Atrajectory", "1.1", " ", "binTrans"]
         aclass_data = self.convert_char_array(aclass_data)
@@ -2353,7 +2388,8 @@ class ResultHandlerBinaryFile(ResultHandler):
         f = self._file
         
         if f:
-            f.close()
+            if not self._is_stream:
+                f.close()
             self._file = None
             
     def get_result(self):
