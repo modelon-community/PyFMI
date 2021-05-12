@@ -120,14 +120,14 @@ cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
     
     k = 0
     for i in range(n_col):
-        if columns_taken.has_key(i) or (interested_columns is not None and not interested_columns.has_key(i)):
+        if (i in columns_taken) or (interested_columns is not None and not (i in interested_columns)):
             continue
             
         # New group
         groups[k] = [[i], column_dict[i][:], [row_keys_dict[x] for x in column_dict[i]], [i]*len(column_dict[i]), data_index[i], data_index_with_diag[i]]
         
         for j in range(i+1, n_col):
-            if columns_taken.has_key(j) or (interested_columns is not None and not interested_columns.has_key(j)):
+            if (j in columns_taken) or (interested_columns is not None and not (j in interested_columns)):
                 continue
             
             intersect = frozenset(groups[k][1]).intersection(column_dict[j])
@@ -583,11 +583,24 @@ class Graph:
         self.graph_info = graph_info
         self._unknown_index = 31415926
         
+        self.edges_0 = {}
+        self.edges_1 = {}
+        
+        for edge in self.edges:
+            try:
+                self.edges_0[edge[0]].append(edge[1])
+            except KeyError:
+                self.edges_0[edge[0]] = [edge[1]]
+            try:
+                self.edges_1[edge[1]].append(edge[0])
+            except KeyError:
+                self.edges_1[edge[1]] = [edge[0]]
+        
     def _dfs(self, start_node):
         self.visited_nodes[start_node] = None
         
         for v, w in (edge for edge in self.edges if edge[0] == start_node):
-            if not self.visited_nodes.has_key(w):
+            if not (w in self.visited_nodes):
                 self._dfs(w)
                 
     def dfs(self, start_node):
@@ -609,7 +622,7 @@ class Graph:
             node = node[0]
             if self.graph_info[node]["type"] == GRAPH_OUTPUT:
                 model = self.graph_info[node]["model"]
-                if not trees.has_key(model):
+                if not (model in trees):
                     trees[model] = OrderedDict()
                     trees[model][node] = self.dfs(node)
                     joined_nodes[node] = [node]
@@ -617,7 +630,7 @@ class Graph:
                     included = False
                     #spanning_tree = self.dfs(node)
                     for out in trees[model].keys():
-                        if trees[model][out].has_key(node): #Node is in a previouos spanning tree (cannot join them)
+                        if node in trees[model][out]: #Node is in a previouos spanning tree (cannot join them)
                             pass
                         else:
                             print "Joining: ", out, node
@@ -637,7 +650,7 @@ class Graph:
         stack = [w for v,w in (edge for edge in self.edges if edge[0] == start_node and self.graph_info[edge[1]]["model"] != self.graph_info[edge[0]]["model"])]
         while stack and not loop:
             e = stack.pop()
-            if not visited_nodes.has_key(e):
+            if not (e in visited_nodes):
                 visited_nodes[v] = None
                 for v,w in (edge for edge in self.edges if edge[0] == e):
                     if w == start_node:
@@ -654,13 +667,14 @@ class Graph:
         self.index = self.index + 1
         self.stack.append(node)
         
-        for v,w in (edge for edge in self.edges if edge[0] == node):
-            if self.number[w] < 0: #Not numbered
-                self._strongly_connected_components(w)
-                self.lowlink[node] = min(self.lowlink[node], self.lowlink[w])
-            elif self.number[w] < self.number[v]:
-                if w in self.stack:
-                    self.lowlink[node] = min(self.lowlink[node], self.number[w])
+        if node in self.edges_0_edge:
+            for v,w in self.edges_0_edge[node]:
+                if self.number[w] < 0: #Not numbered
+                    self._strongly_connected_components(w)
+                    self.lowlink[node] = min(self.lowlink[node], self.lowlink[w])
+                elif self.number[w] < self.number[v]:
+                    if w in self.stack:
+                        self.lowlink[node] = min(self.lowlink[node], self.number[w])
                     
         if self.lowlink[node] == self.number[node]:
             #node is the root of a component
@@ -676,6 +690,13 @@ class Graph:
         self.stack = []
         self.connected_components = []
         
+        self.edges_0_edge = {}
+        for edge in self.edges:
+            try:
+                self.edges_0_edge[edge[0]].append(edge)
+            except KeyError:
+                self.edges_0_edge[edge[0]] = [edge]
+        
         for node in self.nodes:
             if self.number[node] < 0:
                 self._strongly_connected_components(node)
@@ -684,6 +705,7 @@ class Graph:
     def group_node(self, list connected_component):
         nodes = self.nodes
         edges = self.edges
+        connected_component_dict = {k: v for v, k in enumerate(connected_component)}
         
         output = True
         for node in connected_component:
@@ -696,21 +718,20 @@ class Graph:
                 model = False
                 self._unknown_index = self._unknown_index + 1
                 break
-        
         new_node = "+".join(connected_component)
         nodes.add(new_node)
         self.graph_info[new_node] = {"type": GRAPH_OUTPUT if output else GRAPH_SCC, "model": self.graph_info[connected_component[0]]["model"] if model else self._unknown_index}
         for j,edge in enumerate(edges):
-            if edge[0] in connected_component and edge[1] in connected_component:
+            if edge[0] in connected_component_dict and edge[1] in connected_component_dict:
                 edges[j] = (None, None) #Necessary to remove the current edges
-            elif edge[0] in connected_component:
+            elif edge[0] in connected_component_dict:
                 edges[j] = (new_node, edge[1])
-            elif edge[1] in connected_component:
+            elif edge[1] in connected_component_dict:
                 edges[j] = (edge[0], new_node)
         for node in connected_component:
             nodes.discard(node)
             self.graph_info.pop(node)
-        
+
         #Get unique list
         self.edges = list(OrderedSet([x for x in edges if x != (None,None)]))
         
@@ -794,11 +815,8 @@ class Graph:
         feed_through = False
         
         for node in nodes:
-            for edge in self.edges:
-                if edge[0] == node: #This node is connected to an output
-                    feed_through = True
-                    break
-            if feed_through:
+            if node in self.edges_0:
+                feed_through = True
                 break
         return feed_through
         
@@ -811,24 +829,26 @@ class Graph:
             if self.graph_info[node]["type"] == GRAPH_OUTPUT:
                 model = self.graph_info[node]["model"]
                 list_of_connections = []
-                for edge in self.edges:
-                    if edge[1] == node: #The node is in a direct feed-through
-                        potential = False
-                    if edge[0] == node: #This node is connected to somewhere
-                        list_of_connections.append(edge[1])
-                if len(list_of_connections) > 0:
-                    potential_second = not self._check_feed_through(list_of_connections)
-                #print "Potential: ", potential, node, list_of_connections
+
+                if node in self.edges_1: #The node is in a direct feed-through
+                    potential = False
+                
                 if potential:
-                    if connected_components_first.has_key(model):
+                    if model in connected_components_first:
                         connected_components_first[model].append(node)
                     else:
                         connected_components_first[model] = [node]
-                elif potential_second:
-                    if connected_components_second.has_key(model):
-                        connected_components_second[model].append(node)
-                    else:
-                        connected_components_second[model] = [node]
+                else:
+                    list_of_connections = self.edges_0[node] #The node is connected somewhere
+                
+                    if len(list_of_connections) > 0:
+                        potential_second = not self._check_feed_through(list_of_connections)
+                    
+                    if potential_second:
+                        if model in connected_components_second:
+                            connected_components_second[model].append(node)
+                        else:
+                            connected_components_second[model] = [node]
         for model in connected_components_first.keys():
             if len(connected_components_first[model]) > 1:
                 self.group_node(connected_components_first[model])
@@ -850,14 +870,11 @@ class Graph:
         
     def compute_evaluation_order_old(self):
         SCCs = self.strongly_connected_components()
-        
-        #print SCCs
         self.group_connected_components(SCCs) #Group the SCCs
         self.add_edges_between_outputs() #Add edges between outputs
-        
+
         while True:
             SCCs = self.strongly_connected_components()
-            #print SCCs
             torn = self.tear_graph(SCCs)
             if not torn:
                 break
@@ -867,14 +884,11 @@ class Graph:
     def compute_evaluation_order(self):
         self.prepare_graph()
         SCCs = self.strongly_connected_components()[::-1]
-        #print "Initial SCCs: ", SCCs
-        #self.group_connected_components(SCCs) #Group the SCCs
         
         i = 0
         while i < len(SCCs):
             f = SCCs[i]
             b = 0
-            #print "Start: ", i, SCCs
             if len(f) == 1 and self.graph_info[f[0]]["type"] == GRAPH_OUTPUT:
                 for j in range(i-1):
                     e = SCCs[j]

@@ -726,8 +726,9 @@ cdef class Master:
         for model in self.models_dict.keys():
             output_state_dep, output_input_dep = model.get_output_dependencies()
             for local_output in self.models_dict[model]["local_output"]:
+                output_input_dep_dict = {key: i for i, key in enumerate(output_input_dep[local_output])}
                 for local_input in self.models_dict[model]["local_input"]:
-                    if local_input in output_input_dep[local_output]:
+                    if local_input in output_input_dep_dict:
                         self.models_dict[model]["direct_dependence"].append((local_input, local_output))
                         self.algebraic_loops = 1
                         #break
@@ -1705,10 +1706,8 @@ cdef class Master:
         return Graph(edges, graph_info)
     
     def compute_evaluation_order(self, init_type="greedy", order = None):
-        
         if order is None:
             graph = self.define_graph()
-            
             if init_type == "grouping":
                 order = graph.grouped_order(graph.strongly_connected_components())[::-1]
             elif init_type == "simple":
