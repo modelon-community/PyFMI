@@ -267,12 +267,13 @@ class ResultDymola:
 class ResultCSVTextual:
     def __init__(self, filename, delimiter=";"):
         
-        if isintance(filename, str):
+        if isinstance(filename, str):
             fid = codecs.open(filename,'r','utf-8')
         else: #assume stream
-            if not(hasattr(filename, 'readline')):
+            if not(hasattr(filename, 'readline') and hasattr(filename, 'seek')):
                 raise JIOError("Given stream does not support readline required to retrieve the results.")
             fid = filename
+            fid.seek(0, 0) # need to start reading from beginning
         
         if delimiter == ";":
             name = fid.readline().strip().split(delimiter)
@@ -868,9 +869,10 @@ class ResultDymolaTextual(ResultDymola):
         if isinstance(fname, str):
             fid = codecs.open(fname,'r','utf-8')
         else:
-            if not hasattr(fname, 'readline'):
-                raise JIOError("Given stream does not support readline required to retrieve the results.")
+            if not (hasattr(fname, 'readline') and hasattr(fname, 'seek')):
+                raise JIOError("Given stream does not support 'readline' and 'seek' required to retrieve the results.")
             fid = fname
+            fid.seek(0,0) # Needs to start from beginning of file
         
         result  = []
      
@@ -1171,14 +1173,22 @@ class ResultDymolaBinary(ResultDymola):
                 all at the same time.
                 Default: True
         """
-        # TODO check requirements for loading here!
+
+        if isinstance(fname, str):
+            self._fname = fname
+            self._is_stream = False
+        else:
+            self._fname = fname
+            self._is_stream = True
+            delayed_trajectory_loading = False #TODO check if necessary
+        """ # TODO check requirements for loading here!
         if isinstance(fname, io.IOBase):
             if hasattr(fname, "name") and os.path.isfile(fname.name):
                 self._fname = fname.name
             else:
                 raise JIOError("Not supported file format, needs to be a filename or a stream based on a file.")
         else:
-            self._fname = fname
+            self._fname = fname """
             
         data_sections = ["name", "dataInfo", "data_2"]
 
@@ -1206,11 +1216,11 @@ class ResultDymolaBinary(ResultDymola):
         self._delayed_loading = delayed_trajectory_loading
         self._description = None  
         self._data_1      = None
-        self._mtime       = os.path.getmtime(self._fname)
+        self._mtime       = None if self._is_stream else os.path.getmtime(self._fname)
         
     def _get_data_1(self):
         if self._data_1 is None:
-            if self._mtime != os.path.getmtime(self._fname):
+            if not self._is_stream and self._mtime != os.path.getmtime(self._fname):
                 raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
             
             self._data_1 = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["data_1"])["data_1"]
@@ -2098,10 +2108,14 @@ class ResultHandlerFile(ResultHandler):
             f.seek(self._point_npoints)
             f.write('%d,%d)' % (self.nbr_points, self._nvariables+self._nvariables_sens))
             #f.write('%d'%self._npoints)
-            f.seek(-1,2)
-            #Close the file
-            f.write('\n')
-            if not self._is_stream:
+            
+            if self._is_stream: #Seek relative to file end to allowed for string streams
+                f.seek(0, os.SEEK_END)
+                f.seek(f.tell()-1, os.SEEK_SET)
+            else:
+                f.seek(-1,2)
+                #Close the file
+                f.write('\n')
                 f.close()
             self.file_open = False
             

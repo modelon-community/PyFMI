@@ -19,6 +19,7 @@ import nose
 import os
 import numpy as np
 import time
+from io import StringIO, BytesIO
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
@@ -35,9 +36,10 @@ try:
 except ImportError:
     assimulo_installed = False
 
-def _run_negated_alias(model, result_type):
+def _run_negated_alias(model, result_type, result_file_name=""):
     opts = model.simulate_options()
     opts["result_handling"] = result_type
+    opts["result_file_name"] = result_file_name
     
     res = model.simulate(options=opts)
     
@@ -54,8 +56,8 @@ def _run_negated_alias(model, result_type):
 
 if assimulo_installed:
     class TestResultFileText_Simulation:
-        @testattr(stddist = True)
-        def test_correct_file_after_simulation_failure(self):
+
+        def _correct_syntax_after_simulation_failure(self, result_file_name):
             simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
             
             def f(*args, **kwargs):
@@ -68,6 +70,7 @@ if assimulo_installed:
             opts = simple_alias.simulate_options()
             opts["result_handling"] = "file"
             opts["solver"] = "ExplicitEuler"
+            opts["result_file_name"]  = result_file_name
             
             successful_simulation = False
             try:
@@ -79,7 +82,7 @@ if assimulo_installed:
             if successful_simulation:
                 raise Exception
                 
-            result = ResultDymolaTextual("NegatedAlias_result.txt")
+            result = ResultDymolaTextual(result_file_name)
             
             x = result.get_variable_data("x").x
             y = result.get_variable_data("y").x
@@ -88,6 +91,15 @@ if assimulo_installed:
             
             for i in range(len(x)):
                 nose.tools.assert_equal(x[i], -y[i])
+        
+        @testattr(stddist = True)
+        def test_correct_file_after_simulation_failure(self):
+            self._correct_syntax_after_simulation_failure("NegatedAlias_result.txt")
+        
+        @testattr(stddist = True)
+        def test_correct_stream_after_simulation_failure(self):
+            stream = StringIO("")
+            self._correct_syntax_after_simulation_failure(stream)
             
         @testattr(stddist = True)
         def test_read_all_variables_using_model_variables(self):
@@ -146,21 +158,32 @@ if assimulo_installed:
 
 class TestResultFileText:
     
-    @testattr(stddist = True)
-    def test_get_description(self):
+    
+    def _get_description(self, result_file_name):
         model = Dummy_FMUModelME1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
         model.initialize()
         
         result_writer = ResultHandlerFile(model)
-        result_writer.set_options(model.simulate_options())
+        opts = model.simulate_options()
+        opts["result_file_name"] = result_file_name
+        result_writer.set_options(opts)
         result_writer.simulation_start()
         result_writer.initialize_complete()
         result_writer.integration_point()
         result_writer.simulation_end()
         
-        res = ResultDymolaTextual('CoupledClutches_result.txt')
+        res = ResultDymolaTextual(result_file_name)
         
         assert res.description[res.get_variable_index("J1.phi")] == "Absolute rotation angle of component"
+    
+    @testattr(stddist = True)
+    def test_get_description_file(self):
+        self._get_description('CoupledClutches_result.txt')
+    
+    @testattr(stddist = True)
+    def test_get_description_stream(self):
+        stream = StringIO()
+        self._get_description(stream)
     
     @testattr(stddist = True)
     def test_description_not_stored(self):
@@ -181,37 +204,49 @@ class TestResultFileText:
         
         assert res.description[res.get_variable_index("J1.phi")] == "", "Description is not empty, " + res.description[res.get_variable_index("J1.phi")]
     
-    @testattr(stddist = True)
-    def test_get_description_unicode(self):
+    def _get_description_unicode(self, result_file_name):
         model = Dummy_FMUModelME1([], "Description.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
         model.initialize()
         
         result_writer = ResultHandlerFile(model)
-        result_writer.set_options(model.simulate_options())
+        opts = model.simulate_options()
+        opts["result_file_name"] = result_file_name
+        result_writer.set_options(opts)
         result_writer.simulation_start()
         result_writer.initialize_complete()
         result_writer.integration_point()
         result_writer.simulation_end()
         
-        res = ResultDymolaTextual('Description_result.txt')
+        res = ResultDymolaTextual(result_file_name)
         desc = res.description[res.get_variable_index("x")] 
 
         assert desc == u"Test symbols '' ‘’"
+        
+    @testattr(stddist = True)
+    def _get_description_unicode_file(self):
+        self._get_description_unicode('Description_result.txt')
     
     @testattr(stddist = True)
-    def test_work_flow_me1(self):
+    def _get_description_unicode_stream(self):
+        stream = StringIO()
+        self._get_description_unicode(stream)
+    
+    
+    def _work_flow_me1(self, result_file_name):
         model = Dummy_FMUModelME1([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
         model.initialize()
         
         bouncingBall = ResultHandlerFile(model)
         
-        bouncingBall.set_options(model.simulate_options())
+        opts = model.simulate_options()
+        opts["result_file_name"] = result_file_name
+        bouncingBall.set_options(opts)
         bouncingBall.simulation_start()
         bouncingBall.initialize_complete()
         bouncingBall.integration_point()
         bouncingBall.simulation_end()
         
-        res = ResultDymolaTextual('bouncingBall_result.txt')
+        res = ResultDymolaTextual(result_file_name)
         
         h = res.get_variable_data('h')
         derh = res.get_variable_data('der(h)')
@@ -219,9 +254,17 @@ class TestResultFileText:
 
         nose.tools.assert_almost_equal(h.x, 1.000000, 5)
         nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
+        
+    @testattr(stddist = True)
+    def test_work_flow_me1_file(self):
+        self._work_flow_me1('bouncingBall_result.txt')
     
     @testattr(stddist = True)
-    def test_work_flow_me2(self):
+    def test_work_flow_me1_stream(self):
+        stream = StringIO()
+        self._work_flow_me1(stream)
+    
+    def _work_flow_me2(self, result_file_name):
         """Tests the work flow of write_header, write_point, write_finalize."""
         model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()
@@ -229,13 +272,15 @@ class TestResultFileText:
         
         bouncingBall = ResultHandlerFile(model)
         
-        bouncingBall.set_options(model.simulate_options())
+        opts = model.simulate_options()
+        opts["result_file_name"] = result_file_name
+        bouncingBall.set_options(opts)
         bouncingBall.simulation_start()
         bouncingBall.initialize_complete()
         bouncingBall.integration_point()
         bouncingBall.simulation_end()
         
-        res = ResultDymolaTextual('bouncingBall_result.txt')
+        res = ResultDymolaTextual(result_file_name)
         
         h = res.get_variable_data('h')
         derh = res.get_variable_data('der(h)')
@@ -243,6 +288,15 @@ class TestResultFileText:
 
         nose.tools.assert_almost_equal(h.x, 1.000000, 5)
         nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
+        
+    @testattr(stddist = True)
+    def test_work_flow_me2_file(self):
+        self._work_flow_me2('bouncingBall_result.txt')
+    
+    @testattr(stddist = True)
+    def test_work_flow_me2_stream(self):
+        stream = StringIO()
+        self._work_flow_me2(stream)
 
 if assimulo_installed:
     class TestResultMemory_Simulation:
@@ -301,8 +355,8 @@ class TestResultMemory:
 
 if assimulo_installed:
     class TestResultFileBinary_Simulation:
-        @testattr(stddist = True)
-        def test_correct_file_after_simulation_failure(self):
+
+        def _correct_file_after_simulation_failure(self, result_file_name):
             simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
             
             def f(*args, **kwargs):
@@ -314,6 +368,7 @@ if assimulo_installed:
             
             opts = simple_alias.simulate_options()
             opts["result_handling"] = "binary"
+            opts["result_file_name"] = result_file_name
             opts["solver"] = "ExplicitEuler"
             
             successful_simulation = False
@@ -326,7 +381,7 @@ if assimulo_installed:
             if successful_simulation:
                 raise Exception
                 
-            result = ResultDymolaBinary("NegatedAlias_result.mat")
+            result = ResultDymolaBinary(result_file_name)
             
             x = result.get_variable_data("x").x
             y = result.get_variable_data("y").x
@@ -335,32 +390,61 @@ if assimulo_installed:
             
             for i in range(len(x)):
                 nose.tools.assert_equal(x[i], -y[i])
-            
+        
+
         @testattr(stddist = True)
-        def test_only_parameters(self):
+        def test_work_flow_me2_file(self):
+            self._correct_file_after_simulation_failure("NegatedAlias_result.mat")
+    
+        @testattr(stddist = True)
+        def test_work_flow_me2_stream(self):
+            stream = BytesIO()
+            self._correct_file_after_simulation_failure(stream) 
+            
+        def _only_parameters(self, result_file_name):
             model = Dummy_FMUModelME2([], "ParameterAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
             
             opts = model.simulate_options()
             opts["result_handling"] = "custom"
             opts["result_handler"] = ResultHandlerBinaryFile(model)
             opts["filter"] = "p2"
+            opts["result_file_name"] = result_file_name
             
             res = model.simulate(options=opts)
             
             nose.tools.assert_almost_equal(3.0, res["p2"][0])
+            
+        @testattr(stddist = True)
+        def test_only_parameters_file(self):
+            self._only_parameters("ParameterAlias_result.mat")
         
         @testattr(stddist = True)
-        def test_no_variables(self):
+        def test_only_parameters_stream(self):
+            stream = BytesIO()
+            self._only_parameters(stream)
+        
+        def _no_variables(self, result_file_name):
             model = Dummy_FMUModelME2([], "ParameterAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
             
             opts = model.simulate_options()
             opts["result_handling"] = "custom"
             opts["result_handler"] = ResultHandlerBinaryFile(model)
             opts["filter"] = "NoMatchingVariables"
+            opts["result_file_name"] = result_file_name
             
             res = model.simulate(options=opts)
             
             nose.tools.assert_almost_equal(1.0, res["time"][-1])
+        
+
+        @testattr(stddist = True)
+        def test_no_variables_file(self):
+            self._no_variables("ParameterAlias_result.mat")
+        
+        @testattr(stddist = True)
+        def test_no_variables_stream(self):
+            stream = BytesIO()
+            self._no_variables(stream)
             
         @testattr(stddist = True)
         def test_read_alias_derivative(self):
@@ -445,27 +529,50 @@ if assimulo_installed:
         def test_binary_options_me2(self):
             simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
             _run_negated_alias(simple_alias, "binary")
+            
+        @testattr(stddist = True)
+        def test_binary_options_me1_stream(self):
+            simple_alias = Dummy_FMUModelME1([40], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+            stream = BytesIO()
+            _run_negated_alias(simple_alias, "binary", stream)
+        
+        @testattr(stddist = True)
+        def test_binary_options_me2_stream(self):
+            simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            stream = BytesIO()
+            _run_negated_alias(simple_alias, "binary", stream)
 
 class TestResultFileBinary:
-    @testattr(stddist = True)
-    def test_get_description_unicode(self):
+
+    def _get_description_unicode(self, result_file_name):
         model = Dummy_FMUModelME1([], "Description.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
         model.initialize()
         
         result_writer = ResultHandlerBinaryFile(model)
-        result_writer.set_options(model.simulate_options())
+        opts = model.simulate_options()
+        opts["result_file_name"] = result_file_name
+        result_writer.set_options(opts)
         result_writer.simulation_start()
         result_writer.initialize_complete()
         result_writer.integration_point()
         result_writer.simulation_end()
         
-        res = ResultDymolaBinary('Description_result.mat')
+        res = ResultDymolaBinary(result_file_name)
         
         desc = res.description[res.get_variable_index("x")]
         #This handling should in the future be nativly handled by the IO module        
         desc = desc.encode("latin_1", "replace").decode("utf-8", "replace")
         
         assert desc == u"Test symbols '' ‘’"
+        
+    @testattr(stddist = True)
+    def test_get_description_unicode_file(self):
+        self._get_description_unicode('Description_result.mat')
+    
+    @testattr(stddist = True)
+    def test_get_description_unicode_stream(self):
+        stream = BytesIO()
+        self._get_description_unicode(stream)
         
     @testattr(stddist = True)
     def test_get_description(self):
@@ -581,6 +688,7 @@ class TestResultFileBinary:
 
         with open(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), "rb") as f:
             res_stream = ResultDymolaBinary(f)
+            assert len(res_stream.name) == 1097, "Incorrect number of variables found, should be 1097"
             
             for var in res_file.name:
                 x_file   = res_file.get_variable_data(var)
@@ -647,24 +755,27 @@ class TestResultFileBinary:
         nose.tools.assert_almost_equal(h.x[0], 1.000000, 5)
         nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5)
     
-    @testattr(stddist = True)
-    def test_work_flow_me2_aborted(self):
+    def _work_flow_me2_aborted(self, result_file_name):
         model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()
         model.initialize()
         
         bouncingBall = ResultHandlerBinaryFile(model)
         
-        bouncingBall.set_options(model.simulate_options())
+        opts = model.simulate_options()
+        opts["result_file_name"] = result_file_name
+        
+        bouncingBall.set_options(opts)
         bouncingBall.simulation_start()
         bouncingBall.initialize_complete()
         bouncingBall.integration_point()
         bouncingBall.integration_point()
         bouncingBall.integration_point()
         #No call to simulation end to mimic an aborted simulation
-        bouncingBall._file.close()
+        if isinstance(result_file_name, str): #avoid for streams
+            bouncingBall._file.close()
         
-        res = ResultDymolaBinary('bouncingBall_result.mat')
+        res = ResultDymolaBinary(result_file_name)
         
         h = res.get_variable_data('h')
         derh = res.get_variable_data('der(h)')
@@ -675,6 +786,16 @@ class TestResultFileBinary:
         nose.tools.assert_almost_equal(derh.x[1], 0.000000, 5, msg="Incorrect value for 'derh', should be 0.0")
         nose.tools.assert_almost_equal(h.x[2], 1.000000, 5, msg="Incorrect value for 'h', should be 1.0")
         nose.tools.assert_almost_equal(derh.x[2], 0.000000, 5, msg="Incorrect value for 'derh', should be 0.0")
+    
+    @testattr(stddist = True)
+    def test_work_flow_me2_aborted_file(self):
+        self._work_flow_me2_aborted('bouncingBall_result.mat')
+    
+    @testattr(stddist = True)
+    def test_work_flow_me2_aborted_stream(self):
+        stream = BytesIO()
+        self._work_flow_me2_aborted(stream)
+        
     
     @testattr(stddist = True)
     def test_filter_no_variables(self):
@@ -703,6 +824,12 @@ class TestResultFileBinary:
     def test_binary_options_cs2(self):
         simple_alias = Dummy_FMUModelCS2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
         _run_negated_alias(simple_alias, "binary")
+        
+    @testattr(stddist = True)
+    def test_binary_options_cs2_stream(self):
+        simple_alias = Dummy_FMUModelCS2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        stream = BytesIO()
+        _run_negated_alias(simple_alias, "binary", stream)
 
 if assimulo_installed:
     class TestResultCSVTextual_Simulation:
@@ -764,6 +891,18 @@ if assimulo_installed:
         def test_csv_options_me2(self):
             simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
             _run_negated_alias(simple_alias, "csv")
+            
+        @testattr(stddist = True)
+        def test_csv_options_me1_stream(self):
+            simple_alias = Dummy_FMUModelME1([40], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+            stream = StringIO()
+            _run_negated_alias(simple_alias, "csv", stream)
+        
+        @testattr(stddist = True)
+        def test_csv_options_me2(self):
+            simple_alias = Dummy_FMUModelME2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            stream = StringIO()
+            _run_negated_alias(simple_alias, "csv", stream)
         
         @testattr(stddist = True)
         def test_enumeration_csv(self):
@@ -791,13 +930,15 @@ class TestResultCSVTextual:
         assert x.x[-1] == 1
     
     @testattr(stddist = True)
-    def test_work_flow_me1(self):
+    def _work_flow_me1(self, result_file_name):
         model = Dummy_FMUModelME1([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
         model.initialize()
         
         bouncingBall = ResultHandlerCSV(model)
         
-        bouncingBall.set_options(model.simulate_options())
+        opts = model.simulate_options()
+        opts["result_file_name"] = result_file_name
+        bouncingBall.set_options(opts)
         bouncingBall.simulation_start()
         bouncingBall.initialize_complete()
         bouncingBall.integration_point()
@@ -811,22 +952,31 @@ class TestResultCSVTextual:
 
         nose.tools.assert_almost_equal(h.x, 1.000000, 5)
         nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
+        
+    @testattr(stddist = True)
+    def test_work_flow_me1_file(self):
+        self._work_flow_me1('bouncingBall_result.csv')
     
     @testattr(stddist = True)
-    def test_work_flow_me2(self):
+    def test_work_flow_me1_stream(self):
+        stream = StringIO()
+        self._work_flow_me1(stream)
+    
+    def _work_flow_me2(self, result_file_name):
         model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()
         model.initialize()
         
         bouncingBall = ResultHandlerCSV(model)
-        
-        bouncingBall.set_options(model.simulate_options())
+        opts = model.simulate_options()
+        opts["result_file_name"] = result_file_name
+        bouncingBall.set_options(opts)
         bouncingBall.simulation_start()
         bouncingBall.initialize_complete()
         bouncingBall.integration_point()
         bouncingBall.simulation_end()
         
-        res = ResultCSVTextual('bouncingBall_result.csv')
+        res = ResultCSVTextual(result_file_name)
         
         h = res.get_variable_data('h')
         derh = res.get_variable_data('der(h)')
@@ -835,6 +985,15 @@ class TestResultCSVTextual:
         nose.tools.assert_almost_equal(h.x, 1.000000, 5)
         nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
     
+    
+    @testattr(stddist = True)
+    def test_work_flow_me2_file(self):
+        self._work_flow_me2('bouncingBall_result.csv')
+    
+    @testattr(stddist = True)
+    def test_work_flow_me2_stream(self):
+        stream = StringIO()
+        self._work_flow_me2(stream)
     """
     @testattr(stddist = True)
     def test_csv_options_cs1(self):
