@@ -85,6 +85,8 @@ class AssimuloFMIAlgOptions(OptionBase):
             file name that is based on the name of the model class.
             result_file_name can also be set to a stream that supports 'write',
             'tell' and 'seek'.
+            Note that depending on choice of result_handling the stream needs to
+            support writing to either string or bytes.
             Default: Empty string
 
         with_jacobian --
