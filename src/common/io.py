@@ -1170,25 +1170,21 @@ class ResultDymolaBinary(ResultDymola):
                 
             delayed_trajectory_loading --
                 Determines if the trajectories are loaded on demand or 
-                all at the same time.
-                Default: True
+                all at the same time. Only works for files or streams that
+                are based on a file and has attribute name.
+                Default: True (for files)
         """
 
         if isinstance(fname, str):
             self._fname = fname
             self._is_stream = False
+        elif hasattr(fname, "name") and os.path.isfile(fname.name):
+            self._fname = fname.name
+            self._is_stream = False
         else:
             self._fname = fname
             self._is_stream = True
-            delayed_trajectory_loading = False #TODO check if necessary
-        """ # TODO check requirements for loading here!
-        if isinstance(fname, io.IOBase):
-            if hasattr(fname, "name") and os.path.isfile(fname.name):
-                self._fname = fname.name
-            else:
-                raise JIOError("Not supported file format, needs to be a filename or a stream based on a file.")
-        else:
-            self._fname = fname """
+            delayed_trajectory_loading = False 
             
         data_sections = ["name", "dataInfo", "data_2"]
 

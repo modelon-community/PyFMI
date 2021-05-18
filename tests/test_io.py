@@ -695,7 +695,15 @@ class TestResultFileBinary:
                 x_stream = res_stream.get_variable_data(var)
                 
                 np.testing.assert_array_equal(x_file.x, x_stream.x, err_msg="Mismatch in array values for var=%s"%var)
-                
+
+    @testattr(stddist = True)
+    def test_on_demand_loading_32_bits(self):
+        res_demand = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
+        res_all = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
+        t_demand = res_demand.get_variable_data('time').x 
+        t_all = res_all.get_variable_data('time').x 
+        np.testing.assert_array_equal(t_demand, t_all, "On demand loaded result and all loaded does not contain equal result.")
+
     @testattr(stddist = True)
     def test_work_flow_me1(self):
         model = Dummy_FMUModelME1([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)

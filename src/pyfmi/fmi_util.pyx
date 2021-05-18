@@ -28,6 +28,7 @@ cimport numpy as np
 cimport fmil_import as FMIL
 from cpython cimport array
 from pyfmi.fmi cimport FMUModelME2, FMUModelBase
+from pyfmi.common.io import JIOError
 
 import functools
 import marshal
@@ -1050,8 +1051,6 @@ from libc.stdio cimport *
 cdef extern from "stdio.h":
     FILE *fdopen(int, const char *)
 
-DTYPE = np.double
-ctypedef np.double_t DTYPE_t
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -1089,12 +1088,58 @@ def read_trajectory(file_name, int data_index, int file_position, int sizeof_typ
     cdef unsigned long int start_point = data_index*sizeof_type
     cdef unsigned long int end_point   = sizeof_type*(nbr_points*nbr_variables)
     cdef unsigned long int interval    = sizeof_type*nbr_variables
+
+    if sizeof_type == 4:
+        return _read_trajectory32(file_name, start_point,end_point, interval, file_position, nbr_points)
+    elif sizeof_type == 8:
+        return _read_trajectory64(file_name, start_point,end_point, interval, file_position, nbr_points)
+    else:
+        raise JIOError("Cannot read data that is not of size 32 or 64 bit (float).")
+
+DTYPE32 = np.float32
+ctypedef np.float32_t DTYPE32_t
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _read_trajectory32(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
+    cdef int i = 0
+    cdef unsigned long int offset
+    cdef FILE* cfile
+    cdef np.ndarray[DTYPE32_t, ndim=1] data
+    cdef DTYPE32_t* data_ptr
+    cdef size_t sizeof_dtype = sizeof(DTYPE32_t)
+
+    cfile = fopen(file_name, 'rb')
+    
+    data = np.empty(nbr_points, dtype=DTYPE32)
+    data_ptr = <DTYPE32_t*>data.data
+    
+    fseek(cfile, file_position, 0)
+    #for offset in range(start_point, end_point, interval):
+    for offset from start_point <= offset < end_point by interval:
+        fseek(cfile, file_position+offset, 0)
+        fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
+        i = i + 1
+
+    fclose(cfile)
+
+    return data
+
+DTYPE = np.double
+ctypedef np.double_t DTYPE_t
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _read_trajectory64(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
+    cdef int i = 0
+    cdef unsigned long int offset
     cdef FILE* cfile
     cdef np.ndarray[DTYPE_t, ndim=1] data
     cdef DTYPE_t* data_ptr
     cdef size_t sizeof_dtype = sizeof(DTYPE_t)
 
     cfile = fopen(file_name, 'rb')
+    
     data = np.empty(nbr_points, dtype=DTYPE)
     data_ptr = <DTYPE_t*>data.data
     
@@ -1108,6 +1153,7 @@ def read_trajectory(file_name, int data_index, int file_position, int sizeof_typ
     fclose(cfile)
 
     return data
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
