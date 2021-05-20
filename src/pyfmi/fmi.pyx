@@ -6242,12 +6242,16 @@ cdef class FMUModelBase2(ModelBase):
 
         if python3_flag:
             outputs = list(self.get_output_list().keys())
-            states_list = list(self.get_states_list().keys())
-            inputs_list = list(self.get_input_list().keys())
+            states_dict = self.get_states_list()
+            states_list = list(states_dict.keys())
+            inputs_dict = self.get_input_list()
+            inputs_list = list(inputs_dict.keys())
         else:
             outputs = self.get_output_list().keys()
-            states_list = self.get_states_list().keys()
-            inputs_list = self.get_input_list().keys()
+            states_dict = self.get_states_list()
+            states_list = states_dict.keys()
+            inputs_dict = self.get_input_list()
+            inputs_list = inputs_dict.keys()
 
         states = OrderedDict()
         states_kind = OrderedDict()
@@ -6263,7 +6267,7 @@ cdef class FMUModelBase2(ModelBase):
                         'No dependency information for the outputs was found in the model description.' \
                         ' Assuming complete dependency with the exception if the output is a state by itself.')
                 for i in range(0,len(outputs)):
-                    if outputs[i] in states_list: #The output is a state in itself
+                    if outputs[i] in states_dict: #The output is a state in itself
                         states[outputs[i]]  = [outputs[i]]
                         states_kind[outputs[i]] = [FMI2_KIND_DEPENDENT]
 
@@ -6292,11 +6296,11 @@ cdef class FMUModelBase2(ModelBase):
                             variable = FMIL.fmi2_import_get_variable(variable_list, dependencyp[start_indexp[i]+j]-1)
                             name             = decode(FMIL.fmi2_import_get_variable_name(variable))
 
-                            if name in states_list:
+                            if name in states_dict:
                                 states[outputs[i]].append(name)
                                 states_kind[outputs[i]].append(factor_kindp[start_indexp[i]+j])
 
-                            elif name in inputs_list:
+                            elif name in inputs_dict:
                                 inputs[outputs[i]].append(name)
                                 inputs_kind[outputs[i]].append(factor_kindp[start_indexp[i]+j])
 
