@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2014 Modelon AB
@@ -59,14 +59,14 @@ def enable_caching(obj):
     def memoizer(*args, **kwargs):
         cache = args[0].cache #First argument is the self object
         key = (obj, marshal.dumps(args[1:]), marshal.dumps(kwargs))
-        
+
         if len(cache) > 1000: #Remove items from cache in case it grows large
             cache.popitem()
 
         if key not in cache:
             cache[key] = obj(*args, **kwargs)
         return cache[key]
-        
+
     return memoizer
 
 cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
@@ -85,7 +85,7 @@ cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
         for x in dependencies[dx]:
             column_dict[column_keys_dict[x]].append(dx)
     columns_taken = {key: 1 for key in column_dict.keys() if len(column_dict[key]) == 0}
-    
+
     k = 0
     kd = 0
     data_index = {}
@@ -96,7 +96,7 @@ cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
         else:
             data_index[i] = range(k, k + len(column_dict[i]))
         k = k + len(column_dict[i])
-        
+
         data_index_with_diag[i] = []
         diag_added = False
         for x in column_dict[i]:
@@ -113,26 +113,26 @@ cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
                 data_index_with_diag[i].append(kd)
                 kd = kd + 1
         if not diag_added:
-            kd = kd + 1 
-    
+            kd = kd + 1
+
     nnz = k
     nnz_with_diag = kd
-    
+
     k = 0
     for i in range(n_col):
         if (i in columns_taken) or (interested_columns is not None and not (i in interested_columns)):
             continue
-            
+
         # New group
         groups[k] = [[i], column_dict[i][:], [row_keys_dict[x] for x in column_dict[i]], [i]*len(column_dict[i]), data_index[i], data_index_with_diag[i]]
-        
+
         for j in range(i+1, n_col):
             if (j in columns_taken) or (interested_columns is not None and not (j in interested_columns)):
                 continue
-            
+
             intersect = frozenset(groups[k][1]).intersection(column_dict[j])
             if not intersect:
-                
+
                 #structure
                 # - [0] - variable indexes
                 # - [1] - variable names
@@ -140,7 +140,7 @@ cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
                 # - [3] - matrix columns
                 # - [4] - position in data vector (CSC format)
                 # - [5] - position in data vector (with diag) (CSC format)
-                
+
                 groups[k][0].append(j)
                 groups[k][1].extend(column_dict[j])
                 groups[k][2].extend([row_keys_dict[x] for x in column_dict[j]])
@@ -148,18 +148,18 @@ cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
                 groups[k][4].extend(data_index[j])
                 groups[k][5].extend(data_index_with_diag[j])
                 columns_taken[j] = 1
-        
+
         groups[k][0] = np.array(groups[k][0],dtype=np.int32)
         groups[k][2] = np.array(groups[k][2],dtype=np.int32)
         groups[k][3] = np.array(groups[k][3],dtype=np.int32)
         groups[k][4] = np.array(groups[k][4],dtype=np.int32)
         groups[k][5] = np.array(groups[k][5],dtype=np.int32)
         k = k + 1
-    
+
     groups["groups"] = list(groups.keys())
     groups["nnz"] = nnz
     groups["nnz_with_diag"] = nnz_with_diag
-    
+
     return groups
 
 cimport cython
@@ -170,18 +170,18 @@ cdef double quad_err(np.ndarray[double, ndim=1] sim, np.ndarray[double, ndim=1] 
     cdef double s = 0
     for i in range(n):
         s += (sim[i]-est[i])**2
-    
+
     return s
 
 cpdef parameter_estimation_f(y, parameters, measurments, model, input, options):
     cdef double err = 0
     cdef int n
-    
+
     model.reset()
-    
+
     for i,parameter in enumerate(parameters):
         model.set(parameter, y[i]*options["scaling"][i])
-    
+
     # Simulate model response with new parameter values
     res = model.simulate(measurments[1][0,0], final_time=measurments[1][-1,0], input=input, options=options["simulate_options"])
 
@@ -190,7 +190,7 @@ cpdef parameter_estimation_f(y, parameters, measurments, model, input, options):
         err += quad_err(res[parameter], measurments[1][:,i+1], n)
 
     return 1.0/n*err**(0.5)
-    
+
 cpdef list convert_array_names_list_names(np.ndarray names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = len(names[0])
@@ -208,9 +208,9 @@ cpdef list convert_array_names_list_names(np.ndarray names):
 
         py_str = tmp[:j]
         output.append(py_str)
-    
+
     FMIL.free(tmp)
-    
+
     return output
 
 @cython.boundscheck(False)
@@ -222,7 +222,7 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str
-    
+
     if python3_flag:
         py3 = 1
     else:
@@ -235,7 +235,7 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
                 break
             else:
                 tmp[j] = ch
-        
+
         py_str = tmp[:j]
         if j == max_length - 1:
             if py3:
@@ -243,9 +243,9 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
             else:
                 py_str = py_str.replace(" ", "")
         output.append(py_str)
-    
+
     FMIL.free(tmp)
-    
+
     return output
 
 @cython.boundscheck(False)
@@ -258,18 +258,18 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, mod
     cdef int FMI_NEGATED_ALIAS = fmi.FMI_NEGATED_ALIAS
     cdef int FMI_PARAMETER = fmi.FMI_PARAMETER, FMI_CONSTANT = fmi.FMI_CONSTANT
     cdef int FMI_REAL = fmi.FMI_REAL, FMI_INTEGER = fmi.FMI_INTEGER
-    cdef int FMI_ENUMERATION = fmi.FMI_ENUMERATION, FMI_BOOLEAN = fmi.FMI_BOOLEAN 
+    cdef int FMI_ENUMERATION = fmi.FMI_ENUMERATION, FMI_BOOLEAN = fmi.FMI_BOOLEAN
     cdef list param_real = [], param_int = [], param_bool = []
     cdef list varia_real = [], varia_int = [], varia_bool = []
     last_vref = -1
-    
+
     for i in range(1, len(sorted_vars)+1):
         var = sorted_vars[i-1]
         data_info[2,i] = 0
         data_info[3,i] = -1
-        
+
         alias = -1 if var.alias == FMI_NEGATED_ALIAS else 1
-        
+
         if last_vref == var.value_reference:
             data_info[0,i] = last_data_matrix
             data_info[1,i] = alias*last_index
@@ -277,12 +277,12 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, mod
             variability = var.variability
             last_vref   = var.value_reference
             data_type   = var.type
-            
+
             if variability == FMI_PARAMETER or variability == FMI_CONSTANT:
                 last_data_matrix = 1
                 index_fixed = index_fixed + 1
                 last_index = index_fixed
-                
+
                 if data_type == FMI_REAL:
                     param_real.append(last_vref)
                 elif data_type == FMI_INTEGER or data_type == FMI_ENUMERATION:
@@ -295,7 +295,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, mod
                 last_data_matrix = 2
                 index_variable = index_variable + 1
                 last_index = index_variable
-                
+
                 if data_type == FMI_REAL:
                     varia_real.append(last_vref)
                 elif data_type == FMI_INTEGER or data_type == FMI_ENUMERATION:
@@ -304,14 +304,14 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, mod
                     varia_bool.append(last_vref)
                 else:
                     raise fmi.FMUException("Unknown type detected for variable %s when writing the results."%var.name)
-            
+
             data_info[1,i] = alias*last_index
             data_info[0,i] = last_data_matrix
-        
+
     data_info[0,0] = 0; data_info[1, 0] = 1; data_info[2, 0] = 0; data_info[3, 0] = -1
-    
+
     data = np.append(np.append(np.append(model.time, model.get_real(param_real)),model.get_integer(param_int).astype(float)),model.get_boolean(param_bool).astype(float))
-    
+
     return data, varia_real, varia_int, varia_bool
 
 cpdef convert_str_list(list data):
@@ -321,27 +321,27 @@ cpdef convert_str_list(list data):
     cdef char *output
     cdef char *tmp
     cdef bytes py_string
-    
+
     for i in range(items):
         data[i] = encode(data[i])
         j = len(data[i])
         if j+1 > length:
             length = j+1
-    
+
     output = <char*>FMIL.calloc(items*length,sizeof(char))
-    
+
     for i in range(items):
         tmp = data[i]
         tmp_length = len(tmp)
         k = i*length
-        
+
         FMIL.memcpy(&output[k], tmp, tmp_length)
         #FMIL.memset(&output[k+tmp_length], ' ', length-tmp_length) #Adding padding, seems to be necessary :(
-    
+
     py_string = output[:items*length]
-    
+
     FMIL.free(output)
-    
+
     return length, py_string
 
 cpdef convert_sorted_vars_name_desc(list sorted_vars):
@@ -355,22 +355,22 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars):
     cdef char *name_output
     cdef char *ctmp_name
     cdef char *ctmp_desc
-    
+
     for i in range(items):
         var = sorted_vars[i]
         tmp_name = encode(var.name)
         tmp_desc = encode(var.description)
         name.append(tmp_name)
         desc.append(tmp_desc)
-        
+
         name_length_trial = len(tmp_name)
         desc_length_trial = len(tmp_desc)
-        
+
         if name_length_trial+1 > name_length:
              name_length = name_length_trial + 1
         if desc_length_trial+1 > desc_length:
              desc_length = desc_length_trial + 1
-    
+
     name_output = <char*>FMIL.calloc((items+1)*name_length,sizeof(char))
     if name_output == NULL:
         raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
@@ -379,25 +379,25 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars):
     if desc_output == NULL:
         raise fmi.FMUException("Failed to allocate memory for storing the description of the variables. " \
                                "Please reduce the number of stored variables or disable storing of the description.")
-    
+
     for i in range(items+1):
         ctmp_name = name[i]
         ctmp_desc = desc[i]
-        
+
         name_length_trial = len(ctmp_name)
         desc_length_trial = len(ctmp_desc)
         kn = i*name_length
         kd = i*desc_length
-        
+
         FMIL.memcpy(&name_output[kn], ctmp_name, name_length_trial)
         FMIL.memcpy(&desc_output[kd], ctmp_desc, desc_length_trial)
-    
+
     py_desc_string = desc_output[:(items+1)*desc_length]
     py_name_string = name_output[:(items+1)*name_length]
-    
+
     FMIL.free(name_output)
     FMIL.free(desc_output)
-    
+
     return name_length, py_name_string, desc_length, py_desc_string
 
 cpdef convert_sorted_vars_name(list sorted_vars):
@@ -407,17 +407,17 @@ cpdef convert_sorted_vars_name(list sorted_vars):
     cdef int name_length = len(name[0])+1
     cdef char *name_output
     cdef char *ctmp_name
-    
+
     for i in range(items):
         var = sorted_vars[i]
         tmp_name = encode(var.name)
         name.append(tmp_name)
-        
+
         name_length_trial = len(tmp_name)
-        
+
         if name_length_trial+1 > name_length:
              name_length = name_length_trial + 1
-    
+
     name_output = <char*>FMIL.calloc((items+1)*name_length,sizeof(char))
     if name_output == NULL:
         raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
@@ -428,13 +428,13 @@ cpdef convert_sorted_vars_name(list sorted_vars):
 
         name_length_trial = len(ctmp_name)
         kn = i*name_length
-        
+
         FMIL.memcpy(&name_output[kn], ctmp_name, name_length_trial)
-    
+
     py_name_string = name_output[:(items+1)*name_length]
-    
+
     FMIL.free(name_output)
-    
+
     return name_length, py_name_string
 
 
@@ -445,32 +445,32 @@ cpdef convert_scalarvariable_name_to_str(list data):
     cdef char *output
     cdef char *tmp
     cdef bytes py_string
-    
+
     for i in range(items):
         j = len(data[i].name)
         if j+1 > length:
             length = j+1
-    
+
     output = <char*>FMIL.calloc(items*length,sizeof(char))
-    
+
     for i in range(items):
         py_byte_string = data[i].name#.encode("latin-1")
         tmp = py_byte_string
         tmp_length = len(tmp)
         k = i*length
-        
+
         FMIL.memcpy(&output[k], tmp, tmp_length)
         #FMIL.memset(&output[k+tmp_length], ' ', length-tmp_length) #Adding padding, seems to be necessary :(
-    
+
     py_string = output[:items*length]
-    
+
     FMIL.free(output)
-    
+
     return length, py_string#.encode("latin-1")
 
 """
 class Graph:
-    
+
     def __init__(self, edges):
         self.edges   = edges
         self.nodes   = set(node for node in itertools.chain(*edges))
@@ -479,14 +479,14 @@ class Graph:
         self.index = 0
         self.stack = []
         self.connected_components = []
-        
+
     def _strongly_connected_components(self, node):
         self.lowlink[node] = self.index
         self.number[node]  = self.index
-        
+
         self.index = self.index + 1
         self.stack.append(node)
-        
+
         for v,w in (edge for edge in self.edges if edge[0] == node):
             if self.number[w] < 0: #Not numbered
                 self._strongly_connected_components(w)
@@ -494,14 +494,14 @@ class Graph:
             elif self.number[w] < self.number[v]:
                 if w in self.stack:
                     self.lowlink[node] = min(self.lowlink[node], self.number[w])
-                    
+
         if self.lowlink[node] == self.number[node]:
             #node is the root of a component
             #Start new strong component
             self.connected_components.append([])
             while self.stack and self.number[self.stack[-1]] >= self.number[node]:
                 self.connected_components[-1].append(self.stack.pop())
-                
+
     def strongly_connected_components(self):
         for node in self.nodes:
             if self.number[node] < 0:
@@ -511,7 +511,7 @@ class Graph:
 class OrderedSet(collections.MutableSet):
 
     def __init__(self, iterable=None):
-        self.end = end = [] 
+        self.end = end = []
         end += [None, end, end]         # sentinel node for doubly linked list
         self.map = {}                   # key --> [key, prev, next]
         if iterable is not None:
@@ -530,7 +530,7 @@ class OrderedSet(collections.MutableSet):
             curr[2] = end[1] = self.map[key] = [key, curr, end]
 
     def discard(self, key):
-        if key in self.map:        
+        if key in self.map:
             key, prev, next = self.map.pop(key)
             prev[2] = next
             next[1] = prev
@@ -571,7 +571,7 @@ GRAPH_OUTPUT = 1
 GRAPH_SCC    = 2
 
 class Graph:
-    
+
     def __init__(self, edges, graph_info):
         self.edges   = edges
         self.nodes   = OrderedSet(node for node in itertools.chain(*edges))
@@ -598,24 +598,24 @@ class Graph:
         
     def _dfs(self, start_node):
         self.visited_nodes[start_node] = None
-        
+
         for v, w in (edge for edge in self.edges if edge[0] == start_node):
             if not (w in self.visited_nodes):
                 self._dfs(w)
-                
+
     def dfs(self, start_node):
         self.visited_nodes = {}
         self._dfs(start_node)
-        
+
         return self.visited_nodes
-        
+
     def join_output_trees(self, connected_components):
         #Reverse order
         connected_components = connected_components[::-1]
-        
+
         trees = {}
         joined_nodes = {}
-        
+
         for node in connected_components:
             if len(node) > 1:
                 continue
@@ -642,11 +642,11 @@ class Graph:
                         joined_nodes[node] = [node]
                         trees[model][node] = self.dfs(node)# spanning_tree
         return trees, joined_nodes
-    
+
     def simple_loop(self, start_node): #Must be output
         visited_nodes = {}
         loop = False
-        
+
         stack = [w for v,w in (edge for edge in self.edges if edge[0] == start_node and self.graph_info[edge[1]]["model"] != self.graph_info[edge[0]]["model"])]
         while stack and not loop:
             e = stack.pop()
@@ -657,13 +657,13 @@ class Graph:
                         loop = True
                         break
                     stack.append(w)
-        
+
         return loop
-        
+
     def _strongly_connected_components(self, node):
         self.lowlink[node] = self.index
         self.number[node]  = self.index
-        
+
         self.index = self.index + 1
         self.stack.append(node)
         
@@ -682,7 +682,7 @@ class Graph:
             self.connected_components.append([])
             while self.stack and self.number[self.stack[-1]] >= self.number[node]:
                 self.connected_components[-1].append(self.stack.pop())
-                
+
     def strongly_connected_components(self):
         self.lowlink = dict([node, -1] for node in self.nodes)
         self.number  = dict([node, -1] for node in self.nodes)
@@ -701,7 +701,7 @@ class Graph:
             if self.number[node] < 0:
                 self._strongly_connected_components(node)
         return self.connected_components
-        
+
     def group_node(self, list connected_component):
         nodes = self.nodes
         edges = self.edges
@@ -734,25 +734,25 @@ class Graph:
 
         #Get unique list
         self.edges = list(OrderedSet([x for x in edges if x != (None,None)]))
-        
+
         return new_node
-            
+
     def tear_node(self, node):
         #Remove edges that belong to node (is output) and that are connected to outputs in the same model
         for j, edge in enumerate(self.edges):
             if (edge[0] == node or edge[1] == node) and self.graph_info[edge[0]]["model"] == self.graph_info[edge[1]]["model"]:
                 self.edges[j] = (None, None)
-        
+
         #Get unique list
         self.edges = list(OrderedSet([x for x in self.edges if x != (None,None)]))
-        
+
     def group_connected_components(self, connected_components):
         #Update edges and nodes
         for i,conn in enumerate(connected_components):
             if len(conn) > 1:
                 self.group_node(conn)
                 connected_components[i] = ["+".join(conn)]
-        
+
     def add_edges_between_outputs(self):
         for node in self.nodes:
             if self.graph_info[node]["type"] == GRAPH_OUTPUT:
@@ -765,7 +765,7 @@ class Graph:
                     except:
                         pass
         self.edges = list(OrderedSet(self.edges))
-        
+
     def tear_graph(self, connected_components):
         torn_graph = False
         #Update edges and nodes
@@ -805,21 +805,21 @@ class Graph:
                     for node in valid_choices.keys():
                         if valid_choices[node] > valid_choices[torn_node]: #If the weight is greater
                             torn_node = node
-                            
+
                     print "Variable to tear: ", torn_node
                     self.tear_node(torn_node)
-        
+
         return torn_graph
-        
+
     def _check_feed_through(self, nodes):
         feed_through = False
-        
+
         for node in nodes:
             if node in self.edges_0:
                 feed_through = True
                 break
         return feed_through
-        
+
     def prepare_graph(self):
         connected_components_first = {}
         connected_components_second = {}
@@ -855,7 +855,7 @@ class Graph:
         for model in connected_components_second.keys():
             if len(connected_components_second[model]) > 1:
                 self.group_node(connected_components_second[model])
-        
+
     def split_components(self, connected_components):
         blocks = []
         for scc in connected_components:
@@ -865,9 +865,9 @@ class Graph:
                     blocks[-1].extend(node.split("+"))
             else:
                 blocks.append([scc.split("+")])
-        
+
         return blocks
-        
+
     def compute_evaluation_order_old(self):
         SCCs = self.strongly_connected_components()
         self.group_connected_components(SCCs) #Group the SCCs
@@ -878,9 +878,9 @@ class Graph:
             torn = self.tear_graph(SCCs)
             if not torn:
                 break
-        
+
         return self.split_components(SCCs)
-        
+
     def compute_evaluation_order(self):
         self.prepare_graph()
         SCCs = self.strongly_connected_components()[::-1]
@@ -906,13 +906,13 @@ class Graph:
                 #print "Outside: ", i, f
                 self.group_node(f)
             #print "End: ", i, SCCs
-        
+
         return self.split_components(self.strongly_connected_components())
-        
+
     def grouped_order(self, connected_components):
         #Update edges and nodes
         self.group_connected_components(connected_components)
-        
+
         roots = []
         for node in self.nodes:
             for edge in self.edges:
@@ -920,18 +920,18 @@ class Graph:
                     break
             else:
                 roots.append(node)
-        
+
         graph = {node:[] for node in self.nodes}
         for edge in self.edges:
             graph[edge[0]].append(edge[1])
-        
+
         def set_levels(queue, level):
             new_queue = []
             for ite in queue:
                 levels[ite] = level
                 new_queue.extend(graph[ite])
             return new_queue
-        
+
         queue = []
         level = 0
         levels = {}
@@ -946,9 +946,9 @@ class Graph:
         for node in levels:
             grouped_connected_components[levels[node]].extend(node.split("+"))
         grouped_connected_components.reverse()
-        
+
         return grouped_connected_components
-        
+
     def dump_graph_dot(self, filename, custom_syntax=False):
         """
             digraph {
@@ -994,9 +994,9 @@ cdef class DumpData:
     cdef public int model_me2_instance
     cdef public object _file, model
     cdef size_t real_size, int_size, bool_size
-    
+
     def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref):
-        
+
         if type(model) != FMUModelME2:
             self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
             self.int_var_ref  = np.array(int_var_ref, ndmin=1).ravel()
@@ -1005,113 +1005,128 @@ cdef class DumpData:
             self.real_var_ref = np.array(real_var_ref, dtype=np.uint32, ndmin=1).ravel()
             self.int_var_ref  = np.array(int_var_ref,  dtype=np.uint32, ndmin=1).ravel()
             self.bool_var_ref = np.array(bool_var_ref, dtype=np.uint32, ndmin=1).ravel()
-        
+
         self.real_var_tmp = np.zeros(self.real_var_ref.size)
         self.int_var_tmp  = np.zeros(self.int_var_ref.size, dtype=np.int32)
         self.bool_var_tmp = np.zeros(self.bool_var_ref.size)
         self.time_tmp     = np.zeros(1)
-        
+
         self.real_size = self.real_var_ref.size
         self.int_size  = self.int_var_ref.size
         self.bool_size = self.bool_var_ref.size
-        
+
         self._file = filep
-        
+
         if type(model) == FMUModelME2: #isinstance(model, FMUModelME2):
             self.model_me2 = model
             self.model_me2_instance = 1
         else:
             self.model_me2_instance = 0
             self.model = model
-    
+
     cdef dump_data(self, np.ndarray data):
         self._file.write(data.tostring(order="F"))
-    
+
     def save_point(self):
         if self.model_me2_instance:
             self.time_tmp[0] = self.model_me2._get_time()
             self.dump_data(self.time_tmp)
-            
+
             if self.real_size > 0:
                 self.model_me2._get_real(self.real_var_ref, self.real_size, self.real_var_tmp)
                 self.dump_data(self.real_var_tmp)
-                
+
             if self.int_size > 0:
                 self.model_me2._get_integer(self.int_var_ref, self.int_size, self.int_var_tmp)
                 self.dump_data(self.int_var_tmp.astype(float))
-            
+
             if self.bool_size > 0:
                 self.model_me2._get_boolean(self.bool_var_ref, self.bool_size, self.bool_var_tmp)
                 self.dump_data(self.bool_var_tmp)
         else:
             self.dump_data(np.array(float(self.model.time)))
-            
+
             if self.real_size > 0:
                 r = self.model.get_real(self.real_var_ref)
                 self.dump_data(r)
-            
+
             if self.int_size > 0:
                 i = self.model.get_integer(self.int_var_ref).astype(float)
                 self.dump_data(i)
-            
+
             if self.bool_size > 0:
                 b = self.model.get_boolean(self.bool_var_ref).astype(float)
                 self.dump_data(b)
-                
 
-from libc.stdio cimport *                                                                
+
+from libc.stdio cimport *
 
 cdef extern from "stdio.h":
     FILE *fdopen(int, const char *)
 
-DTYPE = np.double
-ctypedef np.double_t DTYPE_t
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def read_trajectory(file_name, int data_index, int file_position, int sizeof_type, int nbr_points, int nbr_variables):
     """
     Reads a trajectory from a binary file.
-    
+
     Parameters::
-    
+
         file_name --
             File to read from.
-        
+
         data_index --
             Which position has the variable for which the trajectory is
             to be read.
-            
+
         file_position --
             Where in the file does the matrix of a trajectories start.
-        
+
         sizeof_type --
             Size of the data type that the result is stored in
-            
+
         nbr_points --
             Number of points in the result
-            
+
         nbr_variables --
             Number of variables in the result
-            
+
     Returns::
-    
+
         A numpy array with the trajectory
     """
-    cdef int i = 0
+
     cdef unsigned long int offset
     cdef unsigned long int start_point = data_index*sizeof_type
     cdef unsigned long int end_point   = sizeof_type*(nbr_points*nbr_variables)
     cdef unsigned long int interval    = sizeof_type*nbr_variables
+
+    if sizeof_type == 4:
+        return _read_trajectory32(file_name, start_point,end_point, interval, file_position, nbr_points)
+    elif sizeof_type == 8:
+        return _read_trajectory64(file_name, start_point,end_point, interval, file_position, nbr_points)
+    else:
+        raise fmi.FMUException("Failed to read the result. The result is on an unsupported format. Can only read data that is either a 32 or 64 bit double.")
+
+DTYPE32 = np.float32
+ctypedef np.float32_t DTYPE32_t
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef _read_trajectory32(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
+    cdef int i = 0
+    cdef unsigned long int offset
     cdef FILE* cfile
-    cdef np.ndarray[DTYPE_t, ndim=1] data
-    cdef DTYPE_t* data_ptr
-    cdef size_t sizeof_dtype = sizeof(DTYPE_t)
+    cdef np.ndarray[DTYPE32_t, ndim=1] data
+    cdef DTYPE32_t* data_ptr
+    cdef size_t sizeof_dtype = sizeof(DTYPE32_t)
 
     cfile = fopen(file_name, 'rb')
-    data = np.empty(nbr_points, dtype=DTYPE)
-    data_ptr = <DTYPE_t*>data.data
-    
+
+    data = np.empty(nbr_points, dtype=DTYPE32)
+    data_ptr = <DTYPE32_t*>data.data
+
     fseek(cfile, file_position, 0)
     #for offset in range(start_point, end_point, interval):
     for offset from start_point <= offset < end_point by interval:
@@ -1123,28 +1138,58 @@ def read_trajectory(file_name, int data_index, int file_position, int sizeof_typ
 
     return data
 
+DTYPE = np.double
+ctypedef np.double_t DTYPE_t
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef _read_trajectory64(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
+    cdef int i = 0
+    cdef unsigned long int offset
+    cdef FILE* cfile
+    cdef np.ndarray[DTYPE_t, ndim=1] data
+    cdef DTYPE_t* data_ptr
+    cdef size_t sizeof_dtype = sizeof(DTYPE_t)
+
+    cfile = fopen(file_name, 'rb')
+
+    data = np.empty(nbr_points, dtype=DTYPE)
+    data_ptr = <DTYPE_t*>data.data
+
+    fseek(cfile, file_position, 0)
+    #for offset in range(start_point, end_point, interval):
+    for offset from start_point <= offset < end_point by interval:
+        fseek(cfile, file_position+offset, 0)
+        fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
+        i = i + 1
+
+    fclose(cfile)
+
+    return data
+
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def read_name_list(file_name, int file_position, int nbr_variables, int max_length):
     """
     Reads a list of names from a binary file.
-    
+
     Parameters::
-    
+
         file_name --
             File to read from.
-        
+
         file_position --
             Where in the file does the list of names start
-            
+
         nbr_variables --
             Number of variables to read.
-            
+
         max_length --
             Maximum length of a variable
-            
+
     Returns::
-    
+
         A dict with the names as key and an index as value
     """
     cdef int i = 0, j = 0, py3, need_replace = 0
@@ -1152,33 +1197,32 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef bytes py_str
     cdef dict data = {}
-    
+
     if python3_flag:
         py3 = 1
     else:
         py3 = 0
-    
+
     cfile = fopen(file_name, 'rb')
-    
+
     fseek(cfile, file_position, 0)
     for i in range(nbr_variables):
         fread(<void*>(tmp), max_length, 1, cfile)
         py_str = tmp
-        
+
         if i == 0:
             if len(py_str) == max_length:
                 need_replace = 1
-        
+
         if need_replace:
             if py3:
                 py_str = py_str.replace(b" ", b"")
             else:
                 py_str = py_str.replace(" ", "")
-        
+
         data[py_str] = i
 
     fclose(cfile)
     FMIL.free(tmp)
 
     return data
-
