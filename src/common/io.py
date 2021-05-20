@@ -1587,7 +1587,7 @@ class ResultHandlerCSV(ResultHandler):
             self.file_open = True
         else:
             if not hasattr(self.file_name, 'write'):
-                raise fmi.FMUException("Instance set via option 'result_file_name' needs to support 'write' as required.")
+                raise fmi.FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports writing to through the 'write' method.")
             f = self.file_name #assume it is a stream
             self.file_open = False
 
@@ -1741,7 +1741,7 @@ class ResultHandlerFile(ResultHandler):
             f = codecs.open(self.file_name,'w','utf-8')
         else:
             if not (hasattr(self.file_name, 'write') and hasattr(self.file_name, 'seek')):
-                raise fmi.FMUException("Instance set via option 'result_file_name' needs to support 'write' and 'seek' as required.")
+                raise fmi.FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write' and 'seek'.")
             f = self.file_name #assume it is a stream
             self._is_stream = True
         self.file_open = True
@@ -2308,7 +2308,7 @@ class ResultHandlerBinaryFile(ResultHandler):
             self._file = open(file_name,'wb')
         else:
             if not (hasattr(self.file_name, 'write') and hasattr(self.file_name, 'seek') and (hasattr(self.file_name, 'tell'))):
-                raise fmi.FMUException("Instance set via option 'result_file_name' needs to support 'write', 'tell' and 'seek' as required.")
+                raise fmi.FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'.")
             self._file = self.file_name #assume it is a stream
             self._is_stream = True
         self.file_open = True
