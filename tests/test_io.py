@@ -305,7 +305,7 @@ class TestResultFileText:
             def write(self):
                 pass
         stream = A()
-        msg = "Instance set via option 'result_file_name' needs to support 'write' and 'seek' as required."
+        msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write' and 'seek'."
         with nose.tools.assert_raises_regex(FMUException, msg):
             self._work_flow_me2(stream)
 
@@ -316,7 +316,7 @@ class TestResultFileText:
             def seek(self):
                 pass
         stream = A()
-        msg = "Instance set via option 'result_file_name' needs to support 'write' and 'seek' as required."
+        msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write' and 'seek'."
         with nose.tools.assert_raises_regex(FMUException, msg):
             self._work_flow_me2(stream)
 
@@ -855,7 +855,7 @@ class TestResultFileBinary:
         class A:
             pass
         stream = A()
-        msg = "Instance set via option 'result_file_name' needs to support 'write', 'tell' and 'seek' as required."
+        msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'."
         with nose.tools.assert_raises_regex(FMUException, msg):
             self._work_flow_me2_aborted(stream)
 
@@ -868,7 +868,7 @@ class TestResultFileBinary:
             def tell(self):
                 pass
         stream = A()
-        msg = "Instance set via option 'result_file_name' needs to support 'write', 'tell' and 'seek' as required."
+        msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'."
         with nose.tools.assert_raises_regex(FMUException, msg):
             self._work_flow_me2_aborted(stream)
 
@@ -881,7 +881,7 @@ class TestResultFileBinary:
             def seek(self):
                 pass
         stream = A()
-        msg = "Instance set via option 'result_file_name' needs to support 'write', 'tell' and 'seek' as required."
+        msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'."
         with nose.tools.assert_raises_regex(FMUException, msg):
             self._work_flow_me2_aborted(stream)
 
@@ -894,7 +894,7 @@ class TestResultFileBinary:
             def tell(self):
                 pass
         stream = A()
-        msg = "Instance set via option 'result_file_name' needs to support 'write', 'tell' and 'seek' as required."
+        msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'."
         with nose.tools.assert_raises_regex(FMUException, msg):
             self._work_flow_me2_aborted(stream)
 
@@ -1125,7 +1125,7 @@ class TestResultCSVTextual:
         class A:
             pass
         stream = A() # send in something that is not a string
-        msg = "Instance set via option 'result_file_name' needs to support 'write' as required."
+        msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports writing to through the 'write' method."
         with nose.tools.assert_raises_regex(FMUException, msg):
             self._work_flow_me2(stream)
 
