@@ -265,7 +265,21 @@ class ResultDymola:
             return name
 
 class ResultCSVTextual:
+    """ Class representing a simulation or optimization result loaded from a CSV-file. """
     def __init__(self, filename, delimiter=";"):
+        """
+        Load a result file written on CSV format.
+
+        Parameters::
+
+            filename --
+                Name of file or stream object which the result is written to.
+                If filename is a stream object, it needs to support 'readline' and 'seek'.
+
+            delimiter --
+                The delimiter the data values is separated by.
+                Default: ";""
+        """
 
         if isinstance(filename, str):
             fid = codecs.open(filename,'r','utf-8')
@@ -865,6 +879,7 @@ class ResultDymolaTextual(ResultDymola):
 
             fname --
                 Name of file or stream object which the result is written to.
+                If fname is a stream, it needs to support 'readline' and 'seek'.
         """
         if isinstance(fname, str):
             fid = codecs.open(fname,'r','utf-8')
@@ -1166,10 +1181,11 @@ class ResultDymolaBinary(ResultDymola):
         Parameters::
 
             fname --
-                Name of file or stream object which the result is written to.
+                Name of file or a stream object supported by scipy.io.loadmat,
+                which the result is written to.
 
             delayed_trajectory_loading --
-                Determines if the trajectories are loaded on demand or 
+                Determines if the trajectories are loaded on demand or
                 all at the same time. Only works for files or streams that
                 are based on a file and has attribute name.
                 Default: True (for files)
@@ -1184,8 +1200,8 @@ class ResultDymolaBinary(ResultDymola):
         else:
             self._fname = fname
             self._is_stream = True
-            delayed_trajectory_loading = False 
-            
+            delayed_trajectory_loading = False
+
         data_sections = ["name", "dataInfo", "data_2"]
 
         if delayed_trajectory_loading:
