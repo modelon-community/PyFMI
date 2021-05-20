@@ -1083,7 +1083,7 @@ def read_trajectory(file_name, int data_index, int file_position, int sizeof_typ
     
         A numpy array with the trajectory
     """
-    cdef int i = 0
+
     cdef unsigned long int offset
     cdef unsigned long int start_point = data_index*sizeof_type
     cdef unsigned long int end_point   = sizeof_type*(nbr_points*nbr_variables)
@@ -1094,14 +1094,14 @@ def read_trajectory(file_name, int data_index, int file_position, int sizeof_typ
     elif sizeof_type == 8:
         return _read_trajectory64(file_name, start_point,end_point, interval, file_position, nbr_points)
     else:
-        raise JIOError("Cannot read data that is not of size 32 or 64 bit (float).")
+        raise JIOError("Failed to read the result. The result is on an unsupported format. Can only read data that is either a 32 or 64 bit double.")
 
 DTYPE32 = np.float32
 ctypedef np.float32_t DTYPE32_t
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _read_trajectory32(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
+cdef _read_trajectory32(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
     cdef int i = 0
     cdef unsigned long int offset
     cdef FILE* cfile
@@ -1130,7 +1130,7 @@ ctypedef np.double_t DTYPE_t
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _read_trajectory64(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
+cdef _read_trajectory64(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
     cdef int i = 0
     cdef unsigned long int offset
     cdef FILE* cfile
