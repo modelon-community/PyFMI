@@ -415,7 +415,7 @@ cdef class Master:
             raise fmi.FMUException("The models should be provided as a list.")
         for model in models:
             if not isinstance(model, fmi.FMUModelCS2):
-                raise fmi.FMUException("The Master algorithm currently only supports CS 2.0 FMUs.")
+                raise fmi.InvalidFMUException("The Master algorithm currently only supports CS 2.0 FMUs.")
         self.fmu_adresses = <FMIL.fmi2_import_t**>FMIL.malloc(len(models)*sizeof(FMIL.fmi2_import_t*))
         
         self.connections = connections

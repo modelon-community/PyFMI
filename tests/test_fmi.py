@@ -22,7 +22,7 @@ from zipfile import ZipFile
 import tempfile
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
+from pyfmi.fmi import FMUModel, FMUException, InvalidXMLException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
@@ -954,7 +954,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_malformed_xml(self):
-        nose.tools.assert_raises(FMUException, load_fmu, os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "MalFormed.fmu"))
+        nose.tools.assert_raises(InvalidXMLException, load_fmu, os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "MalFormed.fmu"))
         
     @testattr(stddist = True)
     def test_log_file_name(self):

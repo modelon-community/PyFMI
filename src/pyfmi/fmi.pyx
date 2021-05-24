@@ -4119,7 +4119,7 @@ cdef class FMUModelBase2(ModelBase):
             elif isinstance(self,FMUModelCS2):
                 self._fmu_kind = FMIL.fmi2_fmu_kind_cs
             else:
-                raise InvalidVersionException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
+                raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
 
         #Connect the DLL
         if _connect_dll:
@@ -4138,7 +4138,7 @@ cdef class FMUModelBase2(ModelBase):
         elif isinstance(self,FMUModelCS2):
             self._modelId           = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
         else:
-            raise InvalidFMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
+            raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
 
         #Connect the DLL
         self._modelName         = decode(FMIL.fmi2_import_get_model_name(self._fmu))
@@ -6995,7 +6995,7 @@ cdef class FMUModelCS2(FMUModelBase2):
                 raise InvalidVersionException("This class only supports FMI 2.0 for Co-simulation.")
 
         if self.get_capability_flags()['needsExecutionTool'] == True:
-            raise InvalidVersionException('Models that need an execution tool are not supported')
+            raise FMUException('Models that need an execution tool are not supported')
 
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
 
@@ -7624,7 +7624,7 @@ cdef class FMUModelME2(FMUModelBase2):
                 raise InvalidVersionException('This class only supports FMI 2.0 for Model Exchange.')
 
         if self.get_capability_flags()['needsExecutionTool'] == True:
-            raise InvalidVersionException('Models that need an execution tool are not supported')
+            raise FMUException('Models that need an execution tool are not supported')
 
         self._eventInfo.newDiscreteStatesNeeded           = FMI2_FALSE
         self._eventInfo.terminateSimulation               = FMI2_FALSE
