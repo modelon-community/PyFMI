@@ -319,7 +319,9 @@ cdef class ModelBase:
             " must be a subclass of common.algorithm_drivers.AlgorithmBase")
 
         #open log file
-        self._open_log_file()
+        log_open = self._log_open()
+        if not log_open and self.get_log_level() > 2:
+            self._open_log_file()
 
         try:
             # initialize algorithm
@@ -365,7 +367,9 @@ cdef class ModelBase:
             " must be a subclass of common.algorithm_drivers.AlgorithmBase")
 
         #open log file
-        self._open_log_file()
+        log_open = self._log_open()
+        if not log_open and self.get_log_level() > 2:
+            self._open_log_file()
 
         try:
             # initialize algorithm
@@ -497,7 +501,7 @@ cdef class ModelBase:
             If logging was done to a stream, this function returns 0.
         """
         num_lines = 0
-        if self._fmu_log_name != NULL:
+        if self._fmu_log_name != NULL and os.path.isfile(self._fmu_log_name):
             with open(self._fmu_log_name,'r') as file:
                 num_lines = sum(1 for line in file)
         return num_lines
@@ -536,6 +540,7 @@ cdef class ModelBase:
         if file_name is None:
             file_name = "{}.{}".format(os.path.splitext(self.get_log_filename())[0], 'xml')
 
+
         module_name = 'Slave' if isinstance(self, FMUModelCS1) else 'Model'
 
         is_stream = self._log_is_stream and self._log_stream
@@ -544,6 +549,10 @@ cdef class ModelBase:
                 self._log_stream.seek(0)
             except AttributeError:
                 raise FMUException("In order to extract the XML-log from a stream, it needs to support 'seek'")
+        else:
+            # If the logfile doesnt exist (as in no logging was done), return None
+            if not os.path.isfile(self.get_log_filename()):
+                return None
 
         extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name)
 
@@ -576,7 +585,7 @@ cdef class ModelBase:
         if end_lines != -1:
             num_lines = self.get_number_of_lines_log()
 
-        if self._fmu_log_name != NULL:
+        if self._fmu_log_name != NULL and os.path.isfile(self._fmu_log_name):
             with open(self._fmu_log_name,'r') as file:
                 while True:
                     i = i + 1
@@ -652,7 +661,7 @@ cdef class ModelBase:
             msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method."
             self._max_log_size_msg_sent = True
 
-        if self._fmu_log_name != NULL:
+        if self._fmu_log_name != NULL and log_level > 0:
             if self.file_object:
                 self.file_object.write(msg)
             else:
@@ -685,7 +694,7 @@ cdef class ModelBase:
             self._additional_logger(module, log_level, message)
 
         full_msg = "FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message)
-        if self._fmu_log_name != NULL:
+        if self._fmu_log_name != NULL and log_level > 0:
             if self.file_object:
                 self.file_object.write(full_msg)
             else:
@@ -1455,9 +1464,10 @@ cdef class FMUModelBase(ModelBase):
             FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
             #Create the log file
-            with open(self._fmu_log_name,'w') as file:
-                for i in range(len(self._log)):
-                    file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+            if len(self._log) > 0:
+                with open(self._fmu_log_name,'w') as file:
+                    for i in range(len(self._log)):
+                        file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
 
         self._log = []
 
@@ -4132,9 +4142,10 @@ cdef class FMUModelBase2(ModelBase):
             FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
             #Create the log file
-            with open(self._fmu_log_name,'w') as file:
-                for i in range(len(self._log)):
-                    file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+            if len(self._log) > 0:
+                with open(self._fmu_log_name,'w') as file:
+                    for i in range(len(self._log)):
+                        file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
 
         self._log = []
 
