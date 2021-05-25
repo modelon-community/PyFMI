@@ -661,7 +661,7 @@ cdef class ModelBase:
             msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method."
             self._max_log_size_msg_sent = True
 
-        if self._fmu_log_name != NULL and log_level > 0:
+        if self._fmu_log_name != NULL:
             if self.file_object:
                 self.file_object.write(msg)
             else:
