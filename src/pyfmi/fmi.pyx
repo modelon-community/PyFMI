@@ -694,7 +694,7 @@ cdef class ModelBase:
             self._additional_logger(module, log_level, message)
 
         full_msg = "FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message)
-        if self._fmu_log_name != NULL and log_level > 0:
+        if self._fmu_log_name != NULL:
             if self.file_object:
                 self.file_object.write(full_msg)
             else:
