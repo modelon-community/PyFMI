@@ -192,6 +192,7 @@ cdef class ModelBase:
         self.cache = {}
         self.file_object = None
         self._log_is_stream = 0
+        self._keep_log_open = 0
         self._additional_logger = None
         self._current_log_size = 0
         self._max_log_size = 1024**3*2 #About 2GB limit
@@ -319,9 +320,7 @@ cdef class ModelBase:
             " must be a subclass of common.algorithm_drivers.AlgorithmBase")
 
         #open log file
-        log_open = self._log_open()
-        if not log_open and self.get_log_level() > 2:
-            self._open_log_file()
+        self._open_log_file()
 
         try:
             # initialize algorithm
@@ -367,9 +366,7 @@ cdef class ModelBase:
             " must be a subclass of common.algorithm_drivers.AlgorithmBase")
 
         #open log file
-        log_open = self._log_open()
-        if not log_open and self.get_log_level() > 2:
-            self._open_log_file()
+        self._open_log_file()
 
         try:
             # initialize algorithm
@@ -634,14 +631,15 @@ cdef class ModelBase:
         return self._log_stream is not None and not self._log_stream.closed
 
     def _open_log_file(self):
-        """ Opens the log file if we are not logging into a given stream. """
+        """ Sets parameter to keep log file open when logging is done to log file, if we are not logging into a given stream. """
         if not self._log_is_stream and self._fmu_log_name != NULL:
-            self.file_object = open(self._fmu_log_name,'a')
+            self._keep_log_open = 1
 
     def _close_log_file(self):
         if self.file_object:
             self.file_object.close()
             self.file_object = None
+            self._keep_log_open = 0
 
     cdef _logger(self, FMIL.jm_string c_module, int log_level, FMIL.jm_string c_message) with gil:
         cdef FMIL.FILE *f
@@ -662,7 +660,9 @@ cdef class ModelBase:
             self._max_log_size_msg_sent = True
 
         if self._fmu_log_name != NULL:
-            if self.file_object:
+            if self._keep_log_open:
+                if not self.file_object:
+                    self.file_object = open(self._fmu_log_name,'a')
                 self.file_object.write(msg)
             else:
                 try:
