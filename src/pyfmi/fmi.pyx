@@ -639,7 +639,7 @@ cdef class ModelBase:
         if self.file_object:
             self.file_object.close()
             self.file_object = None
-            self._keep_log_open = 0
+        self._keep_log_open = 0
 
     cdef _logger(self, FMIL.jm_string c_module, int log_level, FMIL.jm_string c_message) with gil:
         cdef FMIL.FILE *f
