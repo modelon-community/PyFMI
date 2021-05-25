@@ -22,7 +22,7 @@ from zipfile import ZipFile
 import tempfile
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
+from pyfmi.fmi import FMUModel, FMUException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
@@ -132,7 +132,21 @@ class Test_FMUModelME1:
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped ME FMU 1.0 using load_fmu """
         self._test_unzipped_bouncing_ball(load_fmu)
-
+    
+    @testattr(stddist = True)
+    def test_invalid_binary(self):
+        err_msg = "Could not load the FMU binary"
+        fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu")
+        with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
+            model = FMUModelME1(fmu, _connect_dll=True)
+    
+    @testattr(stddist = True)
+    def test_invalid_version(self):
+        err_msg = "This class only supports FMI 1.0"
+        fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu")
+        with nose.tools.assert_raises_regex(InvalidVersionException, err_msg):
+            model = FMUModelME1(fmu, _connect_dll=True)
+            
     @testattr(stddist = True)
     def test_get_time_varying_variables(self):
         model = FMUModelME1("RLC_Circuit.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
@@ -249,6 +263,20 @@ class Test_FMUModelCS1:
         """ Test load and simulate unzipped CS FMU 1.0 using load_fmu """
         self._test_unzipped_bouncing_ball(load_fmu)
     
+    @testattr(stddist = True)
+    def test_invalid_binary(self):
+        err_msg = "Could not load the FMU binary"
+        fmu = os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "NegatedAlias.fmu")
+        with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
+            model = FMUModelCS1(fmu, _connect_dll=True)
+            
+    @testattr(stddist = True)
+    def test_invalid_version(self):
+        err_msg = "This class only supports FMI 1.0"
+        fmu = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "NegatedAlias.fmu")
+        with nose.tools.assert_raises_regex(InvalidVersionException, err_msg):
+            model = FMUModelCS1(fmu, _connect_dll=True)
+            
     @testattr(stddist = True)
     def test_custom_result_handler(self):
         model = Dummy_FMUModelCS1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
@@ -454,7 +482,21 @@ class Test_FMUModelCS2:
         
         path, file_name = os.path.split(full_path)
         assert model.get_log_file_name() == file_name.replace(".","_")[:-4]+"_log.txt"
-
+    
+    @testattr(stddist = True)
+    def test_invalid_binary(self):
+        err_msg = "Error loading the binary. Could not load the FMU binary"
+        fmu = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu")
+        with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
+            model = FMUModelCS2(fmu, _connect_dll=True)
+    
+    @testattr(stddist = True)
+    def test_invalid_version(self):
+        err_msg = "The FMU version is not supported"
+        fmu = os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "CoupledClutches.fmu")
+        with nose.tools.assert_raises_regex(InvalidVersionException, err_msg):
+            model = FMUModelCS2(fmu, _connect_dll=True)
+            
     @testattr(stddist = True)
     def test_unzipped_fmu_exceptions(self):
         """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelCS2. """
@@ -785,6 +827,20 @@ class Test_FMUModelME2:
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0")
         with nose.tools.assert_raises_regex(FMUException, err_msg):
             model = FMUModelME2("LinearStability.SubSystem2.fmu", full_path, _connect_dll=False, allow_unzipped_fmu=True)
+    
+    @testattr(stddist = True)
+    def test_invalid_binary(self):
+        err_msg = "Error loading the binary. Could not load the FMU binary"
+        fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu")
+        with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
+            model = FMUModelME2(fmu, _connect_dll=True)
+    
+    @testattr(stddist = True)
+    def test_invalid_version(self):
+        err_msg = "The FMU version is not supported by this class"
+        fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu")
+        with nose.tools.assert_raises_regex(InvalidVersionException, err_msg):
+            model = FMUModelME2(fmu, _connect_dll=True)
 
     @testattr(stddist = True)
     def test_estimate_directional_derivatives_linearstate(self):
@@ -954,7 +1010,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_malformed_xml(self):
-        nose.tools.assert_raises(FMUException, load_fmu, os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "MalFormed.fmu"))
+        nose.tools.assert_raises(InvalidXMLException, load_fmu, os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "MalFormed.fmu"))
         
     @testattr(stddist = True)
     def test_log_file_name(self):
