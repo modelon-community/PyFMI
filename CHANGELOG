@@ -1,6 +1,6 @@
 --- CHANGELOG ---
 --- PyFMI-2.8.9 ---
-     Reverted a fix added in 2.8.8 intended to make sure a log file was not created if no log messages due to potential issues with the implementation.
+    * Reverted a fix added in 2.8.8 intended to make sure a log file was not created if no log messages due to potential issues with the implementation.
  
 --- PyFMI-2.8.8 ---
     * Added support for writing result data to streams.
