@@ -22,7 +22,7 @@ import nose
 
 from pyfmi import testattr
 from pyfmi.common.log import extract_xml_log, parse_xml_log
-from pyfmi.tests.test_util import Dummy_FMUModelME2, get_examples_folder
+from pyfmi.tests.test_util import Dummy_FMUModelME2
 from pyfmi.fmi import load_fmu, FMUException
 
 file_path = os.path.dirname(os.path.abspath(__file__))
@@ -106,22 +106,21 @@ class Test_Log:
         for ei in eis:
             assert isinstance(ei.time_event_info, bool), "Expected ei.time_event_info to be bool"
 
-class TestNoLogFile:
+class TestNoLogFileIfNoLogging:
     """
         Test invoking functions on the FMU if we have no logfile.
         We do this from temporary directories to make sure that we have empty directories for the test.
     """
     @classmethod
     def setup_class(cls):
-        cls.fmu_path = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')
+        cls.fmu_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu")
 
     @testattr(stddist = True)
     def test_no_logfile(self):
         """ Verify no logfile generated if log_level is 0. """
         with TemporaryDirectory() as tempdir:
             log_file_name = os.path.join(tempdir, 'test.txt')
-            fmu = load_fmu(self.fmu_path, log_file_name = log_file_name, log_level = 0)
-            res = fmu.simulate()
+            fmu = Dummy_FMUModelME2([], self.fmu_path, log_file_name = log_file_name, log_level = 0, _connect_dll=False)
             err_msg = "Test failed because logfile {} was generated even though it should not".format(log_file_name)
             nose.tools.assert_false(os.path.isfile(log_file_name), err_msg)
 
@@ -130,8 +129,7 @@ class TestNoLogFile:
         """ Verify that get_log returns an empty list if log_level is 0. """
         with TemporaryDirectory() as tempdir:
             log_file_name = os.path.join(tempdir, 'test.txt')
-            fmu = load_fmu(self.fmu_path, log_file_name = log_file_name, log_level = 0)
-            res = fmu.simulate()
+            fmu = Dummy_FMUModelME2([], self.fmu_path, log_file_name = log_file_name, log_level = 0, _connect_dll=False)
             nose.tools.assert_equal(fmu.get_log(), [])
 
     @testattr(stddist = True)
@@ -141,8 +139,7 @@ class TestNoLogFile:
         """
         with TemporaryDirectory() as tempdir:
             log_file_name = os.path.join(tempdir, 'test.txt')
-            fmu = load_fmu(self.fmu_path, log_file_name = log_file_name, log_level = 0)
-            res = fmu.simulate()
+            fmu = Dummy_FMUModelME2([], self.fmu_path, log_file_name = log_file_name, log_level = 0, _connect_dll=False)
             nose.tools.assert_is_none(fmu.extract_xml_log())
 
     @testattr(stddist = True)
@@ -150,17 +147,7 @@ class TestNoLogFile:
         """ Verify that get_number_of_lines_log returns 0 if log_level is 0. """
         with TemporaryDirectory() as tempdir:
             log_file_name = os.path.join(tempdir, 'test.txt')
-            fmu = load_fmu(self.fmu_path, log_file_name = log_file_name, log_level = 0)
-            res = fmu.simulate()
+            fmu = Dummy_FMUModelME2([], self.fmu_path, log_file_name = log_file_name, log_level = 0, _connect_dll=False)
             nlines = fmu.get_number_of_lines_log()
             err_msg = "Number of lines in log is not 0, it is {}".format(nlines)
             nose.tools.assert_equal(nlines, 0, err_msg)
-
-    @testattr(stddist = True)
-    def test_no_logfile_after_load_fmu(self):
-        """ Verify no logfile created when loading of FMU is done since we didnt write any log message. """
-        with TemporaryDirectory() as tempdir:
-            log_file_name = os.path.join(tempdir, 'test.txt')
-            fmu = load_fmu(self.fmu_path, log_file_name = log_file_name, log_level = 0)
-            err_msg = "Test failed because logfile {} was generated even though it should not".format(log_file_name)
-            nose.tools.assert_false(os.path.isfile(log_file_name), err_msg)

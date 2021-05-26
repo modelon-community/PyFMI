@@ -34,14 +34,14 @@ file_path = os.path.dirname(os.path.abspath(__file__))
 me1_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0")
 
 class Test_FMUModelME1Extended:
-    
+
     @testattr(stddist = True)
     def test_log_file_name(self):
-        model = FMUModelME1Extended("bouncingBall.fmu",me1_xml_path, _connect_dll=False)
+        model = FMUModelME1Extended("bouncingBall.fmu",me1_xml_path, log_level = 4, _connect_dll=False)
         assert os.path.exists("bouncingBall_log.txt")
-        model = FMUModelME1Extended("bouncingBall.fmu",me1_xml_path,log_file_name="Test_log.txt", _connect_dll=False)
+        model = FMUModelME1Extended("bouncingBall.fmu",me1_xml_path, log_level = 4, log_file_name="Test_log.txt", _connect_dll=False)
         assert os.path.exists("Test_log.txt")
-    
+
     @testattr(stddist = True)
     def test_default_experiment(self):
         model = FMUModelME1Extended("CoupledClutches.fmu", me1_xml_path, _connect_dll=False)
