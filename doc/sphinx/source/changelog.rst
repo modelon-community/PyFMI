@@ -2,6 +2,19 @@
 ==========
 Changelog
 ==========
+--- 2.8.8 ---
+    * Added support for writing result data to streams.
+    * Fixed bug with on demand loading with data stored as 32 bit.
+    * Fixed segfault when storing data from models with a huge number of
+      variables.
+    * Loading of FMUs can now be done from an unzipped folder if the argument 'allow_unzipped_fmu' is set to True.
+    * The argument 'path' to load_fmu and the different FMI-classes is now deprecated.
+    * Added support to log to streams via the keyword argument log_file_name. This is supported for all the FMI-classes as well as the function load_fmu.
+    * Improved performance of the Master algorithm.
+    * Updated exception types when loading an FMU fails.
+    * Delayed creating of a log file. I.e. if there is no log messages
+      a log file will not be created.
+      
 --- PyFMI-2.8.7 ---
     * Added safety check for updated binary files which can cause 
       issues.
