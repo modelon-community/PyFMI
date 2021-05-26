@@ -222,9 +222,6 @@ def extract_xml_log(dest, log, modulename = 'Model'):
         if not hasattr(dest, 'write'):
             raise FMUException("If input argument 'dest' is a stream it needs to support the attribute 'write'.")
 
-    if isinstance(log, str) and not os.path.isfile(log):
-        raise FMUException("Unable to extract XML log. Cannot extract log from '{}' since it does not exist.".format(os.path.basename(log)))
-
     if isinstance(log, str):
         with open(log, 'r') as sourcefile:
             if dest_is_file:

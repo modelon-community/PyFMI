@@ -2,7 +2,10 @@
 ==========
 Changelog
 ==========
---- 2.8.8 ---
+--- PyFMI-2.8.9 ---
+    * Reverted a fix added in 2.8.8 intended to make sure a log file was not created if no log messages due to potential issues with the implementation.
+    
+--- PyFMI-2.8.8 ---
     * Added support for writing result data to streams.
     * Fixed bug with on demand loading with data stored as 32 bit.
     * Fixed segfault when storing data from models with a huge number of
