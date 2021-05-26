@@ -897,7 +897,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 status = self.model_me2._get_derivatives(self._state_temp_1)
 
                 if status != 0:
-                    raise fmi.FMUException('Failed to get the derivatives at time: %E during handling of the event.'%t)
+                    raise fmi.FMUException('Failed to get the derivatives at time: %E during handling of the event.'%solver.t,)
             else:
                 rhs = self._model.get_derivatives()
 
