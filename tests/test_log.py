@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2020-2021 Modelon AB
+# Copyright (C) 2020 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -16,56 +16,51 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from tempfile import TemporaryDirectory
-
-import nose
 
 from pyfmi import testattr
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.tests.test_util import Dummy_FMUModelME2
-from pyfmi.fmi import load_fmu, FMUException
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 logs = os.path.join(file_path, "files", "Logs")
 
 class Test_Log:
-
+    
     @testattr(stddist = True)
     def test_extract_log(self):
         extract_xml_log("Tmp1.xml", os.path.join(logs, "CoupledClutches_log.txt"), modulename = 'Model')
-
+        
         assert os.path.exists("Tmp1.xml")
-
+        
         log = parse_xml_log("Tmp1.xml")
-
+        
         assert "<JMIRuntime node with 3 subnodes, and named subnodes ['build_date', 'build_time']>" == str(log.nodes[1]), "Got: " + str(log.nodes[1])
-
+    
     @testattr(stddist = True)
     def test_extract_log_exception(self):
-        """ Verify exception is raised when file does not exist when invoking extract_xml_log. """
-        filename = 'CoupledClutches_log_.txt'
-        msg = "Unable to extract XML log. Cannot extract log from '{}' since it does not exist.".format(filename)
-        with nose.tools.assert_raises_regex(FMUException, msg):
-            extract_xml_log("Tmp2", os.path.join(logs, filename), modulename = 'Model')
+        try:
+            extract_xml_log("Tmp2", os.path.join(logs, "CoupledClutches_log_.txt"), modulename = 'Model')
+        except FileNotFoundError:
+            pass
 
     @testattr(stddist = True)
     def test_extract_log_cs(self):
         extract_xml_log("Tmp3.xml", os.path.join(logs, "CoupledClutches_CS_log.txt"), modulename = 'Slave')
-
+        
         assert os.path.exists("Tmp3.xml")
-
+        
         log = parse_xml_log("Tmp3.xml")
-
+        
         assert "<JMIRuntime node with 3 subnodes, and named subnodes ['build_date', 'build_time']>" == str(log.nodes[1]), "Got: " + str(log.nodes[1])
-
+    
     @testattr(stddist = True)
     def test_extract_log_wrong_modulename(self):
         extract_xml_log("Tmp4.xml", os.path.join(logs, "CoupledClutches_CS_log.txt"), modulename = 'Test')
-
+        
         assert os.path.exists("Tmp4.xml")
-
+        
         log = parse_xml_log("Tmp4.xml")
-
+        
         try:
             log.nodes[1]
         except IndexError: #Test that the log is empty
@@ -83,7 +78,7 @@ class Test_Log:
     @testattr(stddist = True)
     def test_logging_option_CVode(self):
         self._test_logging_different_solver("CVode")
-
+        
     @testattr(stddist = True)
     def test_logging_option_Radau5ODE(self):
         self._test_logging_different_solver("Radau5ODE")
@@ -105,49 +100,3 @@ class Test_Log:
         eis = log.find("EventInfo")
         for ei in eis:
             assert isinstance(ei.time_event_info, bool), "Expected ei.time_event_info to be bool"
-
-class TestNoLogFileIfNoLogging:
-    """
-        Test invoking functions on the FMU if we have no logfile.
-        We do this from temporary directories to make sure that we have empty directories for the test.
-    """
-    @classmethod
-    def setup_class(cls):
-        cls.fmu_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu")
-
-    @testattr(stddist = True)
-    def test_no_logfile(self):
-        """ Verify no logfile generated if log_level is 0. """
-        with TemporaryDirectory() as tempdir:
-            log_file_name = os.path.join(tempdir, 'test.txt')
-            fmu = Dummy_FMUModelME2([], self.fmu_path, log_file_name = log_file_name, log_level = 0, _connect_dll=False)
-            err_msg = "Test failed because logfile {} was generated even though it should not".format(log_file_name)
-            nose.tools.assert_false(os.path.isfile(log_file_name), err_msg)
-
-    @testattr(stddist = True)
-    def test_get_log_empty(self):
-        """ Verify that get_log returns an empty list if log_level is 0. """
-        with TemporaryDirectory() as tempdir:
-            log_file_name = os.path.join(tempdir, 'test.txt')
-            fmu = Dummy_FMUModelME2([], self.fmu_path, log_file_name = log_file_name, log_level = 0, _connect_dll=False)
-            nose.tools.assert_equal(fmu.get_log(), [])
-
-    @testattr(stddist = True)
-    def test_extract_xml_log_no_logfile(self):
-        """ Verify that fmu.extract_xml_log() returns None if no logfile exists.
-            Note that it is expected that the behavior is different from extract_xml_log which throws exception.
-        """
-        with TemporaryDirectory() as tempdir:
-            log_file_name = os.path.join(tempdir, 'test.txt')
-            fmu = Dummy_FMUModelME2([], self.fmu_path, log_file_name = log_file_name, log_level = 0, _connect_dll=False)
-            nose.tools.assert_is_none(fmu.extract_xml_log())
-
-    @testattr(stddist = True)
-    def test_get_number_of_lines_log_no_logfile(self):
-        """ Verify that get_number_of_lines_log returns 0 if log_level is 0. """
-        with TemporaryDirectory() as tempdir:
-            log_file_name = os.path.join(tempdir, 'test.txt')
-            fmu = Dummy_FMUModelME2([], self.fmu_path, log_file_name = log_file_name, log_level = 0, _connect_dll=False)
-            nlines = fmu.get_number_of_lines_log()
-            err_msg = "Number of lines in log is not 0, it is {}".format(nlines)
-            nose.tools.assert_equal(nlines, 0, err_msg)
