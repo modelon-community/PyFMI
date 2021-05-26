@@ -83,6 +83,10 @@ class AssimuloFMIAlgOptions(OptionBase):
             Specifies the name of the file where the simulation result is
             written. Setting this option to an empty string results in a default
             file name that is based on the name of the model class.
+            result_file_name can also be set to a stream that supports 'write',
+            'tell' and 'seek'.
+            Note that depending on choice of result_handling the stream needs to
+            support writing to either string or bytes.
             Default: Empty string
 
         with_jacobian --
@@ -624,6 +628,8 @@ class FMICSAlgOptions(OptionBase):
             Specifies the name of the file where the simulation result is
             written. Setting this option to an empty string results in a default
             file name that is based on the name of the model class.
+            result_file_name can also be set to a stream that supports 'write',
+            'tell' and 'seek'.
             Default: Empty string
 
         result_handling --
@@ -834,6 +840,8 @@ class FMICSAlg(AlgorithmBase):
         Helper function that sets options for FMICS algorithm.
         """
         # no of communication points
+        if self.options['ncp'] <= 0:
+            raise fmi.FMUException(f"Setting {self.options['ncp']} as 'ncp' is not allowed for a CS FMU. Must be greater than 0.")
         self.ncp = self.options['ncp']
         
         self.write_scaled_result = self.options['write_scaled_result']
@@ -1172,6 +1180,8 @@ class SciEstAlgOptions(OptionBase):
             Specifies the name of the file where the result is written.
             Setting this option to an empty string results in a default
             file name that is based on the name of the model class.
+            result_file_name can also be set to a stream that supports 'write',
+            'tell' and 'seek'.
             Default: Empty string
 
     """

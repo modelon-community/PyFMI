@@ -1817,7 +1817,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 raise fmi.FMUException("The models should be provided as a list of lists with the name" \
                 " of the model as the first entry and the model object as the second.")
             if not isinstance(model[1], fmi.FMUModelME2):
-                raise fmi.FMUException("The coupled model currently only supports ME 2.0 FMUs.")
+                raise fmi.InvalidFMUException("The coupled model currently only supports ME 2.0 FMUs.")
                 
         #Call super
         CoupledFMUModelBase.__init__(self, models, connections)
