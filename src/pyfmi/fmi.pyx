@@ -191,25 +191,25 @@ class FMUException(Exception):
 
 class TimeLimitExceeded(FMUException):
     pass
-    
+
 class InvalidFMUException(FMUException):
     """
     Exception covering problems with the imported FMU.
     """
     pass
-    
+
 class InvalidXMLException(InvalidFMUException):
     """
     Exception covering problem with the XML-file in the imported FMU.
     """
     pass
-    
+
 class InvalidBinaryException(InvalidFMUException):
     """
     Exception covering problem with the binary in the imported FMU.
     """
     pass
-    
+
 class InvalidVersionException(InvalidFMUException):
     """
     Exception covering problem with the version of the imported FMU.
@@ -1412,26 +1412,26 @@ cdef class FMUModelBase(ModelBase):
         if self._version == FMIL.fmi_version_unknown_enu:
             last_error = decode(FMIL.jm_get_last_error(&self.callbacks))
             if self.callbacks.log_level >= FMIL.jm_log_level_error:
-                raise InvalidVersionException("The FMU version could not be determined. "+last_error)
+                raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. "+last_error)
             else:
-                raise InvalidVersionException("The FMU version could not be determined. Enable logging for possibly more information.")
+                raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. Enable logging for possibly more information.")
         if self._version != 1:
-            raise InvalidVersionException("This class only supports FMI 1.0 (Model Exchange and Co-Simulation).")
+            raise InvalidVersionException("The FMU could not be loaded. This class only supports FMI 1.0 (Model Exchange and Co-Simulation).")
 
         #Parse the XML
         self._fmu = FMIL.fmi1_import_parse_xml(self.context, fmu_temp_dir)
         if self._fmu == NULL:
             last_error = decode(FMIL.jm_get_last_error(&self.callbacks))
             if self.callbacks.log_level >= FMIL.jm_log_level_error:
-                raise InvalidXMLException("The XML file could not be parsed. "+last_error)
+                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+last_error)
             else:
-                raise InvalidXMLException("The XML file could not be parsed. Enable logging for possibly more information.")
+                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possibly more information.")
         self._allocated_xml = 1
 
         #Check the FMU kind
         fmu_kind = FMIL.fmi1_import_get_fmu_kind(self._fmu)
         if fmu_kind != FMI_ME and fmu_kind != FMI_CS_STANDALONE and fmu_kind != FMI_CS_TOOL:
-            raise InvalidVersionException("This class only supports FMI 1.0 (Model Exchange and Co-Simulation).")
+            raise InvalidVersionException("The FMU could not be loaded. This class only supports FMI 1.0 (Model Exchange and Co-Simulation).")
         self._fmu_kind = fmu_kind
 
         #Connect the DLL
@@ -1441,9 +1441,9 @@ cdef class FMUModelBase(ModelBase):
             if status == FMIL.jm_status_error:
                 last_error = decode(FMIL.fmi1_import_get_last_error(self._fmu))
                 if self.callbacks.log_level >= FMIL.jm_log_level_error:
-                    raise InvalidBinaryException(last_error)
+                    raise InvalidBinaryException("The FMU could not be loaded. "+last_error)
                 else:
-                    raise InvalidBinaryException("Error loading the binary. Enable logging for possibly more information.")
+                    raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. Enable logging for possibly more information.")
             self._allocated_dll = 1
             FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
 
@@ -2780,7 +2780,7 @@ cdef class FMUModelCS1(FMUModelBase):
         FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
         if self._fmu_kind != FMI_CS_STANDALONE and self._fmu_kind != FMI_CS_TOOL:
-            raise InvalidVersionException("This class only supports FMI 1.0 for Co-simulation.")
+            raise InvalidVersionException("The FMU could not be loaded. This class only supports FMI 1.0 for Co-simulation.")
 
         if _connect_dll:
             global GLOBAL_FMU_OBJECT
@@ -3305,7 +3305,7 @@ cdef class FMUModelME1(FMUModelBase):
         FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
         if self._fmu_kind != FMI_ME:
-            raise InvalidVersionException("This class only supports FMI 1.0 for Model Exchange.")
+            raise InvalidVersionException("The FMU could not be loaded. This class only supports FMI 1.0 for Model Exchange.")
 
         if _connect_dll:
             global GLOBAL_FMU_OBJECT
@@ -4081,16 +4081,16 @@ cdef class FMUModelBase2(ModelBase):
         if self._version == FMIL.fmi_version_unknown_enu:
             last_error = decode(FMIL.jm_get_last_error(&self.callbacks))
             if enable_logging:
-                raise InvalidVersionException("The FMU version could not be determined. "+last_error)
+                raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. "+last_error)
             else:
-                raise InvalidVersionException("The FMU version could not be determined. Enable logging for possibly more information.")
+                raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. Enable logging for possibly more information.")
 
         if self._version != FMIL.fmi_version_2_0_enu:
             last_error = decode(FMIL.jm_get_last_error(&self.callbacks))
             if enable_logging:
-                raise InvalidVersionException("The FMU version is not supported by this class. "+last_error)
+                raise InvalidVersionException("The FMU could not be loaded. The FMU version is not supported by this class. "+last_error)
             else:
-                raise InvalidVersionException("The FMU version is not supported by this class. Enable logging for possibly more information.")
+                raise InvalidVersionException("The FMU could not be loaded. The FMU version is not supported by this class. Enable logging for possibly more information.")
 
         #Parse xml and check fmu-kind
         self._fmu           = FMIL.fmi2_import_parse_xml(self._context, self._fmu_temp_dir, NULL)
@@ -4098,9 +4098,9 @@ cdef class FMUModelBase2(ModelBase):
         if self._fmu is NULL:
             last_error = decode(FMIL.jm_get_last_error(&self.callbacks))
             if enable_logging:
-                raise InvalidXMLException("The XML-could not be read. "+last_error)
+                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+last_error)
             else:
-                raise InvalidXMLException('The XML-could not be read. Enable logging for possible nore information.')
+                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible nore information.")
 
         self.callBackFunctions.componentEnvironment = <FMIL.fmi2_component_environment_t>self._fmu
         self._fmu_kind      = FMIL.fmi2_import_get_fmu_kind(self._fmu)
@@ -4110,9 +4110,9 @@ cdef class FMUModelBase2(ModelBase):
         if self._fmu_kind == FMIL.fmi2_fmu_kind_unknown:
             last_error = decode(FMIL.jm_get_last_error(&self.callbacks))
             if enable_logging:
-                raise InvalidVersionException("The FMU kind could not be determined. "+last_error)
+                raise InvalidVersionException("The FMU could not be loaded. The FMU kind could not be determined. "+last_error)
             else:
-                raise InvalidVersionException("The FMU kind could not be determined. Enable logging for possibly more information.")
+                raise InvalidVersionException("The FMU could not be loaded. The FMU kind could not be determined. Enable logging for possibly more information.")
         elif self._fmu_kind == FMIL.fmi2_fmu_kind_me_and_cs:
             if isinstance(self,FMUModelME2):
                 self._fmu_kind = FMIL.fmi2_fmu_kind_me
@@ -4127,9 +4127,9 @@ cdef class FMUModelBase2(ModelBase):
             if status == FMIL.jm_status_error:
                 last_error = decode(FMIL.fmi2_import_get_last_error(self._fmu))
                 if enable_logging:
-                    raise InvalidBinaryException("Error loading the binary. " + last_error)
+                    raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. " + last_error)
                 else:
-                    raise InvalidBinaryException("Error loading the binary. Enable logging for possibly more information.")
+                    raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. Enable logging for possibly more information.")
             self._allocated_dll = 1
 
         #Load information from model
@@ -6992,7 +6992,7 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_cs:
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
-                raise InvalidVersionException("This class only supports FMI 2.0 for Co-simulation.")
+                raise InvalidVersionException("The FMU could not be loaded. This class only supports FMI 2.0 for Co-simulation.")
 
         if self.get_capability_flags()['needsExecutionTool'] == True:
             raise FMUException('Models that need an execution tool are not supported')
@@ -7621,7 +7621,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_me:
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
-                raise InvalidVersionException('This class only supports FMI 2.0 for Model Exchange.')
+                raise InvalidVersionException('The FMU could not be loaded. This class only supports FMI 2.0 for Model Exchange.')
 
         if self.get_capability_flags()['needsExecutionTool'] == True:
             raise FMUException('Models that need an execution tool are not supported')
@@ -8615,10 +8615,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
             _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU version could not be determined. "+decode(last_error))
+            raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. "+decode(last_error))
         else:
             _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU version could not be determined. Enable logging for possibly more information.")
+            raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. Enable logging for possibly more information.")
 
     if version > 2:
         #Delete the context
@@ -8628,10 +8628,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
             _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU version is unsupported. "+decode(last_error))
+            raise InvalidVersionException("The FMU could not be loaded. The FMU version is unsupported. "+decode(last_error))
         else:
             _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU version is unsupported. Enable logging for possibly more information.")
+            raise InvalidVersionException("The FMU could not be loaded. The FMU version is unsupported. Enable logging for possibly more information.")
 
     #Parse the xml
     if version == FMIL.fmi_version_1_enu:
@@ -8646,10 +8646,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
                 FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if callbacks.log_level >= FMIL.jm_log_level_error:
                 _handle_load_fmu_exception(fmu, log_data)
-                raise InvalidXMLException("The XML-could not be read. "+decode(last_error))
+                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+decode(last_error))
             else:
                 _handle_load_fmu_exception(fmu, log_data)
-                raise InvalidXMLException('The XML-could not be read. Enable logging for possible nore information.')
+                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible nore information.")
 
         fmu_1_kind = FMIL.fmi1_import_get_fmu_kind(fmu_1)
 
@@ -8680,10 +8680,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
                 FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             if callbacks.log_level >= FMIL.jm_log_level_error:
                 _handle_load_fmu_exception(fmu, log_data)
-                raise InvalidXMLException("The XML-could not be read. "+decode(last_error))
+                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+decode(last_error))
             else:
                 _handle_load_fmu_exception(fmu, log_data)
-                raise InvalidXMLException('The XML-could not be read. Enable logging for possible nore information.')
+                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible nore information.")
 
         fmu_2_kind = FMIL.fmi2_import_get_fmu_kind(fmu_2)
 
@@ -8737,10 +8737,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
             _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU version is not found. "+decode(last_error))
+            raise InvalidVersionException("The FMU could not be loaded. The FMU version is not found. "+decode(last_error))
         else:
             _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU version is not found. Enable logging for possibly more information.")
+            raise InvalidVersionException("The FMU could not be loaded. The FMU version is not found. Enable logging for possibly more information.")
 
     #Delete
     if version == FMIL.fmi_version_1_enu:
