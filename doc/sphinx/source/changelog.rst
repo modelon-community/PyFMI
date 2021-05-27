@@ -4,7 +4,7 @@ Changelog
 ==========
 --- PyFMI-2.8.10 ---
     * Minor updates to exception messages.
-    
+
 --- PyFMI-2.8.9 ---
     * Reverted a fix added in 2.8.8 intended to make sure a log file was not created if no log messages due to potential issues with the implementation.
     
