@@ -351,7 +351,9 @@ class AssimuloFMIAlg(AlgorithmBase):
             event_info = self.model.get_event_info()
             if event_info.upcomingTimeEvent and event_info.nextEventTime == model.time:
                 self.model.event_update()
-        
+        elif isinstance(self.model, fmi.FMUModelME2):
+            self.model.event_update()
+
         if abs(start_time - model.time) > 1e-14:
             logging.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
         
