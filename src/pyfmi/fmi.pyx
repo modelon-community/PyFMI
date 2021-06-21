@@ -7921,7 +7921,7 @@ cdef class FMUModelME2(FMUModelBase2):
         if self._nContinuousStates > 0:
             return FMIL.fmi2_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
         else:
-            return FMIL.fmi2_import_get_continuous_states(self._fmu, NULL ,self._nContinuousStates)
+            return FMIL.fmi2_status_ok
 
     def _get_continuous_states(self):
         """
