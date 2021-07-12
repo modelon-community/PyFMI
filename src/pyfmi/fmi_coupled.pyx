@@ -1004,7 +1004,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         Calls the low-level FMI function: fmi2SetReal
         """
         input_valueref = np.array(valueref, ndmin=1).ravel()
-        set_value      = np.array(values, dtype=np.float, ndmin=1).ravel()
+        set_value      = np.array(values, dtype=float, ndmin=1).ravel()
 
         if input_valueref.size != set_value.size:
             raise fmi.FMUException('The length of valueref and values are inconsistent.')
