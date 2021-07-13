@@ -23,6 +23,7 @@ pyfmi.fmi.FMUModel.simulate.
 import logging
 import time
 import numpy as N
+from numpy.lib.function_base import append
 
 import pyfmi
 import pyfmi.fmi as fmi
@@ -311,7 +312,11 @@ class AssimuloFMIAlg(AlgorithmBase):
         else:
             raise fmi.FMUException("Unknown option to result_handling.")
 
+
+
         self.result_handler.set_options(self.options)
+        if isinstance(self.result_handler, ResultHandlerBinaryFile):
+            self._setup_diagnostics_variables()
         
         time_end = timer()
         #self.timings["creating_result_object"] = time_end - time_start
@@ -359,7 +364,10 @@ class AssimuloFMIAlg(AlgorithmBase):
         self.timings["initializing_fmu"] = time_end - time_start - time_res_init
         time_start = time_end
         
-        self.result_handler.simulation_start()
+        if isinstance(self.result_handler, ResultHandlerBinaryFile):
+            self.result_handler.simulation_start(self._diagnostics_param_names, self._diagnostic_param_values, self._diagnostics_var)
+        else:
+            self.result_handler.simulation_start()
         
         self.timings["initializing_result"] = timer() - time_start + time_res_init
             
@@ -542,6 +550,66 @@ class AssimuloFMIAlg(AlgorithmBase):
         #Needs to be set as last option in order to have an impact.
         if "maxord" in solver_options:
             setattr(self.simulator, "maxord", solver_options["maxord"])
+
+    def _setup_diagnostics_variables(self):
+        self._diagnostics_param_names=[]
+        self._diagnostic_param_values=[]
+        self._diagnostics_var=[]
+        try:
+            self._diagnostics_logging = self.options["logging"]
+        except AttributeError:
+            self._diagnostics_logging = False
+
+        if self._diagnostics_logging:
+            diagnostics_start_name = "Diagnostics."
+            solver_name=self.options["solver"]
+            
+            self._diagnostic_param_names.append((diagnostics_start_name+"solver."+solver_name, "Chosen solver."))
+            self._diagnostic_param_values.append(1.0)
+            
+            support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE")
+            self._diagnostic_param_names.append((diagnostics_start_name+"support_state_errors", ""))
+            self._diagnostic_param_values.append(support_state_errors)
+            
+            support_solver_order = solver_name=="CVode"
+            self._diagnostic_param_names.append((diagnostics_start_name+"support_solver_order"), "")
+            self._diagnostic_param_values.append(support_solver_order)
+
+            try:
+                support_elapsed_time=self.solver_options["clock_step"]
+            except:
+                support_elapsed_time=False
+            self._diagnostic_param_names.append((diagnostics_start_name+"support_elapsed_time", ""))
+            self._diagnostic_param_values.append(support_elapsed_time)
+
+            support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE")
+            self._diagnostic_param_names.append((diagnostics_start_name+"support_event_indicators", ""))
+            self._diagnostic_param_values.append(support_event_indicators)
+
+            states_list = self.model.get_states_list() if isinstance(self.model, fmi.FMIModelME2) else []
+            
+            if solver_name != "ExplicitEuler":
+                self._diagnostic_param_names.append((diagnostics_start_name+"relative_tolerance", "Relative solver tolerance."))
+                self._diagnostic_param_values.append(self.solver_options["rtol"])
+                
+                for idx, state in enumerate(states_list):
+                    self._diagnostic_param_names.append((diagnostics_start_name+"absolute_tolerance."+state[0], "Absolute tolerance for "+state[0]+"."))
+                    self._diagnostic_param_values.append(self.solver_options["atol"][idx])
+
+            self._diagnostics_var.append((diagnostics_start_name+"step_time","Step time"))
+            if support_elapsed_time:
+                self._diagnostics_var.append((diagnostics_start_name+"cpu_time", "Cpu time for current step."))
+            if support_solver_order:
+                self._diagnostics_var.append((diagnostics_start_name+"solver_order", "Solver order for CVode"))
+            if support_state_errors:
+                for state in states_list:
+                    self._diagnostics_var.append((diagnostics_start_name+"state_errors."+state[0], "State error for "+state[0]+"."))
+            if support_event_indicators:
+                for i in range(self.model.get_event_indicators()):
+                    self._diagnostics_var.append((diagnostics_start_name+"event_info.indicator_"+str(i+1), "Value for event indicator {}.".format(i+1)))
+                for i in range(self.model.get_event_indicators()):
+                    self._diagnostics_var.append((diagnostics_start_name+"event_info.state_event_info.index_"+str(i+1), "Zero crossing indicator for event indicator {}".format(i+1)))
+                self._diagnostics_var.append((diagnostics_start_name+"event_info.event_type", "No event=-1, state event=0, time event=1"))  
 
     def solve(self):
         """

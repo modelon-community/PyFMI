@@ -2276,7 +2276,7 @@ class ResultHandlerBinaryFile(ResultHandler):
     def initialize_complete(self):
         pass
 
-    def simulation_start(self):
+    def simulation_start(self, diagnostics_param_names=[], diagnostic_param_values=[], diagnostics_var=[]):
         """
         Opens the file and writes the header. This includes the information
         about the variables and a table determining the link between variables
@@ -2289,6 +2289,10 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.file_open = False
         self._is_stream = False
         self.nbr_points = 0
+        try:
+            self._with_diagnostics = opts["logging"]
+        except:
+            self._with_diagnostics = False
 
         self.file_name = opts["result_file_name"]
         try:
@@ -2332,13 +2336,13 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         sorted_vars = sorted_vars_real+sorted_vars_int+sorted_vars_enum+sorted_vars_bool
         self._sorted_vars = sorted_vars
-        len_name_items = len(sorted_vars)+1
+        len_name_items = len(sorted_vars)+len(diagnostics_param_names)+len(diagnostics_var)+1
         len_desc_items = len_name_items
 
         if opts["result_store_variable_description"]:
-            len_name_data, name_data, len_desc_data, desc_data = fmi_util.convert_sorted_vars_name_desc(sorted_vars)
+            len_name_data, name_data, len_desc_data, desc_data = fmi_util.convert_sorted_vars_name_desc(sorted_vars, diagnostics_param_names, diagnostics_var)
         else:
-            len_name_data, name_data = fmi_util.convert_sorted_vars_name(sorted_vars)
+            len_name_data, name_data = fmi_util.convert_sorted_vars_name(sorted_vars, diagnostics_param_names, diagnostics_var)
             len_desc_data = 1
             desc_data = encode(" "*len_desc_items)
 
@@ -2350,7 +2354,8 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         #Create the data info structure (and return parameters)
         data_info = np.zeros((4, len_name_items), dtype=np.int32)
-        [parameter_data, sorted_vars_real_vref, sorted_vars_int_vref, sorted_vars_bool_vref]  = fmi_util.prepare_data_info(data_info, sorted_vars, self.model)
+        [parameter_data, sorted_vars_real_vref, sorted_vars_int_vref, sorted_vars_bool_vref]  = fmi_util.prepare_data_info(data_info, sorted_vars, 
+                                                                                                    diagnostics_param_names, diagnostic_param_values, diagnostics_var, self.model)
 
         self._write_header("dataInfo", data_info.shape[0], data_info.shape[1], "int")
         self.dump_data(data_info)
