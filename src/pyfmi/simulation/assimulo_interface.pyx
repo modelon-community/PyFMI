@@ -25,13 +25,12 @@ import logging as logging_module
 import numpy as N
 from numpy.core.einsumfunc import einsum
 
-from common.io import ResultHandlerBinaryFile
 cimport numpy as N
 import numpy.linalg as LIN
 import scipy.sparse as sp
 import time
 
-from pyfmi.common.io import ResultWriterDymola
+from pyfmi.common.io import ResultWriterDymola, ResultHandlerBinaryFile
 import pyfmi.fmi as fmi
 from pyfmi.fmi cimport FMUModelME2
 from pyfmi.common import python3_flag
@@ -571,6 +570,7 @@ cdef class FMIODE2(cExplicit_Problem):
     """
     An Assimulo Explicit Model extended to FMI interface.
     """
+    
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False, 
                  result_handler=None, extra_equations=None):
@@ -954,7 +954,7 @@ cdef class FMIODE2(cExplicit_Problem):
                     diag_data[index] = solver.get_last_order()
                     index +=1
                 for e in solver.get_weighted_local_errors():
-                    diag_data[index] = else
+                    diag_data[index] = e
                     index +=1
                 for ei in self._model.get_event_indicators():
                     diag_data[index] = ei

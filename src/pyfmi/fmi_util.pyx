@@ -250,7 +250,7 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, list diagnostics_param_names, list diagnostic_param_values,  diagnostics_var, model):
+cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, list diagnostics_param_names, list diagnostics_param_values,  diagnostics_var, model):
     cdef int index_fixed    = 1
     cdef int index_variable = 1
     cdef int nof_sorted_vars = len(sorted_vars)
@@ -328,7 +328,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         last_index = last_index + 1
         data_info[1,i] = last_index
 
-    data = np.append(np.append(np.append(np.append(model.time, model.get_real(param_real)),model.get_integer(param_int).astype(float)),model.get_boolean(param_bool).astype(float)), np.array(diagnostics_param_values).astype(float))
+    data = np.append(np.append(np.append(model.time, model.get_real(param_real)),model.get_integer(param_int).astype(float)),model.get_boolean(param_bool).astype(float))
 
     return data, varia_real, varia_int, varia_bool
 
@@ -362,10 +362,10 @@ cpdef convert_str_list(list data):
 
     return length, py_string
 
-cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_param_names, list diag_var):
+cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_param_names, list diag_vars):
     cdef int items = len(sorted_vars)
     cdef int nof_diag_params = len(diag_param_names)
-    cdef int nof_diag_vars = len(diag_var)
+    cdef int nof_diag_vars = len(diag_vars)
     cdef int i, name_length_trial, desc_length_trial, kd, kn
     cdef list desc = [encode("Time in [s]")]
     cdef list name = [encode("time")]
@@ -382,11 +382,11 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_param_names, lis
             tmp_name = encode(var.name)
             tmp_desc = encode(var.description)
         elif i < items+nof_diag_params:
-            tmp_name = encode(diag_param_names[i-item][0])
-            tmp_desc = encode(diag_param_names[i-item][2])
+            tmp_name = encode(diag_param_names[i-items][0])
+            tmp_desc = encode(diag_param_names[i-items][2])
         else:
-            tmp_name = encode(diag_vars[i-item-nof_diag_params][0])
-            tmp_desc = encode(diag_vars[i-item-nof_diag_params][2])
+            tmp_name = encode(diag_vars[i-items-nof_diag_params][0])
+            tmp_desc = encode(diag_vars[i-items-nof_diag_params][2])
         name.append(tmp_name)
         desc.append(tmp_desc)
 
@@ -428,10 +428,10 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_param_names, lis
 
     return name_length, py_name_string, desc_length, py_desc_string
 
-cpdef convert_sorted_vars_name(list sorted_vars, list diag_param_names, list diag_var):
+cpdef convert_sorted_vars_name(list sorted_vars, list diag_param_names, list diag_vars):
     cdef int items = len(sorted_vars)
     cdef int nof_diag_params = len(diag_param_names)
-    cdef int nof_diag_vars = len(diag_var)
+    cdef int nof_diag_vars = len(diag_vars)
     cdef int i, name_length_trial, kn
     cdef list name = [encode("time")]
     cdef int name_length = len(name[0])+1
@@ -443,9 +443,9 @@ cpdef convert_sorted_vars_name(list sorted_vars, list diag_param_names, list dia
             var = sorted_vars[i]
             tmp_name = encode(var.name)
         elif i < items+nof_diag_params:
-            tmp_name = encode(diag_param_names[i-item][0])
+            tmp_name = encode(diag_param_names[i-items][0])
         else:
-            tmp_name = encode(diag_vars[i-item-nof_diag_params][0])
+            tmp_name = encode(diag_vars[i-items-nof_diag_params][0])
         name.append(tmp_name)
 
         name_length_trial = len(tmp_name)
@@ -1029,6 +1029,7 @@ cdef class DumpData:
     cdef public int model_me2_instance
     cdef public object _file, model
     cdef size_t real_size, int_size, bool_size
+    cdef int _with_diagnostics
 
     def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref, with_diagnostics):
 
@@ -1064,12 +1065,9 @@ cdef class DumpData:
     cdef dump_data(self, np.ndarray data):
         self._file.write(data.tostring(order="F"))
 
-    cdef write_data_flag(self, float flag):
-        self._file.write(flag)
-
     def save_point(self):
         if self._with_diagnostics:
-            self._file.write(float(1.0))self._file.write(float(1.0))
+            self._file.write(float(1.0))
         if self.model_me2_instance:
             self.time_tmp[0] = self.model_me2._get_time()
             self.dump_data(self.time_tmp)
