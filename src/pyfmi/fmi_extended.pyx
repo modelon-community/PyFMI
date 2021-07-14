@@ -289,7 +289,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
         cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = N.array(orders, dtype=N.int32, ndmin=1).flatten()
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=N.float, ndmin=1).flatten()
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=float, ndmin=1).flatten()
 
         nref = len(val)
         orders = N.array([0]*nref, dtype=N.int32)

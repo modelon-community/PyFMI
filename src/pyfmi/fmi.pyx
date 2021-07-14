@@ -1569,7 +1569,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
         nref = len(val_ref)
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref, dtype=N.float, ndmin=1)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref, dtype=float, ndmin=1)
 
 
         status = FMIL.fmi1_import_get_real(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_real_t*>val.data)
@@ -1600,7 +1600,7 @@ cdef class FMUModelBase(ModelBase):
         cdef int status
         cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, copy=False, dtype=N.float).ravel()
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, copy=False, dtype=float).ravel()
         nref = val_ref.size
 
         if val_ref.size != val.size:
@@ -2937,7 +2937,7 @@ cdef class FMUModelCS1(FMUModelBase):
         else:
             raise FMUException("The variables must either be a string or a list of strings")
 
-        values = N.array([0.0]*nref,dtype=N.float, ndmin=1)
+        values = N.array([0.0]*nref,dtype=float, ndmin=1)
 
         status = FMIL.fmi1_import_get_real_output_derivatives(self._fmu, <FMIL.fmi1_value_reference_t*>value_refs.data, nref, <FMIL.fmi1_integer_t*>orders.data, <FMIL.fmi1_real_t*>values.data)
 
@@ -3002,7 +3002,7 @@ cdef class FMUModelCS1(FMUModelBase):
         cdef FMIL.fmi1_import_capabilities_t *fmu_capabilities
         cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = N.array(orders, dtype=N.int32, ndmin=1).ravel()
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=N.float, ndmin=1).ravel()
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=float, ndmin=1).ravel()
 
         nref = val.size
         orders = N.array([0]*nref, dtype=N.int32)
@@ -4214,7 +4214,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef int status
 
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = N.array(values, copy=False, dtype=N.float).ravel()
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = N.array(values, copy=False, dtype=float).ravel()
 
         if input_valueref.size != set_value.size:
             raise FMUException('The length of valueref and values are inconsistent.')
@@ -7143,7 +7143,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         cdef FMIL.size_t  nref
         cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            val = N.array(values, dtype=N.float, ndmin=1).ravel()
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            val = N.array(values, dtype=float, ndmin=1).ravel()
 
         nref = val.size
         orders = N.array([0]*nref, dtype=N.int32)
@@ -7234,7 +7234,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         else:
             raise FMUException("The variables must either be a string or a list of strings")
 
-        values = N.array([0.0]*nref, dtype=N.float, ndmin=1)
+        values = N.array([0.0]*nref, dtype=float, ndmin=1)
 
         #status = FMIL.fmi2_import_get_real_output_derivatives(self._fmu, <FMIL.fmi2_value_reference_t*> value_refs.data, nref,
         #                                                    <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> values.data)

@@ -2241,7 +2241,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         """
         Dumps the header and name to file.
         """
-        self._file.write(header.tostring(order="F"))
+        self._file.write(header.tobytes(order="F"))
         self._file.write(np.compat.asbytes(name +"\0"))
 
     def _write_header(self, name, nbr_rows, nbr_cols, data_type):
@@ -2268,8 +2268,8 @@ class ResultHandlerBinaryFile(ResultHandler):
         return data
 
     def dump_data(self, data):
-        self._file.write(data.tostring(order="F"))
-
+        self._file.write(data.tobytes(order="F"))
+        
     def dump_native_data(self, data):
         self._file.write(data)
 

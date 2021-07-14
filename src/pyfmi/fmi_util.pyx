@@ -543,7 +543,7 @@ class Graph:
                 self._strongly_connected_components(node)
         return self.connected_components
 """
-class OrderedSet(collections.MutableSet):
+class OrderedSet(collections.abc.MutableSet):
 
     def __init__(self, iterable=None):
         self.end = end = []
@@ -1063,8 +1063,8 @@ cdef class DumpData:
         self._with_diagnostics = with_diagnostics
 
     cdef dump_data(self, np.ndarray data):
-        self._file.write(data.tostring(order="F"))
-
+        self._file.write(data.tobytes(order="F"))
+    
     def save_point(self):
         if self._with_diagnostics:
             self._file.write(float(1.0))
