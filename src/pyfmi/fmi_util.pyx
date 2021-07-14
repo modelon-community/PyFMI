@@ -1030,7 +1030,7 @@ cdef class DumpData:
     cdef public object _file, model
     cdef size_t real_size, int_size, bool_size
 
-    def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref):
+    def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref, with_diagnostics):
 
         if type(model) != FMUModelME2:
             self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
@@ -1059,10 +1059,17 @@ cdef class DumpData:
             self.model_me2_instance = 0
             self.model = model
 
+        self._with_diagnostics = with_diagnostics
+
     cdef dump_data(self, np.ndarray data):
         self._file.write(data.tostring(order="F"))
 
+    cdef write_data_flag(self, float flag):
+        self._file.write(flag)
+
     def save_point(self):
+        if self._with_diagnostics:
+            self._file.write(float(1.0))self._file.write(float(1.0))
         if self.model_me2_instance:
             self.time_tmp[0] = self.model_me2._get_time()
             self.dump_data(self.time_tmp)
@@ -1094,6 +1101,12 @@ cdef class DumpData:
                 self.dump_data(b)
 
 
+    def save_diagnostics_point(self, diag_data):       
+        if self.model_me2_instance:
+            self._file.write(float(-1.0))
+            self.time_tmp[0] = self.model_me2._get_time()
+            self.dump_data(self.time_tmp)
+   
 from libc.stdio cimport *
 
 cdef extern from "stdio.h":

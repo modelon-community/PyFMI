@@ -2289,6 +2289,8 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.file_open = False
         self._is_stream = False
         self.nbr_points = 0
+        self.nbr_diag_points = 0
+        self.nof_diag_vars = len(diagnostics_var)
         try:
             self._with_diagnostics = opts["logging"]
         except:
@@ -2368,6 +2370,12 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.data_1_header_position = self._file.tell()
         self.dump_data(parameter_data)
 
+        self.data_3_header_position = self._file.tell()
+        if self._with_diagnostics:
+            self._nof_diag_vars = len(diagnostics_var) + 1
+            self._data_3_header = self._data_header("data_3", self._nof_diag_vars, 0, "double")
+            self.__write_header(self._data_3_header, "data_3")
+
         #Record the position so that we can later modify the number of result points stored
         self.data_2_header_position = self._file.tell()
         self._len_vars_ref =  len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref)+1
@@ -2378,7 +2386,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.int_var_ref  = np.array(sorted_vars_int_vref)
         self.bool_var_ref = np.array(sorted_vars_bool_vref)
         self.nbr_points = 0
-        self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref)
+        self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref, self._with_diagnostics)
 
     def integration_point(self, solver = None):
         """
@@ -2391,6 +2399,11 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         #Make sure that file is always consistent
         self._make_consistent()
+
+    def diagnostics_point(self, diag_data):
+        self.dump_data_internal.save_diagnostics_point(diag_data)
+        self.nbr_diag_points += 1
+        self._make_diagnostics_consistent()
 
     def _make_consistent(self):
         f = self._file
@@ -2405,6 +2418,23 @@ class ResultHandlerBinaryFile(ResultHandler):
         f.seek(self.data_2_header_position)
         self._data_2_header["ncols"] = self.nbr_points
         self.__write_header(self._data_2_header, "data_2")
+
+        #Reset file pointer
+        f.seek(file_pos)
+
+    def _make_diagnostics_consistent(self):
+        f = self._file
+
+        #Get current position
+        file_pos = f.tell()
+
+        f.seek(self.data_1_header_position)
+        t = np.array([float(self.model.time)])
+        self.dump_data(t)
+
+        f.seek(self.data_3_header_position)
+        self._data_2_header["ncols"] = self.nbr_diag_points
+        self.__write_header(self._data_3_header, "data_3")
 
         #Reset file pointer
         f.seek(file_pos)

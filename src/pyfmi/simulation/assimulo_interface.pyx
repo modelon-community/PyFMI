@@ -23,6 +23,9 @@ import logging
 import logging as logging_module
 
 import numpy as N
+from numpy.core.einsumfunc import einsum
+
+from common.io import ResultHandlerBinaryFile
 cimport numpy as N
 import numpy.linalg as LIN
 import scipy.sparse as sp
@@ -624,6 +627,11 @@ cdef class FMIODE2(cExplicit_Problem):
         self._logging = logging
         self._sparse_representation = False
         self._with_jacobian = with_jacobian
+
+        if self._logging and isinstance(result_handler, ResultHandlerBinaryFile):
+            self._logging_to_mat = True
+        else:
+            self._logging_to_mat = False
         
         self.jac_use = False
         if f_nbr > 0 and with_jacobian:
@@ -918,20 +926,45 @@ cdef class FMIODE2(cExplicit_Problem):
             fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
             fwrite.write(" Time  event info:  "+str(event_info[1])+ "\n")
 
-            preface = "[INFO][FMU status:OK] "
-            event_info_tag = 'EventInfo'
+            if not self._logging_to_mat:
+                preface = "[INFO][FMU status:OK] "
+                event_info_tag = 'EventInfo'
 
-            msg = preface + '<%s>Detected event at <value name="t">        %.14E</value>.'%(event_info_tag, solver.t)
-            self._model.append_log_message("Model", 6, msg)
+                msg = preface + '<%s>Detected event at <value name="t">        %.14E</value>.'%(event_info_tag, solver.t)
+                self._model.append_log_message("Model", 6, msg)
 
-            msg = preface + '  <vector name="state_event_info">' + ", ".join(str(i) for i in event_info[0]) + '</vector>'
-            self._model.append_log_message("Model", 6, msg)
+                msg = preface + '  <vector name="state_event_info">' + ", ".join(str(i) for i in event_info[0]) + '</vector>'
+                self._model.append_log_message("Model", 6, msg)
 
-            msg = preface + '  <boolean name="time_event_info">' + str(event_info[1]) + '</boolean>'
-            self._model.append_log_message("Model", 6, msg)
+                msg = preface + '  <boolean name="time_event_info">' + str(event_info[1]) + '</boolean>'
+                self._model.append_log_message("Model", 6, msg)
 
-            msg = preface + '</%s>'%(event_info_tag)
-            self._model.append_log_message("Model", 6, msg)
+                msg = preface + '</%s>'%(event_info_tag)
+                self._model.append_log_message("Model", 6, msg)
+            else:
+                diag_data = N.ndarray(self.export.nof_diag_vars+1,dtype=float)
+                index = 0
+                diag_data[index] = solver.t
+                index +=1
+                if solver.clock_step:
+                    diag_data[index] = 0
+                    index +=1
+                solver_name = solver.__class__.__name__
+                if solver_name == "CVode":
+                    diag_data[index] = solver.get_last_order()
+                    index +=1
+                for e in solver.get_weighted_local_errors():
+                    diag_data[index] = else
+                    index +=1
+                for ei in self._model.get_event_indicators():
+                    diag_data[index] = ei
+                    index +=1
+                for ei in event_info[0]:
+                    diag_data[index] = ei
+                    index +=1
+                diag_data[index] = float(event_info[1])
+                self.export.save_diagnostics_point(diag_data)
+                
 
         #Enter event mode
         self._model.enter_event_mode()
