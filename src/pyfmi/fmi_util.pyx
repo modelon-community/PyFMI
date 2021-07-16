@@ -328,7 +328,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         last_index = last_index + 1
         data_info[1,i] = last_index
 
-    data = np.append(np.append(np.append(model.time, model.get_real(param_real)),model.get_integer(param_int).astype(float)),model.get_boolean(param_bool).astype(float))
+    data = np.append(np.append(np.append(np.append(model.time, model.get_real(param_real)),model.get_integer(param_int).astype(float)),model.get_boolean(param_bool).astype(float)), np.array(diagnostics_param_values).astype(float))
 
     return data, varia_real, varia_int, varia_bool
 
@@ -383,10 +383,10 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_param_names, lis
             tmp_desc = encode(var.description)
         elif i < items+nof_diag_params:
             tmp_name = encode(diag_param_names[i-items][0])
-            tmp_desc = encode(diag_param_names[i-items][2])
+            tmp_desc = encode(diag_param_names[i-items][1])
         else:
             tmp_name = encode(diag_vars[i-items-nof_diag_params][0])
-            tmp_desc = encode(diag_vars[i-items-nof_diag_params][2])
+            tmp_desc = encode(diag_vars[i-items-nof_diag_params][1])
         name.append(tmp_name)
         desc.append(tmp_desc)
 
@@ -1067,7 +1067,7 @@ cdef class DumpData:
     
     def save_point(self):
         if self._with_diagnostics:
-            self._file.write(float(1.0))
+            self.dump_data(np.array(float(1.0)))
         if self.model_me2_instance:
             self.time_tmp[0] = self.model_me2._get_time()
             self.dump_data(self.time_tmp)
@@ -1100,10 +1100,13 @@ cdef class DumpData:
 
 
     def save_diagnostics_point(self, diag_data):       
+        self.dump_data(np.array(float(2.0)))
         if self.model_me2_instance:
-            self._file.write(float(-1.0))
             self.time_tmp[0] = self.model_me2._get_time()
             self.dump_data(self.time_tmp)
+        else:
+            self.dump_data(np.array(float(self.model.time)))
+        self.dump_data(diag_data)
    
 from libc.stdio cimport *
 
@@ -1213,6 +1216,69 @@ cdef _read_trajectory64(file_name, long int start_point, long int end_point, lon
 
     return data
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def read_diagnostics_trajectory(file_name, int read_diag_data, int has_position_data, 
+    np.ndarray[long, ndim=1] file_pos_model_var, np.ndarray[long, ndim=1] file_pos_diag_var, 
+    int data_index, int file_position, int sizeof_type, int nbr_model_points, int nbr_diag_points, 
+    int nbr_model_variables, int nbr_diag_variables):
+    cdef unsigned long int end_point   = sizeof_type*(nbr_diag_points*(nbr_diag_variables+1) + nbr_model_points*(nbr_model_variables+1))
+    cdef unsigned long int iter_point = 0
+    cdef unsigned long int model_var_interval = sizeof_type*nbr_model_variables
+    cdef unsigned long int diag_var_interval = sizeof_type*nbr_diag_variables
+    cdef FILE* cfile
+    cdef np.ndarray[DTYPE_t, ndim=1] data
+    cdef DTYPE_t* data_ptr
+    cdef size_t sizeof_dtype = sizeof(DTYPE_t)
+    cdef np.ndarray[DTYPE_t, ndim=1] flag
+    cdef DTYPE_t* flag_ptr
+    cdef long file_pos
+    cdef int i = 0
+    cdef model_var_counter = 0
+    cdef diag_var_counter = 0
+
+    cfile = fopen(file_name, 'rb')
+
+    if read_diag_data == 1:
+        data = np.empty(nbr_diag_points, dtype=DTYPE)
+    else:
+        data = np.empty(nbr_model_points, dtype=DTYPE)
+    data_ptr = <DTYPE_t*>data.data
+    flag = np.empty(1, dtype=DTYPE)
+    flag_ptr = <DTYPE_t*>flag.data
+    if has_position_data == 1:
+        file_pos_list = file_pos_diag_var if read_diag_data == 1 else file_pos_model_var
+        for file_pos in file_pos_list:
+            fseek(cfile, file_pos+data_index*sizeof_type, 0)
+            fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
+            i += 1
+    else:
+        while iter_point < end_point:
+            fseek(cfile, file_position+iter_point,0)
+            fread(<void*>(flag_ptr), sizeof_dtype, 1, cfile)
+            iter_point += sizeof_type;
+            file_pos = ftell(cfile)
+            if flag[0] == 1.0:
+                file_pos_model_var[model_var_counter] = file_pos
+                model_var_counter +=1
+                if not read_diag_data:
+                    fseek(cfile, file_position+iter_point+data_index*sizeof_type, 0)
+                    fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
+                    i += 1
+                iter_point += model_var_interval
+            elif flag[0] == 2.0:
+                file_pos_diag_var[diag_var_counter] = file_pos
+                diag_var_counter +=1
+                if read_diag_data:
+                    fseek(cfile, file_position+iter_point+data_index*sizeof_type, 0)
+                    fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
+                    i += 1
+                iter_point += diag_var_interval
+            else:
+                raise Exception("Result file is corrupt, cannot read results!")
+    fclose(cfile)            
+    return data, file_pos_model_var, file_pos_diag_var
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -1251,6 +1317,8 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
 
     cfile = fopen(file_name, 'rb')
 
+    if tmp == NULL:
+        raise Exception("Couldn't allocate memory to read name list!")
     fseek(cfile, file_position, 0)
     for i in range(nbr_variables):
         fread(<void*>(tmp), max_length, 1, cfile)
@@ -1265,7 +1333,6 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
                 py_str = py_str.replace(b" ", b"")
             else:
                 py_str = py_str.replace(" ", "")
-
         data[py_str] = i
 
     fclose(cfile)

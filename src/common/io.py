@@ -33,6 +33,7 @@ import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
 from pyfmi.common import python3_flag, encode, decode
 
+from scipy import interpolate
 from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template
 import struct
 
@@ -1202,15 +1203,37 @@ class ResultDymolaBinary(ResultDymola):
             self._is_stream = True
             delayed_trajectory_loading = False
 
-        data_sections = ["name", "dataInfo", "data_2"]
-
-        if delayed_trajectory_loading:
+        data_sections = ["name", "dataInfo", "data_2", "data_3", "data_4"]
+        if not self._is_stream:
             with open(self._fname, "rb") as f:
                 delayed = DelayedVariableLoad(f, chars_as_strings=False)
-                self.raw = delayed.get_variables(variable_names = data_sections)
+                try:
+                    self.raw = delayed.get_variables(variable_names = data_sections)
+                    self._contains_diagnostic_data = True
+                    self._data_3_info = self.raw["data_3"]
+                    self._data_3 = {}
+                    self._data_4_info = self.raw["data_4"]
+                    
+                    self._has_file_pos_data = False
+                    
+                except:
+                    self._contains_diagnostic_data = False
+                    data_sections = ["name", "dataInfo", "data_2"]
+        else:
+            data_sections = ["name", "dataInfo", "data_2"]
+            self._contains_diagnostic_data = False
+
+        if delayed_trajectory_loading or self._contains_diagnostic_data:
+            if not self._contains_diagnostic_data:
+                with open(self._fname, "rb") as f:
+                    delayed = DelayedVariableLoad(f, chars_as_strings=False)
+                    self.raw = delayed.get_variables(variable_names = data_sections)
 
             self._data_2_info = self.raw["data_2"]
             self._data_2 = {}
+            if self._contains_diagnostic_data:
+                self._file_pos_model_var = np.empty(self._data_2_info["nbr_points"], dtype=np.long)
+                self._file_pos_diag_var = np.empty(self._data_3_info.shape[0], dtype=np.long)
             self._name_info   = self.raw["name"]
 
             self.name_lookup = self._get_name_dict()
@@ -1273,6 +1296,45 @@ class ResultDymolaBinary(ResultDymola):
         else:
             return self._data_2[data_index,:]
 
+
+    def _get_diagnostics_trajectory(self, data_index):
+        if data_index in self._data_3:
+            return self._data_3[data_index]
+        self._data_3[data_index] = self._read_trajectory_data(data_index, True)
+        return self._data_3[data_index]
+
+    def _read_trajectory_data(self, data_index, read_diag_data):
+        file_position   = self._data_2_info["file_position"]
+        sizeof_type     = self._data_2_info["sizeof_type"]
+        nbr_points      = self._data_2_info["nbr_points"]
+        nbr_variables   = self._data_2_info["nbr_variables"]
+        
+        nbr_diag_points    = self._data_3_info.shape[0]
+        nbr_diag_variables = self._data_4_info.shape[0]
+
+        if self._mtime != os.path.getmtime(self._fname):
+            raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
+
+        data, self._file_pos_model_var, self._file_pos_diag_var = fmi_util.read_diagnostics_trajectory(
+                                                encode(self._fname), int(read_diag_data), int(self._has_file_pos_data), 
+                                                self._file_pos_model_var, self._file_pos_diag_var,
+                                                data_index, file_position, sizeof_type, int(nbr_points), int(nbr_diag_points), 
+                                                int(nbr_variables), int(nbr_diag_variables))
+        self._has_file_pos_data = True
+
+        return data
+    
+    def _get_interpolated_trajectory(self, data_index):
+        if data_index in self._data_2:
+            return self._data_2[data_index]
+        diag_time_vector = self._get_diagnostics_trajectory(0)
+        time_vector = self._read_trajectory_data(0, False)
+        data = self._read_trajectory_data(data_index, False)
+        f = interpolate.interp1d(time_vector, data, fill_value="extrapolate")
+        self._data_2[data_index] = f(diag_time_vector)
+        return self._data_2[data_index]
+
+
     def _get_description(self):
         if not self._description:
             description = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["description"])["description"]
@@ -1324,8 +1386,12 @@ class ResultDymolaBinary(ResultDymola):
 
         if dataMat == 1:
             return Trajectory(self.data_1[0,:],factor*self.data_1[dataInd,:])
-        else:
+        elif dataMat == 2 and not self._contains_diagnostic_data:
             return Trajectory(self._get_trajectory(0),factor*self._get_trajectory(dataInd))
+        elif dataMat == 3:
+            return Trajectory(self._get_diagnostics_trajectory(0),self._get_diagnostics_trajectory(dataInd+1))
+        else:
+            return Trajectory(self._get_diagnostics_trajectory(0),factor*self._get_interpolated_trajectory(dataInd))
 
     def is_variable(self, name):
         """
@@ -1529,6 +1595,7 @@ class ResultHandlerCSV(ResultHandler):
 
         if self.file_name == "":
             self.file_name=self.model.get_identifier() + '_result.csv'
+        self.model._result_file = self.file_name
 
         vars = model.get_model_variables(filter=opts["filter"])
 
@@ -1729,6 +1796,7 @@ class ResultHandlerFile(ResultHandler):
 
         if self.file_name == "":
             self.file_name=self.model.get_identifier() + '_result.txt'
+        self.model._result_file = self.file_name
 
         #Store the continuous and discrete variables for result writing
         self.real_var_ref, self.int_var_ref, self.bool_var_ref = model.get_model_time_varying_value_references(filter=opts["filter"])
@@ -2276,7 +2344,7 @@ class ResultHandlerBinaryFile(ResultHandler):
     def initialize_complete(self):
         pass
 
-    def simulation_start(self, diagnostics_param_names=[], diagnostic_param_values=[], diagnostics_var=[]):
+    def simulation_start(self, diagnostics_param_names=[], diagnostic_param_values=[], diagnostics_var=[], diagnostics_var_start_values=[]):
         """
         Opens the file and writes the header. This includes the information
         about the variables and a table determining the link between variables
@@ -2307,6 +2375,7 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         if self.file_name == "":
             self.file_name=self.model.get_identifier() + '_result.mat'
+        self.model._result_file = self.file_name
 
         file_name = self.file_name
         parameters = self.parameters
@@ -2373,8 +2442,10 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.data_3_header_position = self._file.tell()
         if self._with_diagnostics:
             self._nof_diag_vars = len(diagnostics_var) + 1
-            self._data_3_header = self._data_header("data_3", self._nof_diag_vars, 0, "double")
+            self._data_3_header = self._data_header("data_3", self.nbr_diag_points, 0, "double")
             self.__write_header(self._data_3_header, "data_3")
+            self._data_4_header = self._data_header("data_4", self._nof_diag_vars, 0, "double")
+            self.__write_header(self._data_4_header, "data_4")
 
         #Record the position so that we can later modify the number of result points stored
         self.data_2_header_position = self._file.tell()
@@ -2387,6 +2458,10 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.bool_var_ref = np.array(sorted_vars_bool_vref)
         self.nbr_points = 0
         self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref, self._with_diagnostics)
+
+        if self._with_diagnostics:
+            diag_data = N.array(diagnostics_var_start_values, dtype=float)
+            self.diagnostics_point(diag_data)
 
     def integration_point(self, solver = None):
         """
@@ -2433,7 +2508,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.dump_data(t)
 
         f.seek(self.data_3_header_position)
-        self._data_2_header["ncols"] = self.nbr_diag_points
+        self._data_3_header["mrows"] = self.nbr_diag_points
         self.__write_header(self._data_3_header, "data_3")
 
         #Reset file pointer

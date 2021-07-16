@@ -17,10 +17,14 @@
 
 import os
 
+from numpy import testing
+from numpy.testing._private.utils import assert_equal
+
 from pyfmi import testattr
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.tests.test_util import Dummy_FMUModelME2
 
+import numpy as np
 file_path = os.path.dirname(os.path.abspath(__file__))
 logs = os.path.join(file_path, "files", "Logs")
 
@@ -71,29 +75,47 @@ class Test_Log:
         opts=model.simulate_options()
         opts["logging"] = True
         opts["solver"] = solver_name
-        model.simulate(options=opts)
-        log_file = model.extract_xml_log()
-        assert os.path.exists(log_file), "Missing log file for {}".format(solver_name)
+        res = model.simulate(options=opts)
+        res_vars = res.keys()
+        assert "Diagnostics.solver.{}".format(solver_name) in res_vars, "Missing Diagnostics.solver.{} in results!".format(solver_name)
+        assert "Diagnostics.step_time" in res_vars, "Missing Diagnostics.step_time in results!"
+        np.testing.assert_equal(res['Diagnostics.step_time'], res['time'], "Expected Diagnostics.step_time and time to be equal but they weren't!")
+        np.testing.assert_equal(len(res['time']), len(res['h']), "Expected time and h to be of equal length but they weren't!")
+        return res
 
     @testattr(stddist = True)
     def test_logging_option_CVode(self):
-        self._test_logging_different_solver("CVode")
+        res = self._test_logging_different_solver("CVode")
+        t = res['time']
+        np.testing.assert_equal(len(t), len(res['Diagnostics.solver_order']), "Unequal length for time and solver_order!")
+        event_type = list(res['Diagnostics.event_info.event_type'])
+        assert event_type.count(-1) == len(event_type), "Expected no events to have happened!" 
+        assert ('Diagnostics.state_errors.h' in res.keys()), "'Diagnostics.state_errors.h' should be part of result variables!"
+
         
     @testattr(stddist = True)
     def test_logging_option_Radau5ODE(self):
-        self._test_logging_different_solver("Radau5ODE")
+        res = self._test_logging_different_solver("Radau5ODE")
+        event_type = list(res['Diagnostics.event_info.event_type'])
+        assert event_type.count(-1) == len(event_type), "Expected no events to have happened!"
+        assert ('Diagnostics.state_errors.h' in res.keys()), "'Diagnostics.state_errors.h' should be part of result variables!" 
 
     @testattr(stddist = True)
     def test_logging_option_ImplicitEuler(self):
-        self._test_logging_different_solver("ImplicitEuler")
+        res = self._test_logging_different_solver("ImplicitEuler")
+        assert not ('Diagnostics.state_errors.h' in res.keys()), "'Diagnostics.state_errors.h' should not be part of result variables!"
 
     @testattr(stddist = True)
     def test_logging_option_ExplicitEuler(self):
-        self._test_logging_different_solver("ExplicitEuler")
+        res = self._test_logging_different_solver("ExplicitEuler")
+        assert not ('Diagnostics.state_errors.h' in res.keys()), "'Diagnostics.state_errors.h' should not be part of result variables!"
 
     @testattr(stddist = True)
     def test_logging_option_LSODAR(self):
-        self._test_logging_different_solver("LSODAR")
+        res = self._test_logging_different_solver("LSODAR")
+        event_type = list(res['Diagnostics.event_info.event_type'])
+        assert event_type.count(-1) == len(event_type), "Expected no events to have happened, but event_type contains: {}!".format(event_type) 
+    
     @testattr(stddist = True)
     def test_extract_boolean_value(self):
         log = parse_xml_log(os.path.join(logs, "boolean_log.xml"))
