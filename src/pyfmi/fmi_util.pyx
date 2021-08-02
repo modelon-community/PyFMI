@@ -24,8 +24,11 @@ from operator import attrgetter
 import numpy as np
 from numpy.compat import asbytes
 
+from pyfmi.common import encode
+
 cimport numpy as np
 cimport fmil_import as FMIL
+
 from cpython cimport array
 from pyfmi.fmi cimport FMUModelME2, FMUModelBase
 
@@ -250,12 +253,11 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, list diagnostics_param_names, list diagnostics_param_values,  diagnostics_var, model):
+cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, list diagnostics_param_values, int nof_diag_vars, model):
     cdef int index_fixed    = 1
     cdef int index_variable = 1
     cdef int nof_sorted_vars = len(sorted_vars)
-    cdef int nof_diag_params = len(diagnostics_param_names)
-    cdef int nof_diag_vars   = len(diagnostics_var)
+    cdef int nof_diag_params = len(diagnostics_param_values)
     cdef int i, alias, data_type, variability
     cdef int last_data_matrix = -1, last_index = -1
     cdef int FMI_NEGATED_ALIAS = fmi.FMI_NEGATED_ALIAS
@@ -363,8 +365,9 @@ cpdef convert_str_list(list data):
     return length, py_string
 
 cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_param_names, list diag_vars):
+cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_params, list diag_vars):
     cdef int items = len(sorted_vars)
-    cdef int nof_diag_params = len(diag_param_names)
+    cdef int nof_diag_params = len(diag_params)
     cdef int nof_diag_vars = len(diag_vars)
     cdef int i, name_length_trial, desc_length_trial, kd, kn
     cdef list desc = [encode("Time in [s]")]
@@ -375,18 +378,13 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_param_names, lis
     cdef char *name_output
     cdef char *ctmp_name
     cdef char *ctmp_desc
+    cdef int tot_nof_vars = items+nof_diag_params+nof_diag_vars
 
-    for i in range(items+nof_diag_params+nof_diag_vars):
-        if i < items:
-            var = sorted_vars[i]
-            tmp_name = encode(var.name)
-            tmp_desc = encode(var.description)
-        elif i < items+nof_diag_params:
-            tmp_name = encode(diag_param_names[i-items][0])
-            tmp_desc = encode(diag_param_names[i-items][1])
-        else:
-            tmp_name = encode(diag_vars[i-items-nof_diag_params][0])
-            tmp_desc = encode(diag_vars[i-items-nof_diag_params][1])
+    for tmp_name, tmp_desc in itertools.chain([(var.name, var.description) for var in sorted_vars],
+                                             diag_params, diag_vars):
+        tmp_name = encode(tmp_name)
+        tmp_desc = encode(tmp_desc)
+
         name.append(tmp_name)
         desc.append(tmp_desc)
 
@@ -399,16 +397,16 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_param_names, lis
              desc_length = desc_length_trial + 1
 
 
-    name_output = <char*>FMIL.calloc((items+nof_diag_params+nof_diag_vars+1)*name_length,sizeof(char))
+    name_output = <char*>FMIL.calloc((tot_nof_vars+1)*name_length,sizeof(char))
     if name_output == NULL:
         raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
                                "Please reduce the number of stored variables by using filters.")
-    desc_output = <char*>FMIL.calloc((items+nof_diag_params+nof_diag_vars+1)*desc_length,sizeof(char))
+    desc_output = <char*>FMIL.calloc((tot_nof_vars+1)*desc_length,sizeof(char))
     if desc_output == NULL:
         raise fmi.FMUException("Failed to allocate memory for storing the description of the variables. " \
                                "Please reduce the number of stored variables or disable storing of the description.")
 
-    for i in range(items+nof_diag_params+nof_diag_vars+1):
+    for i in range(tot_nof_vars+1):
         ctmp_name = name[i]
         ctmp_desc = desc[i]
 
@@ -420,8 +418,8 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_param_names, lis
         FMIL.memcpy(&name_output[kn], ctmp_name, name_length_trial)
         FMIL.memcpy(&desc_output[kd], ctmp_desc, desc_length_trial)
 
-    py_desc_string = desc_output[:(items+nof_diag_params+nof_diag_vars+1)*desc_length]
-    py_name_string = name_output[:(items+nof_diag_params+nof_diag_vars+1)*name_length]
+    py_desc_string = desc_output[:(tot_nof_vars+1)*desc_length]
+    py_name_string = name_output[:(tot_nof_vars+1)*name_length]
 
     FMIL.free(name_output)
     FMIL.free(desc_output)
@@ -437,15 +435,10 @@ cpdef convert_sorted_vars_name(list sorted_vars, list diag_param_names, list dia
     cdef int name_length = len(name[0])+1
     cdef char *name_output
     cdef char *ctmp_name
+    cdef int tot_nof_vars = items+nof_diag_params+nof_diag_vars
 
-    for i in range(items+nof_diag_params+nof_diag_vars):
-        if i < items:
-            var = sorted_vars[i]
-            tmp_name = encode(var.name)
-        elif i < items+nof_diag_params:
-            tmp_name = encode(diag_param_names[i-items][0])
-        else:
-            tmp_name = encode(diag_vars[i-items-nof_diag_params][0])
+    for tmp_name in itertools.chain( [var.name for var in sorted_vars], diag_param_names, diag_vars):
+        tmp_name = encode(tmp_name)
         name.append(tmp_name)
 
         name_length_trial = len(tmp_name)
@@ -453,12 +446,12 @@ cpdef convert_sorted_vars_name(list sorted_vars, list diag_param_names, list dia
         if name_length_trial+1 > name_length:
              name_length = name_length_trial + 1
 
-    name_output = <char*>FMIL.calloc((items+nof_diag_params+nof_diag_vars+1)*name_length,sizeof(char))
+    name_output = <char*>FMIL.calloc((tot_nof_vars+1)*name_length,sizeof(char))
     if name_output == NULL:
         raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
                                "Please reduce the number of stored variables by using filters.")
 
-    for i in range(items+nof_diag_params+nof_diag_vars+1):
+    for i in range(tot_nof_vars+1):
         ctmp_name = name[i]
 
         name_length_trial = len(ctmp_name)
@@ -466,7 +459,7 @@ cpdef convert_sorted_vars_name(list sorted_vars, list diag_param_names, list dia
 
         FMIL.memcpy(&name_output[kn], ctmp_name, name_length_trial)
 
-    py_name_string = name_output[:(items+nof_diag_params+nof_diag_vars+1)*name_length]
+    py_name_string = name_output[:(tot_nof_vars+1)*name_length]
 
     FMIL.free(name_output)
 
