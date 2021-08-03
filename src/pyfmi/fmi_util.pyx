@@ -268,7 +268,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
     cdef list varia_real = [], varia_int = [], varia_bool = []
     last_vref = -1
 
-    for i in range(1, nof_sorted_vars+1):
+    for i in range(1, nof_sorted_vars + 1):
         var = sorted_vars[i-1]
         data_info[2,i] = 0
         data_info[3,i] = -1
@@ -323,7 +323,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         data_info[1,i] = index_fixed
 
     last_index = 0    
-    for i in range(nof_sorted_vars+1+nof_diag_params, nof_sorted_vars+1+nof_diag_params+nof_diag_vars):
+    for i in range(nof_sorted_vars + 1 + nof_diag_params, nof_sorted_vars + 1 + nof_diag_params + nof_diag_vars):
         data_info[0,i] = 3
         data_info[2,i] = 0
         data_info[3,i] = -1
@@ -1267,7 +1267,7 @@ def read_diagnostics_trajectory(file_name, int read_diag_data, int has_position_
                     i += 1
                 iter_point += diag_var_interval
             else:
-                raise Exception("Result file is corrupt, cannot read results!")
+                raise Exception("Result file is corrupt, cannot read results.")
     fclose(cfile)            
     return data, file_pos_model_var, file_pos_diag_var
 
