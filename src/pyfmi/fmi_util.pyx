@@ -1310,7 +1310,7 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
     cfile = fopen(file_name, 'rb')
 
     if tmp == NULL:
-        raise Exception("Couldn't allocate memory to read name list!")
+        raise Exception("Couldn't allocate memory to read name list.")
     fseek(cfile, file_position, 0)
     for i in range(nbr_variables):
         fread(<void*>(tmp), max_length, 1, cfile)
