@@ -364,7 +364,6 @@ cpdef convert_str_list(list data):
 
     return length, py_string
 
-cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_param_names, list diag_vars):
 cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_params, list diag_vars):
     cdef int items = len(sorted_vars)
     cdef int nof_diag_params = len(diag_params)
