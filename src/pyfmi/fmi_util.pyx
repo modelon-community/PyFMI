@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2014 Modelon AB
+# Copyright (C) 2014-2021 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -322,7 +322,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         index_fixed = index_fixed + 1
         data_info[1,i] = index_fixed
 
-    last_index = 0    
+    last_index = 0
     for i in range(nof_sorted_vars + 1 + nof_diag_params, nof_sorted_vars + 1 + nof_diag_params + nof_diag_vars):
         data_info[0,i] = 3
         data_info[2,i] = 0
@@ -609,10 +609,10 @@ class Graph:
         self.connected_components = []
         self.graph_info = graph_info
         self._unknown_index = 31415926
-        
+
         self.edges_0 = {}
         self.edges_1 = {}
-        
+
         for edge in self.edges:
             try:
                 self.edges_0[edge[0]].append(edge[1])
@@ -622,7 +622,7 @@ class Graph:
                 self.edges_1[edge[1]].append(edge[0])
             except KeyError:
                 self.edges_1[edge[1]] = [edge[0]]
-        
+
     def _dfs(self, start_node):
         self.visited_nodes[start_node] = None
 
@@ -693,7 +693,7 @@ class Graph:
 
         self.index = self.index + 1
         self.stack.append(node)
-        
+
         if node in self.edges_0_edge:
             for v,w in self.edges_0_edge[node]:
                 if self.number[w] < 0: #Not numbered
@@ -702,7 +702,7 @@ class Graph:
                 elif self.number[w] < self.number[v]:
                     if w in self.stack:
                         self.lowlink[node] = min(self.lowlink[node], self.number[w])
-                    
+
         if self.lowlink[node] == self.number[node]:
             #node is the root of a component
             #Start new strong component
@@ -716,14 +716,14 @@ class Graph:
         self.index = 0
         self.stack = []
         self.connected_components = []
-        
+
         self.edges_0_edge = {}
         for edge in self.edges:
             try:
                 self.edges_0_edge[edge[0]].append(edge)
             except KeyError:
                 self.edges_0_edge[edge[0]] = [edge]
-        
+
         for node in self.nodes:
             if self.number[node] < 0:
                 self._strongly_connected_components(node)
@@ -733,7 +733,7 @@ class Graph:
         nodes = self.nodes
         edges = self.edges
         connected_component_dict = {k: v for v, k in enumerate(connected_component)}
-        
+
         output = True
         for node in connected_component:
             if self.graph_info[node]["type"] != GRAPH_OUTPUT:
@@ -859,7 +859,7 @@ class Graph:
 
                 if node in self.edges_1: #The node is in a direct feed-through
                     potential = False
-                
+
                 if potential:
                     if model in connected_components_first:
                         connected_components_first[model].append(node)
@@ -867,10 +867,10 @@ class Graph:
                         connected_components_first[model] = [node]
                 else:
                     list_of_connections = self.edges_0[node] #The node is connected somewhere
-                
+
                     if len(list_of_connections) > 0:
                         potential_second = not self._check_feed_through(list_of_connections)
-                    
+
                     if potential_second:
                         if model in connected_components_second:
                             connected_components_second[model].append(node)
@@ -911,7 +911,7 @@ class Graph:
     def compute_evaluation_order(self):
         self.prepare_graph()
         SCCs = self.strongly_connected_components()[::-1]
-        
+
         i = 0
         while i < len(SCCs):
             f = SCCs[i]
@@ -1056,7 +1056,7 @@ cdef class DumpData:
 
     cdef dump_data(self, np.ndarray data):
         self._file.write(data.tobytes(order="F"))
-    
+
     def save_point(self):
         if self._with_diagnostics:
             self.dump_data(np.array(float(1.0)))
@@ -1091,7 +1091,7 @@ cdef class DumpData:
                 self.dump_data(b)
 
 
-    def save_diagnostics_point(self, diag_data):       
+    def save_diagnostics_point(self, diag_data):
         self.dump_data(np.array(float(2.0)))
         if self.model_me2_instance:
             self.time_tmp[0] = self.model_me2._get_time()
@@ -1099,7 +1099,7 @@ cdef class DumpData:
         else:
             self.dump_data(np.array(float(self.model.time)))
         self.dump_data(diag_data)
-   
+
 from libc.stdio cimport *
 
 cdef extern from "stdio.h":
@@ -1210,9 +1210,9 @@ cdef _read_trajectory64(file_name, long int start_point, long int end_point, lon
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def read_diagnostics_trajectory(file_name, int read_diag_data, int has_position_data, 
-    np.ndarray[long, ndim=1] file_pos_model_var, np.ndarray[long, ndim=1] file_pos_diag_var, 
-    int data_index, int file_position, int sizeof_type, int nbr_model_points, int nbr_diag_points, 
+def read_diagnostics_trajectory(file_name, int read_diag_data, int has_position_data,
+    np.ndarray[long, ndim=1] file_pos_model_var, np.ndarray[long, ndim=1] file_pos_diag_var,
+    int data_index, int file_position, int sizeof_type, int nbr_model_points, int nbr_diag_points,
     int nbr_model_variables, int nbr_diag_variables):
     cdef unsigned long int end_point   = sizeof_type*(nbr_diag_points*(nbr_diag_variables+1) + nbr_model_points*(nbr_model_variables+1))
     cdef unsigned long int iter_point = 0
@@ -1267,8 +1267,9 @@ def read_diagnostics_trajectory(file_name, int read_diag_data, int has_position_
                     i += 1
                 iter_point += diag_var_interval
             else:
-                raise Exception("Result file is corrupt, cannot read results.")
-    fclose(cfile)            
+                fclose(cfile)
+                raise fmi.IOException("Result file is corrupt, cannot read results.")
+    fclose(cfile)
     return data, file_pos_model_var, file_pos_diag_var
 
 
@@ -1296,21 +1297,16 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
 
         A dict with the names as key and an index as value
     """
-    cdef int i = 0, j = 0, py3, need_replace = 0
+    cdef int i = 0, j = 0, need_replace = 0
     cdef FILE* cfile
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef bytes py_str
     cdef dict data = {}
 
-    if python3_flag:
-        py3 = 1
-    else:
-        py3 = 0
+    if tmp == NULL:
+        raise fmi.IOException("Couldn't allocate memory to read name list.")
 
     cfile = fopen(file_name, 'rb')
-
-    if tmp == NULL:
-        raise Exception("Couldn't allocate memory to read name list.")
     fseek(cfile, file_position, 0)
     for i in range(nbr_variables):
         fread(<void*>(tmp), max_length, 1, cfile)
@@ -1321,7 +1317,7 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
                 need_replace = 1
 
         if need_replace:
-            if py3:
+            if python3_flag:
                 py_str = py_str.replace(b" ", b"")
             else:
                 py_str = py_str.replace(" ", "")

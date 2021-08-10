@@ -189,6 +189,11 @@ class FMUException(Exception):
     """
     pass
 
+class IOException(FMUException):
+    """
+        Exception covering issues related to writing/reading data.
+    """
+
 class TimeLimitExceeded(FMUException):
     pass
 
@@ -516,8 +521,8 @@ cdef class ModelBase:
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
     def get_last_result_file(self):
-        """ Returns path to the simulation result file for the last simulation if 
-            the fmu has been simulated. Otherwise none."""
+        """ Returns path to the simulation result file for the last simulation if
+            the fmu has been simulated. Otherwise returns None."""
         return self._result_file
 
     def get_log_filename(self):
