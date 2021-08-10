@@ -330,7 +330,14 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         last_index = last_index + 1
         data_info[1,i] = last_index
 
-    data = np.append(np.append(np.append(np.append(model.time, model.get_real(param_real)),model.get_integer(param_int).astype(float)),model.get_boolean(param_bool).astype(float)), np.array(diagnostics_param_values).astype(float))
+    data = np.append(model.time, np.concatenate(
+                                    (model.get_real(param_real),
+                                    model.get_integer(param_int).astype(float),
+                                    model.get_boolean(param_bool).astype(float),
+                                    np.array(diagnostics_param_values).astype(float)),
+                                    axis = 0,
+                                )
+                    )
 
     return data, varia_real, varia_int, varia_bool
 
