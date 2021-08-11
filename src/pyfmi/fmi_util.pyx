@@ -221,15 +221,10 @@ cpdef list convert_array_names_list_names(np.ndarray names):
 cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = names.shape[1]
-    cdef int i,j = 0,ch, py3
+    cdef int i, j = 0, ch
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str
-
-    if python3_flag:
-        py3 = 1
-    else:
-        py3 = 0
 
     for i in range(nbr_items):
         for j in range(max_length):
@@ -241,7 +236,7 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
 
         py_str = tmp[:j]
         if j == max_length - 1:
-            if py3:
+            if python3_flag:
                 py_str = py_str.replace(b" ", b"")
             else:
                 py_str = py_str.replace(" ", "")
