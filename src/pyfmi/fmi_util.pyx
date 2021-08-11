@@ -1094,6 +1094,7 @@ cdef class DumpData:
 
 
     def save_diagnostics_point(self, diag_data):
+        """ Saves a point of diagnostics data to the result. """
         self.dump_data(np.array(float(2.0)))
         if self.model_me2_instance:
             self.time_tmp[0] = self.model_me2._get_time()

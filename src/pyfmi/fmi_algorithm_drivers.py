@@ -102,13 +102,22 @@ class AssimuloFMIAlgOptions(OptionBase):
 
         logging --
             If True, creates a logfile from the solver in the current
-            directory.
+            directory and enables logging of diagnostics data to logfile or resultfile,
+            based on simulation option 'result_handling'.
+
+            The diagnostics data is available via the simulation results similar to FMU model variables
+            only if 'result_handling' is 'binary'.
             Default: False
 
         result_handling --
             Specifies how the result should be handled. Either stored to
             file (txt or binary) or stored in memory. One can also use a
             custom handler.
+
+            If 'result_handling' is 'binary' and 'logging' is also enabled,
+            the diagnostics data is written to the same binary file as data of FMU model variables.
+            Note that these results are interpolated such that model variable trajectory points
+            are given at the same time points as diagnostics data.
             Available options: "file", "binary", "memory", "csv", "custom"
             Default: "binary"
 
@@ -554,6 +563,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             setattr(self.simulator, "maxord", solver_options["maxord"])
 
     def _setup_diagnostics_variables(self):
+        """ Sets up initial diagnostics data. This function is called before a simulation is initiated. """
         self._diagnostics_params = OrderedDict()
         self._diagnostics_vars = OrderedDict()
 

@@ -1213,9 +1213,9 @@ class ResultDymolaBinary(ResultDymola):
                     self._data_3_info = self.raw["data_3"]
                     self._data_3 = {}
                     self._data_4_info = self.raw["data_4"]
-                    
+
                     self._has_file_pos_data = False
-                    
+
                 except:
                     self._contains_diagnostic_data = False
                     data_sections = ["name", "dataInfo", "data_2"]
@@ -1298,17 +1298,22 @@ class ResultDymolaBinary(ResultDymola):
 
 
     def _get_diagnostics_trajectory(self, data_index):
+        """ Returns trajectory for the diagnostics variable that corresponds to index 'data_index'. """
         if data_index in self._data_3:
             return self._data_3[data_index]
         self._data_3[data_index] = self._read_trajectory_data(data_index, True)
         return self._data_3[data_index]
 
     def _read_trajectory_data(self, data_index, read_diag_data):
+        """ Reads corresponding trajectory data for variable with index 'data_index',
+            note that 'read_diag_data' is a boolean used when this function is invoked for
+            diagnostic variables.
+        """
         file_position   = self._data_2_info["file_position"]
         sizeof_type     = self._data_2_info["sizeof_type"]
         nbr_points      = self._data_2_info["nbr_points"]
         nbr_variables   = self._data_2_info["nbr_variables"]
-        
+
         nbr_diag_points    = self._data_3_info.shape[0]
         nbr_diag_variables = self._data_4_info.shape[0]
 
@@ -1316,15 +1321,16 @@ class ResultDymolaBinary(ResultDymola):
             raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
 
         data, self._file_pos_model_var, self._file_pos_diag_var = fmi_util.read_diagnostics_trajectory(
-                                                encode(self._fname), int(read_diag_data), int(self._has_file_pos_data), 
+                                                encode(self._fname), int(read_diag_data), int(self._has_file_pos_data),
                                                 self._file_pos_model_var, self._file_pos_diag_var,
-                                                data_index, file_position, sizeof_type, int(nbr_points), int(nbr_diag_points), 
+                                                data_index, file_position, sizeof_type, int(nbr_points), int(nbr_diag_points),
                                                 int(nbr_variables), int(nbr_diag_variables))
         self._has_file_pos_data = True
 
         return data
-    
+
     def _get_interpolated_trajectory(self, data_index):
+        """ Returns an interpolated trajectory for variable of corresponding index 'data_index'. """
         if data_index in self._data_2:
             return self._data_2[data_index]
         diag_time_vector = self._get_diagnostics_trajectory(0)
@@ -1347,7 +1353,7 @@ class ResultDymolaBinary(ResultDymola):
     Property for accessing the description vector.
     """)
 
-    def get_variable_data(self,name):
+    def get_variable_data(self, name):
         """
         Retrieve the data sequence for a variable with a given name.
 
@@ -2337,7 +2343,7 @@ class ResultHandlerBinaryFile(ResultHandler):
 
     def dump_data(self, data):
         self._file.write(data.tobytes(order="F"))
-        
+
     def dump_native_data(self, data):
         self._file.write(data)
 
@@ -2349,6 +2355,9 @@ class ResultHandlerBinaryFile(ResultHandler):
         Opens the file and writes the header. This includes the information
         about the variables and a table determining the link between variables
         and data.
+        This function also takes two optional keyword arguments 'diagnostics_params'
+        and 'diagnostics_vars' which are dicts containing information about what
+        diagnostic parameters and variables to generate results for.
         """
         opts = self.options
         model = self.model
@@ -2427,7 +2436,7 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         #Create the data info structure (and return parameters)
         data_info = np.zeros((4, len_name_items), dtype=np.int32)
-        [parameter_data, sorted_vars_real_vref, sorted_vars_int_vref, sorted_vars_bool_vref]  = fmi_util.prepare_data_info(data_info, sorted_vars, 
+        [parameter_data, sorted_vars_real_vref, sorted_vars_int_vref, sorted_vars_bool_vref]  = fmi_util.prepare_data_info(data_info, sorted_vars,
                                                                                                     [val[0] for val in diagnostics_params.values()], self.nof_diag_vars, self.model)
 
         self._write_header("dataInfo", data_info.shape[0], data_info.shape[1], "int")
@@ -2478,6 +2487,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._make_consistent()
 
     def diagnostics_point(self, diag_data):
+        """ Generates a data point for diagnostics data by invoking the util function save_diagnostics_point. """
         self.dump_data_internal.save_diagnostics_point(diag_data)
         self.nbr_diag_points += 1
         self._make_diagnostics_consistent()
@@ -2500,6 +2510,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         f.seek(file_pos)
 
     def _make_diagnostics_consistent(self):
+        """ Similar to _make_consistent, but for diagnostics data. """
         f = self._file
 
         #Get current position

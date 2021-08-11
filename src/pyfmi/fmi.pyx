@@ -521,9 +521,9 @@ cdef class ModelBase:
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
     def get_last_result_file(self):
-        """ Returns path to the simulation result file for the last simulation if
+        """ Returns absolute path to the simulation result file for the last simulation if
             the fmu has been simulated. Otherwise returns None."""
-        return self._result_file
+        return os.path.abspath(self._result_file) if isinstance(self._result_file, str) else None
 
     def get_log_filename(self):
         """ Returns a name of the logfile, if logging is done to a stream it returns
