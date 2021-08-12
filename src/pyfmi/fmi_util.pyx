@@ -1217,6 +1217,7 @@ def read_diagnostics_trajectory(file_name, int read_diag_data, int has_position_
     np.ndarray[long, ndim=1] file_pos_model_var, np.ndarray[long, ndim=1] file_pos_diag_var,
     int data_index, int file_position, int sizeof_type, int nbr_model_points, int nbr_diag_points,
     int nbr_model_variables, int nbr_diag_variables):
+    """ Reads a diagnostic trajectory from the result file. """
     cdef unsigned long int end_point   = sizeof_type*(nbr_diag_points*(nbr_diag_variables+1) + nbr_model_points*(nbr_model_variables+1))
     cdef unsigned long int iter_point = 0
     cdef unsigned long int model_var_interval = sizeof_type*nbr_model_variables

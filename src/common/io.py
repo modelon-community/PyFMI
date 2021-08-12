@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2010 Modelon AB
+# Copyright (C) 2010-2021 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -2355,7 +2355,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         Opens the file and writes the header. This includes the information
         about the variables and a table determining the link between variables
         and data.
-        This function also takes two optional keyword arguments 'diagnostics_params'
+        This function also takes two keyword arguments 'diagnostics_params'
         and 'diagnostics_vars' which are dicts containing information about what
         diagnostic parameters and variables to generate results for.
         """
@@ -2372,6 +2372,16 @@ class ResultHandlerBinaryFile(ResultHandler):
             self._with_diagnostics = opts["logging"]
         except:
             self._with_diagnostics = False
+
+        if self._with_diagnostics and (len(diagnostics_params) < 1 or self.nof_diag_vars < 1):
+            msg = "Unable to start simulation. The following keyword argument(s) are empty:"
+            if len(diagnostics_params) < 1:
+                msg += " 'diagnostics_params'"
+                if self.nof_diag_vars < 1:
+                    msg += " and"
+            if self.nof_diag_vars < 1:
+                msg += " 'diagnostics_vars'."
+            raise fmi.FMUException(msg)
 
         self.file_name = opts["result_file_name"]
         try:
