@@ -948,17 +948,17 @@ class TestResultFileBinary:
 
         bouncingBall = ResultHandlerBinaryFile(model)
         bouncingBall.set_options(opts)
-        msg = "Unable to start simulation. The following keyword argument(s) are empty:"
-        msg += " 'diagnostics_params' and 'diagnostics_vars'."
+        msg = "Unable to start simulation. The following keyword argument\(s\) are empty:"
+        msg += " 'diagnostics\_params' and 'diagnostics\_vars'."
         with nose.tools.assert_raises_regex(FMUException, msg):
             bouncingBall.simulation_start()
 
-    @testattr(stddist = True)
-    def test_diagnostics_data_cancelled_simulation(self):
-        """ Verify that we can retrieve data and diagnostics data after cancelled sim. """
+    def _get_diagnostics_cancelled_sim(self, result_file_name):
+        """ Function used to test retrieving model variable data and diagnostics data with a cancelled sim.
+            Generalized for both files and streams.
+        """
         diagnostics_params = OrderedDict()
         diagnostics_vars = OrderedDict()
-        result_file_name = "TestCancelledSim.mat"
 
         model = self._get_bouncing_ball_dummy()
         opts = model.simulate_options()
@@ -974,20 +974,10 @@ class TestResultFileBinary:
         except KeyError:
             rtol, atol = model.get_tolerances()
 
-        diagnostics_params[diagnostics_start_name+"relative_tolerance"] = (rtol, "Relative solver tolerance.")
-        for idx, state in enumerate(model.get_states_list()):
-            diagnostics_vars[diagnostics_start_name+"state_errors."+state] = (0.0, "State error for "+state+".")
-            diagnostics_params[diagnostics_start_name+"absolute_tolerance."+state] = (atol[idx], "Absolute tolerance for "+state+".")
         diagnostics_vars[diagnostics_start_name+"step_time"] = (0.0, "Step time")
-        diagnostics_vars[diagnostics_start_name+"cpu_time"] = (0, "Cpu time for current step.")
-        diagnostics_vars[diagnostics_start_name+"solver_order"] = (0.0, "Solver order for CVode")
         nof_states, nof_ei = model.get_ode_sizes()
-        ei_values = model.get_event_indicators() if nof_ei > 0 else []
-        for i in range(nof_ei):
-            diagnostics_vars[diagnostics_start_name+"event_info.indicator_"+str(i+1)] = (ei_values[i], "Value for event indicator {}.".format(i+1))
         for i in range(nof_ei):
             diagnostics_vars[diagnostics_start_name+"event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
-        diagnostics_vars[diagnostics_start_name+"event_info.event_type"] = (-1, "No event=-1, state event=0, time event=1")
 
         # values used as diagnostics data at each point
         diag_data = np.array([val[0] for val in diagnostics_vars.values()], dtype=float)
@@ -1002,27 +992,28 @@ class TestResultFileBinary:
         bouncingBall.initialize_complete()
 
         model.time += 0.1
-        diag_data[1] += 0.1
+        diag_data[0] += 0.1
         bouncingBall.diagnostics_point(diag_data)
         bouncingBall.integration_point()
 
         model.time += 0.1
-        diag_data[1] += 0.1
+        diag_data[0] += 0.1
         bouncingBall.diagnostics_point(diag_data)
         bouncingBall.integration_point()
 
         model.time += 0.1
-        diag_data[1] += 0.1
+        diag_data[0] += 0.1
         bouncingBall.diagnostics_point(diag_data)
-        diag_data[-2] = 1 # change one of the event indicators
+        diag_data[-1] = 1 # change one of the event indicators
         bouncingBall.diagnostics_point(diag_data)
-        diag_data[-2] = 0 # change ev-indicator to original value again
+        diag_data[-1] = 0 # change ev-indicator to original value again
 
         model.time += 0.1
-        diag_data[1] += 0.1
+        diag_data[0] += 0.1
         bouncingBall.diagnostics_point(diag_data)
         bouncingBall.integration_point()
-        bouncingBall._file.close()
+        if isinstance(result_file_name, str):
+            bouncingBall._file.close()
 
         # Extract data to be veified
         res = ResultDymolaBinary(result_file_name)
@@ -1036,18 +1027,28 @@ class TestResultFileBinary:
         np.testing.assert_array_equal(ev_ind, np.array([0., 0., 0., 0., 1., 0.]))
 
     @testattr(stddist = True)
+    def test_diagnostics_data_cancelled_simulation_mat_file(self):
+        """ Verify that we can retrieve data and diagnostics data after cancelled sim using matfile. """
+        self._get_diagnostics_cancelled_sim("TestCancelledSim.mat")
+
+    @testattr(stddist = True)
+    def test_diagnostics_data_cancelled_simulation_file_stream(self):
+        """ Verify that we can retrieve data and diagnostics data after cancelled sim using filestream. """
+        test_file_stream = open('myfilestream.txt', 'wb')
+        self._get_diagnostics_cancelled_sim(test_file_stream)
+
+    @testattr(stddist = True)
     def test_diagnostics_numerical_values(self):
         """ Verify that we get the expected values for some diagnostics. """
-        ncp = 250
         model = self._get_bouncing_ball_dummy()
         opts = model.simulate_options()
         opts["logging"] = True
-        opts["ncp"] = ncp
+        opts["ncp"] = 250
         res = model.simulate(options=opts)
+        length = len(res['h'])
+        np.testing.assert_array_equal(res['Diagnostics.event_info.event_type'], np.ones(length) * (-1))
 
-        np.testing.assert_array_equal(res['Diagnostics.event_info.event_type'], np.ones(ncp + 1) * (-1))
-
-        expected_solver_order = np.ones(ncp + 1)
+        expected_solver_order = np.ones(length)
         expected_solver_order[0] = 0.0
         np.testing.assert_array_equal(res['Diagnostics.solver_order'], expected_solver_order)
 

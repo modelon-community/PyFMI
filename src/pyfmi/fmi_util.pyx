@@ -197,7 +197,7 @@ cpdef parameter_estimation_f(y, parameters, measurments, model, input, options):
 cpdef list convert_array_names_list_names(np.ndarray names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = len(names[0])
-    cdef int i,j = 0
+    cdef int i, j = 0
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str
@@ -221,10 +221,16 @@ cpdef list convert_array_names_list_names(np.ndarray names):
 cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = names.shape[1]
-    cdef int i, j = 0, ch
+    cdef int i, py3, j = 0, ch
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str
+
+    # This if-statement is contributes to a performance gain within the for-loop that follows
+    if python3_flag:
+        py3 = 1
+    else:
+        py3 = 0
 
     for i in range(nbr_items):
         for j in range(max_length):
@@ -236,7 +242,7 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
 
         py_str = tmp[:j]
         if j == max_length - 1:
-            if python3_flag:
+            if py3:
                 py_str = py_str.replace(b" ", b"")
             else:
                 py_str = py_str.replace(" ", "")
@@ -1301,12 +1307,17 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
 
         A dict with the names as key and an index as value
     """
-    cdef int i = 0, j = 0, need_replace = 0
+    cdef int i = 0, j = 0, py3, need_replace = 0
     cdef FILE* cfile
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef bytes py_str
     cdef dict data = {}
 
+    # This if-statement contributes to a performance gain within the for-loop that follows
+    if python3_flag:
+        py3 = 1
+    else:
+        py3 = 0
     if tmp == NULL:
         raise fmi.IOException("Couldn't allocate memory to read name list.")
 
@@ -1321,7 +1332,7 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
                 need_replace = 1
 
         if need_replace:
-            if python3_flag:
+            if py3:
                 py_str = py_str.replace(b" ", b"")
             else:
                 py_str = py_str.replace(" ", "")
