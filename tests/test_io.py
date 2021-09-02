@@ -1046,11 +1046,11 @@ class TestResultFileBinary:
         opts["ncp"] = 250
         res = model.simulate(options=opts)
         length = len(res['h'])
-        np.testing.assert_array_equal(res['Diagnostics.event_info.event_type'], np.ones(length) * (-1))
+        np.testing.assert_array_equal(res['Diagnostics.event_data.event_info.event_type'], np.ones(length) * (-1))
 
         expected_solver_order = np.ones(length)
         expected_solver_order[0] = 0.0
-        np.testing.assert_array_equal(res['Diagnostics.solver_order'], expected_solver_order)
+        np.testing.assert_array_equal(res['Diagnostics.solver.solver_order'], expected_solver_order)
 
     @testattr(stddist = True)
     def test_get_last_result_file0(self):

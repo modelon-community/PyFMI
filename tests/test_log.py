@@ -87,8 +87,8 @@ class Test_Log:
     def test_logging_option_CVode(self):
         res = self._test_logging_different_solver("CVode")
         t = res['time']
-        np.testing.assert_equal(len(t), len(res['Diagnostics.solver_order']), "Unequal length for time and solver_order!")
-        event_type = list(res['Diagnostics.event_info.event_type'])
+        np.testing.assert_equal(len(t), len(res['Diagnostics.solver.solver_order']), "Unequal length for time and solver_order!")
+        event_type = list(res['Diagnostics.event_data.event_info.event_type'])
         assert event_type.count(-1) == len(event_type), "Expected no events to have happened!" 
         assert ('Diagnostics.state_errors.h' in res.keys()), "'Diagnostics.state_errors.h' should be part of result variables!"
 
@@ -96,7 +96,7 @@ class Test_Log:
     @testattr(stddist = True)
     def test_logging_option_Radau5ODE(self):
         res = self._test_logging_different_solver("Radau5ODE")
-        event_type = list(res['Diagnostics.event_info.event_type'])
+        event_type = list(res['Diagnostics.event_data.event_info.event_type'])
         assert event_type.count(-1) == len(event_type), "Expected no events to have happened!"
         assert ('Diagnostics.state_errors.h' in res.keys()), "'Diagnostics.state_errors.h' should be part of result variables!" 
 
@@ -113,8 +113,23 @@ class Test_Log:
     @testattr(stddist = True)
     def test_logging_option_LSODAR(self):
         res = self._test_logging_different_solver("LSODAR")
-        event_type = list(res['Diagnostics.event_info.event_type'])
-        assert event_type.count(-1) == len(event_type), "Expected no events to have happened, but event_type contains: {}!".format(event_type) 
+        event_type = list(res['Diagnostics.event_data.event_info.event_type'])
+        assert event_type.count(-1) == len(event_type), "Expected no events to have happened, but event_type contains: {}!".format(event_type)
+
+    @testattr(stddist = True)
+    def test_calculated_diagnostic(self):
+         res = self._test_logging_different_solver("CVode")
+         np.testing.assert_equal(len(res['time']), len(res['Diagnostics.solver.cum_nbr_steps']), 
+            "Expected time and Diagnostics.solver.cum_nbr_steps to be of equal length but they weren't!")
+         np.testing.assert_equal(len(res['time']), len(res['Diagnostics.event_data.cum_nbr_time_events']), 
+            "Expected time and Diagnostics.event_data.cum_nbr_time_events to be of equal length but they weren't!")
+         np.testing.assert_equal(len(res['time']), len(res['Diagnostics.event_data.cum_nbr_state_events']), 
+            "Expected time and Diagnostics.event_data.cum_nbr_state_events to be of equal length but they weren't!")
+         np.testing.assert_equal(len(res['time']), len(res['Diagnostics.event_data.cum_nbr_events']), 
+            "Expected time and Diagnostics.event_data.cum_nbr_events to be of equal length but they weren't!")
+         np.testing.assert_equal(len(res['time']), len(res['Diagnostics.cum_nbr_state_limits_step.h']), 
+            "Expected time and Diagnostics.cum_nbr_state_limits_step.h to be of equal length but they weren't!")
+         
     
     @testattr(stddist = True)
     def test_extract_boolean_value(self):

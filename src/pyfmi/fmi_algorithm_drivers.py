@@ -597,16 +597,16 @@ class AssimuloFMIAlg(AlgorithmBase):
                     atol = self.solver_options['atol']
                 except KeyError:
                     rtol, atol = self.model.get_tolerances()
-                self._diagnostics_params[diagnostics_start_name+"relative_tolerance"] = (rtol, "Relative solver tolerance.")
+                self._diagnostics_params[diagnostics_start_name+"solver.relative_tolerance"] = (rtol, "Relative solver tolerance.")
 
                 for idx, state in enumerate(states_list):
-                    self._diagnostics_params[diagnostics_start_name+"absolute_tolerance."+state] = (atol[idx], "Absolute tolerance for "+state+".")
+                    self._diagnostics_params[diagnostics_start_name+"solver.absolute_tolerance."+state] = (atol[idx], "Absolute tolerance for "+state+".")
 
             self._diagnostics_vars[diagnostics_start_name+"step_time"] = (self.start_time, "Step time")
             if support_elapsed_time:
                 self._diagnostics_vars[diagnostics_start_name+"cpu_time"] = (0, "Cpu time for current step.")
             if support_solver_order:
-                self._diagnostics_vars[diagnostics_start_name+"solver_order"] = (0.0, "Solver order for CVode")
+                self._diagnostics_vars[diagnostics_start_name+"solver.solver_order"] = (0.0, "Solver order for CVode")
             if support_state_errors:
                 for state in states_list:
                     self._diagnostics_vars[diagnostics_start_name+"state_errors."+state] = (0.0, "State error for "+state+".")
@@ -614,10 +614,10 @@ class AssimuloFMIAlg(AlgorithmBase):
                 nof_states, nof_ei = self.model.get_ode_sizes()
                 ei_values = self.model.get_event_indicators() if nof_ei > 0 else []
                 for i in range(nof_ei):
-                    self._diagnostics_vars[diagnostics_start_name+"event_info.indicator_"+str(i+1)] = (ei_values[i], "Value for event indicator {}.".format(i+1))
+                    self._diagnostics_vars[diagnostics_start_name+"event_data.event_info.indicator_"+str(i+1)] = (ei_values[i], "Value for event indicator {}.".format(i+1))
                 for i in range(nof_ei):
-                    self._diagnostics_vars[diagnostics_start_name+"event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
-                self._diagnostics_vars[diagnostics_start_name+"event_info.event_type"] = (-1, "No event=-1, state event=0, time event=1")
+                    self._diagnostics_vars[diagnostics_start_name+"event_data.event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
+                self._diagnostics_vars[diagnostics_start_name+"event_data.event_info.event_type"] = (-1, "No event=-1, state event=0, time event=1")
 
     def solve(self):
         """
