@@ -80,6 +80,8 @@ class Test_Log:
         assert "Diagnostics.solver.{}".format(solver_name) in res_vars, "Missing Diagnostics.solver.{} in results!".format(solver_name)
         assert "Diagnostics.step_time" in res_vars, "Missing Diagnostics.step_time in results!"
         np.testing.assert_equal(res['Diagnostics.step_time'], res['time'], "Expected Diagnostics.step_time and time to be equal but they weren't!")
+        np.testing.assert_equal(len(res['Diagnostics.cum_cpu_time']), len(res['time']), 
+                        "Expected Diagnostics.cum_cpu_time and time to be of equal length but they weren't!")
         np.testing.assert_equal(len(res['time']), len(res['h']), "Expected time and h to be of equal length but they weren't!")
         return res
 

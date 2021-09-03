@@ -1274,8 +1274,9 @@ class ResultDymolaBinary(ResultDymola):
         nbr_variables  = self._name_info["nbr_variables"]
 
         name_dict = fmi_util.read_name_list(encode(self._fname), file_position, int(nbr_variables), int(max_length))
-        dict_names = list(name_dict.keys())
-        if self._contains_diagnostic_data:         
+        
+        if self._contains_diagnostic_data:  # Populate name dict with diagnostics variables calculated on the fly
+            dict_names = list(name_dict.keys())       
             name_dict['Diagnostics.solver.cum_nbr_steps'] = None      
             for name in dict_names:
                 if python3_flag and isinstance(name, bytes):
@@ -1288,7 +1289,8 @@ class ResultDymolaBinary(ResultDymola):
                 if 'Diagnostics.state_errors.' in name:
                     state_name = name.replace('Diagnostics.state_errors.', '')
                     name_dict['Diagnostics.cum_nbr_state_limits_step.'+state_name] = None
-                    
+                if name == 'Diagnostics.cpu_time':
+                    name_dict['Diagnostics.cum_cpu_time'] = None                   
 
         return name_dict
 
@@ -1393,7 +1395,9 @@ class ResultDymolaBinary(ResultDymola):
                         'Diagnostics.solver.cum_nbr_steps']:
             return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_cum_events_and_steps(name))
         elif 'Diagnostics.cum_nbr_state_limits_step.' in name:
-             return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_cum_nbr_state_limits_step(name))   
+             return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_cum_nbr_state_limits_step(name))
+        elif name == 'Diagnostics.cum_cpu_time':
+            return Trajectory(self._get_diagnostics_trajectory(0), N.cumsum(self.get_variable_data('Diagnostics.cpu_time').x))
         else:
             varInd  = self.get_variable_index(name)
 
@@ -1487,7 +1491,8 @@ class ResultDymolaBinary(ResultDymola):
         elif name in ['Diagnostics.event_data.cum_nbr_events', 
                         'Diagnostics.event_data.cum_nbr_time_events', 
                         'Diagnostics.event_data.cum_nbr_state_events',
-                        'Diagnostics.solver.cum_nbr_steps']:
+                        'Diagnostics.solver.cum_nbr_steps',
+                        'Diagnostics.cum_cpu_time']:
             return True
         elif 'Diagnostics.cum_nbr_state_limits_step.' in name:
             return True

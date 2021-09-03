@@ -456,9 +456,15 @@ class AssimuloFMIAlg(AlgorithmBase):
             raise InvalidAlgorithmOptionException(
                 "The solver: "+solver+ " is unknown.")
 
+
         # solver options
         try:
             self.solver_options = self.options[solver+'_options']
+            try:
+                self.solver_options['clock_step']
+            except KeyError:
+                if self.options['logging'] == True:
+                    self.solver_options['clock_step'] = True
         except KeyError: #Default solver options not found
             self.solver_options = {} #Empty dict
             try:
@@ -471,6 +477,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.solver_options["rtol"] = "Default"
             except AttributeError:
                 pass
+            if self.options['logging'] == True:
+                self.solver_options['clock_step'] = True
 
         #Check relative tolerance
         #If the tolerances are not set specifically, they are set
