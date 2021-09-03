@@ -1432,7 +1432,12 @@ class ResultDymolaBinary(ResultDymola):
         time_events_name = 'Diagnostics.event_data.cum_nbr_time_events'
         state_events_name = 'Diagnostics.event_data.cum_nbr_state_events'
         cum_steps_name = 'Diagnostics.solver.cum_nbr_steps'
-        event_type_data = self.get_variable_data('Diagnostics.event_data.event_info.event_type')
+        try:
+            event_type_data = self.get_variable_data('Diagnostics.event_data.event_info.event_type')
+        except:
+            if name == cum_steps_name:
+                self._data_3[cum_steps_name] = N.array(range(len(self._get_diagnostics_trajectory(0))))
+                return self._data_3[name]
         self._data_3[all_events_name] = N.zeros(len(event_type_data.x))
         self._data_3[time_events_name] = N.zeros(len(event_type_data.x))
         self._data_3[state_events_name] = N.zeros(len(event_type_data.x))

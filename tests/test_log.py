@@ -82,6 +82,9 @@ class Test_Log:
         np.testing.assert_equal(res['Diagnostics.step_time'], res['time'], "Expected Diagnostics.step_time and time to be equal but they weren't!")
         np.testing.assert_equal(len(res['Diagnostics.cum_cpu_time']), len(res['time']), 
                         "Expected Diagnostics.cum_cpu_time and time to be of equal length but they weren't!")
+        assert np.all(np.diff(res['Diagnostics.solver.cum_nbr_steps'])>= 0), "Expected cumulative number of steps to increase, but wasn't!"
+        np.testing.assert_equal(len(res['Diagnostics.solver.cum_nbr_steps']), len(res['time']), 
+                        "Expected Diagnostics.cum_cpu_time and time to be of equal length but they weren't!")
         np.testing.assert_equal(len(res['time']), len(res['h']), "Expected time and h to be of equal length but they weren't!")
         return res
 
