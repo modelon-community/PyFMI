@@ -2,6 +2,10 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.9 ---
+    * Saving diagnostic data in binary result file instead of log file.
+    * Attempts to get continuous states when there are no such states will now return fmi2_status_ok instead of an error.
+
 --- PyFMI-2.8.10 ---
     * Minor updates to exception messages.
 
