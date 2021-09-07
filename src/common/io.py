@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2010 Modelon AB
+# Copyright (C) 2010-2021 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -33,6 +33,7 @@ import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
 from pyfmi.common import python3_flag, encode, decode
 
+from scipy import interpolate
 from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template
 import struct
 
@@ -1202,15 +1203,37 @@ class ResultDymolaBinary(ResultDymola):
             self._is_stream = True
             delayed_trajectory_loading = False
 
-        data_sections = ["name", "dataInfo", "data_2"]
-
-        if delayed_trajectory_loading:
+        data_sections = ["name", "dataInfo", "data_2", "data_3", "data_4"]
+        if not self._is_stream:
             with open(self._fname, "rb") as f:
                 delayed = DelayedVariableLoad(f, chars_as_strings=False)
-                self.raw = delayed.get_variables(variable_names = data_sections)
+                try:
+                    self.raw = delayed.get_variables(variable_names = data_sections)
+                    self._contains_diagnostic_data = True
+                    self._data_3_info = self.raw["data_3"]
+                    self._data_3 = {}
+                    self._data_4_info = self.raw["data_4"]
+
+                    self._has_file_pos_data = False
+
+                except:
+                    self._contains_diagnostic_data = False
+                    data_sections = ["name", "dataInfo", "data_2"]
+        else:
+            data_sections = ["name", "dataInfo", "data_2"]
+            self._contains_diagnostic_data = False
+
+        if delayed_trajectory_loading or self._contains_diagnostic_data:
+            if not self._contains_diagnostic_data:
+                with open(self._fname, "rb") as f:
+                    delayed = DelayedVariableLoad(f, chars_as_strings=False)
+                    self.raw = delayed.get_variables(variable_names = data_sections)
 
             self._data_2_info = self.raw["data_2"]
             self._data_2 = {}
+            if self._contains_diagnostic_data:
+                self._file_pos_model_var = np.empty(self._data_2_info["nbr_points"], dtype=np.long)
+                self._file_pos_diag_var = np.empty(self._data_3_info.shape[0], dtype=np.long)
             self._name_info   = self.raw["name"]
 
             self.name_lookup = self._get_name_dict()
@@ -1251,6 +1274,23 @@ class ResultDymolaBinary(ResultDymola):
         nbr_variables  = self._name_info["nbr_variables"]
 
         name_dict = fmi_util.read_name_list(encode(self._fname), file_position, int(nbr_variables), int(max_length))
+        
+        if self._contains_diagnostic_data:  # Populate name dict with diagnostics variables calculated on the fly
+            dict_names = list(name_dict.keys())       
+            name_dict['Diagnostics.solver.cum_nbr_steps'] = None      
+            for name in dict_names:
+                if python3_flag and isinstance(name, bytes):
+                    name = decode(name)
+                if name == 'Diagnostics.event_data.event_info.event_type':
+                    name_dict['Diagnostics.event_data.cum_nbr_time_events'] = None
+                    name_dict['Diagnostics.event_data.cum_nbr_state_events'] = None
+                    name_dict['Diagnostics.event_data.cum_nbr_events'] = None
+                    continue
+                if 'Diagnostics.state_errors.' in name:
+                    state_name = name.replace('Diagnostics.state_errors.', '')
+                    name_dict['Diagnostics.cum_nbr_state_limits_step.'+state_name] = None
+                if name == 'Diagnostics.cpu_time':
+                    name_dict['Diagnostics.cum_cpu_time'] = None                   
 
         return name_dict
 
@@ -1273,6 +1313,51 @@ class ResultDymolaBinary(ResultDymola):
         else:
             return self._data_2[data_index,:]
 
+
+    def _get_diagnostics_trajectory(self, data_index):
+        """ Returns trajectory for the diagnostics variable that corresponds to index 'data_index'. """
+        if data_index in self._data_3:
+            return self._data_3[data_index]
+        self._data_3[data_index] = self._read_trajectory_data(data_index, True)
+        return self._data_3[data_index]
+
+    def _read_trajectory_data(self, data_index, read_diag_data):
+        """ Reads corresponding trajectory data for variable with index 'data_index',
+            note that 'read_diag_data' is a boolean used when this function is invoked for
+            diagnostic variables.
+        """
+        file_position   = self._data_2_info["file_position"]
+        sizeof_type     = self._data_2_info["sizeof_type"]
+        nbr_points      = self._data_2_info["nbr_points"]
+        nbr_variables   = self._data_2_info["nbr_variables"]
+
+        nbr_diag_points    = self._data_3_info.shape[0]
+        nbr_diag_variables = self._data_4_info.shape[0]
+
+        if self._mtime != os.path.getmtime(self._fname):
+            raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
+
+        data, self._file_pos_model_var, self._file_pos_diag_var = fmi_util.read_diagnostics_trajectory(
+                                                encode(self._fname), int(read_diag_data), int(self._has_file_pos_data),
+                                                self._file_pos_model_var, self._file_pos_diag_var,
+                                                data_index, file_position, sizeof_type, int(nbr_points), int(nbr_diag_points),
+                                                int(nbr_variables), int(nbr_diag_variables))
+        self._has_file_pos_data = True
+
+        return data
+
+    def _get_interpolated_trajectory(self, data_index):
+        """ Returns an interpolated trajectory for variable of corresponding index 'data_index'. """
+        if data_index in self._data_2:
+            return self._data_2[data_index]
+        diag_time_vector = self._get_diagnostics_trajectory(0)
+        time_vector = self._read_trajectory_data(0, False)
+        data = self._read_trajectory_data(data_index, False)
+        f = interpolate.interp1d(time_vector, data, fill_value="extrapolate")
+        self._data_2[data_index] = f(diag_time_vector)
+        return self._data_2[data_index]
+
+
     def _get_description(self):
         if not self._description:
             description = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["description"])["description"]
@@ -1285,7 +1370,7 @@ class ResultDymolaBinary(ResultDymola):
     Property for accessing the description vector.
     """)
 
-    def get_variable_data(self,name):
+    def get_variable_data(self, name):
         """
         Retrieve the data sequence for a variable with a given name.
 
@@ -1303,7 +1388,16 @@ class ResultDymolaBinary(ResultDymola):
             name = decode(name)
 
         if name == 'time' or name== 'Time':
-            varInd = 0;
+            varInd = 0
+        elif name in ['Diagnostics.event_data.cum_nbr_events', 
+                        'Diagnostics.event_data.cum_nbr_time_events', 
+                        'Diagnostics.event_data.cum_nbr_state_events',
+                        'Diagnostics.solver.cum_nbr_steps']:
+            return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_cum_events_and_steps(name))
+        elif 'Diagnostics.cum_nbr_state_limits_step.' in name:
+             return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_cum_nbr_state_limits_step(name))
+        elif name == 'Diagnostics.cum_cpu_time':
+            return Trajectory(self._get_diagnostics_trajectory(0), N.cumsum(self.get_variable_data('Diagnostics.cpu_time').x))
         else:
             varInd  = self.get_variable_index(name)
 
@@ -1324,8 +1418,65 @@ class ResultDymolaBinary(ResultDymola):
 
         if dataMat == 1:
             return Trajectory(self.data_1[0,:],factor*self.data_1[dataInd,:])
-        else:
+        elif dataMat == 2 and not self._contains_diagnostic_data:
             return Trajectory(self._get_trajectory(0),factor*self._get_trajectory(dataInd))
+        elif dataMat == 3:
+            return Trajectory(self._get_diagnostics_trajectory(0),self._get_diagnostics_trajectory(dataInd+1))
+        else:
+            return Trajectory(self._get_diagnostics_trajectory(0),factor*self._get_interpolated_trajectory(dataInd))
+
+    def _calculate_cum_events_and_steps(self, name):
+        if name in self._data_3:
+            return self._data_3[name]
+        all_events_name = 'Diagnostics.event_data.cum_nbr_events'
+        time_events_name = 'Diagnostics.event_data.cum_nbr_time_events'
+        state_events_name = 'Diagnostics.event_data.cum_nbr_state_events'
+        cum_steps_name = 'Diagnostics.solver.cum_nbr_steps'
+        try:
+            event_type_data = self.get_variable_data('Diagnostics.event_data.event_info.event_type')
+        except:
+            if name == cum_steps_name:
+                self._data_3[cum_steps_name] = N.array(range(len(self._get_diagnostics_trajectory(0))))
+                return self._data_3[name]
+        self._data_3[all_events_name] = N.zeros(len(event_type_data.x))
+        self._data_3[time_events_name] = N.zeros(len(event_type_data.x))
+        self._data_3[state_events_name] = N.zeros(len(event_type_data.x))
+        self._data_3[cum_steps_name] = N.zeros(len(event_type_data.x))
+        nof_events = 0
+        nof_time_events = 0
+        nof_state_events = 0
+        nof_steps = 0
+        for ind, etype in enumerate(event_type_data.x):
+            if etype == 1:
+                nof_events += 1
+                nof_time_events += 1
+            elif etype == 0:
+                nof_state_events += 1
+                nof_events += 1
+            else:
+                nof_steps += 1
+            self._data_3[all_events_name][ind] = nof_events
+            self._data_3[time_events_name][ind] = nof_time_events
+            self._data_3[state_events_name][ind] = nof_state_events
+            self._data_3[cum_steps_name][ind] = nof_steps
+        return self._data_3[name]
+
+    def _calculate_cum_nbr_state_limits_step(self, name):
+        if name in self._data_3:
+            return self._data_3[name]
+        step_limitation_name = 'Diagnostics.cum_nbr_state_limits_step.'
+        state_name = name.replace(step_limitation_name, '')
+        state_error_data = self.get_variable_data('Diagnostics.state_errors.'+state_name)
+        event_type_data = self.get_variable_data('Diagnostics.event_data.event_info.event_type')
+        self._data_3[name] = N.zeros(len(event_type_data.x))
+        nof_times_state_limits_step = 0
+        for ind, state_error in enumerate(state_error_data.x):
+            if event_type_data.x[ind] == -1 and state_error >= 1.0:
+                nof_times_state_limits_step += 1
+            self._data_3[name][ind] = nof_times_state_limits_step
+        return self._data_3[name]
+
+
 
     def is_variable(self, name):
         """
@@ -1341,6 +1492,14 @@ class ResultDymolaBinary(ResultDymola):
             True if the variable is time-varying.
         """
         if name == 'time' or name== 'Time':
+            return True
+        elif name in ['Diagnostics.event_data.cum_nbr_events', 
+                        'Diagnostics.event_data.cum_nbr_time_events', 
+                        'Diagnostics.event_data.cum_nbr_state_events',
+                        'Diagnostics.solver.cum_nbr_steps',
+                        'Diagnostics.cum_cpu_time']:
+            return True
+        elif 'Diagnostics.cum_nbr_state_limits_step.' in name:
             return True
         varInd  = self.get_variable_index(name)
         dataMat = self.raw['dataInfo'][0][varInd]
@@ -1529,6 +1688,7 @@ class ResultHandlerCSV(ResultHandler):
 
         if self.file_name == "":
             self.file_name=self.model.get_identifier() + '_result.csv'
+        self.model._result_file = self.file_name
 
         vars = model.get_model_variables(filter=opts["filter"])
 
@@ -1729,6 +1889,7 @@ class ResultHandlerFile(ResultHandler):
 
         if self.file_name == "":
             self.file_name=self.model.get_identifier() + '_result.txt'
+        self.model._result_file = self.file_name
 
         #Store the continuous and discrete variables for result writing
         self.real_var_ref, self.int_var_ref, self.bool_var_ref = model.get_model_time_varying_value_references(filter=opts["filter"])
@@ -2269,18 +2430,21 @@ class ResultHandlerBinaryFile(ResultHandler):
 
     def dump_data(self, data):
         self._file.write(data.tobytes(order="F"))
-        
+
     def dump_native_data(self, data):
         self._file.write(data)
 
     def initialize_complete(self):
         pass
 
-    def simulation_start(self):
+    def simulation_start(self, diagnostics_params={}, diagnostics_vars={}):
         """
         Opens the file and writes the header. This includes the information
         about the variables and a table determining the link between variables
         and data.
+        This function also takes two keyword arguments 'diagnostics_params'
+        and 'diagnostics_vars' which are dicts containing information about what
+        diagnostic parameters and variables to generate results for.
         """
         opts = self.options
         model = self.model
@@ -2289,6 +2453,22 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.file_open = False
         self._is_stream = False
         self.nbr_points = 0
+        self.nbr_diag_points = 0
+        self.nof_diag_vars = len(diagnostics_vars)
+        try:
+            self._with_diagnostics = opts["logging"]
+        except:
+            self._with_diagnostics = False
+
+        if self._with_diagnostics and (len(diagnostics_params) < 1 or self.nof_diag_vars < 1):
+            msg = "Unable to start simulation. The following keyword argument(s) are empty:"
+            if len(diagnostics_params) < 1:
+                msg += " 'diagnostics_params'"
+                if self.nof_diag_vars < 1:
+                    msg += " and"
+            if self.nof_diag_vars < 1:
+                msg += " 'diagnostics_vars'."
+            raise fmi.FMUException(msg)
 
         self.file_name = opts["result_file_name"]
         try:
@@ -2301,6 +2481,7 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         if self.file_name == "":
             self.file_name=self.model.get_identifier() + '_result.mat'
+        self.model._result_file = self.file_name
 
         file_name = self.file_name
         parameters = self.parameters
@@ -2332,13 +2513,15 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         sorted_vars = sorted_vars_real+sorted_vars_int+sorted_vars_enum+sorted_vars_bool
         self._sorted_vars = sorted_vars
-        len_name_items = len(sorted_vars)+1
+        len_name_items = len(sorted_vars)+len(diagnostics_params)+len(diagnostics_vars)+1
         len_desc_items = len_name_items
 
         if opts["result_store_variable_description"]:
-            len_name_data, name_data, len_desc_data, desc_data = fmi_util.convert_sorted_vars_name_desc(sorted_vars)
+            var_desc = [(name, diagnostics_vars[name][1]) for name in diagnostics_vars]
+            param_desc =  [(name, diagnostics_params[name][1]) for name in diagnostics_params]
+            len_name_data, name_data, len_desc_data, desc_data = fmi_util.convert_sorted_vars_name_desc(sorted_vars, param_desc, var_desc)
         else:
-            len_name_data, name_data = fmi_util.convert_sorted_vars_name(sorted_vars)
+            len_name_data, name_data = fmi_util.convert_sorted_vars_name(sorted_vars, list(diagnostics_params.keys()), list(diagnostics_vars.keys()))
             len_desc_data = 1
             desc_data = encode(" "*len_desc_items)
 
@@ -2350,7 +2533,8 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         #Create the data info structure (and return parameters)
         data_info = np.zeros((4, len_name_items), dtype=np.int32)
-        [parameter_data, sorted_vars_real_vref, sorted_vars_int_vref, sorted_vars_bool_vref]  = fmi_util.prepare_data_info(data_info, sorted_vars, self.model)
+        [parameter_data, sorted_vars_real_vref, sorted_vars_int_vref, sorted_vars_bool_vref]  = fmi_util.prepare_data_info(data_info, sorted_vars,
+                                                                                                    [val[0] for val in diagnostics_params.values()], self.nof_diag_vars, self.model)
 
         self._write_header("dataInfo", data_info.shape[0], data_info.shape[1], "int")
         self.dump_data(data_info)
@@ -2363,6 +2547,14 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.data_1_header_position = self._file.tell()
         self.dump_data(parameter_data)
 
+        self.data_3_header_position = self._file.tell()
+        if self._with_diagnostics:
+            self._nof_diag_vars = self.nof_diag_vars + 1
+            self._data_3_header = self._data_header("data_3", self.nbr_diag_points, 0, "double")
+            self.__write_header(self._data_3_header, "data_3")
+            self._data_4_header = self._data_header("data_4", self._nof_diag_vars, 0, "double")
+            self.__write_header(self._data_4_header, "data_4")
+
         #Record the position so that we can later modify the number of result points stored
         self.data_2_header_position = self._file.tell()
         self._len_vars_ref =  len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref)+1
@@ -2373,7 +2565,11 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.int_var_ref  = np.array(sorted_vars_int_vref)
         self.bool_var_ref = np.array(sorted_vars_bool_vref)
         self.nbr_points = 0
-        self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref)
+        self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref, self._with_diagnostics)
+
+        if self._with_diagnostics:
+            diag_data = N.array([val[0] for val in diagnostics_vars.values()], dtype=float)
+            self.diagnostics_point(diag_data)
 
     def integration_point(self, solver = None):
         """
@@ -2386,6 +2582,12 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         #Make sure that file is always consistent
         self._make_consistent()
+
+    def diagnostics_point(self, diag_data):
+        """ Generates a data point for diagnostics data by invoking the util function save_diagnostics_point. """
+        self.dump_data_internal.save_diagnostics_point(diag_data)
+        self.nbr_diag_points += 1
+        self._make_diagnostics_consistent()
 
     def _make_consistent(self):
         f = self._file
@@ -2400,6 +2602,24 @@ class ResultHandlerBinaryFile(ResultHandler):
         f.seek(self.data_2_header_position)
         self._data_2_header["ncols"] = self.nbr_points
         self.__write_header(self._data_2_header, "data_2")
+
+        #Reset file pointer
+        f.seek(file_pos)
+
+    def _make_diagnostics_consistent(self):
+        """ Similar to _make_consistent, but for diagnostics data. """
+        f = self._file
+
+        #Get current position
+        file_pos = f.tell()
+
+        f.seek(self.data_1_header_position)
+        t = np.array([float(self.model.time)])
+        self.dump_data(t)
+
+        f.seek(self.data_3_header_position)
+        self._data_3_header["mrows"] = self.nbr_diag_points
+        self.__write_header(self._data_3_header, "data_3")
 
         #Reset file pointer
         f.seek(file_pos)

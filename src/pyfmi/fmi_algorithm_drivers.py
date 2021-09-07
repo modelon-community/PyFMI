@@ -1,7 +1,7 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2014 Modelon AB
+# Copyright (C) 2014-2021 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,9 @@ pyfmi.fmi.FMUModel.simulate.
 #from abc import ABCMeta, abstractmethod
 import logging
 import time
+from collections import OrderedDict
 import numpy as N
+from numpy.lib.function_base import append
 
 import pyfmi
 import pyfmi.fmi as fmi
@@ -44,9 +46,9 @@ PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT = 100
 PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT  = 0.15 #In percentage
 
 class FMIResult(JMResultBase):
-    def __init__(self, model=None, result_file_name=None, solver=None, 
+    def __init__(self, model=None, result_file_name=None, solver=None,
              result_data=None, options=None, status=0, detailed_timings=None):
-        JMResultBase.__init__(self, 
+        JMResultBase.__init__(self,
                 model, result_file_name, solver, result_data, options)
         self.status = status
         self.detailed_timings = detailed_timings
@@ -90,7 +92,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             Default: Empty string
 
         with_jacobian --
-            Determines if the Jacobian should be computed from PyFMI (using 
+            Determines if the Jacobian should be computed from PyFMI (using
             either the directional derivatives, if available, or estimed using
             finite differences) or if the Jacobian should be computed by the
             choosen solver. The default is to use PyFMI if directional
@@ -100,13 +102,22 @@ class AssimuloFMIAlgOptions(OptionBase):
 
         logging --
             If True, creates a logfile from the solver in the current
-            directory.
+            directory and enables logging of diagnostics data to logfile or resultfile,
+            based on simulation option 'result_handling'.
+
+            The diagnostics data is available via the simulation results similar to FMU model variables
+            only if 'result_handling' is 'binary'.
             Default: False
 
         result_handling --
             Specifies how the result should be handled. Either stored to
-            file (txt or binary) or stored in memory. One can also use a 
+            file (txt or binary) or stored in memory. One can also use a
             custom handler.
+
+            If 'result_handling' is 'binary' and 'logging' is also enabled,
+            the diagnostics data is written to the same binary file as data of FMU model variables.
+            Note that these results are interpolated such that model variable trajectory points
+            are given at the same time points as diagnostics data.
             Available options: "file", "binary", "memory", "csv", "custom"
             Default: "binary"
 
@@ -116,15 +127,15 @@ class AssimuloFMIAlgOptions(OptionBase):
             or ResultHandlerMemory. If result_handling custom is chosen
             This MUST be provided.
             Default: None
-            
+
         return_result --
-            Determines if the simulation result should be returned or 
+            Determines if the simulation result should be returned or
             not. If set to False, the simulation result is not loaded
             into memory after the simulation finishes.
             Default: True
-            
+
         result_store_variable_description --
-            Determines if the description for the variables should be 
+            Determines if the description for the variables should be
             stored in the result file or not. Only impacts the result
             file formats that supports storing the variable description
             ("file" and "binary").
@@ -156,7 +167,7 @@ class AssimuloFMIAlgOptions(OptionBase):
         atol    --
             The absolute tolerance.
             Default: "Default" (rtol*0.01*(nominal values of the continuous states))
-        
+
         maxh    --
             The maximum step-size allowed to be used by the solver.
             Default: "Default" (max step-size computed based on (final_time-start_time)/ncp)
@@ -239,13 +250,13 @@ class AssimuloFMIAlg(AlgorithmBase):
         self.model = model
         self.timings = {}
         self.time_start_total = timer()
-        
+
         try:
             import assimulo
         except:
             raise fmi.FMUException(
                 'Could not find Assimulo package. Check pyfmi.check_packages()')
-                
+
         # import Assimulo dependent classes
         from pyfmi.simulation.assimulo_interface import FMIODE, FMIODESENS, FMIODE2, FMIODESENS2
 
@@ -267,7 +278,7 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         # set options
         self._set_options()
-        
+
         #time_start = timer()
 
         input_traj = None
@@ -282,10 +293,10 @@ class AssimuloFMIAlg(AlgorithmBase):
             #Sets the inputs, if any
             input_names  = [input_traj[0]] if isinstance(input_traj[0],str) else input_traj[0]
             input_values = input_traj[1].eval(self.start_time)[0,:]
-            
+
             if len(input_names) != len(input_values):
                 raise fmi.FMUException("The number of input variables is not equal to the number of input values, please verify the input object.")
-            
+
             self.model.set(input_names, input_values)
 
         if self.options["result_handling"] == "file":
@@ -311,8 +322,10 @@ class AssimuloFMIAlg(AlgorithmBase):
         else:
             raise fmi.FMUException("Unknown option to result_handling.")
 
+
+
         self.result_handler.set_options(self.options)
-        
+
         time_end = timer()
         #self.timings["creating_result_object"] = time_end - time_start
         time_start = time_end
@@ -324,11 +337,11 @@ class AssimuloFMIAlg(AlgorithmBase):
                 rtol = self.solver_options['rtol']
             except KeyError:
                 rtol, atol = self.model.get_tolerances()
-                
+
             if isinstance(self.model, fmi.FMUModelME1):
                 self.model.time = start_time #Set start time before initialization
                 self.model.initialize(tolerance=rtol)
-                
+
             elif isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2):
                 self.model.setup_experiment(tolerance=rtol, start_time=self.start_time, stop_time=self.final_time)
                 self.model.initialize()
@@ -340,29 +353,35 @@ class AssimuloFMIAlg(AlgorithmBase):
             time_res_init = timer()
             self.result_handler.initialize_complete()
             time_res_init = timer() - time_res_init
-        
+
         elif self.model.time is None and isinstance(self.model, fmi.FMUModelME2):
             raise fmi.FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
         elif self.model.time is None:
             raise fmi.FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
-        
+
+        if isinstance(self.result_handler, ResultHandlerBinaryFile):
+            self._setup_diagnostics_variables()
+
         #See if there is an time event at start time
         if isinstance(self.model, fmi.FMUModelME1):
             event_info = self.model.get_event_info()
             if event_info.upcomingTimeEvent and event_info.nextEventTime == model.time:
                 self.model.event_update()
-        
+
         if abs(start_time - model.time) > 1e-14:
             logging.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
-        
+
         time_end = timer()
         self.timings["initializing_fmu"] = time_end - time_start - time_res_init
         time_start = time_end
-        
-        self.result_handler.simulation_start()
-        
+
+        if isinstance(self.result_handler, ResultHandlerBinaryFile):
+            self.result_handler.simulation_start(self._diagnostics_params, self._diagnostics_vars)
+        else:
+            self.result_handler.simulation_start()
+
         self.timings["initializing_result"] = timer() - time_start + time_res_init
-            
+
         # Sensitivities?
         if self.options["sensitivities"]:
             if self.model.get_generation_tool() != "JModelica.org" and \
@@ -374,7 +393,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                             raise fmi.FMUException("The sensitivity parameter is not specified as an input which is required.")
                 else:
                     raise fmi.FMUException("Sensitivity calculations only possible with JModelica.org generated FMUs")
-                
+
             if self.options["solver"] != "CVode":
                 raise fmi.FMUException("Sensitivity simulations currently only supported using the solver CVode.")
 
@@ -429,7 +448,7 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         # solver
         import assimulo.solvers as solvers
-        
+
         solver = self.options['solver']
         if hasattr(solvers, solver):
             self.solver = getattr(solvers, solver)
@@ -437,9 +456,15 @@ class AssimuloFMIAlg(AlgorithmBase):
             raise InvalidAlgorithmOptionException(
                 "The solver: "+solver+ " is unknown.")
 
+
         # solver options
         try:
             self.solver_options = self.options[solver+'_options']
+            try:
+                self.solver_options['clock_step']
+            except KeyError:
+                if self.options['logging'] == True:
+                    self.solver_options['clock_step'] = True
         except KeyError: #Default solver options not found
             self.solver_options = {} #Empty dict
             try:
@@ -452,6 +477,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.solver_options["rtol"] = "Default"
             except AttributeError:
                 pass
+            if self.options['logging'] == True:
+                self.solver_options['clock_step'] = True
 
         #Check relative tolerance
         #If the tolerances are not set specifically, they are set
@@ -473,7 +500,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                     self.solver_options['atol'] = 0.01*self.solver_options['rtol']*self.model.nominal_continuous_states
         except KeyError:
             pass
-            
+
         self.with_jacobian = self.options['with_jacobian']
         if not (isinstance(self.model, fmi.FMUModelME2)): # or isinstance(self.model, fmi_coupled.CoupledFMUModelME2) For coupled FMUs, currently not supported
             self.with_jacobian = False #Force false flag in this case as it is not supported
@@ -504,7 +531,7 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         #Set solver option continuous_output
         self.simulator.report_continuously = True
-        
+
         #If usejac is not set, try to set it according to if directional derivatives
         #exists. Also verifies that the option "usejac" exists for the solver.
         #(Only check for FMI2)
@@ -514,12 +541,12 @@ class AssimuloFMIAlg(AlgorithmBase):
                 solver_options["usejac"] = True
             except AttributeError:
                 pass
-        
+
         #Override usejac if there are no states
         fnbr, gnbr = self.model.get_ode_sizes()
         if "usejac" in solver_options and fnbr == 0:
             solver_options["usejac"] = False
-            
+
         if "maxh" in solver_options and solver_options["maxh"] == "Default":
             if self.options["ncp"] == 0:
                 solver_options["maxh"] = 0.0
@@ -538,26 +565,83 @@ class AssimuloFMIAlg(AlgorithmBase):
                 setattr(self.probl, k, v)
                 continue
             setattr(self.simulator, k, v)
-        
+
         #Needs to be set as last option in order to have an impact.
         if "maxord" in solver_options:
             setattr(self.simulator, "maxord", solver_options["maxord"])
+
+    def _setup_diagnostics_variables(self):
+        """ Sets up initial diagnostics data. This function is called before a simulation is initiated. """
+        self._diagnostics_params = OrderedDict()
+        self._diagnostics_vars = OrderedDict()
+
+        try:
+            self._diagnostics_logging = self.options["logging"]
+        except AttributeError:
+            self._diagnostics_logging = False
+
+        if self._diagnostics_logging:
+            diagnostics_start_name = "Diagnostics."
+            solver_name=self.options["solver"]
+
+            self._diagnostics_params[diagnostics_start_name+"solver."+solver_name] = (1.0, "Chosen solver.")
+
+            support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE")
+            support_solver_order = solver_name=="CVode"
+
+
+            try:
+                support_elapsed_time=self.solver_options["clock_step"]
+            except:
+                support_elapsed_time=False
+
+            support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="LSODAR" or solver_name=="ImplicitEuler")
+
+            states_list = self.model.get_states_list() if isinstance(self.model, fmi.FMUModelME2) else []
+
+            if solver_name != "ExplicitEuler":
+                try:
+                    rtol = self.solver_options['rtol']
+                    atol = self.solver_options['atol']
+                except KeyError:
+                    rtol, atol = self.model.get_tolerances()
+                self._diagnostics_params[diagnostics_start_name+"solver.relative_tolerance"] = (rtol, "Relative solver tolerance.")
+
+                for idx, state in enumerate(states_list):
+                    self._diagnostics_params[diagnostics_start_name+"solver.absolute_tolerance."+state] = (atol[idx], "Absolute tolerance for "+state+".")
+
+            self._diagnostics_vars[diagnostics_start_name+"step_time"] = (self.start_time, "Step time")
+            if support_elapsed_time:
+                self._diagnostics_vars[diagnostics_start_name+"cpu_time"] = (0, "Cpu time for current step.")
+            if support_solver_order:
+                self._diagnostics_vars[diagnostics_start_name+"solver.solver_order"] = (0.0, "Solver order for CVode")
+            if support_state_errors:
+                for state in states_list:
+                    self._diagnostics_vars[diagnostics_start_name+"state_errors."+state] = (0.0, "State error for "+state+".")
+            if support_event_indicators:
+                nof_states, nof_ei = self.model.get_ode_sizes()
+                ei_values = self.model.get_event_indicators() if nof_ei > 0 else []
+                for i in range(nof_ei):
+                    self._diagnostics_vars[diagnostics_start_name+"event_data.event_info.indicator_"+str(i+1)] = (ei_values[i], "Value for event indicator {}.".format(i+1))
+                for i in range(nof_ei):
+                    self._diagnostics_vars[diagnostics_start_name+"event_data.event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
+                self._diagnostics_vars[diagnostics_start_name+"event_data.event_info.event_type"] = (-1, "No event=-1, state event=0, time event=1")
 
     def solve(self):
         """
         Runs the simulation.
         """
         time_start = timer()
-        
+
         try:
             self.simulator.simulate(self.final_time, self.ncp)
         except:
             self.result_handler.simulation_end() #Close the potentially open result files
             raise #Reraise the exception
-        
+
         self.timings["storing_result"] = self.probl.timings["handle_result"]
         self.timings["computing_solution"] = timer() - time_start - self.timings["storing_result"]
-        
+
 
     def get_result(self):
         """
@@ -569,18 +653,18 @@ class AssimuloFMIAlg(AlgorithmBase):
             The AssimuloSimResult object.
         """
         time_start = timer()
-            
+
         if self.options["return_result"]:
             #Retrieve result
             res = self.result_handler.get_result()
         else:
             res = None
-            
+
         end_time = timer()
         self.timings["returning_result"] = end_time - time_start
         self.timings["other"] = end_time - self.time_start_total- sum(self.timings.values())
         self.timings["total"] = end_time - self.time_start_total
-            
+
         # create and return result object
         return FMIResult(self.model, self.result_file_name, self.simulator,
             res, self.options, detailed_timings=self.timings)
@@ -610,7 +694,7 @@ class FMICSAlgOptions(OptionBase):
             is invoked, otherwise it is assumed the user have manually invoked
             model.initialize()
             Default is True.
-            
+
         stop_time_defined --
             If set to True, the model cannot be computed past the set final_time,
             even in a continuation run. This is only applicable when initialize
@@ -634,7 +718,7 @@ class FMICSAlgOptions(OptionBase):
 
         result_handling --
             Specifies how the result should be handled. Either stored to
-            file (txt or binary) or stored in memory. One can also use a 
+            file (txt or binary) or stored in memory. One can also use a
             custom handler.
             Available options: "file", "binary", "memory", "csv", "custom"
             Default: "binary"
@@ -645,23 +729,23 @@ class FMICSAlgOptions(OptionBase):
             or ResultHandlerMemory. If result_handling custom is chosen
             This MUST be provided.
             Default: None
-        
+
         return_result --
-            Determines if the simulation result should be returned or 
+            Determines if the simulation result should be returned or
             not. If set to False, the simulation result is not loaded
             into memory after the simulation finishes.
             Default: True
-        
+
         result_store_variable_description --
-            Determines if the description for the variables should be 
+            Determines if the description for the variables should be
             stored in the result file or not. Only impacts the result
             file formats that supports storing the variable description
             ("file" and "binary").
             Default: True
-            
+
         time_limit --
-            Specifies an upper bound on the time allowed for the 
-            integration to be completed. The time limit is specified 
+            Specifies an upper bound on the time allowed for the
+            integration to be completed. The time limit is specified
             in seconds. Note that the time limit is only checked after
             a completed step. This means that if a do step takes a lot
             of time, the execution will not stop at exactly the time
@@ -675,11 +759,11 @@ class FMICSAlgOptions(OptionBase):
             example is filter = "*der" , stor all variables ending with
             'der'. Can also be a list.
             Default: None
-        
+
         silent_mode --
             Disables printouts to the console.
             Default: False
-            
+
     """
     def __init__(self, *args, **kw):
         _defaults= {
@@ -745,7 +829,7 @@ class FMICSAlg(AlgorithmBase):
         self.start_time = start_time
         self.final_time = final_time
         self.input = input
-        
+
         self.status = 0
 
         # handle options argument
@@ -774,7 +858,7 @@ class FMICSAlg(AlgorithmBase):
             #Sets the inputs, if any
             self.model.set(input_traj[0], input_traj[1].eval(self.start_time)[0,:])
         self.input_traj = input_traj
-        
+
         #time_start = timer()
 
         if self.options["result_handling"] == "file":
@@ -797,7 +881,7 @@ class FMICSAlg(AlgorithmBase):
             raise fmi.FMUException("Unknown option to result_handling.")
 
         self.result_handler.set_options(self.options)
-        
+
         time_end = timer()
         #self.timings["creating_result_object"] = time_end - time_start
         time_start = time_end
@@ -811,28 +895,28 @@ class FMICSAlg(AlgorithmBase):
             elif isinstance(self.model, fmi.FMUModelCS2):
                 self.model.setup_experiment(start_time=start_time, stop_time_defined=self.options["stop_time_defined"], stop_time=final_time)
                 self.model.initialize()
-                
+
             else:
                 raise fmi.FMUException("Unknown model.")
-            
+
             time_res_init = timer()
             self.result_handler.initialize_complete()
             time_res_init = timer() - time_res_init
-            
+
         elif self.model.time is None and isinstance(self.model, fmi.FMUModelCS2):
             raise fmi.FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
         elif self.model.time is None:
             raise fmi.FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
-        
+
         if abs(start_time - model.time) > 1e-14:
             logging.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
-        
+
         time_end = timer()
         self.timings["initializing_fmu"] = time_end - time_start - time_res_init
         time_start = time_end
-        
+
         self.result_handler.simulation_start()
-        
+
         self.timings["initializing_result"] = timer() - time_start - time_res_init
 
     def _set_options(self):
@@ -843,7 +927,7 @@ class FMICSAlg(AlgorithmBase):
         if self.options['ncp'] <= 0:
             raise fmi.FMUException(f"Setting {self.options['ncp']} as 'ncp' is not allowed for a CS FMU. Must be greater than 0.")
         self.ncp = self.options['ncp']
-        
+
         self.write_scaled_result = self.options['write_scaled_result']
 
         # result file name
@@ -882,14 +966,14 @@ class FMICSAlg(AlgorithmBase):
             self.status = status
 
             if status != 0:
-                
+
                 if status == fmi.FMI_ERROR:
                     result_handler.simulation_end()
                     raise fmi.FMUException("The simulation failed. See the log for more information. Return flag %d."%status)
 
-                elif status == fmi.FMI_DISCARD and (isinstance(self.model, fmi.FMUModelCS1) or 
+                elif status == fmi.FMI_DISCARD and (isinstance(self.model, fmi.FMUModelCS1) or
                                                     isinstance(self.model, fmi.FMUModelCS2)):
-                
+
                     try:
                         if isinstance(self.model, fmi.FMUModelCS1):
                             last_time = self.model.get_real_status(fmi.FMI1_LAST_SUCCESSFUL_TIME)
@@ -898,7 +982,7 @@ class FMICSAlg(AlgorithmBase):
                         if last_time > t: #Solver succeeded in taken a step a little further than the last time
                             self.model.time = last_time
                             final_time = last_time
-                            
+
                             start_time_point = timer()
                             result_handler.integration_point()
                             self.timings["storing_result"] += timer() - start_time_point
@@ -907,15 +991,15 @@ class FMICSAlg(AlgorithmBase):
                 break
                 #result_handler.simulation_end()
                 #raise Exception("The simulation failed. See the log for more information. Return flag %d"%status)
-            
+
             final_time = t+h
-            
+
             start_time_point = timer()
             result_handler.integration_point()
             self.timings["storing_result"] += timer() - start_time_point
-            
+
             if self.options["time_limit"] and (timer() - time_start) > self.options["time_limit"]:
-                raise fmi.TimeLimitExceeded("The time limit was exceeded at integration time %.8E."%final_time)    
+                raise fmi.TimeLimitExceeded("The time limit was exceeded at integration time %.8E."%final_time)
 
             if self.input_traj != None:
                 self.model.set(self.input_traj[0], self.input_traj[1].eval(t+h)[0,:])
@@ -924,16 +1008,16 @@ class FMICSAlg(AlgorithmBase):
         time_stop = timer()
 
         result_handler.simulation_end()
-        
+
         if self.status != 0:
             if not self.options["silent_mode"]:
                 print('Simulation terminated prematurely. See the log for possibly more information. Return flag %d.'%status)
-        
+
         #Log elapsed time
         if not self.options["silent_mode"]:
             print('Simulation interval    : ' + str(self.start_time) + ' - ' + str(final_time) + ' seconds.')
             print('Elapsed simulation time: ' + str(time_stop-time_start) + ' seconds.')
-        
+
         self.timings["computing_solution"] = time_stop - time_start - self.timings["storing_result"]
 
     def get_result(self):
@@ -946,13 +1030,13 @@ class FMICSAlg(AlgorithmBase):
             The FMICSResult object.
         """
         time_start = timer()
-        
+
         if self.options["return_result"]:
             # Get the result
             res = self.result_handler.get_result()
         else:
             res = None
-            
+
         end_time = timer()
         self.timings["returning_result"] = end_time - time_start
         self.timings["other"] = end_time - self.time_start_total- sum(self.timings.values())
@@ -1012,7 +1096,7 @@ class SciEstAlg(AlgorithmBase):
         self.parameters = parameters
         self.measurements = measurements
         self.input = input
-        
+
         # handle options argument
         if isinstance(options, dict) and not \
             isinstance(options, SciEstAlgOptions):
@@ -1026,7 +1110,7 @@ class SciEstAlg(AlgorithmBase):
 
         # set options
         self._set_options()
-        
+
         self.result_handler = ResultHandlerCSV(self.model)
         self.result_handler.set_options(self.options)
         self.result_handler.initialize_complete()
@@ -1036,23 +1120,23 @@ class SciEstAlg(AlgorithmBase):
         Helper function that sets options for FMICS algorithm.
         """
         self.options["filter"] = self.parameters
-        
+
         if isinstance(self.options["scaling"], str) and self.options["scaling"] == "Default":
             scale = []
             for i,parameter in enumerate(self.parameters):
                 scale.append(self.model.get_variable_nominal(parameter))
             self.options["scaling"] = N.array(scale)
-        
+
         if self.options["simulate_options"] == "Default":
             self.options["simulate_options"] = self.model.simulate_options()
-            
+
         #Modifiy necessary options:
         self.options["simulate_options"]['ncp']    = self.measurements[1].shape[0] - 1 #Store at the same points as measurment data
         self.options["simulate_options"]['filter'] = self.measurements[0] #Only store the measurement variables (efficiency)
-        
+
         if "solver" in self.options["simulate_options"]:
             solver = self.options["simulate_options"]["solver"]
-            
+
             self.options["simulate_options"][solver+"_options"]["verbosity"] = 50 #Disable printout (efficiency)
             self.options["simulate_options"][solver+"_options"]["store_event_points"] = False #Disable extra store points
 
@@ -1069,7 +1153,7 @@ class SciEstAlg(AlgorithmBase):
         import scipy as sci
         import scipy.optimize as sciopt
         from pyfmi.fmi_util import parameter_estimation_f
-        
+
         #Define callback
         global niter
         niter = 0
@@ -1080,41 +1164,41 @@ class SciEstAlg(AlgorithmBase):
             #print '{:>5d} {:>15e}'.format(niter+1, parameter_estimation_f(y, self.parameters, self.measurements, self.model, self.input, self.options))
             print('{:>5d} '.format(niter+1) + str(y))
             niter += 1
-        
+
         #End of simulation, stop the clock
         time_start = timer()
-        
+
         p0 = []
         for i,parameter in enumerate(self.parameters):
             p0.append(self.model.get(parameter)/self.options["scaling"][i])
-            
+
         print('\nRunning solver: ' + self.options["method"])
         print(' Initial parameters (scaled): ' + str(N.array(p0).flatten()))
         print(' ')
-        
-        res = sciopt.minimize(parameter_estimation_f, p0, 
-                                args=(self.parameters, self.measurements, self.model, self.input, self.options), 
+
+        res = sciopt.minimize(parameter_estimation_f, p0,
+                                args=(self.parameters, self.measurements, self.model, self.input, self.options),
                                 method=self.options["method"],
-                                bounds=None, 
-                                constraints=(), 
+                                bounds=None,
+                                constraints=(),
                                 tol=self.options["tolerance"],
                                 callback=parameter_estimation_callback)
-        
+
         for i in range(len(self.parameters)):
             res["x"][i] = res["x"][i]*self.options["scaling"][i]
-        
+
         self.res = res
         self.status = res["success"]
-        
+
         #End of simulation, stop the clock
         time_stop = timer()
-        
+
         if not res["success"]:
             print('Estimation failed: ' + res["message"])
         else:
             print('\nEstimation terminated successfully!')
             print(' Found parameters: ' + str(res["x"]))
-        
+
         print('Elapsed estimation time: ' + str(time_stop-time_start) + ' seconds.\n')
 
     def get_result(self):
@@ -1128,19 +1212,19 @@ class SciEstAlg(AlgorithmBase):
         """
         for i,parameter in enumerate(self.parameters):
             self.model.set(parameter, self.res["x"][i])
-        
+
         self.result_handler.simulation_start()
-        
+
         self.model.time = self.measurements[1][0,0]
         self.result_handler.integration_point()
 
         self.result_handler.simulation_end()
-        
+
         self.model.reset()
-        
+
         for i,parameter in enumerate(self.parameters):
             self.model.set(parameter, self.res["x"][i])
-            
+
         return FMIResult(self.model, self.options["result_file_name"], None,
             self.result_handler.get_result(), self.options, status=self.status)
 
@@ -1157,25 +1241,25 @@ class SciEstAlgOptions(OptionBase):
     Options for the solving an estimation problem.
 
     Options::
-        
+
         tolerance    --
             The tolerance for the estimation algorithm
             Default: 1e-6
-            
+
         method       --
             The method to use, available methods are methods from:
             scipy.optimize.minimize.
             Default: 'Nelder-Mead'
-            
+
         scaling      --
             The scaling of the parameters during the estimation.
             Default: The nominal values
-            
+
         simulate_options    --
             The simulation options to use when simulating the model
             in order to get the estimated data.
             Default: The default options for the underlying model.
-            
+
         result_file_name --
             Specifies the name of the file where the result is written.
             Setting this option to an empty string results in a default

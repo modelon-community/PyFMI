@@ -55,9 +55,11 @@ def init_f_block(u, coupled, block):
     
 cdef class CoupledModelBase:
     cdef public dict cache
+    cdef public object _result_file
     
     def __init__(self):
         self.cache = {}
+        self._result_file = None
     
     def _default_options(self, module, algorithm):
         """

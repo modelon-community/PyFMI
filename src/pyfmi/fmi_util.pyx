@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2014 Modelon AB
+# Copyright (C) 2014-2021 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -24,8 +24,11 @@ from operator import attrgetter
 import numpy as np
 from numpy.compat import asbytes
 
+from pyfmi.common import encode
+
 cimport numpy as np
 cimport fmil_import as FMIL
+
 from cpython cimport array
 from pyfmi.fmi cimport FMUModelME2, FMUModelBase
 
@@ -194,7 +197,7 @@ cpdef parameter_estimation_f(y, parameters, measurments, model, input, options):
 cpdef list convert_array_names_list_names(np.ndarray names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = len(names[0])
-    cdef int i,j = 0
+    cdef int i, j = 0
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str
@@ -218,11 +221,12 @@ cpdef list convert_array_names_list_names(np.ndarray names):
 cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = names.shape[1]
-    cdef int i,j = 0,ch, py3
+    cdef int i, py3, j = 0, ch
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str
 
+    # This if-statement is contributes to a performance gain within the for-loop that follows
     if python3_flag:
         py3 = 1
     else:
@@ -250,9 +254,11 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, model):
+cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, list diagnostics_param_values, int nof_diag_vars, model):
     cdef int index_fixed    = 1
     cdef int index_variable = 1
+    cdef int nof_sorted_vars = len(sorted_vars)
+    cdef int nof_diag_params = len(diagnostics_param_values)
     cdef int i, alias, data_type, variability
     cdef int last_data_matrix = -1, last_index = -1
     cdef int FMI_NEGATED_ALIAS = fmi.FMI_NEGATED_ALIAS
@@ -263,7 +269,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, mod
     cdef list varia_real = [], varia_int = [], varia_bool = []
     last_vref = -1
 
-    for i in range(1, len(sorted_vars)+1):
+    for i in range(1, nof_sorted_vars + 1):
         var = sorted_vars[i-1]
         data_info[2,i] = 0
         data_info[3,i] = -1
@@ -310,7 +316,29 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, mod
 
     data_info[0,0] = 0; data_info[1, 0] = 1; data_info[2, 0] = 0; data_info[3, 0] = -1
 
-    data = np.append(np.append(np.append(model.time, model.get_real(param_real)),model.get_integer(param_int).astype(float)),model.get_boolean(param_bool).astype(float))
+    for i in range(nof_sorted_vars+1, nof_sorted_vars+1+nof_diag_params):
+        data_info[0,i] = 1
+        data_info[2,i] = 0
+        data_info[3,i] = -1
+        index_fixed = index_fixed + 1
+        data_info[1,i] = index_fixed
+
+    last_index = 0
+    for i in range(nof_sorted_vars + 1 + nof_diag_params, nof_sorted_vars + 1 + nof_diag_params + nof_diag_vars):
+        data_info[0,i] = 3
+        data_info[2,i] = 0
+        data_info[3,i] = -1
+        last_index = last_index + 1
+        data_info[1,i] = last_index
+
+    data = np.append(model.time, np.concatenate(
+                                    (model.get_real(param_real),
+                                    model.get_integer(param_int).astype(float),
+                                    model.get_boolean(param_bool).astype(float),
+                                    np.array(diagnostics_param_values).astype(float)),
+                                    axis = 0,
+                                )
+                    )
 
     return data, varia_real, varia_int, varia_bool
 
@@ -344,8 +372,10 @@ cpdef convert_str_list(list data):
 
     return length, py_string
 
-cpdef convert_sorted_vars_name_desc(list sorted_vars):
+cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_params, list diag_vars):
     cdef int items = len(sorted_vars)
+    cdef int nof_diag_params = len(diag_params)
+    cdef int nof_diag_vars = len(diag_vars)
     cdef int i, name_length_trial, desc_length_trial, kd, kn
     cdef list desc = [encode("Time in [s]")]
     cdef list name = [encode("time")]
@@ -355,11 +385,13 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars):
     cdef char *name_output
     cdef char *ctmp_name
     cdef char *ctmp_desc
+    cdef int tot_nof_vars = items+nof_diag_params+nof_diag_vars
 
-    for i in range(items):
-        var = sorted_vars[i]
-        tmp_name = encode(var.name)
-        tmp_desc = encode(var.description)
+    for tmp_name, tmp_desc in itertools.chain([(var.name, var.description) for var in sorted_vars],
+                                             diag_params, diag_vars):
+        tmp_name = encode(tmp_name)
+        tmp_desc = encode(tmp_desc)
+
         name.append(tmp_name)
         desc.append(tmp_desc)
 
@@ -371,16 +403,17 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars):
         if desc_length_trial+1 > desc_length:
              desc_length = desc_length_trial + 1
 
-    name_output = <char*>FMIL.calloc((items+1)*name_length,sizeof(char))
+
+    name_output = <char*>FMIL.calloc((tot_nof_vars+1)*name_length,sizeof(char))
     if name_output == NULL:
         raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
                                "Please reduce the number of stored variables by using filters.")
-    desc_output = <char*>FMIL.calloc((items+1)*desc_length,sizeof(char))
+    desc_output = <char*>FMIL.calloc((tot_nof_vars+1)*desc_length,sizeof(char))
     if desc_output == NULL:
         raise fmi.FMUException("Failed to allocate memory for storing the description of the variables. " \
                                "Please reduce the number of stored variables or disable storing of the description.")
 
-    for i in range(items+1):
+    for i in range(tot_nof_vars+1):
         ctmp_name = name[i]
         ctmp_desc = desc[i]
 
@@ -392,25 +425,27 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars):
         FMIL.memcpy(&name_output[kn], ctmp_name, name_length_trial)
         FMIL.memcpy(&desc_output[kd], ctmp_desc, desc_length_trial)
 
-    py_desc_string = desc_output[:(items+1)*desc_length]
-    py_name_string = name_output[:(items+1)*name_length]
+    py_desc_string = desc_output[:(tot_nof_vars+1)*desc_length]
+    py_name_string = name_output[:(tot_nof_vars+1)*name_length]
 
     FMIL.free(name_output)
     FMIL.free(desc_output)
 
     return name_length, py_name_string, desc_length, py_desc_string
 
-cpdef convert_sorted_vars_name(list sorted_vars):
+cpdef convert_sorted_vars_name(list sorted_vars, list diag_param_names, list diag_vars):
     cdef int items = len(sorted_vars)
+    cdef int nof_diag_params = len(diag_param_names)
+    cdef int nof_diag_vars = len(diag_vars)
     cdef int i, name_length_trial, kn
     cdef list name = [encode("time")]
     cdef int name_length = len(name[0])+1
     cdef char *name_output
     cdef char *ctmp_name
+    cdef int tot_nof_vars = items+nof_diag_params+nof_diag_vars
 
-    for i in range(items):
-        var = sorted_vars[i]
-        tmp_name = encode(var.name)
+    for tmp_name in itertools.chain( [var.name for var in sorted_vars], diag_param_names, diag_vars):
+        tmp_name = encode(tmp_name)
         name.append(tmp_name)
 
         name_length_trial = len(tmp_name)
@@ -418,12 +453,12 @@ cpdef convert_sorted_vars_name(list sorted_vars):
         if name_length_trial+1 > name_length:
              name_length = name_length_trial + 1
 
-    name_output = <char*>FMIL.calloc((items+1)*name_length,sizeof(char))
+    name_output = <char*>FMIL.calloc((tot_nof_vars+1)*name_length,sizeof(char))
     if name_output == NULL:
         raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
                                "Please reduce the number of stored variables by using filters.")
 
-    for i in range(items+1):
+    for i in range(tot_nof_vars+1):
         ctmp_name = name[i]
 
         name_length_trial = len(ctmp_name)
@@ -431,7 +466,7 @@ cpdef convert_sorted_vars_name(list sorted_vars):
 
         FMIL.memcpy(&name_output[kn], ctmp_name, name_length_trial)
 
-    py_name_string = name_output[:(items+1)*name_length]
+    py_name_string = name_output[:(tot_nof_vars+1)*name_length]
 
     FMIL.free(name_output)
 
@@ -582,10 +617,10 @@ class Graph:
         self.connected_components = []
         self.graph_info = graph_info
         self._unknown_index = 31415926
-        
+
         self.edges_0 = {}
         self.edges_1 = {}
-        
+
         for edge in self.edges:
             try:
                 self.edges_0[edge[0]].append(edge[1])
@@ -595,7 +630,7 @@ class Graph:
                 self.edges_1[edge[1]].append(edge[0])
             except KeyError:
                 self.edges_1[edge[1]] = [edge[0]]
-        
+
     def _dfs(self, start_node):
         self.visited_nodes[start_node] = None
 
@@ -666,7 +701,7 @@ class Graph:
 
         self.index = self.index + 1
         self.stack.append(node)
-        
+
         if node in self.edges_0_edge:
             for v,w in self.edges_0_edge[node]:
                 if self.number[w] < 0: #Not numbered
@@ -675,7 +710,7 @@ class Graph:
                 elif self.number[w] < self.number[v]:
                     if w in self.stack:
                         self.lowlink[node] = min(self.lowlink[node], self.number[w])
-                    
+
         if self.lowlink[node] == self.number[node]:
             #node is the root of a component
             #Start new strong component
@@ -689,14 +724,14 @@ class Graph:
         self.index = 0
         self.stack = []
         self.connected_components = []
-        
+
         self.edges_0_edge = {}
         for edge in self.edges:
             try:
                 self.edges_0_edge[edge[0]].append(edge)
             except KeyError:
                 self.edges_0_edge[edge[0]] = [edge]
-        
+
         for node in self.nodes:
             if self.number[node] < 0:
                 self._strongly_connected_components(node)
@@ -706,7 +741,7 @@ class Graph:
         nodes = self.nodes
         edges = self.edges
         connected_component_dict = {k: v for v, k in enumerate(connected_component)}
-        
+
         output = True
         for node in connected_component:
             if self.graph_info[node]["type"] != GRAPH_OUTPUT:
@@ -832,7 +867,7 @@ class Graph:
 
                 if node in self.edges_1: #The node is in a direct feed-through
                     potential = False
-                
+
                 if potential:
                     if model in connected_components_first:
                         connected_components_first[model].append(node)
@@ -840,10 +875,10 @@ class Graph:
                         connected_components_first[model] = [node]
                 else:
                     list_of_connections = self.edges_0[node] #The node is connected somewhere
-                
+
                     if len(list_of_connections) > 0:
                         potential_second = not self._check_feed_through(list_of_connections)
-                    
+
                     if potential_second:
                         if model in connected_components_second:
                             connected_components_second[model].append(node)
@@ -884,7 +919,7 @@ class Graph:
     def compute_evaluation_order(self):
         self.prepare_graph()
         SCCs = self.strongly_connected_components()[::-1]
-        
+
         i = 0
         while i < len(SCCs):
             f = SCCs[i]
@@ -994,8 +1029,9 @@ cdef class DumpData:
     cdef public int model_me2_instance
     cdef public object _file, model
     cdef size_t real_size, int_size, bool_size
+    cdef int _with_diagnostics
 
-    def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref):
+    def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref, with_diagnostics):
 
         if type(model) != FMUModelME2:
             self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
@@ -1024,10 +1060,14 @@ cdef class DumpData:
             self.model_me2_instance = 0
             self.model = model
 
+        self._with_diagnostics = with_diagnostics
+
     cdef dump_data(self, np.ndarray data):
         self._file.write(data.tobytes(order="F"))
-    
+
     def save_point(self):
+        if self._with_diagnostics:
+            self.dump_data(np.array(float(1.0)))
         if self.model_me2_instance:
             self.time_tmp[0] = self.model_me2._get_time()
             self.dump_data(self.time_tmp)
@@ -1058,6 +1098,16 @@ cdef class DumpData:
                 b = self.model.get_boolean(self.bool_var_ref).astype(float)
                 self.dump_data(b)
 
+
+    def save_diagnostics_point(self, diag_data):
+        """ Saves a point of diagnostics data to the result. """
+        self.dump_data(np.array(float(2.0)))
+        if self.model_me2_instance:
+            self.time_tmp[0] = self.model_me2._get_time()
+            self.dump_data(self.time_tmp)
+        else:
+            self.dump_data(np.array(float(self.model.time)))
+        self.dump_data(diag_data)
 
 from libc.stdio cimport *
 
@@ -1167,6 +1217,71 @@ cdef _read_trajectory64(file_name, long int start_point, long int end_point, lon
 
     return data
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def read_diagnostics_trajectory(file_name, int read_diag_data, int has_position_data,
+    np.ndarray[long, ndim=1] file_pos_model_var, np.ndarray[long, ndim=1] file_pos_diag_var,
+    int data_index, int file_position, int sizeof_type, int nbr_model_points, int nbr_diag_points,
+    int nbr_model_variables, int nbr_diag_variables):
+    """ Reads a diagnostic trajectory from the result file. """
+    cdef unsigned long int end_point   = sizeof_type*(nbr_diag_points*(nbr_diag_variables+1) + nbr_model_points*(nbr_model_variables+1))
+    cdef unsigned long int iter_point = 0
+    cdef unsigned long int model_var_interval = sizeof_type*nbr_model_variables
+    cdef unsigned long int diag_var_interval = sizeof_type*nbr_diag_variables
+    cdef FILE* cfile
+    cdef np.ndarray[DTYPE_t, ndim=1] data
+    cdef DTYPE_t* data_ptr
+    cdef size_t sizeof_dtype = sizeof(DTYPE_t)
+    cdef np.ndarray[DTYPE_t, ndim=1] flag
+    cdef DTYPE_t* flag_ptr
+    cdef long file_pos
+    cdef int i = 0
+    cdef model_var_counter = 0
+    cdef diag_var_counter = 0
+
+    cfile = fopen(file_name, 'rb')
+
+    if read_diag_data == 1:
+        data = np.empty(nbr_diag_points, dtype=DTYPE)
+    else:
+        data = np.empty(nbr_model_points, dtype=DTYPE)
+    data_ptr = <DTYPE_t*>data.data
+    flag = np.empty(1, dtype=DTYPE)
+    flag_ptr = <DTYPE_t*>flag.data
+    if has_position_data == 1:
+        file_pos_list = file_pos_diag_var if read_diag_data == 1 else file_pos_model_var
+        for file_pos in file_pos_list:
+            fseek(cfile, file_pos+data_index*sizeof_type, 0)
+            fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
+            i += 1
+    else:
+        while iter_point < end_point:
+            fseek(cfile, file_position+iter_point,0)
+            fread(<void*>(flag_ptr), sizeof_dtype, 1, cfile)
+            iter_point += sizeof_type;
+            file_pos = ftell(cfile)
+            if flag[0] == 1.0:
+                file_pos_model_var[model_var_counter] = file_pos
+                model_var_counter +=1
+                if not read_diag_data:
+                    fseek(cfile, file_position+iter_point+data_index*sizeof_type, 0)
+                    fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
+                    i += 1
+                iter_point += model_var_interval
+            elif flag[0] == 2.0:
+                file_pos_diag_var[diag_var_counter] = file_pos
+                diag_var_counter +=1
+                if read_diag_data:
+                    fseek(cfile, file_position+iter_point+data_index*sizeof_type, 0)
+                    fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
+                    i += 1
+                iter_point += diag_var_interval
+            else:
+                fclose(cfile)
+                raise fmi.IOException("Result file is corrupt, cannot read results.")
+    fclose(cfile)
+    return data, file_pos_model_var, file_pos_diag_var
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -1198,13 +1313,15 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
     cdef bytes py_str
     cdef dict data = {}
 
+    # This if-statement contributes to a performance gain within the for-loop that follows
     if python3_flag:
         py3 = 1
     else:
         py3 = 0
+    if tmp == NULL:
+        raise fmi.IOException("Couldn't allocate memory to read name list.")
 
     cfile = fopen(file_name, 'rb')
-
     fseek(cfile, file_position, 0)
     for i in range(nbr_variables):
         fread(<void*>(tmp), max_length, 1, cfile)
@@ -1219,7 +1336,6 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
                 py_str = py_str.replace(b" ", b"")
             else:
                 py_str = py_str.replace(" ", "")
-
         data[py_str] = i
 
     fclose(cfile)

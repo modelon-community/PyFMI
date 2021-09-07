@@ -189,6 +189,11 @@ class FMUException(Exception):
     """
     pass
 
+class IOException(FMUException):
+    """
+        Exception covering issues related to writing/reading data.
+    """
+
 class TimeLimitExceeded(FMUException):
     pass
 
@@ -232,6 +237,7 @@ cdef class ModelBase:
         self._log_stream = None
         self._modelId = None
         self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
+        self._result_file = None
 
     def _set_log_stream(self, stream):
         """ Function that sets the class property 'log_stream' and does error handling. """
@@ -513,6 +519,11 @@ cdef class ModelBase:
             Options class for the algorithm specified with default values.
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
+
+    def get_last_result_file(self):
+        """ Returns absolute path to the simulation result file for the last simulation if
+            the fmu has been simulated. Otherwise returns None."""
+        return os.path.abspath(self._result_file) if isinstance(self._result_file, str) else None
 
     def get_log_filename(self):
         """ Returns a name of the logfile, if logging is done to a stream it returns

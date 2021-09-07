@@ -21,14 +21,19 @@ required by Assimulo.
 """
 import logging
 import logging as logging_module
+from operator import index
 
 import numpy as N
+from numpy.core.einsumfunc import einsum
+
+from pyfmi.fmi import FMUException
+
 cimport numpy as N
 import numpy.linalg as LIN
 import scipy.sparse as sp
 import time
 
-from pyfmi.common.io import ResultWriterDymola
+from pyfmi.common.io import ResultWriterDymola, ResultHandlerBinaryFile
 import pyfmi.fmi as fmi
 from pyfmi.fmi cimport FMUModelME2
 from pyfmi.common import python3_flag
@@ -568,6 +573,7 @@ cdef class FMIODE2(cExplicit_Problem):
     """
     An Assimulo Explicit Model extended to FMI interface.
     """
+    
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False, 
                  result_handler=None, extra_equations=None):
@@ -624,6 +630,11 @@ cdef class FMIODE2(cExplicit_Problem):
         self._logging = logging
         self._sparse_representation = False
         self._with_jacobian = with_jacobian
+
+        if self._logging and isinstance(result_handler, ResultHandlerBinaryFile):
+            self._logging_to_mat = 1
+        else:
+            self._logging_to_mat = 0
         
         self.jac_use = False
         if f_nbr > 0 and with_jacobian:
@@ -918,20 +929,56 @@ cdef class FMIODE2(cExplicit_Problem):
             fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
             fwrite.write(" Time  event info:  "+str(event_info[1])+ "\n")
 
-            preface = "[INFO][FMU status:OK] "
-            event_info_tag = 'EventInfo'
+            if not (self._logging_to_mat == 1):
+                preface = "[INFO][FMU status:OK] "
+                event_info_tag = 'EventInfo'
 
-            msg = preface + '<%s>Detected event at <value name="t">        %.14E</value>.'%(event_info_tag, solver.t)
-            self._model.append_log_message("Model", 6, msg)
+                msg = preface + '<%s>Detected event at <value name="t">        %.14E</value>.'%(event_info_tag, solver.t)
+                self._model.append_log_message("Model", 6, msg)
 
-            msg = preface + '  <vector name="state_event_info">' + ", ".join(str(i) for i in event_info[0]) + '</vector>'
-            self._model.append_log_message("Model", 6, msg)
+                msg = preface + '  <vector name="state_event_info">' + ", ".join(str(i) for i in event_info[0]) + '</vector>'
+                self._model.append_log_message("Model", 6, msg)
 
-            msg = preface + '  <boolean name="time_event_info">' + str(event_info[1]) + '</boolean>'
-            self._model.append_log_message("Model", 6, msg)
+                msg = preface + '  <boolean name="time_event_info">' + str(event_info[1]) + '</boolean>'
+                self._model.append_log_message("Model", 6, msg)
 
-            msg = preface + '</%s>'%(event_info_tag)
-            self._model.append_log_message("Model", 6, msg)
+                msg = preface + '</%s>'%(event_info_tag)
+                self._model.append_log_message("Model", 6, msg)
+            else:
+                diag_data = N.ndarray(self.export.nof_diag_vars,dtype=float)
+                index = 0
+                diag_data[index] = solver.t
+                index +=1
+                if solver.clock_step:
+                    diag_data[index] = 0
+                    index +=1
+                solver_name = solver.__class__.__name__
+                if solver_name == "CVode":
+                    diag_data[index] = solver.get_last_order()
+                    index +=1
+                if self._f_nbr > 0 and (solver_name=="CVode" or solver_name=="Radau5ODE"):    
+                    for e in solver.get_weighted_local_errors():
+                        diag_data[index] = e
+                        index +=1
+                if (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="LSODAR" or solver_name=="ImplicitEuler"):
+                    if self._g_nbr > 0:
+                        for ei in self._model.get_event_indicators():
+                            diag_data[index] = ei
+                            index +=1
+                    if event_info[1]:
+                        while index < self.export.nof_diag_vars-1:
+                            diag_data[index] = 0
+                            index +=1
+                        diag_data[index] = 1.0
+                    else:
+                        for ei in event_info[0]:
+                            diag_data[index] = ei
+                            index +=1
+                        diag_data[index] = 0.0
+                if index != self.export.nof_diag_vars-1:
+                    raise fmi.FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self.export.nof_diag_vars-1, index))
+                self.export.diagnostics_point(diag_data)
+                
 
         #Enter event mode
         self._model.enter_event_mode()
@@ -1030,29 +1077,29 @@ cdef class FMIODE2(cExplicit_Problem):
             fwrite = self._get_debug_file_object()
             fwrite.write(data_line+"\n")
 
+            if not (self._logging_to_mat == 1):
+                preface = "[INFO][FMU status:OK] "
+                solver_info_tag = 'Solver'
 
-            preface = "[INFO][FMU status:OK] "
-            solver_info_tag = 'Solver'
-
-            msg = preface + '<%s>Successful solver step at <value name="t">        %.14E</value>.'%(solver_info_tag, solver.t)
-            self._model.append_log_message("Model", 6, msg)
-
-            if solver.clock_step:
-                msg = preface + '  <value name="elapsed_real_time">        %.14E</value>'%(solver.get_elapsed_step_time())
+                msg = preface + '<%s>Successful solver step at <value name="t">        %.14E</value>.'%(solver_info_tag, solver.t)
                 self._model.append_log_message("Model", 6, msg)
 
-            support_solver_order = solver_name=="CVode" 
-            if support_solver_order:
-                msg = preface + '  <value name="solver_order">%d</value>'%(solver.get_last_order())
-                self._model.append_log_message("Model", 6, msg)
+                if solver.clock_step:
+                    msg = preface + '  <value name="elapsed_real_time">        %.14E</value>'%(solver.get_elapsed_step_time())
+                    self._model.append_log_message("Model", 6, msg)
 
-            support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE") 
-            if support_state_errors:
-                state_errors = ''
-                for i in solver.get_weighted_local_errors():
-                    state_errors += "        %.14E,"%i
-                msg = preface + '  <vector name="state_error">' + state_errors[:-1] + '</vector>'
-                self._model.append_log_message("Model", 6, msg)
+                support_solver_order = solver_name=="CVode" 
+                if support_solver_order:
+                    msg = preface + '  <value name="solver_order">%d</value>'%(solver.get_last_order())
+                    self._model.append_log_message("Model", 6, msg)
+
+                support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE") 
+                if support_state_errors:
+                    state_errors = ''
+                    for i in solver.get_weighted_local_errors():
+                        state_errors += "        %.14E,"%i
+                    msg = preface + '  <vector name="state_error">' + state_errors[:-1] + '</vector>'
+                    self._model.append_log_message("Model", 6, msg)
 
                 if self._g_nbr > 0:
                     msg = preface + '  <vector name="event_indicators">'
@@ -1062,8 +1109,37 @@ cdef class FMIODE2(cExplicit_Problem):
                     self._model.append_log_message("Model", 6, msg)
 
 
-            msg = preface + '</%s>'%(solver_info_tag)
-            self._model.append_log_message("Model", 6, msg)
+                msg = preface + '</%s>'%(solver_info_tag)
+                self._model.append_log_message("Model", 6, msg)
+            else:
+                diag_data = N.ndarray(self.export.nof_diag_vars,dtype=float)
+                index = 0
+                diag_data[index] = solver.t
+                index +=1
+                if solver.clock_step:
+                    diag_data[index] = solver.get_elapsed_step_time()
+                    index +=1
+                solver_name = solver.__class__.__name__
+                if solver_name == "CVode":
+                    diag_data[index] = solver.get_last_order()
+                    index +=1
+                support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE") 
+                if support_state_errors and self._f_nbr > 0:
+                    for e in solver.get_weighted_local_errors():
+                        diag_data[index] = e
+                        index +=1
+                support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="LSODAR" or solver_name=="ImplicitEuler")
+                if self._g_nbr > 0 and support_event_indicators:
+                    for ei in ev_indicator_values:
+                        diag_data[index] = ei
+                        index +=1
+                
+                    for ei in range(len(ev_indicator_values)):
+                        diag_data[index] = 0
+                        index +=1
+                if support_event_indicators:    
+                    diag_data[index] = float(-1)
+                self.export.diagnostics_point(diag_data)
 
 
         if self.model_me2_instance:
@@ -1099,7 +1175,7 @@ cdef class FMIODE2(cExplicit_Problem):
             if solver.linear_solver == "SPARSE":
                 self._sparse_representation = True
         
-        if self._logging:
+        if self._logging and not (self._logging_to_mat == 1):
             solver_name = solver.__class__.__name__
             self.debug_file_object = open(self.debug_file_name, 'w')
             f = self.debug_file_object

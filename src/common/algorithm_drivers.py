@@ -106,7 +106,7 @@ class ResultBase(object):
         raise Exception("result file name has not been set")
     
     def _set_result_file(self, file_name):
-        self._result_file_name = result_file_name
+        self._result_file_name = file_name
         
     result_file = property(fget=_get_result_file, fset=_set_result_file, doc = 
     """

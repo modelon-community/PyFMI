@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2019 Modelon AB
+# Copyright (C) 2019-2021 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -20,6 +20,7 @@ import os
 import numpy as np
 import time
 from io import StringIO, BytesIO
+from collections import OrderedDict
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
@@ -744,8 +745,8 @@ class TestResultFileBinary:
     def test_on_demand_loading_32_bits(self):
         res_demand = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
         res_all = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
-        t_demand = res_demand.get_variable_data('time').x 
-        t_all = res_all.get_variable_data('time').x 
+        t_demand = res_demand.get_variable_data('time').x
+        t_all = res_all.get_variable_data('time').x
         np.testing.assert_array_equal(t_demand, t_all, "On demand loaded result and all loaded does not contain equal result.")
 
     @testattr(stddist = True)
@@ -931,6 +932,156 @@ class TestResultFileBinary:
         simple_alias = Dummy_FMUModelCS2([("x", "y")], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
         stream = BytesIO()
         _run_negated_alias(simple_alias, "binary", stream)
+
+    def _get_bouncing_ball_dummy(self):
+        """ Returns an instance of Dummy_FMUModelME2 using bouncingBall. """
+        return Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
+
+    @testattr(stddist = True)
+    def test_exception_simulation_start(self):
+        """ Verify exception is raised if simulation_start is invoked without arguments. """
+        model = self._get_bouncing_ball_dummy()
+        opts = model.simulate_options()
+        opts["logging"] = True
+        model.setup_experiment()
+        model.initialize()
+
+        bouncingBall = ResultHandlerBinaryFile(model)
+        bouncingBall.set_options(opts)
+        msg = "Unable to start simulation. The following keyword argument\(s\) are empty:"
+        msg += " 'diagnostics\_params' and 'diagnostics\_vars'."
+        with nose.tools.assert_raises_regex(FMUException, msg):
+            bouncingBall.simulation_start()
+
+    def _get_diagnostics_cancelled_sim(self, result_file_name):
+        """ Function used to test retrieving model variable data and diagnostics data with a cancelled sim.
+            Generalized for both files and streams.
+        """
+        diagnostics_params = OrderedDict()
+        diagnostics_vars = OrderedDict()
+
+        model = self._get_bouncing_ball_dummy()
+        opts = model.simulate_options()
+        model.setup_experiment()
+        model.initialize()
+
+        # Need to mock the diagnostics variables in order to invoke simulation_start
+        diagnostics_start_name = "Diagnostics."
+        diagnostics_params[diagnostics_start_name+"solver."+opts["solver"]] = (1.0, "Chosen solver.")
+        try:
+            rtol = opts['rtol']
+            atol = opts['atol']
+        except KeyError:
+            rtol, atol = model.get_tolerances()
+
+        diagnostics_vars[diagnostics_start_name+"step_time"] = (0.0, "Step time")
+        nof_states, nof_ei = model.get_ode_sizes()
+        for i in range(nof_ei):
+            diagnostics_vars[diagnostics_start_name+"event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
+
+        # values used as diagnostics data at each point
+        diag_data = np.array([val[0] for val in diagnostics_vars.values()], dtype=float)
+
+        opts["logging"] = True
+        opts["result_file_name"] = result_file_name
+
+        # Generate data
+        bouncingBall = ResultHandlerBinaryFile(model)
+        bouncingBall.set_options(opts)
+        bouncingBall.simulation_start(diagnostics_params=diagnostics_params, diagnostics_vars=diagnostics_vars)
+        bouncingBall.initialize_complete()
+
+        model.time += 0.1
+        diag_data[0] += 0.1
+        bouncingBall.diagnostics_point(diag_data)
+        bouncingBall.integration_point()
+
+        model.time += 0.1
+        diag_data[0] += 0.1
+        bouncingBall.diagnostics_point(diag_data)
+        bouncingBall.integration_point()
+
+        model.time += 0.1
+        diag_data[0] += 0.1
+        bouncingBall.diagnostics_point(diag_data)
+        diag_data[-1] = 1 # change one of the event indicators
+        bouncingBall.diagnostics_point(diag_data)
+        diag_data[-1] = 0 # change ev-indicator to original value again
+
+        model.time += 0.1
+        diag_data[0] += 0.1
+        bouncingBall.diagnostics_point(diag_data)
+        bouncingBall.integration_point()
+        if isinstance(result_file_name, str):
+            bouncingBall._file.close()
+
+        # Extract data to be veified
+        res = ResultDymolaBinary(result_file_name)
+        h = res.get_variable_data('h')
+        derh = res.get_variable_data('der(h)')
+        ev_ind = res.get_variable_data(diagnostics_start_name+'event_info.state_event_info.index_1').x
+
+        # Verify
+        nose.tools.assert_almost_equal(h.x[0], 1.000000, 5, msg="Incorrect initial value for 'h', should be 1.0")
+        nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5, msg="Incorrect  value for 'derh', should be 0.0")
+        np.testing.assert_array_equal(ev_ind, np.array([0., 0., 0., 0., 1., 0.]))
+
+    @testattr(stddist = True)
+    def test_diagnostics_data_cancelled_simulation_mat_file(self):
+        """ Verify that we can retrieve data and diagnostics data after cancelled sim using matfile. """
+        self._get_diagnostics_cancelled_sim("TestCancelledSim.mat")
+
+    @testattr(stddist = True)
+    def test_diagnostics_data_cancelled_simulation_file_stream(self):
+        """ Verify that we can retrieve data and diagnostics data after cancelled sim using filestream. """
+        test_file_stream = open('myfilestream.txt', 'wb')
+        self._get_diagnostics_cancelled_sim(test_file_stream)
+
+    @testattr(stddist = True)
+    def test_diagnostics_numerical_values(self):
+        """ Verify that we get the expected values for some diagnostics. """
+        model = self._get_bouncing_ball_dummy()
+        opts = model.simulate_options()
+        opts["logging"] = True
+        opts["ncp"] = 250
+        res = model.simulate(options=opts)
+        length = len(res['h'])
+        np.testing.assert_array_equal(res['Diagnostics.event_data.event_info.event_type'], np.ones(length) * (-1))
+
+        expected_solver_order = np.ones(length)
+        expected_solver_order[0] = 0.0
+        np.testing.assert_array_equal(res['Diagnostics.solver.solver_order'], expected_solver_order)
+
+    @testattr(stddist = True)
+    def test_get_last_result_file0(self):
+        """ Verify get_last_result_file seems to point at the correct file. """
+        test_model = self._get_bouncing_ball_dummy()
+        file_name = "testname.mat"
+        test_model._result_file = file_name
+        nose.tools.assert_equal(test_model.get_last_result_file().split(os.sep)[-1], file_name,
+                                "Unable to find {} in string {}".format(file_name, test_model.get_last_result_file()))
+
+    @testattr(stddist = True)
+    def test_get_last_result_file1(self):
+        """ Verify get_last_result_file returns an absolute path. """
+        test_model = self._get_bouncing_ball_dummy()
+        file_name = "testname.mat"
+        test_model._result_file = file_name
+        nose.tools.assert_true(os.path.isabs(test_model.get_last_result_file()), "Expected abspath but got {}".format(test_model.get_last_result_file()))
+
+    @testattr(stddist = True)
+    def test_get_last_result_file2(self):
+        """ Verify get_last_result_file doesnt cause exception if the result file is not yet set. """
+        test_model = self._get_bouncing_ball_dummy()
+        test_model._result_file = None
+        nose.tools.assert_true(test_model.get_last_result_file() is None, "Expected None but got {}".format(test_model.get_last_result_file()))
+
+    @testattr(stddist = True)
+    def test_get_last_result_file3(self):
+        """ Verify get_last_result_file doesnt cause exception if the result file is not set correctly. """
+        test_model = self._get_bouncing_ball_dummy()
+        test_model._result_file = 123 # arbitrary number, just verify get_last_result_file works
+        nose.tools.assert_true(test_model.get_last_result_file() is None, "Expected None but got {}".format(test_model.get_last_result_file()))
 
 if assimulo_installed:
     class TestResultCSVTextual_Simulation:
