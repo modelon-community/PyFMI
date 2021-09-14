@@ -100,13 +100,15 @@ class AssimuloFMIAlgOptions(OptionBase):
             solver.
             Default: "Default"
 
-        logging --
-            If True, creates a logfile from the solver in the current
-            directory and enables logging of diagnostics data to logfile or resultfile,
-            based on simulation option 'result_handling'.
+        dynamic_diagnostics --
+            If True, and 'result_handling' is binary, diagnostics data will be written
+            to the resultfile.
 
-            The diagnostics data is available via the simulation results similar to FMU model variables
-            only if 'result_handling' is 'binary'.
+            The diagnostics data is available via the simulation results similar to FMU model variables.
+            Default: False
+
+        logging --
+            If True, creates a logfile from the solver in the current directory.
             Default: False
 
         result_handling --
@@ -114,7 +116,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             file (txt or binary) or stored in memory. One can also use a
             custom handler.
 
-            If 'result_handling' is 'binary' and 'logging' is also enabled,
+            If 'result_handling' is 'binary' and 'dynamic_diagnostics' is also enabled,
             the diagnostics data is written to the same binary file as data of FMU model variables.
             Note that these results are interpolated such that model variable trajectory points
             are given at the same time points as diagnostics data.
@@ -190,6 +192,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'result_file_name':'',
             'with_jacobian':"Default",
             'logging':False,
+            'dynamic_diagnostics':False,
             'result_handling':"binary",
             'result_handler': None,
             'return_result': True,
@@ -322,6 +325,11 @@ class AssimuloFMIAlg(AlgorithmBase):
         else:
             raise fmi.FMUException("Unknown option to result_handling.")
 
+        if self.options["dynamic_diagnostics"] and self.options["result_handling"] != "binary":
+            err_msg = "In order to simulate with dynamic diagnostics,"
+            err_msg += " the option for result handling must be set to binary."
+            raise fmi.FMUException(err_msg)
+
 
 
         self.result_handler.set_options(self.options)
@@ -342,7 +350,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.model.time = start_time #Set start time before initialization
                 self.model.initialize(tolerance=rtol)
 
-            elif isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2):
+            elif isinstance(self.model, ((fmi.FMUModelME2, fmi_coupled.CoupledFMUModelME2))):
                 self.model.setup_experiment(tolerance=rtol, start_time=self.start_time, stop_time=self.final_time)
                 self.model.initialize()
                 self.model.event_update()
@@ -359,7 +367,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         elif self.model.time is None:
             raise fmi.FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
 
-        if isinstance(self.result_handler, ResultHandlerBinaryFile):
+        if self.options["dynamic_diagnostics"]:
             self._setup_diagnostics_variables()
 
         #See if there is an time event at start time
@@ -375,7 +383,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         self.timings["initializing_fmu"] = time_end - time_start - time_res_init
         time_start = time_end
 
-        if isinstance(self.result_handler, ResultHandlerBinaryFile):
+        if self.options["dynamic_diagnostics"]:
             self.result_handler.simulation_start(self._diagnostics_params, self._diagnostics_vars)
         else:
             self.result_handler.simulation_start()
@@ -401,31 +409,75 @@ class AssimuloFMIAlg(AlgorithmBase):
             #else there will be an exception
             self.model.get(self.options["sensitivities"])
 
-        if not self.input and (isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)):
+        if not self.input and isinstance(self.model, ((fmi.FMUModelME2, fmi_coupled.CoupledFMUModelME2))):
             if self.options["sensitivities"]:
-                self.probl = FMIODESENS2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time, parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
+                self.probl = FMIODESENS2(self.model,
+                                         result_file_name = self.result_file_name,
+                                         with_jacobian = self.with_jacobian,
+                                         start_time = self.start_time,
+                                         parameters = self.options["sensitivities"],
+                                         logging = self.options["logging"],
+                                         result_handler = self.result_handler)
             else:
-                self.probl = FMIODE2(self.model, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler,extra_equations=self.options["extra_equations"])
-        elif isinstance(self.model, fmi.FMUModelME2) or isinstance(self.model, fmi_coupled.CoupledFMUModelME2):
+                self.probl = FMIODE2(self.model,
+                                     result_file_name = self.result_file_name,
+                                     with_jacobian = self.with_jacobian,
+                                     start_time = self.start_time,
+                                     logging = self.options["logging"],
+                                     dynamic_diagnostics = self.options["dynamic_diagnostics"],
+                                     result_handler = self.result_handler,
+                                     extra_equations = self.options["extra_equations"])
+        elif isinstance(self.model, ((fmi.FMUModelME2, fmi_coupled.CoupledFMUModelME2))):
             if self.options["sensitivities"]:
-                self.probl = FMIODESENS2(
-                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
+                self.probl = FMIODESENS2(self.model, input_traj,
+                                         result_file_name = self.result_file_name,
+                                         with_jacobian = self.with_jacobian,
+                                         start_time = self.start_time,
+                                         parameters = self.options["sensitivities"],
+                                         logging = self.options["logging"],
+                                         result_handler = self.result_handler)
             else:
-                self.probl = FMIODE2(
-                self.model, input_traj, result_file_name=self.result_file_name, with_jacobian=self.with_jacobian, start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler, extra_equations=self.options["extra_equations"])
+                self.probl = FMIODE2(self.model, input_traj,
+                                     result_file_name = self.result_file_name,
+                                     with_jacobian = self.with_jacobian,
+                                     start_time = self.start_time,
+                                     logging = self.options["logging"],
+                                     dynamic_diagnostics = self.options["dynamic_diagnostics"],
+                                     result_handler = self.result_handler,
+                                     extra_equations = self.options["extra_equations"])
 
         elif not self.input:
             if self.options["sensitivities"]:
-                self.probl = FMIODESENS(self.model, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
+                self.probl = FMIODESENS(self.model,
+                                        result_file_name = self.result_file_name,
+                                        with_jacobian = self.with_jacobian,
+                                        start_time = self.start_time,
+                                        parameters = self.options["sensitivities"],
+                                        logging = self.options["logging"],
+                                        result_handler = self.result_handler)
             else:
-                self.probl = FMIODE(self.model, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler)
+                self.probl = FMIODE(self.model,
+                                    result_file_name = self.result_file_name,
+                                    with_jacobian = self.with_jacobian,
+                                    start_time = self.start_time,
+                                    logging=self.options["logging"],
+                                    result_handler = self.result_handler)
         else:
             if self.options["sensitivities"]:
-                self.probl = FMIODESENS(
-                self.model, input_traj, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,parameters=self.options["sensitivities"],logging=self.options["logging"], result_handler=self.result_handler)
+                self.probl = FMIODESENS(self.model, input_traj,
+                                        result_file_name = self.result_file_name,
+                                        with_jacobian = self.with_jacobian,
+                                        start_time = self.start_time,
+                                        parameters = self.options["sensitivities"],
+                                        logging = self.options["logging"],
+                                        result_handler = self.result_handler)
             else:
-                self.probl = FMIODE(
-                self.model, input_traj, result_file_name=self.result_file_name,with_jacobian=self.with_jacobian,start_time=self.start_time,logging=self.options["logging"], result_handler=self.result_handler)
+                self.probl = FMIODE(self.model, input_traj,
+                                    result_file_name = self.result_file_name,
+                                    with_jacobian = self.with_jacobian,
+                                    start_time=self.start_time,
+                                    logging = self.options["logging"],
+                                    result_handler = self.result_handler)
 
         # instantiate solver and set options
         self.simulator = self.solver(self.probl)
@@ -460,11 +512,6 @@ class AssimuloFMIAlg(AlgorithmBase):
         # solver options
         try:
             self.solver_options = self.options[solver+'_options']
-            try:
-                self.solver_options['clock_step']
-            except KeyError:
-                if self.options['logging'] == True:
-                    self.solver_options['clock_step'] = True
         except KeyError: #Default solver options not found
             self.solver_options = {} #Empty dict
             try:
@@ -477,8 +524,10 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.solver_options["rtol"] = "Default"
             except AttributeError:
                 pass
-            if self.options['logging'] == True:
-                self.solver_options['clock_step'] = True
+
+        # if dynamic_diagnostics is True, enable clock_step
+        if self.options['dynamic_diagnostics']:
+            self.solver_options['clock_step'] = True
 
         #Check relative tolerance
         #If the tolerances are not set specifically, they are set
@@ -576,7 +625,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         self._diagnostics_vars = OrderedDict()
 
         try:
-            self._diagnostics_logging = self.options["logging"]
+            self._diagnostics_logging = self.options["dynamic_diagnostics"]
         except AttributeError:
             self._diagnostics_logging = False
 
@@ -889,7 +938,7 @@ class FMICSAlg(AlgorithmBase):
 
         # Initialize?
         if self.options['initialize']:
-            if isinstance(self.model, fmi.FMUModelCS1) or isinstance(self.model, fmi_extended.FMUModelME1Extended):
+            if isinstance(self.model, ((fmi.FMUModelCS1, fmi_extended.FMUModelME1Extended))):
                 self.model.initialize(start_time, final_time, stop_time_defined=self.options["stop_time_defined"])
 
             elif isinstance(self.model, fmi.FMUModelCS2):
