@@ -1065,7 +1065,7 @@ class TestResultFileBinary:
 
         err_msg = "In order to simulate with 'dynamic\_diagnostics', "
         err_msg += "the option for 'result\_handling' must be set to binary."
-        with nose.tools.assert_raises_regex(FMUException, err_msg):
+        with nose.tools.assert_raises_regex(fmi.InvalidOptionException, err_msg):
             model.simulate(options = opts)
 
 
