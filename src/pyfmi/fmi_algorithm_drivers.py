@@ -523,6 +523,19 @@ class AssimuloFMIAlg(AlgorithmBase):
                 raise fmi.InvalidOptionException(err_msg)
             self.options['logging'] = True
 
+        if self.options["dynamic_diagnostics"] or (self.options["logging"] and (self.options["result_handling"] == "binary")):
+            name_clashes = set(self.model.get_model_variables(filter="Diagnostics*"))
+            if name_clashes:
+                err_msg = "Unable to simulate with option 'dynamic_diagnostics',"
+                err_msg += " due to model variables named Diagnostics* causing"
+                err_msg += " name clashes with diagnostic variables."
+                n_clashes = len(name_clashes)
+                if n_clashes > 5:
+                    err_msg += "\n\tConsider renaming the {} variables causing name clashes.".format(n_clashes)
+                else:
+                    err_msg += "\n\tConsider renaming {}.".format(", ".join(name_clashes))
+                raise fmi.FMUException(err_msg)
+
         # solver options
         try:
             self.solver_options = self.options[solver+'_options']
