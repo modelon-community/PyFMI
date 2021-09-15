@@ -2456,7 +2456,10 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.nbr_diag_points = 0
         self.nof_diag_vars = len(diagnostics_vars)
         try:
-            self._with_diagnostics = opts["dynamic_diagnostics"]
+            # If we check for both we enable testing of mock-ups that utilize the option dynamic_diagnostics
+            # since logging will always be set to True if dynamic_diagnostics is True when
+            # invoked via normal simulation 'sequencing'
+            self._with_diagnostics = opts["logging"] or opts["dynamic_diagnostics"]
         except:
             self._with_diagnostics = False
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2014-2021 Modelon AB
+# Copyright (C) 2014 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -170,6 +170,12 @@ class FMIODE(Explicit_Problem):
         self._write_header = True
         self._logging = logging
 
+        if self._logging and isinstance(result_handler, ResultHandlerBinaryFile):
+            self._logging_to_mat = 1
+        else:
+            self._logging_to_mat = 0
+
+
         #Stores the first time point
         #[r,i,b] = self._model.save_time_point()
 
@@ -311,10 +317,11 @@ class FMIODE(Explicit_Problem):
             for i in self._model.get_derivatives():
                 str_der += " %.14E"%i
 
-            fwrite = self._get_debug_file_object()
-            fwrite.write("\nDetected event at t = %.14E \n"%solver.t)
-            fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
-            fwrite.write(" Time  event info:  "+str(event_info[1])+ "\n")
+            if self._logging_to_mat == 0:
+                fwrite = self._get_debug_file_object()
+                fwrite.write("\nDetected event at t = %.14E \n"%solver.t)
+                fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
+                fwrite.write(" Time  event info:  "+str(event_info[1])+ "\n")
 
         eInfo = self._model.get_event_info()
         eInfo.iterationConverged = False
@@ -345,7 +352,7 @@ class FMIODE(Explicit_Problem):
         if eInfo.terminateSimulation:
             raise TerminateSimulation #Exception from Assimulo
 
-        if self._logging:
+        if self._logging and (self._logging_to_mat == 0):
             str_ind2 = ""
             for i in self._model.get_event_indicators():
                 str_ind2 += " %.14E"%i
@@ -411,25 +418,26 @@ class FMIODE(Explicit_Problem):
                 msg = preface + "</%s>"%solver_name
                 self._model.append_log_message("Model", 6, msg)
 
-            data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
+            if self._logging_to_mat == 0:
+                data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
 
-            if solver.__class__.__name__=="CVode": #Only available for CVode
-                ele = solver.get_local_errors()
-                eweight = solver.get_error_weights()
-                err = ele*eweight
-                str_err = " |"
-                for i in err:
-                    str_err += " %.14E"%i
-                data_line += " | %d"%solver.get_last_order()+str_err
+                if solver.__class__.__name__=="CVode": #Only available for CVode
+                    ele = solver.get_local_errors()
+                    eweight = solver.get_error_weights()
+                    err = ele*eweight
+                    str_err = " |"
+                    for i in err:
+                        str_err += " %.14E"%i
+                    data_line += " | %d"%solver.get_last_order()+str_err
 
-            if self._g_nbr > 0:
-                str_ev = " |"
-                for i in self._model.get_event_indicators():
-                    str_ev += " %.14E"%i
-                data_line += str_ev
+                if self._g_nbr > 0:
+                    str_ev = " |"
+                    for i in self._model.get_event_indicators():
+                        str_ev += " %.14E"%i
+                    data_line += str_ev
 
-            fwrite = self._get_debug_file_object()
-            fwrite.write(data_line+"\n")
+                fwrite = self._get_debug_file_object()
+                fwrite.write(data_line+"\n")
 
         if self._model.completed_integrator_step():
             self._logg_step_event += [solver.t]
@@ -456,7 +464,7 @@ class FMIODE(Explicit_Problem):
         return self.debug_file_object
 
     def initialize(self, solver):
-        if self._logging:
+        if self._logging and (self._logging_to_mat == 0):
             self.debug_file_object = open(self.debug_file_name, 'w')
             f = self.debug_file_object
 
@@ -576,7 +584,7 @@ cdef class FMIODE2(cExplicit_Problem):
 
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False,
-                 result_handler=None, extra_equations=None, dynamic_diagnostics = False):
+                 result_handler=None, extra_equations=None):
         """
         Initialize the problem.
         """
@@ -631,7 +639,7 @@ cdef class FMIODE2(cExplicit_Problem):
         self._sparse_representation = False
         self._with_jacobian = with_jacobian
 
-        if dynamic_diagnostics:
+        if self._logging and isinstance(result_handler, ResultHandlerBinaryFile):
             self._logging_to_mat = 1
         else:
             self._logging_to_mat = 0
@@ -924,12 +932,12 @@ cdef class FMIODE2(cExplicit_Problem):
             for i in self._model.get_derivatives():
                 str_der += " %.14E"%i
 
-            fwrite = self._get_debug_file_object()
-            fwrite.write("\nDetected event at t = %.14E \n"%solver.t)
-            fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
-            fwrite.write(" Time  event info:  "+str(event_info[1])+ "\n")
+            if self._logging_to_mat == 0:
+                fwrite = self._get_debug_file_object()
+                fwrite.write("\nDetected event at t = %.14E \n"%solver.t)
+                fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
+                fwrite.write(" Time  event info:  "+str(event_info[1])+ "\n")
 
-            if not (self._logging_to_mat == 1):
                 preface = "[INFO][FMU status:OK] "
                 event_info_tag = 'EventInfo'
 
@@ -1013,20 +1021,21 @@ cdef class FMIODE2(cExplicit_Problem):
             for i in self._model.get_derivatives():
                 str_der2 += " %.14E"%i
 
-            fwrite = self._get_debug_file_object()
-            fwrite.write(" Indicators (pre) : "+str_ind + "\n")
-            fwrite.write(" Indicators (post): "+str_ind2+"\n")
-            fwrite.write(" States (pre) : "+str_states + "\n")
-            fwrite.write(" States (post): "+str_states2 + "\n")
-            fwrite.write(" Derivatives (pre) : "+str_der + "\n")
-            fwrite.write(" Derivatives (post): "+str_der2 + "\n\n")
+            if self._logging_to_mat == 0:
+                fwrite = self._get_debug_file_object()
+                fwrite.write(" Indicators (pre) : "+str_ind + "\n")
+                fwrite.write(" Indicators (post): "+str_ind2+"\n")
+                fwrite.write(" States (pre) : "+str_states + "\n")
+                fwrite.write(" States (post): "+str_states2 + "\n")
+                fwrite.write(" Derivatives (pre) : "+str_der + "\n")
+                fwrite.write(" Derivatives (post): "+str_der2 + "\n\n")
 
-            header = "Time (simulated) | Time (real) | "
-            if solver.__class__.__name__=="CVode" or solver.__class__.__name__=="Radau5ODE": #Only available for CVode
-                header += "Order | Error (Weighted)"
-            if self._g_nbr > 0:
-                header += "Indicators"
-            fwrite.write(header+"\n")
+                header = "Time (simulated) | Time (real) | "
+                if solver.__class__.__name__=="CVode" or solver.__class__.__name__=="Radau5ODE": #Only available for CVode
+                    header += "Order | Error (Weighted)"
+                if self._g_nbr > 0:
+                    header += "Indicators"
+                fwrite.write(header+"\n")
 
         #Enter continuous mode again
         self._model.enter_continuous_time_mode()
@@ -1074,10 +1083,10 @@ cdef class FMIODE2(cExplicit_Problem):
                     str_ev += " %.14E"%i
                 data_line += str_ev
 
-            fwrite = self._get_debug_file_object()
-            fwrite.write(data_line+"\n")
 
-            if not (self._logging_to_mat == 1):
+            if self._logging_to_mat == 0:
+                fwrite = self._get_debug_file_object()
+                fwrite.write(data_line+"\n")
                 preface = "[INFO][FMU status:OK] "
                 solver_info_tag = 'Solver'
 
@@ -1175,7 +1184,7 @@ cdef class FMIODE2(cExplicit_Problem):
             if solver.linear_solver == "SPARSE":
                 self._sparse_representation = True
 
-        if self._logging:
+        if self._logging and (self._logging_to_mat == 0):
             solver_name = solver.__class__.__name__
             self.debug_file_object = open(self.debug_file_name, 'w')
             f = self.debug_file_object
