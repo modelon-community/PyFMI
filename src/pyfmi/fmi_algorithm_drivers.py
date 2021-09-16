@@ -101,14 +101,13 @@ class AssimuloFMIAlgOptions(OptionBase):
             Default: "Default"
 
         dynamic_diagnostics --
-            If True, will enable logging of diagnostics data to the binary result file and requires that
+            If True, enables logging of diagnostics data to the binary result file. This requires that
             the option 'result_handling' is set to 'binary', otherwise an exception is raised.
             Model variable names are not allowed to start with 'Diagnostics'using this option
-            and a check for this performed before simulation start. If this criteria is not
+            and a check for this is performed before simulation start. If this criteria is not
             met an exception is raised.
             The diagnostics data will be available via the simulation resuls and/or the
             binary result file generated during simulation.
-
             Default: False
 
         logging --
