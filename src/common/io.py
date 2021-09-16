@@ -1274,10 +1274,10 @@ class ResultDymolaBinary(ResultDymola):
         nbr_variables  = self._name_info["nbr_variables"]
 
         name_dict = fmi_util.read_name_list(encode(self._fname), file_position, int(nbr_variables), int(max_length))
-        
+
         if self._contains_diagnostic_data:  # Populate name dict with diagnostics variables calculated on the fly
-            dict_names = list(name_dict.keys())       
-            name_dict['Diagnostics.solver.cum_nbr_steps'] = None      
+            dict_names = list(name_dict.keys())
+            name_dict['Diagnostics.solver.cum_nbr_steps'] = None
             for name in dict_names:
                 if python3_flag and isinstance(name, bytes):
                     name = decode(name)
@@ -1290,7 +1290,7 @@ class ResultDymolaBinary(ResultDymola):
                     state_name = name.replace('Diagnostics.state_errors.', '')
                     name_dict['Diagnostics.cum_nbr_state_limits_step.'+state_name] = None
                 if name == 'Diagnostics.cpu_time':
-                    name_dict['Diagnostics.cum_cpu_time'] = None                   
+                    name_dict['Diagnostics.cum_cpu_time'] = None
 
         return name_dict
 
@@ -1389,8 +1389,8 @@ class ResultDymolaBinary(ResultDymola):
 
         if name == 'time' or name== 'Time':
             varInd = 0
-        elif name in ['Diagnostics.event_data.cum_nbr_events', 
-                        'Diagnostics.event_data.cum_nbr_time_events', 
+        elif name in ['Diagnostics.event_data.cum_nbr_events',
+                        'Diagnostics.event_data.cum_nbr_time_events',
                         'Diagnostics.event_data.cum_nbr_state_events',
                         'Diagnostics.solver.cum_nbr_steps']:
             return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_cum_events_and_steps(name))
@@ -1493,8 +1493,8 @@ class ResultDymolaBinary(ResultDymola):
         """
         if name == 'time' or name== 'Time':
             return True
-        elif name in ['Diagnostics.event_data.cum_nbr_events', 
-                        'Diagnostics.event_data.cum_nbr_time_events', 
+        elif name in ['Diagnostics.event_data.cum_nbr_events',
+                        'Diagnostics.event_data.cum_nbr_time_events',
                         'Diagnostics.event_data.cum_nbr_state_events',
                         'Diagnostics.solver.cum_nbr_steps',
                         'Diagnostics.cum_cpu_time']:
@@ -2456,7 +2456,10 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.nbr_diag_points = 0
         self.nof_diag_vars = len(diagnostics_vars)
         try:
-            self._with_diagnostics = opts["logging"]
+            # If we check for both we enable testing of mock-ups that utilize the option dynamic_diagnostics
+            # since logging will always be set to True if dynamic_diagnostics is True when
+            # invoked via normal simulation 'sequencing'
+            self._with_diagnostics = opts["logging"] or opts["dynamic_diagnostics"]
         except:
             self._with_diagnostics = False
 
