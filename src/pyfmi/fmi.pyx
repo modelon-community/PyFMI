@@ -193,6 +193,13 @@ class IOException(FMUException):
     """
         Exception covering issues related to writing/reading data.
     """
+    pass
+
+class InvalidOptionException(FMUException):
+    """
+        Exception covering issues related to invalid choices of options.
+    """
+    pass
 
 class TimeLimitExceeded(FMUException):
     pass
