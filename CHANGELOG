@@ -1,4 +1,8 @@
 --- CHANGELOG ---
+--- PyFMI-2.9.1 ---
+    * Added new simulation option 'dynamic_diagnostics' to better illustrate the purpose of enabling 'logging' when 'result_handling' is set to True.
+    * Updated also such that the text file 'model identifier + _debug.txt' is no longer generated when logging to the binary result file.
+
 --- PyFMI-2.9 ---
     * Saving diagnostic data in binary result file instead of log file.
     * Attempts to get continuous states when there are no such states will now return fmi2_status_ok instead of an error.
