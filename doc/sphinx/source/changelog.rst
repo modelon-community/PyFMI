@@ -2,6 +2,9 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.9.2 ---
+    * Made error check with 'dynamic_diagnostics' less restrictive to also allow custom result handlers. In 2.9.1 only a binary result handler was allowed.
+
 --- PyFMI-2.9.1 ---
     * Added new simulation option 'dynamic_diagnostics' to better illustrate the purpose of enabling 'logging' when 'result_handling' is set to True.
     * Updated also such that the text file 'model identifier + _debug.txt' is no longer generated when logging to the binary result file.
@@ -15,7 +18,7 @@ Changelog
 
 --- PyFMI-2.8.9 ---
     * Reverted a fix added in 2.8.8 intended to make sure a log file was not created if no log messages due to potential issues with the implementation.
-    
+
 --- PyFMI-2.8.8 ---
     * Added support for writing result data to streams.
     * Fixed bug with on demand loading with data stored as 32 bit.
@@ -28,13 +31,13 @@ Changelog
     * Updated exception types when loading an FMU fails.
     * Delayed creating of a log file. I.e. if there is no log messages
       a log file will not be created.
-      
+
 --- PyFMI-2.8.7 ---
-    * Added safety check for updated binary files which can cause 
+    * Added safety check for updated binary files which can cause
       issues.
-    * Fixed so that a matrix of all the result from a binary file can 
+    * Fixed so that a matrix of all the result from a binary file can
       be retrieved even if delayed loading is used.
-      
+
 --- PyFMI-2.8.6 ---
     * Fixed so that the written binary file is always consistent (i.e.
       if a simulation aborts, it can still be read)
@@ -42,11 +45,11 @@ Changelog
       trajectories are loaded on demand instead of all at the same time.
     * Updated Master algorithm options documentation and fixed result
       file naming.
-    * Fixed 'block_initialization' in Master algorithm when using 
+    * Fixed 'block_initialization' in Master algorithm when using
       Python 3
     * Fixed so that .initial is set properly on ScalarVariable2.
     * Fixed get_variable_nominal when called for valueref of variable.
-    
+
 --- PyFMI-2.8.5 ---
     * Added support for option 'logging' for different ODE solvers.
 
@@ -82,15 +85,15 @@ Changelog
 
 --- PyFMI-2.7.2 ---
     * Corrected version number.
-    
+
 --- PyFMI-2.7.1 ---
     * Fixed so that free/terminate methods are called correctly
 
 --- PyFMI-2.7 ---
-    * Fixed logging messages being printed to the console during 
+    * Fixed logging messages being printed to the console during
       instantiation for FMI 1.0
     * Minor encoding issues fixed when retrieving declared types
-    
+
 --- PyFMI-2.6.1 ---
     * Minor fix in handling bytes/str in Python 3
 
@@ -112,7 +115,7 @@ Changelog
     * Fixed such that instance attributes 'name' and 'raw_name' in class ResultDymolaBinary
       are now attributes that consists of strings instead of bytes in Python 3.
     * Fixed issue with set_string when input was a list of strings in Python 3.
-    * Methods _get_types_platform and get_version now returns data of type string 
+    * Methods _get_types_platform and get_version now returns data of type string
       instead of bytes with Python 3.
     * Fixed other bytes/string incompabilities that caused exceptions with
       Python 3.
@@ -126,9 +129,9 @@ Changelog
       a sparse solver is used) (ticket:5666)
     * Changed default value for Jacobian compression (if CVode is used
       and the systemsize is >10 then Jacobian compression is used) (ticket:5666)
-    * Added option to specify if the variable descriptions should be 
+    * Added option to specify if the variable descriptions should be
       stored or not in the result file (ticket:5846)
-    * Fixed issue with estimating directional derivatives when the 
+    * Fixed issue with estimating directional derivatives when the
       structure info is not used and the matrix has zero dim (ticket:5836)
 
 --- PyFMI-2.5.4 ---
@@ -238,7 +241,7 @@ Changelog
     * Bug fixes (ticket:4264, ticket:4281)
     * Fix for discard of CS FMUs (ticket:4234)
     * Method for getting real status (ticket:4233)
-    
+
 --- PyFMI-2.0 ---
     * Support for FMI2
     * Added initial to scalar variable (ticket:4146)
@@ -246,15 +249,15 @@ Changelog
     * Fixed saving of enumeration variables (ticket:3778)
     * Added a plot GUI (ticket:1657, ticket:1658, ticket:3703, ticket:4047, ticket:4121)
     * Bug fixes (ticket:3778, ticket:4054, ticket:4053)
-    
+
 --- PyFMI-1.5 ---
     * Added dummy result handler (ticket:3521)
     * Option to implicit euler (ticket:3614)
     * Support for FMI2 RC2 (ticket:3680)
-    
+
 --- PyFMI-1.4.1 ---
     * Improved base result (ticket:3534)
-    
+
 --- PyFMI-1.4 ---
     * Fixed seg fault on Windows (ticket:1947)
     * Added CS example (ticket:2363)
@@ -285,11 +288,11 @@ Changelog
     * Option to get the default experiment data (ticket:2564)
     * Bug fixes (ticket:2489, ticket:2569, ticket:2877, ticket:2916)
 
-    
+
 --- PyFMI-1.2 ---
     * Added check for empty last error (ticket:2474)
     * Updated bouncingball example (ticket:2478)
-    
+
 --- PyFMI-1.2b1 ---
     * Import and simulation of co-simulation FMUs (ticket:2230)
     * Updated setup script (ticket:2293, ticket:2336)
@@ -297,12 +300,11 @@ Changelog
     * Added convenience method getting variable by value ref (ticket:2480)
     * Minor improvements (ticket:2294, ticket:2453)
     * Minor bug fixes (ticket:2314, ticket:2412, ticket:2336)
-    
+
 --- PyFMI-1.1 ---
     * Included FMIL in setup (ticket:1940)
     * Fixed static / shared linking (ticket:2216)
-    
+
 --- PyFMI-1.1b1 ---
     * Changed internals to use FMI Library (FMIL) (ticket:1920)
     * Minor bug fixes (ticket:2203, ticket:1952)
-
