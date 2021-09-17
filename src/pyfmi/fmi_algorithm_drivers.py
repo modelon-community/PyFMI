@@ -102,7 +102,7 @@ class AssimuloFMIAlgOptions(OptionBase):
 
         dynamic_diagnostics --
             If True, enables logging of diagnostics data to the binary result file. This requires that
-            the option 'result_handling' is set to 'binary', otherwise an exception is raised.
+            the option 'result_handler' is an instance of ResultHandlerBinaryFile, otherwise an exception is raised.
             Model variable names are not allowed to start with 'Diagnostics'using this option
             and a check for this is performed before simulation start. If this criteria is not
             met an exception is raised.
@@ -116,7 +116,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             based on simulation option 'result_handling'.
 
             The diagnostics data is available via the simulation results similar to FMU model variables
-            only if 'result_handling' is 'binary'.
+            only if 'result_handler' is an instance of ResultHandlerBinaryFile.
             Default: False
 
         result_handling --
@@ -124,7 +124,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             file (txt or binary) or stored in memory. One can also use a
             custom handler.
 
-            If 'result_handling' is 'binary' and 'logging' is also enabled,
+            If 'result_handling' is 'binary', and 'logging' is also enabled,
             the diagnostics data is written to the same binary file as data of FMU model variables.
             Note that these results are interpolated such that model variable trajectory points
             are given at the same time points as diagnostics data.
@@ -514,9 +514,12 @@ class AssimuloFMIAlg(AlgorithmBase):
                 "The solver: "+solver+ " is unknown.")
 
         if self.options["dynamic_diagnostics"]:
-            if self.options["result_handling"] != "binary":
+            # Now result_handling must be 'binary'
+            # or, result_handling 'custom' and 'result_handler' instance of ResultHandlerBinaryFile
+            if not ((self.options["result_handling"] == "binary") or \
+                (self.options["result_handling"] == "custom" and isinstance(self.options["result_handler"], ResultHandlerBinaryFile))):
                 err_msg = "In order to simulate with 'dynamic_diagnostics',"
-                err_msg += " the option for 'result_handling' must be set to binary."
+                err_msg += " the 'result_handler' must be an instance of ResultHandlerBinaryFile."
                 raise fmi.InvalidOptionException(err_msg)
             self.options['logging'] = True
 

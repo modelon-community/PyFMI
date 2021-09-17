@@ -1064,10 +1064,46 @@ class TestResultFileBinary:
         opts["result_handling"] = "csv" # set to anything except "binary"
 
         err_msg = "In order to simulate with 'dynamic\_diagnostics', "
-        err_msg += "the option for 'result\_handling' must be set to binary."
+        err_msg += "the 'result_handler' must be an instance of ResultHandlerBinaryFile."
         with nose.tools.assert_raises_regex(fmi.InvalidOptionException, err_msg):
             model.simulate(options = opts)
 
+    @testattr(stddist = True)
+    def test_exception_dynamic_diagnostics_and_non_binary_result_handling1(self):
+        """ Verify that exception is raised if dynamic diagnostics is True and result_handling is custom and invalid class. """
+        model = self._get_bouncing_ball_dummy()
+        opts = model.simulate_options()
+        opts["dynamic_diagnostics"] = True
+        opts["result_handling"] = "custom" # set to anything except "binary"
+
+        class Foo:
+            pass
+        opts["result_handler"] = Foo()
+        err_msg = "In order to simulate with 'dynamic\_diagnostics', "
+        err_msg += "the 'result_handler' must be an instance of ResultHandlerBinaryFile."
+        with nose.tools.assert_raises_regex(fmi.InvalidOptionException, err_msg):
+            model.simulate(options = opts)
+
+    @testattr(stddist = True)
+    def test_exception_dynamic_diagnostics_and_non_binary_result_handling2(self):
+        """ Verify that exception is raised if dynamic diagnostics is True and result_handling is custom and valid class. """
+        model = self._get_bouncing_ball_dummy()
+        opts = model.simulate_options()
+        opts["dynamic_diagnostics"] = True
+        opts["result_handling"] = "custom" # set to anything except "binary"
+
+        opts["result_handler"] = ResultHandlerBinaryFile(model)
+        no_error = False
+        exception_msg = ""
+        try:
+            model.simulate(options = opts)
+            no_error = True
+        except Exception as e:
+            no_error = False
+            exception_msg = str(e)
+            raise e
+        # In case error did not stop the test run
+        nose.tools.assert_true(no_error, "Error occurred: {}".format(exception_msg))
 
     def _test_no_debug_file(self, fmu_type):
         model = self._get_bouncing_ball_dummy(fmu_type=fmu_type)
