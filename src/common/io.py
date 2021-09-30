@@ -2381,6 +2381,7 @@ class ResultHandlerBinaryFile(ResultHandler):
     """
     def __init__(self, model):
         self.model = model
+        self.data_2_header_end_position = 0
 
     def _data_header(self, name, nbr_rows, nbr_cols, data_type):
         if data_type == "int":
@@ -2563,6 +2564,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._len_vars_ref =  len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref)+1
         self._data_2_header = self._data_header("data_2", self._len_vars_ref, 1, "double")
         self.__write_header(self._data_2_header, "data_2")
+        self.data_2_header_end_position = self._file.tell()
 
         self.real_var_ref = np.array(sorted_vars_real_vref)
         self.int_var_ref  = np.array(sorted_vars_int_vref)
