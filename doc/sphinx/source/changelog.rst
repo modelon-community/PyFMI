@@ -2,6 +2,9 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.9.3 ---
+    * Added an internal class variable in ResultHandlerFile to keep track of file position where the data header ends.
+
 --- PyFMI-2.9.2 ---
     * Made error check with 'dynamic_diagnostics' less restrictive to also allow custom result handlers. In 2.9.1 only a binary result handler was allowed.
 
