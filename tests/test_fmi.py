@@ -53,10 +53,12 @@ if assimulo_installed:
     class Test_FMUModelME1_Simulation:
         @testattr(stddist = True)
         def test_simulate_with_debug_option_no_state(self):
+            """ Verify that an instance of CVodeDebugInformation is created """
             model = Dummy_FMUModelME1([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
 
             opts=model.simulate_options()
             opts["logging"] = True
+            opts["result_handling"] = "csv" # set to anything except 'binary'
 
             #Verify that a simulation is successful
             res=model.simulate(options=opts)
@@ -135,7 +137,7 @@ class Test_FMUModelME1:
 
     @testattr(stddist = True)
     def test_invalid_binary(self):
-        err_msg = "The FMU could not be loaded. The FMU contains no binary for this platform."
+        err_msg = "The FMU could not be loaded."
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu")
         with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
             model = FMUModelME1(fmu, _connect_dll=True)
@@ -265,7 +267,7 @@ class Test_FMUModelCS1:
 
     @testattr(stddist = True)
     def test_invalid_binary(self):
-        err_msg = "The FMU could not be loaded. The FMU contains no binary for this platform."
+        err_msg = "The FMU could not be loaded."
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "NegatedAlias.fmu")
         with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
             model = FMUModelCS1(fmu, _connect_dll=True)
@@ -485,7 +487,7 @@ class Test_FMUModelCS2:
 
     @testattr(stddist = True)
     def test_invalid_binary(self):
-        err_msg = "The FMU could not be loaded. Error loading the binary. The FMU contains no binary for this platform."
+        err_msg = "The FMU could not be loaded."
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu")
         with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
             model = FMUModelCS2(fmu, _connect_dll=True)
@@ -617,10 +619,12 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_simulate_with_debug_option_no_state(self):
+            """ Verify that an instance of CVodeDebugInformation is created """
             model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
 
             opts=model.simulate_options()
             opts["logging"] = True
+            opts["result_handling"] = "csv" # set to anything except 'binary'
 
             #Verify that a simulation is successful
             res=model.simulate(options=opts)
@@ -830,7 +834,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_invalid_binary(self):
-        err_msg = "The FMU could not be loaded. Error loading the binary. The FMU contains no binary for this platform."
+        err_msg = "The FMU could not be loaded."
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu")
         with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
             model = FMUModelME2(fmu, _connect_dll=True)

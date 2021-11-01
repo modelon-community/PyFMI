@@ -2,6 +2,9 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.9.4 ---
+    * Resolved some tests in need of an update not properly designed for linux.
+
 --- PyFMI-2.9.3 ---
     * Added an internal class variable in ResultHandlerFile to keep track of file position where the data header ends.
 
