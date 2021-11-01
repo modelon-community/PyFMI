@@ -135,9 +135,9 @@ class Test_FMUModelME1:
         """ Test load and simulate unzipped ME FMU 1.0 using load_fmu """
         self._test_unzipped_bouncing_ball(load_fmu)
 
-    @testattr(windows_full = True)
+    @testattr(stddist = True)
     def test_invalid_binary(self):
-        err_msg = "The FMU could not be loaded. The FMU contains no binary for this platform."
+        err_msg = "The FMU could not be loaded."
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu")
         with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
             model = FMUModelME1(fmu, _connect_dll=True)
@@ -265,9 +265,9 @@ class Test_FMUModelCS1:
         """ Test load and simulate unzipped CS FMU 1.0 using load_fmu """
         self._test_unzipped_bouncing_ball(load_fmu)
 
-    @testattr(windows_full = True)
+    @testattr(stddist = True)
     def test_invalid_binary(self):
-        err_msg = "The FMU could not be loaded. The FMU contains no binary for this platform."
+        err_msg = "The FMU could not be loaded."
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "NegatedAlias.fmu")
         with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
             model = FMUModelCS1(fmu, _connect_dll=True)
@@ -485,9 +485,9 @@ class Test_FMUModelCS2:
         path, file_name = os.path.split(full_path)
         assert model.get_log_file_name() == file_name.replace(".","_")[:-4]+"_log.txt"
 
-    @testattr(windows_full = True)
+    @testattr(stddist = True)
     def test_invalid_binary(self):
-        err_msg = "The FMU could not be loaded. Error loading the binary. The FMU contains no binary for this platform."
+        err_msg = "The FMU could not be loaded."
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu")
         with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
             model = FMUModelCS2(fmu, _connect_dll=True)
@@ -832,9 +832,9 @@ class Test_FMUModelME2:
         with nose.tools.assert_raises_regex(FMUException, err_msg):
             model = FMUModelME2("LinearStability.SubSystem2.fmu", full_path, _connect_dll=False, allow_unzipped_fmu=True)
 
-    @testattr(windows_full = True)
+    @testattr(stddist = True)
     def test_invalid_binary(self):
-        err_msg = "The FMU could not be loaded. Error loading the binary. The FMU contains no binary for this platform."
+        err_msg = "The FMU could not be loaded."
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu")
         with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
             model = FMUModelME2(fmu, _connect_dll=True)
