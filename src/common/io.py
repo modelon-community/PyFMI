@@ -31,7 +31,7 @@ import scipy.io
 
 import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
-from pyfmi.common import python3_flag, encode, decode
+from pyfmi.common import python3_flag, encode, decode, diagnostics_prefix
 
 from scipy import interpolate
 from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template
@@ -1277,20 +1277,20 @@ class ResultDymolaBinary(ResultDymola):
 
         if self._contains_diagnostic_data:  # Populate name dict with diagnostics variables calculated on the fly
             dict_names = list(name_dict.keys())
-            name_dict['Diagnostics.solver.cum_nbr_steps'] = None
+            name_dict[f'{diagnostics_prefix}nbr_steps'] = None
             for name in dict_names:
                 if python3_flag and isinstance(name, bytes):
                     name = decode(name)
-                if name == 'Diagnostics.event_data.event_info.event_type':
-                    name_dict['Diagnostics.event_data.cum_nbr_time_events'] = None
-                    name_dict['Diagnostics.event_data.cum_nbr_state_events'] = None
-                    name_dict['Diagnostics.event_data.cum_nbr_events'] = None
+                if name == f'{diagnostics_prefix}event_data.event_info.event_type':
+                    name_dict[f'{diagnostics_prefix}nbr_time_events'] = None
+                    name_dict[f'{diagnostics_prefix}nbr_state_events'] = None
+                    name_dict[f'{diagnostics_prefix}nbr_events'] = None
                     continue
-                if 'Diagnostics.state_errors.' in name:
-                    state_name = name.replace('Diagnostics.state_errors.', '')
-                    name_dict['Diagnostics.cum_nbr_state_limits_step.'+state_name] = None
-                if name == 'Diagnostics.cpu_time':
-                    name_dict['Diagnostics.cum_cpu_time'] = None
+                if f'{diagnostics_prefix}state_errors.' in name:
+                    state_name = name.replace(f'{diagnostics_prefix}state_errors.', '')
+                    name_dict[f'{diagnostics_prefix}nbr_state_limits_step.'+state_name] = None
+                if name == f'{diagnostics_prefix}cpu_time_per_step':
+                    name_dict[f'{diagnostics_prefix}cpu_time'] = None
 
         return name_dict
 
@@ -1389,15 +1389,15 @@ class ResultDymolaBinary(ResultDymola):
 
         if name == 'time' or name== 'Time':
             varInd = 0
-        elif name in ['Diagnostics.event_data.cum_nbr_events',
-                        'Diagnostics.event_data.cum_nbr_time_events',
-                        'Diagnostics.event_data.cum_nbr_state_events',
-                        'Diagnostics.solver.cum_nbr_steps']:
-            return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_cum_events_and_steps(name))
-        elif 'Diagnostics.cum_nbr_state_limits_step.' in name:
-             return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_cum_nbr_state_limits_step(name))
-        elif name == 'Diagnostics.cum_cpu_time':
-            return Trajectory(self._get_diagnostics_trajectory(0), N.cumsum(self.get_variable_data('Diagnostics.cpu_time').x))
+        elif name in [f'{diagnostics_prefix}nbr_events',
+                      f'{diagnostics_prefix}nbr_time_events',
+                      f'{diagnostics_prefix}nbr_state_events',
+                      f'{diagnostics_prefix}nbr_steps']:
+            return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_events_and_steps(name))
+        elif f'{diagnostics_prefix}nbr_state_limits_step.' in name:
+             return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_nbr_state_limits_step(name))
+        elif name == f'{diagnostics_prefix}cpu_time':
+            return Trajectory(self._get_diagnostics_trajectory(0), N.cumsum(self.get_variable_data(f'{diagnostics_prefix}cpu_time_per_step').x))
         else:
             varInd  = self.get_variable_index(name)
 
@@ -1425,23 +1425,23 @@ class ResultDymolaBinary(ResultDymola):
         else:
             return Trajectory(self._get_diagnostics_trajectory(0),factor*self._get_interpolated_trajectory(dataInd))
 
-    def _calculate_cum_events_and_steps(self, name):
+    def _calculate_events_and_steps(self, name):
         if name in self._data_3:
             return self._data_3[name]
-        all_events_name = 'Diagnostics.event_data.cum_nbr_events'
-        time_events_name = 'Diagnostics.event_data.cum_nbr_time_events'
-        state_events_name = 'Diagnostics.event_data.cum_nbr_state_events'
-        cum_steps_name = 'Diagnostics.solver.cum_nbr_steps'
+        all_events_name = f'{diagnostics_prefix}nbr_events'
+        time_events_name = f'{diagnostics_prefix}nbr_time_events'
+        state_events_name = f'{diagnostics_prefix}nbr_state_events'
+        steps_name = f'{diagnostics_prefix}nbr_steps'
         try:
-            event_type_data = self.get_variable_data('Diagnostics.event_data.event_info.event_type')
+            event_type_data = self.get_variable_data(f'{diagnostics_prefix}event_data.event_info.event_type')
         except:
-            if name == cum_steps_name:
-                self._data_3[cum_steps_name] = N.array(range(len(self._get_diagnostics_trajectory(0))))
+            if name == steps_name:
+                self._data_3[steps_name] = N.array(range(len(self._get_diagnostics_trajectory(0))))
                 return self._data_3[name]
         self._data_3[all_events_name] = N.zeros(len(event_type_data.x))
         self._data_3[time_events_name] = N.zeros(len(event_type_data.x))
         self._data_3[state_events_name] = N.zeros(len(event_type_data.x))
-        self._data_3[cum_steps_name] = N.zeros(len(event_type_data.x))
+        self._data_3[steps_name] = N.zeros(len(event_type_data.x))
         nof_events = 0
         nof_time_events = 0
         nof_state_events = 0
@@ -1458,16 +1458,16 @@ class ResultDymolaBinary(ResultDymola):
             self._data_3[all_events_name][ind] = nof_events
             self._data_3[time_events_name][ind] = nof_time_events
             self._data_3[state_events_name][ind] = nof_state_events
-            self._data_3[cum_steps_name][ind] = nof_steps
+            self._data_3[steps_name][ind] = nof_steps
         return self._data_3[name]
 
-    def _calculate_cum_nbr_state_limits_step(self, name):
+    def _calculate_nbr_state_limits_step(self, name):
         if name in self._data_3:
             return self._data_3[name]
-        step_limitation_name = 'Diagnostics.cum_nbr_state_limits_step.'
+        step_limitation_name = f'{diagnostics_prefix}nbr_state_limits_step.'
         state_name = name.replace(step_limitation_name, '')
-        state_error_data = self.get_variable_data('Diagnostics.state_errors.'+state_name)
-        event_type_data = self.get_variable_data('Diagnostics.event_data.event_info.event_type')
+        state_error_data = self.get_variable_data(f'{diagnostics_prefix}state_errors.'+state_name)
+        event_type_data = self.get_variable_data(f'{diagnostics_prefix}event_data.event_info.event_type')
         self._data_3[name] = N.zeros(len(event_type_data.x))
         nof_times_state_limits_step = 0
         for ind, state_error in enumerate(state_error_data.x):
@@ -1493,13 +1493,13 @@ class ResultDymolaBinary(ResultDymola):
         """
         if name == 'time' or name== 'Time':
             return True
-        elif name in ['Diagnostics.event_data.cum_nbr_events',
-                        'Diagnostics.event_data.cum_nbr_time_events',
-                        'Diagnostics.event_data.cum_nbr_state_events',
-                        'Diagnostics.solver.cum_nbr_steps',
-                        'Diagnostics.cum_cpu_time']:
+        elif name in [f'{diagnostics_prefix}nbr_events',
+                      f'{diagnostics_prefix}nbr_time_events',
+                      f'{diagnostics_prefix}nbr_state_events',
+                      f'{diagnostics_prefix}nbr_steps',
+                      f'{diagnostics_prefix}cpu_time']:
             return True
-        elif 'Diagnostics.cum_nbr_state_limits_step.' in name:
+        elif f'{diagnostics_prefix}nbr_state_limits_step.' in name:
             return True
         varInd  = self.get_variable_index(name)
         dataMat = self.raw['dataInfo'][0][varInd]
