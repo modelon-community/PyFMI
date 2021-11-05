@@ -1438,10 +1438,10 @@ class ResultDymolaBinary(ResultDymola):
             if name == steps_name:
                 self._data_3[steps_name] = N.array(range(len(self._get_diagnostics_trajectory(0))))
                 return self._data_3[name]
-        self._data_3[all_events_name] = N.zeros(len(event_type_data.x))
-        self._data_3[time_events_name] = N.zeros(len(event_type_data.x))
-        self._data_3[state_events_name] = N.zeros(len(event_type_data.x))
-        self._data_3[steps_name] = N.zeros(len(event_type_data.x))
+        self._data_3[all_events_name] = (N.zeros(len(event_type_data.x)), "Cumulative number of events")
+        self._data_3[time_events_name] = (N.zeros(len(event_type_data.x)), "Cumulative number of time events")
+        self._data_3[state_events_name] = (N.zeros(len(event_type_data.x)), "Cumulative number of state events")
+        self._data_3[steps_name] = (N.zeros(len(event_type_data.x)), "Cumulative number of steps")
         nof_events = 0
         nof_time_events = 0
         nof_state_events = 0
@@ -1455,10 +1455,10 @@ class ResultDymolaBinary(ResultDymola):
                 nof_events += 1
             else:
                 nof_steps += 1
-            self._data_3[all_events_name][ind] = nof_events
-            self._data_3[time_events_name][ind] = nof_time_events
-            self._data_3[state_events_name][ind] = nof_state_events
-            self._data_3[steps_name][ind] = nof_steps
+            self._data_3[all_events_name][0][ind] = nof_events
+            self._data_3[time_events_name][0][ind] = nof_time_events
+            self._data_3[state_events_name][0][ind] = nof_state_events
+            self._data_3[steps_name][0][ind] = nof_steps
         return self._data_3[name]
 
     def _calculate_nbr_state_limits_step(self, name):
@@ -1468,12 +1468,12 @@ class ResultDymolaBinary(ResultDymola):
         state_name = name.replace(step_limitation_name, '')
         state_error_data = self.get_variable_data(f'{diagnostics_prefix}state_errors.'+state_name)
         event_type_data = self.get_variable_data(f'{diagnostics_prefix}event_data.event_info.event_type')
-        self._data_3[name] = N.zeros(len(event_type_data.x))
+        self._data_3[name] = (N.zeros(len(event_type_data.x)), "Cumulative number of times states limit the step")
         nof_times_state_limits_step = 0
         for ind, state_error in enumerate(state_error_data.x):
             if event_type_data.x[ind] == -1 and state_error >= 1.0:
                 nof_times_state_limits_step += 1
-            self._data_3[name][ind] = nof_times_state_limits_step
+            self._data_3[name][0][ind] = nof_times_state_limits_step
         return self._data_3[name]
 
 

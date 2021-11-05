@@ -648,9 +648,9 @@ class AssimuloFMIAlg(AlgorithmBase):
             self._diagnostics_logging = False
 
         if self._diagnostics_logging:
-            solver_name=self.options["solver"]
+            solver_name = self.options["solver"]
 
-            self._diagnostics_params[f"{diagnostics_prefix}solver.{solver_name}"] = (1.0, "Chosen solver.")
+            self._diagnostics_params[f"{diagnostics_prefix}solver.solver_name.{solver_name}"] = (1.0, "Chosen solver.")
 
             support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE")
             support_solver_order = solver_name=="CVode"
@@ -674,13 +674,13 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self._diagnostics_params[f"{diagnostics_prefix}solver.relative_tolerance"] = (rtol, "Relative solver tolerance.")
 
                 for idx, state in enumerate(states_list):
-                    self._diagnostics_params[f"{diagnostics_prefix}solver.absolute_tolerance."+state] = (atol[idx], "Absolute tolerance for "+state+".")
+                    self._diagnostics_params[f"{diagnostics_prefix}solver.absolute_tolerance."+state] = (atol[idx], "Absolute solver tolerance for "+state+".")
 
             self._diagnostics_vars[f"{diagnostics_prefix}step_time"] = (self.start_time, "Step time")
             if support_elapsed_time:
-                self._diagnostics_vars[f"{diagnostics_prefix}cpu_time_per_step"] = (0, "Cpu time for current step.")
+                self._diagnostics_vars[f"{diagnostics_prefix}cpu_time_per_step"] = (0, "CPU time per step.")
             if support_solver_order:
-                self._diagnostics_vars[f"{diagnostics_prefix}solver.solver_order"] = (0.0, "Solver order for CVode")
+                self._diagnostics_vars[f"{diagnostics_prefix}solver.solver_order"] = (0.0, "Solver order for CVode used in each time step")
             if support_state_errors:
                 for state in states_list:
                     self._diagnostics_vars[f"{diagnostics_prefix}state_errors."+state] = (0.0, "State error for "+state+".")
