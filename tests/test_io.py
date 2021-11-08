@@ -25,6 +25,8 @@ from collections import OrderedDict
 from pyfmi import testattr
 from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
 from pyfmi.common.io import ResultDymolaTextual, ResultDymolaBinary, ResultWriterDymola, JIOError, ResultHandlerCSV, ResultCSVTextual, ResultHandlerBinaryFile, ResultHandlerFile
+from pyfmi.common import diagnostics_prefix
+
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
@@ -969,7 +971,7 @@ class TestResultFileBinary:
         model.initialize()
 
         # Need to mock the diagnostics variables in order to invoke simulation_start
-        diagnostics_start_name = "Diagnostics."
+        diagnostics_start_name = diagnostics_prefix
         diagnostics_params[diagnostics_start_name+"solver."+opts["solver"]] = (1.0, "Chosen solver.")
         try:
             rtol = opts['rtol']
@@ -1169,11 +1171,11 @@ class TestResultFileBinary:
         opts["ncp"] = 250
         res = model.simulate(options=opts)
         length = len(res['h'])
-        np.testing.assert_array_equal(res['Diagnostics.event_data.event_info.event_type'], np.ones(length) * (-1))
+        np.testing.assert_array_equal(res[f'{diagnostics_prefix}event_data.event_info.event_type'], np.ones(length) * (-1))
 
         expected_solver_order = np.ones(length)
         expected_solver_order[0] = 0.0
-        np.testing.assert_array_equal(res['Diagnostics.solver.solver_order'], expected_solver_order)
+        np.testing.assert_array_equal(res[f'{diagnostics_prefix}solver.solver_order'], expected_solver_order)
 
     @testattr(stddist = True)
     def test_get_last_result_file0(self):

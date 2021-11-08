@@ -72,6 +72,19 @@ class ResultStorage:
         raise NotImplementedError
 
 
+class DiagnosticsBase:
+    """ Class serves as a template
+        to keep track of diagnostics variables not part of the generated result file.
+    """
+    calculated_diagnostics = {
+        'nbr_events': {'name': f'{diagnostics_prefix}nbr_events', 'description': 'Cumulative number of events'},
+        'nbr_time_events': {'name': f'{diagnostics_prefix}nbr_time_events', 'description': 'Cumulative number of time events'},
+        'nbr_state_events': {'name': f'{diagnostics_prefix}nbr_state_events', 'description': 'Cumulative number of state events'},
+        'nbr_steps': {'name': f'{diagnostics_prefix}nbr_steps', 'description': 'Cumulative number of steps'},
+        'nbr_state_limits_step': {'name': f'{diagnostics_prefix}nbr_state_limits_step', 'description': 'Cumulative number of times states limit the step'},
+
+    }
+
 class ResultHandler:
 
     def simulation_start(self):
@@ -1277,18 +1290,18 @@ class ResultDymolaBinary(ResultDymola):
 
         if self._contains_diagnostic_data:  # Populate name dict with diagnostics variables calculated on the fly
             dict_names = list(name_dict.keys())
-            name_dict[f'{diagnostics_prefix}nbr_steps'] = None
+            name_dict[DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']] = None
             for name in dict_names:
                 if python3_flag and isinstance(name, bytes):
                     name = decode(name)
                 if name == f'{diagnostics_prefix}event_data.event_info.event_type':
-                    name_dict[f'{diagnostics_prefix}nbr_time_events'] = None
-                    name_dict[f'{diagnostics_prefix}nbr_state_events'] = None
-                    name_dict[f'{diagnostics_prefix}nbr_events'] = None
+                    name_dict[DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name']] = None
+                    name_dict[DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name']] = None
+                    name_dict[DiagnosticsBase.calculated_diagnostics['nbr_events']['name']] = None
                     continue
                 if f'{diagnostics_prefix}state_errors.' in name:
                     state_name = name.replace(f'{diagnostics_prefix}state_errors.', '')
-                    name_dict[f'{diagnostics_prefix}nbr_state_limits_step.'+state_name] = None
+                    name_dict["{}.{}".format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name'], state_name)] = None
                 if name == f'{diagnostics_prefix}cpu_time_per_step':
                     name_dict[f'{diagnostics_prefix}cpu_time'] = None
 
@@ -1389,12 +1402,12 @@ class ResultDymolaBinary(ResultDymola):
 
         if name == 'time' or name== 'Time':
             varInd = 0
-        elif name in [f'{diagnostics_prefix}nbr_events',
-                      f'{diagnostics_prefix}nbr_time_events',
-                      f'{diagnostics_prefix}nbr_state_events',
-                      f'{diagnostics_prefix}nbr_steps']:
+        elif name in [DiagnosticsBase.calculated_diagnostics['nbr_events']['name'],
+                      DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name'],
+                      DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name'],
+                      DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']]:
             return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_events_and_steps(name))
-        elif f'{diagnostics_prefix}nbr_state_limits_step.' in name:
+        elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
              return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_nbr_state_limits_step(name))
         elif name == f'{diagnostics_prefix}cpu_time':
             return Trajectory(self._get_diagnostics_trajectory(0), N.cumsum(self.get_variable_data(f'{diagnostics_prefix}cpu_time_per_step').x))
@@ -1428,20 +1441,20 @@ class ResultDymolaBinary(ResultDymola):
     def _calculate_events_and_steps(self, name):
         if name in self._data_3:
             return self._data_3[name]
-        all_events_name = f'{diagnostics_prefix}nbr_events'
-        time_events_name = f'{diagnostics_prefix}nbr_time_events'
-        state_events_name = f'{diagnostics_prefix}nbr_state_events'
-        steps_name = f'{diagnostics_prefix}nbr_steps'
+        all_events_name = DiagnosticsBase.calculated_diagnostics['nbr_events']['name']
+        time_events_name = DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name']
+        state_events_name = DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name']
+        steps_name = DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']
         try:
             event_type_data = self.get_variable_data(f'{diagnostics_prefix}event_data.event_info.event_type')
         except:
             if name == steps_name:
                 self._data_3[steps_name] = N.array(range(len(self._get_diagnostics_trajectory(0))))
                 return self._data_3[name]
-        self._data_3[all_events_name] = (N.zeros(len(event_type_data.x)), "Cumulative number of events")
-        self._data_3[time_events_name] = (N.zeros(len(event_type_data.x)), "Cumulative number of time events")
-        self._data_3[state_events_name] = (N.zeros(len(event_type_data.x)), "Cumulative number of state events")
-        self._data_3[steps_name] = (N.zeros(len(event_type_data.x)), "Cumulative number of steps")
+        self._data_3[all_events_name] = N.zeros(len(event_type_data.x))
+        self._data_3[time_events_name] = N.zeros(len(event_type_data.x))
+        self._data_3[state_events_name] = N.zeros(len(event_type_data.x))
+        self._data_3[steps_name] = N.zeros(len(event_type_data.x))
         nof_events = 0
         nof_time_events = 0
         nof_state_events = 0
@@ -1455,25 +1468,25 @@ class ResultDymolaBinary(ResultDymola):
                 nof_events += 1
             else:
                 nof_steps += 1
-            self._data_3[all_events_name][0][ind] = nof_events
-            self._data_3[time_events_name][0][ind] = nof_time_events
-            self._data_3[state_events_name][0][ind] = nof_state_events
-            self._data_3[steps_name][0][ind] = nof_steps
+            self._data_3[all_events_name][ind] = nof_events
+            self._data_3[time_events_name][ind] = nof_time_events
+            self._data_3[state_events_name][ind] = nof_state_events
+            self._data_3[steps_name][ind] = nof_steps
         return self._data_3[name]
 
     def _calculate_nbr_state_limits_step(self, name):
         if name in self._data_3:
             return self._data_3[name]
-        step_limitation_name = f'{diagnostics_prefix}nbr_state_limits_step.'
+        step_limitation_name = '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name'])
         state_name = name.replace(step_limitation_name, '')
         state_error_data = self.get_variable_data(f'{diagnostics_prefix}state_errors.'+state_name)
         event_type_data = self.get_variable_data(f'{diagnostics_prefix}event_data.event_info.event_type')
-        self._data_3[name] = (N.zeros(len(event_type_data.x)), "Cumulative number of times states limit the step")
+        self._data_3[name] = N.zeros(len(event_type_data.x))
         nof_times_state_limits_step = 0
         for ind, state_error in enumerate(state_error_data.x):
             if event_type_data.x[ind] == -1 and state_error >= 1.0:
                 nof_times_state_limits_step += 1
-            self._data_3[name][0][ind] = nof_times_state_limits_step
+            self._data_3[name][ind] = nof_times_state_limits_step
         return self._data_3[name]
 
 
@@ -1493,13 +1506,13 @@ class ResultDymolaBinary(ResultDymola):
         """
         if name == 'time' or name== 'Time':
             return True
-        elif name in [f'{diagnostics_prefix}nbr_events',
-                      f'{diagnostics_prefix}nbr_time_events',
-                      f'{diagnostics_prefix}nbr_state_events',
-                      f'{diagnostics_prefix}nbr_steps',
+        elif name in [DiagnosticsBase.calculated_diagnostics['nbr_events']['name'],
+                      DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name'],
+                      DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name'],
+                      DiagnosticsBase.calculated_diagnostics['nbr_steps']['name'],
                       f'{diagnostics_prefix}cpu_time']:
             return True
-        elif f'{diagnostics_prefix}nbr_state_limits_step.' in name:
+        elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
             return True
         varInd  = self.get_variable_index(name)
         dataMat = self.raw['dataInfo'][0][varInd]
