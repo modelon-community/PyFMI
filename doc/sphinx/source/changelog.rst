@@ -2,6 +2,9 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.9.5 ---
+    * Updated structure of diagnostics data and renamed several of the variables. The top level prefix has also been changed from Diagnostics to @Diagnostics, hence the error check for name clashes has been removed.
+
 --- PyFMI-2.9.4 ---
     * Resolved some tests in need of an update not properly designed for linux.
 
