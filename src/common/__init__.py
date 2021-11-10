@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2010 Modelon AB
@@ -24,7 +24,7 @@ __all__ = ['algorithm_drivers', 'core', 'io', 'xmlparser', 'plotting']
 
 import sys
 python3_flag = True if sys.hexversion > 0x03000000 else False
-
+diagnostics_prefix = '@Diagnostics.'
 if python3_flag:
     def encode(x):
         if isinstance(x, str):
