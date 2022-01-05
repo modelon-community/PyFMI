@@ -591,7 +591,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.with_jacobian = True
             else:
                 fnbr, gnbr = self.model.get_ode_sizes()
-                if fnbr >= PYFMI_JACOBIAN_LIMIT and solver == "CVode":
+                if fnbr >= PYFMI_JACOBIAN_LIMIT and (solver == "CVode" or solver == "Radau5ODE"):
                     self.with_jacobian = True
                     if fnbr >= PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT:
                         try:
@@ -602,6 +602,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                             nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+fnbr
                             if nnz/float(fnbr*fnbr) <= PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT:
                                 self.solver_options["linear_solver"] = "SPARSE"
+                                if solver == "Radau5ODE":
+                                    self.solver_options["solver"] = "c"
                 else:
                     self.with_jacobian = False
 
