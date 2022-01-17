@@ -591,7 +591,6 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.with_jacobian = True
             else:
                 fnbr, gnbr = self.model.get_ode_sizes()
-                print("DEBUG PYFMI 001: ", solver, fnbr, PYFMI_JACOBIAN_LIMIT, PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT)
                 if fnbr >= PYFMI_JACOBIAN_LIMIT and (solver == "CVode" or solver == "Radau5ODE"):
                     self.with_jacobian = True
                     if fnbr >= PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT:
@@ -601,13 +600,10 @@ class AssimuloFMIAlg(AlgorithmBase):
                             #Need to calculate the nnz.
                             [derv_state_dep, derv_input_dep] = self.model.get_derivatives_dependencies()
                             nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+fnbr
-                            print("DEBUG PYFMI 002: ", nnz/float(fnbr*fnbr))
                             if nnz/float(fnbr*fnbr) <= PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT:
                                 self.solver_options["linear_solver"] = "SPARSE"
-                                ## TODO: Add option to disable automatic sparse solver selection
                                 if solver == "Radau5ODE":
-                                    self.options["Radau5ODE_options"]["solver"] = "c"
-                                    self.options["Radau5ODE_options"]["linear_solver"] = "sparse"
+                                    self.solver_options["solver"] = "c"
                 else:
                     self.with_jacobian = False
 
