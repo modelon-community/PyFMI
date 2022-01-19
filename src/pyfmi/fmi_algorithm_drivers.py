@@ -223,7 +223,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'extra_equations':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
                             'atol':"Default",'rtol':"Default","maxh":"Default",'external_event_detection':False},
-            'Radau5ODE_options':{'atol':"Default",'rtol':"Default","maxh":"Default", "linear_solver": "dense"},
+            'Radau5ODE_options':{'atol':"Default",'rtol':"Default","maxh":"Default", "linear_solver": "DENSE"},
             'RungeKutta34_options':{'atol':"Default",'rtol':"Default"},
             'Dopri5_options':{'atol':"Default",'rtol':"Default", "maxh":"Default"},
             'RodasODE_options':{'atol':"Default",'rtol':"Default", "maxh":"Default"},
