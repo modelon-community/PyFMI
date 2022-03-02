@@ -548,7 +548,7 @@ class Trajectory:
         """
         pass
 
-    def _set_abscissa(self, absscissa):
+    def _set_abscissa(self, abscissa):
         self._abscissa[:] = abscissa
 
     def _get_abscissa(self):
@@ -559,7 +559,7 @@ class Trajectory:
     Property for accessing the abscissa of the trajectory.
     """)
 
-    def _set_ordinate(self, absscissa):
+    def _set_ordinate(self, ordinate):
         self._ordinate[:] = ordinate
 
     def _get_ordinate(self):
