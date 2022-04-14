@@ -1165,8 +1165,8 @@ ctypedef np.float32_t DTYPE32_t
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef _read_trajectory32(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
-    cdef int i = 0
-    cdef unsigned long int offset
+    cdef unsigned long int i = 0
+    cdef unsigned long int offset = 0
     cdef FILE* cfile
     cdef np.ndarray[DTYPE32_t, ndim=1] data
     cdef DTYPE32_t* data_ptr
@@ -1194,8 +1194,8 @@ ctypedef np.double_t DTYPE_t
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef _read_trajectory64(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
-    cdef int i = 0
-    cdef unsigned long int offset
+    cdef unsigned long int i = 0
+    cdef unsigned long int offset = 0
     cdef FILE* cfile
     cdef np.ndarray[DTYPE_t, ndim=1] data
     cdef DTYPE_t* data_ptr
@@ -1224,20 +1224,26 @@ def read_diagnostics_trajectory(file_name, int read_diag_data, int has_position_
     int data_index, int file_position, int sizeof_type, int nbr_model_points, int nbr_diag_points,
     int nbr_model_variables, int nbr_diag_variables):
     """ Reads a diagnostic trajectory from the result file. """
-    cdef unsigned long int end_point   = sizeof_type*(nbr_diag_points*(nbr_diag_variables+1) + nbr_model_points*(nbr_model_variables+1))
-    cdef unsigned long int iter_point = 0
-    cdef unsigned long int model_var_interval = sizeof_type*nbr_model_variables
-    cdef unsigned long int diag_var_interval = sizeof_type*nbr_diag_variables
+    cdef unsigned long int sizeof_type_l         = sizeof_type
+    cdef unsigned long int nbr_diag_points_l     = nbr_diag_points
+    cdef unsigned long int nbr_diag_variables_l  = nbr_diag_variables
+    cdef unsigned long int nbr_model_points_l    = nbr_model_points
+    cdef unsigned long int nbr_model_variables_l = nbr_model_variables
+    cdef unsigned long int end_point   = sizeof_type_l * (nbr_diag_points_l * (nbr_diag_variables_l + 1) + \
+                                                          nbr_model_points_l * (nbr_model_variables_l + 1))
+    cdef unsigned long int iter_point        = 0
+    cdef unsigned long int model_var_counter = 0
+    cdef unsigned long int diag_var_counter  = 0
+    cdef unsigned long int i                 = 0
+    cdef unsigned long int model_var_interval = sizeof_type * nbr_model_variables
+    cdef unsigned long int diag_var_interval  = sizeof_type * nbr_diag_variables
+    cdef unsigned long file_pos
     cdef FILE* cfile
     cdef np.ndarray[DTYPE_t, ndim=1] data
     cdef DTYPE_t* data_ptr
     cdef size_t sizeof_dtype = sizeof(DTYPE_t)
     cdef np.ndarray[DTYPE_t, ndim=1] flag
     cdef DTYPE_t* flag_ptr
-    cdef long file_pos
-    cdef int i = 0
-    cdef model_var_counter = 0
-    cdef diag_var_counter = 0
 
     cfile = fopen(file_name, 'rb')
 
