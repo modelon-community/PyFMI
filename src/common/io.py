@@ -24,17 +24,18 @@ import re
 import sys
 import io
 import os
+from functools import reduce
 
 import numpy as N
 import numpy as np
 import scipy.io
+from scipy import interpolate
+from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template, mxSPARSE_CLASS
 
 import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
 from pyfmi.common import python3_flag, encode, decode, diagnostics_prefix
 
-from scipy import interpolate
-from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template
 import struct
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
@@ -54,7 +55,6 @@ class Trajectory:
                 Abscissa of the trajectory.
             x --
                 The ordinate of the trajectory.
-
         """
         self.t = t
         self.x = x
@@ -1182,6 +1182,21 @@ class DelayedVariableLoad(MatFile4Reader):
         self.dtypes = convert_dtypes(mdtypes_template, self.byte_order)
         self._matrix_reader = DelayedVarReader4(self)
 
+    def read_var_header(self):
+        """ This function overrides method 'read_var_header' from the scipy class scipy.io.matlab.mio4.MatFile4Reader.
+            The reason is that we need to make sure the type of the elements
+            in the tuple 'hdr.dims' are sufficient in order to carry out the multiplication
+            to assign 'remaining_bytes' its value. For large files it can otherwise be an issue.
+        """
+        hdr = self._matrix_reader.read_header()
+        hdr.dims = tuple(int(i) for i in hdr.dims)
+        n = reduce(lambda x, y: x*y, hdr.dims, 1)  # fast product
+        remaining_bytes = hdr.dtype.itemsize * n
+        if hdr.is_complex and not hdr.mclass == mxSPARSE_CLASS:
+            remaining_bytes *= 2
+        next_position = self.mat_stream.tell() + remaining_bytes
+        return hdr, next_position
+
 class ResultDymolaBinary(ResultDymola):
     """
     Class representing a simulation or optimization result loaded from a Dymola
@@ -1339,13 +1354,13 @@ class ResultDymolaBinary(ResultDymola):
             note that 'read_diag_data' is a boolean used when this function is invoked for
             diagnostic variables.
         """
-        file_position   = self._data_2_info["file_position"]
-        sizeof_type     = self._data_2_info["sizeof_type"]
-        nbr_points      = self._data_2_info["nbr_points"]
-        nbr_variables   = self._data_2_info["nbr_variables"]
+        file_position   = int(self._data_2_info["file_position"])
+        sizeof_type     = int(self._data_2_info["sizeof_type"])
+        nbr_points      = int(self._data_2_info["nbr_points"])
+        nbr_variables   = int(self._data_2_info["nbr_variables"])
 
-        nbr_diag_points    = self._data_3_info.shape[0]
-        nbr_diag_variables = self._data_4_info.shape[0]
+        nbr_diag_points    = int(self._data_3_info.shape[0])
+        nbr_diag_variables = int(self._data_4_info.shape[0])
 
         if self._mtime != os.path.getmtime(self._fname):
             raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
@@ -1353,8 +1368,8 @@ class ResultDymolaBinary(ResultDymola):
         data, self._file_pos_model_var, self._file_pos_diag_var = fmi_util.read_diagnostics_trajectory(
                                                 encode(self._fname), int(read_diag_data), int(self._has_file_pos_data),
                                                 self._file_pos_model_var, self._file_pos_diag_var,
-                                                data_index, file_position, sizeof_type, int(nbr_points), int(nbr_diag_points),
-                                                int(nbr_variables), int(nbr_diag_variables))
+                                                data_index, file_position, sizeof_type, nbr_points, nbr_diag_points,
+                                                nbr_variables, nbr_diag_variables)
         self._has_file_pos_data = True
 
         return data
