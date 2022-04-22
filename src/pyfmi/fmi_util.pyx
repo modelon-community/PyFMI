@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2014-2021 Modelon AB
+# Copyright (C) 2014-2022 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -1181,10 +1181,10 @@ cdef _read_trajectory32(
     data = np.empty(nbr_points, dtype=DTYPE32)
     data_ptr = <DTYPE32_t*>data.data
 
-    _fseeki64(cfile, file_position, 0)
+    os_specific_seek(cfile, file_position, 0)
     #for offset in range(start_point, end_point, interval):
     for offset from start_point <= offset < end_point by interval:
-        _fseeki64(cfile, file_position + offset, 0)
+        os_specific_seek(cfile, file_position + offset, 0)
         fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
         i = i + 1
 
@@ -1217,10 +1217,10 @@ cdef _read_trajectory64(
     data_ptr = <DTYPE_t*>data.data
 
     cfile = fopen(file_name, 'rb')
-    _fseeki64(cfile, file_position, 0)
+    os_specific_seek(cfile, file_position, 0)
     #for offset in range(start_point, end_point, interval):
     for offset from start_point <= offset < end_point by interval:
-        _fseeki64(cfile, file_position + offset, 0)
+        os_specific_seek(cfile, file_position + offset, 0)
         fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
         i = i + 1
 
@@ -1279,12 +1279,12 @@ def read_diagnostics_trajectory(
     if has_position_data == 1:
         file_pos_list = file_pos_diag_var if read_diag_data == 1 else file_pos_model_var
         for file_pos in file_pos_list:
-            _fseeki64(cfile, file_pos+data_index*sizeof_type_l, 0)
+            os_specific_seek(cfile, file_pos+data_index*sizeof_type_l, 0)
             fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
             i += 1
     else:
         while iter_point < end_point:
-            _fseeki64(cfile, file_position+iter_point,0)
+            os_specific_seek(cfile, file_position+iter_point,0)
             fread(<void*>(flag_ptr), sizeof_dtype, 1, cfile)
             iter_point += sizeof_type_l;
             file_pos = ftell(cfile)
@@ -1292,7 +1292,7 @@ def read_diagnostics_trajectory(
                 file_pos_model_var[model_var_counter] = file_pos
                 model_var_counter +=1
                 if not read_diag_data:
-                    _fseeki64(cfile, file_position+iter_point+data_index*sizeof_type_l, 0)
+                    os_specific_seek(cfile, file_position+iter_point+data_index*sizeof_type_l, 0)
                     fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
                     i += 1
                 iter_point += model_var_interval
@@ -1300,7 +1300,7 @@ def read_diagnostics_trajectory(
                 file_pos_diag_var[diag_var_counter] = file_pos
                 diag_var_counter +=1
                 if read_diag_data:
-                    _fseeki64(cfile, file_position+iter_point+data_index*sizeof_type_l, 0)
+                    os_specific_seek(cfile, file_position+iter_point+data_index*sizeof_type_l, 0)
                     fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
                     i += 1
                 iter_point += diag_var_interval

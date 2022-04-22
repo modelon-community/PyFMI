@@ -20,7 +20,23 @@ from libc.stdio cimport FILE
 cpdef decode(x)
 cpdef encode(x)
 
-cdef extern from "stdio.h" nogil:
-    ctypedef struct FILE:
-        pass
-    int _fseeki64  (FILE *stream, long long offset, int whence)
+
+"""
+    Below we define a 'modification' to fseek that is OS specific in order to handle very large files.
+    This is because fseek is not sufficient as soon as the number of bytes in a result file
+    exceed the maximum value for long int.
+"""
+IF UNAME_SYSNAME == "Windows":
+    cdef extern from "stdio.h" nogil:
+        ctypedef struct FILE:
+            pass
+        int _fseeki64(FILE *stream, long long offset, int whence)
+    cdef inline int os_specific_seek(FILE *stream, long long offset, int whence):
+        return _fseeki64(stream, offset, whence)
+ELSE:
+    cdef extern from "stdio.h" nogil:
+        ctypedef struct FILE:
+            pass
+        int fseeko(FILE *stream, long long offset, int whence)
+    cdef inline int os_specific_seek(FILE *stream, long long offset, int whence):
+        return fseeko(stream, offset, whence)
