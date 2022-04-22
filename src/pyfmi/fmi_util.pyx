@@ -1181,10 +1181,10 @@ cdef _read_trajectory32(
     data = np.empty(nbr_points, dtype=DTYPE32)
     data_ptr = <DTYPE32_t*>data.data
 
-    os_specific_seek(cfile, file_position, 0)
+    os_specific_fseek(cfile, file_position, 0)
     #for offset in range(start_point, end_point, interval):
     for offset from start_point <= offset < end_point by interval:
-        os_specific_seek(cfile, file_position + offset, 0)
+        os_specific_fseek(cfile, file_position + offset, 0)
         fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
         i = i + 1
 
@@ -1217,10 +1217,10 @@ cdef _read_trajectory64(
     data_ptr = <DTYPE_t*>data.data
 
     cfile = fopen(file_name, 'rb')
-    os_specific_seek(cfile, file_position, 0)
+    os_specific_fseek(cfile, file_position, 0)
     #for offset in range(start_point, end_point, interval):
     for offset from start_point <= offset < end_point by interval:
-        os_specific_seek(cfile, file_position + offset, 0)
+        os_specific_fseek(cfile, file_position + offset, 0)
         fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
         i = i + 1
 
@@ -1279,20 +1279,20 @@ def read_diagnostics_trajectory(
     if has_position_data == 1:
         file_pos_list = file_pos_diag_var if read_diag_data == 1 else file_pos_model_var
         for file_pos in file_pos_list:
-            os_specific_seek(cfile, file_pos+data_index*sizeof_type_l, 0)
+            os_specific_fseek(cfile, file_pos+data_index*sizeof_type_l, 0)
             fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
             i += 1
     else:
         while iter_point < end_point:
-            os_specific_seek(cfile, file_position+iter_point,0)
+            os_specific_fseek(cfile, file_position+iter_point,0)
             fread(<void*>(flag_ptr), sizeof_dtype, 1, cfile)
             iter_point += sizeof_type_l;
-            file_pos = ftell(cfile)
+            file_pos = os_specific_ftell(cfile)
             if flag[0] == 1.0:
                 file_pos_model_var[model_var_counter] = file_pos
                 model_var_counter +=1
                 if not read_diag_data:
-                    os_specific_seek(cfile, file_position+iter_point+data_index*sizeof_type_l, 0)
+                    os_specific_fseek(cfile, file_position+iter_point+data_index*sizeof_type_l, 0)
                     fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
                     i += 1
                 iter_point += model_var_interval
@@ -1300,7 +1300,7 @@ def read_diagnostics_trajectory(
                 file_pos_diag_var[diag_var_counter] = file_pos
                 diag_var_counter +=1
                 if read_diag_data:
-                    os_specific_seek(cfile, file_position+iter_point+data_index*sizeof_type_l, 0)
+                    os_specific_fseek(cfile, file_position+iter_point+data_index*sizeof_type_l, 0)
                     fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
                     i += 1
                 iter_point += diag_var_interval
