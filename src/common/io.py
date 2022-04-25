@@ -1260,8 +1260,8 @@ class ResultDymolaBinary(ResultDymola):
             self._data_2_info = self.raw["data_2"]
             self._data_2 = {}
             if self._contains_diagnostic_data:
-                self._file_pos_model_var = np.empty(self._data_2_info["nbr_points"], dtype=np.long)
-                self._file_pos_diag_var = np.empty(self._data_3_info.shape[0], dtype=np.long)
+                self._file_pos_model_var = np.empty(self._data_2_info["nbr_points"], dtype=np.longlong)
+                self._file_pos_diag_var = np.empty(self._data_3_info.shape[0], dtype=np.longlong)
             self._name_info   = self.raw["name"]
 
             self.name_lookup = self._get_name_dict()
