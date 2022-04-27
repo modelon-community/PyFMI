@@ -2,6 +2,10 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.9.6 ---
+    * Added setup.cfg that lists all Python package dependencies in order to run PyFMI.
+    * Resolved an issue that would occurr when reading large result files or streams causing the data to be corrupt due to an integer overflow.
+
 --- PyFMI-2.9.5 ---
     * Updated structure of diagnostics data and renamed several of the variables. The top level prefix has also been changed from Diagnostics to @Diagnostics, hence the error check for name clashes has been removed.
 
