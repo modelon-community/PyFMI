@@ -1,7 +1,7 @@
 #!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2010 Modelon AB
+# Copyright (C) 2010-2022 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -548,7 +548,7 @@ class Trajectory:
         """
         pass
 
-    def _set_abscissa(self, absscissa):
+    def _set_abscissa(self, abscissa):
         self._abscissa[:] = abscissa
 
     def _get_abscissa(self):
@@ -559,7 +559,7 @@ class Trajectory:
     Property for accessing the abscissa of the trajectory.
     """)
 
-    def _set_ordinate(self, absscissa):
+    def _set_ordinate(self, ordinate):
         self._ordinate[:] = ordinate
 
     def _get_ordinate(self):
