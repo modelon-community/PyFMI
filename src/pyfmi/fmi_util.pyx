@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2014-2021 Modelon AB
+# Copyright (C) 2014-2022 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -1117,7 +1117,7 @@ cdef extern from "stdio.h":
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def read_trajectory(file_name, int data_index, int file_position, int sizeof_type, int nbr_points, int nbr_variables):
+def read_trajectory(file_name, long long data_index, long long file_position, long long sizeof_type, long long nbr_points, long long nbr_variables):
     """
     Reads a trajectory from a binary file.
 
@@ -1146,16 +1146,13 @@ def read_trajectory(file_name, int data_index, int file_position, int sizeof_typ
 
         A numpy array with the trajectory
     """
-
-    cdef unsigned long int offset
-    cdef unsigned long int start_point = data_index*sizeof_type
-    cdef unsigned long int end_point   = sizeof_type*(nbr_points*nbr_variables)
-    cdef unsigned long int interval    = sizeof_type*nbr_variables
-
+    cdef long long start_point = data_index * sizeof_type
+    cdef long long end_point   = sizeof_type * (nbr_points * nbr_variables)
+    cdef long long interval    = sizeof_type * nbr_variables
     if sizeof_type == 4:
-        return _read_trajectory32(file_name, start_point,end_point, interval, file_position, nbr_points)
+        return _read_trajectory32(file_name, start_point, end_point, interval, file_position, nbr_points)
     elif sizeof_type == 8:
-        return _read_trajectory64(file_name, start_point,end_point, interval, file_position, nbr_points)
+        return _read_trajectory64(file_name, start_point, end_point, interval, file_position, nbr_points)
     else:
         raise fmi.FMUException("Failed to read the result. The result is on an unsupported format. Can only read data that is either a 32 or 64 bit double.")
 
@@ -1164,9 +1161,16 @@ ctypedef np.float32_t DTYPE32_t
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef _read_trajectory32(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
-    cdef int i = 0
-    cdef unsigned long int offset
+cdef _read_trajectory32(
+        file_name,
+        long long start_point,
+        long long end_point,
+        long long interval,
+        long long file_position,
+        long long nbr_points
+    ):
+    cdef long long i = 0
+    cdef long long offset = 0
     cdef FILE* cfile
     cdef np.ndarray[DTYPE32_t, ndim=1] data
     cdef DTYPE32_t* data_ptr
@@ -1177,10 +1181,10 @@ cdef _read_trajectory32(file_name, long int start_point, long int end_point, lon
     data = np.empty(nbr_points, dtype=DTYPE32)
     data_ptr = <DTYPE32_t*>data.data
 
-    fseek(cfile, file_position, 0)
+    os_specific_fseek(cfile, file_position, 0)
     #for offset in range(start_point, end_point, interval):
     for offset from start_point <= offset < end_point by interval:
-        fseek(cfile, file_position+offset, 0)
+        os_specific_fseek(cfile, file_position + offset, 0)
         fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
         i = i + 1
 
@@ -1193,23 +1197,30 @@ ctypedef np.double_t DTYPE_t
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef _read_trajectory64(file_name, long int start_point, long int end_point, long int interval, int file_position, int nbr_points):
-    cdef int i = 0
-    cdef unsigned long int offset
+cdef _read_trajectory64(
+        file_name,
+        long long start_point,
+        long long end_point,
+        long long interval,
+        long long file_position,
+        long long nbr_points
+    ):
+
+    cdef long long i = 0
+    cdef long long offset = 0
     cdef FILE* cfile
     cdef np.ndarray[DTYPE_t, ndim=1] data
     cdef DTYPE_t* data_ptr
     cdef size_t sizeof_dtype = sizeof(DTYPE_t)
 
-    cfile = fopen(file_name, 'rb')
-
     data = np.empty(nbr_points, dtype=DTYPE)
     data_ptr = <DTYPE_t*>data.data
 
-    fseek(cfile, file_position, 0)
+    cfile = fopen(file_name, 'rb')
+    os_specific_fseek(cfile, file_position, 0)
     #for offset in range(start_point, end_point, interval):
     for offset from start_point <= offset < end_point by interval:
-        fseek(cfile, file_position+offset, 0)
+        os_specific_fseek(cfile, file_position + offset, 0)
         fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
         i = i + 1
 
@@ -1219,25 +1230,36 @@ cdef _read_trajectory64(file_name, long int start_point, long int end_point, lon
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def read_diagnostics_trajectory(file_name, int read_diag_data, int has_position_data,
-    np.ndarray[long, ndim=1] file_pos_model_var, np.ndarray[long, ndim=1] file_pos_diag_var,
-    int data_index, int file_position, int sizeof_type, int nbr_model_points, int nbr_diag_points,
-    int nbr_model_variables, int nbr_diag_variables):
+def read_diagnostics_trajectory(
+        file_name,
+        int read_diag_data,
+        int has_position_data,
+        np.ndarray[long long, ndim=1] file_pos_model_var,
+        np.ndarray[long long, ndim=1] file_pos_diag_var,
+        long long data_index,
+        long long file_position,
+        long long int sizeof_type,
+        long long nbr_model_points,
+        long long nbr_diag_points,
+        long long nbr_model_variables,
+        long long nbr_diag_variables
+    ):
     """ Reads a diagnostic trajectory from the result file. """
-    cdef unsigned long int end_point   = sizeof_type*(nbr_diag_points*(nbr_diag_variables+1) + nbr_model_points*(nbr_model_variables+1))
-    cdef unsigned long int iter_point = 0
-    cdef unsigned long int model_var_interval = sizeof_type*nbr_model_variables
-    cdef unsigned long int diag_var_interval = sizeof_type*nbr_diag_variables
+    cdef long long file_pos
+    cdef long long iter_point        = 0
+    cdef long long model_var_counter = 0
+    cdef long long diag_var_counter  = 0
+    cdef long long i                 = 0
+    cdef long long end_point   = sizeof_type * (nbr_diag_points * (nbr_diag_variables + 1) + \
+                                                          nbr_model_points * (nbr_model_variables + 1))
+    cdef long long model_var_interval = sizeof_type * nbr_model_variables
+    cdef long long diag_var_interval  = sizeof_type * nbr_diag_variables
     cdef FILE* cfile
     cdef np.ndarray[DTYPE_t, ndim=1] data
     cdef DTYPE_t* data_ptr
     cdef size_t sizeof_dtype = sizeof(DTYPE_t)
     cdef np.ndarray[DTYPE_t, ndim=1] flag
     cdef DTYPE_t* flag_ptr
-    cdef long file_pos
-    cdef int i = 0
-    cdef model_var_counter = 0
-    cdef diag_var_counter = 0
 
     cfile = fopen(file_name, 'rb')
 
@@ -1248,23 +1270,24 @@ def read_diagnostics_trajectory(file_name, int read_diag_data, int has_position_
     data_ptr = <DTYPE_t*>data.data
     flag = np.empty(1, dtype=DTYPE)
     flag_ptr = <DTYPE_t*>flag.data
+
     if has_position_data == 1:
         file_pos_list = file_pos_diag_var if read_diag_data == 1 else file_pos_model_var
         for file_pos in file_pos_list:
-            fseek(cfile, file_pos+data_index*sizeof_type, 0)
+            os_specific_fseek(cfile, file_pos+data_index*sizeof_type, 0)
             fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
             i += 1
     else:
         while iter_point < end_point:
-            fseek(cfile, file_position+iter_point,0)
+            os_specific_fseek(cfile, file_position+iter_point,0)
             fread(<void*>(flag_ptr), sizeof_dtype, 1, cfile)
             iter_point += sizeof_type;
-            file_pos = ftell(cfile)
+            file_pos = os_specific_ftell(cfile)
             if flag[0] == 1.0:
                 file_pos_model_var[model_var_counter] = file_pos
                 model_var_counter +=1
                 if not read_diag_data:
-                    fseek(cfile, file_position+iter_point+data_index*sizeof_type, 0)
+                    os_specific_fseek(cfile, file_position+iter_point+data_index*sizeof_type, 0)
                     fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
                     i += 1
                 iter_point += model_var_interval
@@ -1272,7 +1295,7 @@ def read_diagnostics_trajectory(file_name, int read_diag_data, int has_position_
                 file_pos_diag_var[diag_var_counter] = file_pos
                 diag_var_counter +=1
                 if read_diag_data:
-                    fseek(cfile, file_position+iter_point+data_index*sizeof_type, 0)
+                    os_specific_fseek(cfile, file_position+iter_point+data_index*sizeof_type, 0)
                     fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
                     i += 1
                 iter_point += diag_var_interval
