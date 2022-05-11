@@ -639,6 +639,7 @@ class TestResultFileBinary:
     
     @testattr(stddist = True)
     def test_modified_result_file_data_diagnostics(self):
+        """Verify that computed diagnostics can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()
         model.initialize()
@@ -690,6 +691,7 @@ class TestResultFileBinary:
     
     @testattr(stddist = True)
     def test_modified_result_file_data_diagnostics_steps(self):
+        """Verify that diagnostics can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()
         model.initialize()
@@ -741,6 +743,7 @@ class TestResultFileBinary:
     
     @testattr(stddist = True)
     def test_modified_result_file_data_2(self):
+        """Verify that continuous trajectories are updated when retrieved from a result file"""
         model = Dummy_FMUModelME2([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()
         model.initialize()
@@ -763,6 +766,7 @@ class TestResultFileBinary:
         
     @testattr(stddist = True)
     def test_modified_result_file_data_2_different(self):
+        """Verify that (different) continuous trajectories are updated when retrieved from a result file"""
         model = Dummy_FMUModelME2([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()
         model.initialize()
@@ -785,6 +789,7 @@ class TestResultFileBinary:
     
     @testattr(stddist = True)
     def test_modified_result_file_data_1(self):
+        """Verify that (different) constants/parameters can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()
         model.initialize()
@@ -809,6 +814,7 @@ class TestResultFileBinary:
     
     @testattr(stddist = True)
     def test_modified_result_file_data_1_delayed(self):
+        """Verify that constants/parameters can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()
         model.initialize()
@@ -829,6 +835,7 @@ class TestResultFileBinary:
         
     @testattr(stddist = True)
     def test_modified_result_file_time(self):
+        """Verify that 'time' can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
         model.setup_experiment()
         model.initialize()

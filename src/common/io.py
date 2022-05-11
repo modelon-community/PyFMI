@@ -1220,11 +1220,12 @@ class ResultDymolaBinary(ResultDymola):
                 Default: True (for files)
                 
             allow_file_updates --
-                If this is turned on, file updates (in terms of more
-                data point being added to the result file) is allowed.
+                If this is True, file updates (in terms of more
+                data points being added to the result file) is allowed.
                 The number of variables stored in the file needs to be
                 exactly the same and only the number of data points for
                 the continuous variables are allowed to change.
+                Default: False
         """
 
         if isinstance(fname, str):
@@ -1313,7 +1314,13 @@ class ResultDymolaBinary(ResultDymola):
             self._file_pos_diag_var = np.empty(self._data_3_info.shape[0], dtype=np.longlong)
             
             self._has_file_pos_data = False
-            
+    
+    def _verify_file_data(self):
+        if self._mtime != os.path.getmtime(self._fname):
+            if self._allow_file_updates:
+                self._update_data_info()
+            else:
+                raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
 
     def _get_data_1(self):
         if self._data_1 is None:
@@ -1358,14 +1365,10 @@ class ResultDymolaBinary(ResultDymola):
 
     def _get_trajectory(self, data_index):
         if isinstance(self._data_2, dict):
-            if self._mtime != os.path.getmtime(self._fname):
-                if self._allow_file_updates:
-                    self._update_data_info()
-                else:
-                    raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
-            else:
-                if data_index in self._data_2:
-                    return self._data_2[data_index]
+            self._verify_file_data()
+            
+            if data_index in self._data_2:
+                return self._data_2[data_index]
 
             file_position  = self._data_2_info["file_position"]
             sizeof_type    = self._data_2_info["sizeof_type"]
@@ -1381,12 +1384,8 @@ class ResultDymolaBinary(ResultDymola):
 
     def _get_diagnostics_trajectory(self, data_index):
         """ Returns trajectory for the diagnostics variable that corresponds to index 'data_index'. """
-        if self._mtime != os.path.getmtime(self._fname):
-            if self._allow_file_updates:
-                self._update_data_info()
-            else:
-                raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
-
+        self._verify_file_data()
+        
         if data_index in self._data_3:
             return self._data_3[data_index]
         
@@ -1399,12 +1398,8 @@ class ResultDymolaBinary(ResultDymola):
             note that 'read_diag_data' is a boolean used when this function is invoked for
             diagnostic variables.
         """
-        if self._mtime != os.path.getmtime(self._fname):
-            if self._allow_file_updates:
-                self._update_data_info()
-            else:
-                raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
-
+        self._verify_file_data()
+        
         file_position   = int(self._data_2_info["file_position"])
         sizeof_type     = int(self._data_2_info["sizeof_type"])
         nbr_points      = int(self._data_2_info["nbr_points"])
@@ -1425,12 +1420,8 @@ class ResultDymolaBinary(ResultDymola):
 
     def _get_interpolated_trajectory(self, data_index):
         """ Returns an interpolated trajectory for variable of corresponding index 'data_index'. """
-        if self._mtime != os.path.getmtime(self._fname):
-            if self._allow_file_updates:
-                self._update_data_info()
-            else:
-                raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
-
+        self._verify_file_data()
+        
         if data_index in self._data_2:
             return self._data_2[data_index]
         
