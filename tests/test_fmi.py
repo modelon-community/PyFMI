@@ -1155,6 +1155,71 @@ class Test_FMUModelBase2:
         opts["initialize"] = False
 
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
+    
+    @testattr(stddist = True)
+    def test_simulation_with_syncronization_exception_ME(self):
+        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["synchronize_simulation"] = "Hej"
+        
+        nose.tools.assert_raises(FMUException, model.simulate, options=opts)
+        
+        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["synchronize_simulation"] = -1.0
+        
+        nose.tools.assert_raises(FMUException, model.simulate, options=opts)
+    
+    @testattr(stddist = True)
+    def test_simulation_with_syncronization_exception_CS(self):
+        model = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["synchronize_simulation"] = "Hej"
+        
+        nose.tools.assert_raises(FMUException, model.simulate, options=opts)
+        
+        model = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["synchronize_simulation"] = -1.0
+        
+        nose.tools.assert_raises(FMUException, model.simulate, options=opts)
+        
+    @testattr(stddist = True)
+    def test_simulation_with_syncronization_ME(self):
+        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["synchronize_simulation"] = True
+        
+        res = model.simulate(final_time=0.1, options=opts)
+        t = res.detailed_timings["computing_solution"]
+        
+        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["synchronize_simulation"] = 0.1
+        
+        res = model.simulate(final_time=0.1, options=opts)
+        tsyn = res.detailed_timings["computing_solution"]
+        
+        assert tsyn > t, "Syncronization does not work: %d, %d"%(t, tsyn)
+        
+    
+    @testattr(stddist = True)
+    def test_simulation_with_syncronization_CS(self):
+        model = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["synchronize_simulation"] = True
+        
+        res = model.simulate(final_time=0.1, options=opts)
+        t = res.detailed_timings["computing_solution"]
+        
+        model = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["synchronize_simulation"] = 0.1
+        
+        res = model.simulate(final_time=0.1, options=opts)
+        tsyn = res.detailed_timings["computing_solution"]
+        
+        assert tsyn > t, "Syncronization does not work: %d, %d"%(t, tsyn)
 
     @testattr(stddist = True)
     def test_caching(self):

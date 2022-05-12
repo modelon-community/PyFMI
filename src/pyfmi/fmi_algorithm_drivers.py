@@ -159,6 +159,18 @@ class AssimuloFMIAlgOptions(OptionBase):
             example is filter = "*der" , stor all variables ending with
             'der'. Can also be a list.
             Default: None
+            
+        synchronize_simulation --
+            If set, the simulation will be syncronized to real-time or a
+            scaled real-time, if possible. The available options are:
+                True: Simulation is syncronized to real-time
+                False: No syncronization
+                >0 (float): Simulation is syncronized to the factored 
+                            real-time. I.e. factor*real-time
+                
+                Example: If, set to 10: 10 simulated seconds is syncronized
+                         to one real-time second.
+            Default: False
 
 
     The different solvers provided by the Assimulo simulation package provides
@@ -207,6 +219,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'return_result': True,
             'result_store_variable_description': True,
             'filter':None,
+            'synchronize_simulation':False,
             'extra_equations':None,
             'CVode_options':{'discr':'BDF','iter':'Newton',
                             'atol':"Default",'rtol':"Default","maxh":"Default",'external_event_detection':False},
@@ -429,7 +442,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                      start_time = self.start_time,
                                      logging = self.options["logging"],
                                      result_handler = self.result_handler,
-                                     extra_equations = self.options["extra_equations"])
+                                     extra_equations = self.options["extra_equations"],
+                                     synchronize_simulation = self.options["synchronize_simulation"])
         elif isinstance(self.model, ((fmi.FMUModelME2, fmi_coupled.CoupledFMUModelME2))):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(self.model,
@@ -448,7 +462,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                      start_time = self.start_time,
                                      logging = self.options["logging"],
                                      result_handler = self.result_handler,
-                                     extra_equations = self.options["extra_equations"])
+                                     extra_equations = self.options["extra_equations"],
+                                     synchronize_simulation = self.options["synchronize_simulation"])
 
         elif not self.input:
             if self.options["sensitivities"]:
@@ -829,6 +844,18 @@ class FMICSAlgOptions(OptionBase):
         silent_mode --
             Disables printouts to the console.
             Default: False
+        
+        synchronize_simulation --
+            If set, the simulation will be syncronized to real-time or a
+            scaled real-time, if possible. The available options are:
+                True: Simulation is syncronized to real-time
+                False: No syncronization
+                >0 (float): Simulation is syncronized to the factored 
+                            real-time. I.e. factor*real-time
+                
+                Example: If, set to 10: 10 simulated seconds is syncronized
+                         to one real-time second.
+            Default: False
 
     """
     def __init__(self, *args, **kw):
@@ -844,7 +871,8 @@ class FMICSAlgOptions(OptionBase):
             'return_result': True,
             'time_limit': None,
             'filter':None,
-            'silent_mode':False
+            'silent_mode':False,
+            'synchronize_simulation':False
             }
         super(FMICSAlgOptions,self).__init__(_defaults)
         # for those key-value-sets where the value is a dict, don't
@@ -1001,7 +1029,20 @@ class FMICSAlg(AlgorithmBase):
             self.result_file_name = self.model.get_identifier()+'_result.txt'
         else:
             self.result_file_name = self.options['result_file_name']
-
+            
+        if self.options["synchronize_simulation"]:
+            try:
+                if self.options["synchronize_simulation"] is True:
+                    self._synchronize_factor = 1.0
+                elif self.options["synchronize_simulation"] > 0:
+                    self._synchronize_factor = self.options["synchronize_simulation"]
+                else:
+                    raise fmi.InvalidOptionException(f"Setting {self.options['synchronize_simulation']} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
+            except:
+                raise fmi.InvalidOptionException(f"Setting {self.options['synchronize_simulation']} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
+        else:
+            self._synchronize_factor = 0.0
+        
     def _set_solver_options(self):
         """
         Helper function that sets options for the solver.
@@ -1028,6 +1069,11 @@ class FMICSAlg(AlgorithmBase):
         time_start = timer()
 
         for t in grid:
+            if self._synchronize_factor > 0:
+                under_run = t/self._synchronize_factor - (timer()-time_start)
+                if under_run > 0:
+                    time.sleep(under_run)
+            
             status = self.model.do_step(t,h)
             self.status = status
 
