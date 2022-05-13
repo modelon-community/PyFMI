@@ -1203,7 +1203,7 @@ class ResultDymolaBinary(ResultDymola):
     binary file.
     """
 
-    def __init__(self, fname, delayed_trajectory_loading = True):
+    def __init__(self, fname, delayed_trajectory_loading = True, allow_file_updates=False):
         """
         Load a result file written on Dymola binary format.
 
@@ -1218,6 +1218,14 @@ class ResultDymolaBinary(ResultDymola):
                 all at the same time. Only works for files or streams that
                 are based on a file and has attribute name.
                 Default: True (for files)
+                
+            allow_file_updates --
+                If this is True, file updates (in terms of more
+                data points being added to the result file) is allowed.
+                The number of variables stored in the file needs to be
+                exactly the same and only the number of data points for
+                the continuous variables are allowed to change.
+                Default: False
         """
 
         if isinstance(fname, str):
@@ -1230,6 +1238,7 @@ class ResultDymolaBinary(ResultDymola):
             self._fname = fname
             self._is_stream = True
             delayed_trajectory_loading = False
+        self._allow_file_updates = allow_file_updates
 
         data_sections = ["name", "dataInfo", "data_2", "data_3", "data_4"]
         if not self._is_stream:
@@ -1274,16 +1283,48 @@ class ResultDymolaBinary(ResultDymola):
             self._name = fmi_util.convert_array_names_list_names_int(name.view(np.int32))
             self.name_lookup = {key:ind for ind,key in enumerate(self._name)}
 
-        self.dataInfo = self.raw['dataInfo'].transpose()
+        self.dataInfo  = self.raw['dataInfo'].transpose()
+        self._dataInfo = self.raw['dataInfo']
 
         self._delayed_loading = delayed_trajectory_loading
         self._description = None
         self._data_1      = None
         self._mtime       = None if self._is_stream else os.path.getmtime(self._fname)
+        self._data_sections = data_sections
+
+    def _update_data_info(self):
+        """
+        Updates the data related to the data sections in case of that the file has changed.
+        """
+        data_sections = [d for d in self._data_sections if d.startswith("data_")]
+        with open(self._fname, "rb") as f:
+            delayed  = DelayedVariableLoad(f, chars_as_strings=False)
+            self.raw = delayed.get_variables(variable_names = data_sections)
+        self._mtime = os.path.getmtime(self._fname)
+            
+        self._data_2_info = self.raw["data_2"]
+        self._data_2 = {}
+        
+        if self._contains_diagnostic_data:
+            self._data_3_info = self.raw["data_3"]
+            self._data_3 = {}
+            self._data_4_info = self.raw["data_4"]
+            
+            self._file_pos_model_var = np.empty(self._data_2_info["nbr_points"], dtype=np.longlong)
+            self._file_pos_diag_var = np.empty(self._data_3_info.shape[0], dtype=np.longlong)
+            
+            self._has_file_pos_data = False
+    
+    def _verify_file_data(self):
+        if self._mtime != os.path.getmtime(self._fname):
+            if self._allow_file_updates:
+                self._update_data_info()
+            else:
+                raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
 
     def _get_data_1(self):
         if self._data_1 is None:
-            if not self._is_stream and self._mtime != os.path.getmtime(self._fname):
+            if not self._is_stream and self._mtime != os.path.getmtime(self._fname) and not self._allow_file_updates:
                 raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
 
             self._data_1 = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["data_1"])["data_1"]
@@ -1324,6 +1365,8 @@ class ResultDymolaBinary(ResultDymola):
 
     def _get_trajectory(self, data_index):
         if isinstance(self._data_2, dict):
+            self._verify_file_data()
+            
             if data_index in self._data_2:
                 return self._data_2[data_index]
 
@@ -1331,10 +1374,7 @@ class ResultDymolaBinary(ResultDymola):
             sizeof_type    = self._data_2_info["sizeof_type"]
             nbr_points     = self._data_2_info["nbr_points"]
             nbr_variables  = self._data_2_info["nbr_variables"]
-
-            if self._mtime != os.path.getmtime(self._fname):
-                raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
-
+            
             self._data_2[data_index] = fmi_util.read_trajectory(encode(self._fname), data_index, file_position, sizeof_type, int(nbr_points), int(nbr_variables))
 
             return self._data_2[data_index]
@@ -1344,9 +1384,13 @@ class ResultDymolaBinary(ResultDymola):
 
     def _get_diagnostics_trajectory(self, data_index):
         """ Returns trajectory for the diagnostics variable that corresponds to index 'data_index'. """
+        self._verify_file_data()
+        
         if data_index in self._data_3:
             return self._data_3[data_index]
+        
         self._data_3[data_index] = self._read_trajectory_data(data_index, True)
+        
         return self._data_3[data_index]
 
     def _read_trajectory_data(self, data_index, read_diag_data):
@@ -1354,6 +1398,8 @@ class ResultDymolaBinary(ResultDymola):
             note that 'read_diag_data' is a boolean used when this function is invoked for
             diagnostic variables.
         """
+        self._verify_file_data()
+        
         file_position   = int(self._data_2_info["file_position"])
         sizeof_type     = int(self._data_2_info["sizeof_type"])
         nbr_points      = int(self._data_2_info["nbr_points"])
@@ -1362,8 +1408,6 @@ class ResultDymolaBinary(ResultDymola):
         nbr_diag_points    = int(self._data_3_info.shape[0])
         nbr_diag_variables = int(self._data_4_info.shape[0])
 
-        if self._mtime != os.path.getmtime(self._fname):
-            raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
 
         data, self._file_pos_model_var, self._file_pos_diag_var = fmi_util.read_diagnostics_trajectory(
                                                 encode(self._fname), int(read_diag_data), int(self._has_file_pos_data),
@@ -1376,13 +1420,19 @@ class ResultDymolaBinary(ResultDymola):
 
     def _get_interpolated_trajectory(self, data_index):
         """ Returns an interpolated trajectory for variable of corresponding index 'data_index'. """
+        self._verify_file_data()
+        
         if data_index in self._data_2:
             return self._data_2[data_index]
+        
         diag_time_vector = self._get_diagnostics_trajectory(0)
-        time_vector = self._read_trajectory_data(0, False)
-        data = self._read_trajectory_data(data_index, False)
+        time_vector      = self._read_trajectory_data(0, False)
+        data             = self._read_trajectory_data(data_index, False)
+        
         f = interpolate.interp1d(time_vector, data, fill_value="extrapolate")
+        
         self._data_2[data_index] = f(diag_time_vector)
+        
         return self._data_2[data_index]
 
 
@@ -1429,8 +1479,8 @@ class ResultDymolaBinary(ResultDymola):
         else:
             varInd  = self.get_variable_index(name)
 
-        dataInd = self.raw['dataInfo'][1][varInd]
-        dataMat = self.raw['dataInfo'][0][varInd]
+        dataInd = self._dataInfo[1][varInd]
+        dataMat = self._dataInfo[0][varInd]
 
         factor = 1
         if dataInd < 0:
@@ -1504,8 +1554,6 @@ class ResultDymolaBinary(ResultDymola):
             self._data_3[name][ind] = nof_times_state_limits_step
         return self._data_3[name]
 
-
-
     def is_variable(self, name):
         """
         Returns True if the given name corresponds to a time-varying variable.
@@ -1530,7 +1578,7 @@ class ResultDymolaBinary(ResultDymola):
         elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
             return True
         varInd  = self.get_variable_index(name)
-        dataMat = self.raw['dataInfo'][0][varInd]
+        dataMat = self._dataInfo[0][varInd]
         if dataMat<1:
             dataMat = 1
 
@@ -1553,7 +1601,7 @@ class ResultDymolaBinary(ResultDymola):
             True if the result should be negated
         """
         varInd  = self.get_variable_index(name)
-        dataInd = self.raw['dataInfo'][1][varInd]
+        dataInd = self._dataInfo [1][varInd]
         if dataInd<0:
             return True
         else:
@@ -1580,7 +1628,7 @@ class ResultDymolaBinary(ResultDymola):
             raise VariableNotTimeVarying("Variable " +
                                         name + " is not time-varying.")
         varInd  = self.get_variable_index(name)
-        dataInd = self.raw['dataInfo'][1][varInd]
+        dataInd = self._dataInfo[1][varInd]
         factor = 1
         if dataInd<0:
             factor = -1
