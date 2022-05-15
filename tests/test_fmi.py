@@ -22,7 +22,7 @@ from zipfile import ZipFile
 import tempfile
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUModel, FMUException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
+from pyfmi.fmi import FMUModel, FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
@@ -1182,13 +1182,13 @@ class Test_FMUModelBase2:
         opts = model.simulate_options()
         opts["synchronize_simulation"] = "Hej"
         
-        nose.tools.assert_raises(FMUException, model.simulate, options=opts)
+        nose.tools.assert_raises(InvalidOptionException, model.simulate, options=opts)
         
         model = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
         opts = model.simulate_options()
         opts["synchronize_simulation"] = -1.0
         
-        nose.tools.assert_raises(FMUException, model.simulate, options=opts)
+        nose.tools.assert_raises(InvalidOptionException, model.simulate, options=opts)
         
     @testattr(stddist = True)
     def test_simulation_with_syncronization_ME(self):
