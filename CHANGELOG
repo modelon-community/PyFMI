@@ -2,8 +2,8 @@
 --- PyFMI-2.9.7 ---
     * Added an argument to ResultDymolaBinary to allow for reading updated
       data from the loaded file.
-    * Added option to allow for synchronizing simulation with (scaled)
-      real-time.
+    * Added option "synchronize_simulation" to allow for synchronizing 
+      simulation with (scaled) real-time.
 
 --- PyFMI-2.9.6 ---
     * Added setup.cfg that lists all Python package dependencies in order to run PyFMI.

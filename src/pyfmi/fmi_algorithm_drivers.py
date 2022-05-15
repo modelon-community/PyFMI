@@ -161,14 +161,14 @@ class AssimuloFMIAlgOptions(OptionBase):
             Default: None
             
         synchronize_simulation --
-            If set, the simulation will be syncronized to real-time or a
+            If set, the simulation will be synchronized to real-time or a
             scaled real-time, if possible. The available options are:
-                True: Simulation is syncronized to real-time
-                False: No syncronization
-                >0 (float): Simulation is syncronized to the factored 
+                True: Simulation is synchronized to real-time
+                False: No synchronization
+                >0 (float): Simulation is synchronized to the factored 
                             real-time. I.e. factor*real-time
                 
-                Example: If, set to 10: 10 simulated seconds is syncronized
+                Example: If, set to 10: 10 simulated seconds is synchronized
                          to one real-time second.
             Default: False
 
@@ -846,14 +846,14 @@ class FMICSAlgOptions(OptionBase):
             Default: False
         
         synchronize_simulation --
-            If set, the simulation will be syncronized to real-time or a
+            If set, the simulation will be synchronized to real-time or a
             scaled real-time, if possible. The available options are:
-                True: Simulation is syncronized to real-time
-                False: No syncronization
-                >0 (float): Simulation is syncronized to the factored 
+                True: Simulation is synchronized to real-time
+                False: No synchronization
+                >0 (float): Simulation is synchronized to the factored 
                             real-time. I.e. factor*real-time
                 
-                Example: If, set to 10: 10 simulated seconds is syncronized
+                Example: If, set to 10: 10 simulated seconds is synchronized
                          to one real-time second.
             Default: False
 
