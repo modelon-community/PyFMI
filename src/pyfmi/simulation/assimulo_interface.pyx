@@ -40,6 +40,7 @@ from pyfmi.common import python3_flag
 from pyfmi.common.core import TrajectoryLinearInterpolation
 
 from timeit import default_timer as timer
+import time
 cimport fmil_import as FMIL
 
 try:
@@ -584,7 +585,7 @@ cdef class FMIODE2(cExplicit_Problem):
 
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False,
-                 result_handler=None, extra_equations=None):
+                 result_handler=None, extra_equations=None, synchronize_simulation=False):
         """
         Initialize the problem.
         """
@@ -665,6 +666,19 @@ cdef class FMIODE2(cExplicit_Problem):
                     self.jac_nnz += len(self._extra_f_nbr)*len(self._extra_f_nbr)
         else:
             self._extra_f_nbr = 0
+        
+        if synchronize_simulation:
+            try:
+                if synchronize_simulation is True:
+                    self._synchronize_factor = 1.0
+                elif synchronize_simulation > 0:
+                    self._synchronize_factor = synchronize_simulation
+                else:
+                    raise fmi.InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
+            except:
+                raise fmi.InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.") 
+        else:
+            self._synchronize_factor = 0.0
 
         self._state_temp_1 = N.empty(f_nbr, dtype = N.double)
         self._event_temp_1 = N.empty(g_nbr, dtype = N.double)
@@ -1155,14 +1169,20 @@ cdef class FMIODE2(cExplicit_Problem):
             self.model_me2._completed_integrator_step(&enter_event_mode, &terminate_simulation)
         else:
             enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
-
+        
+        ret_flag = 0
         if enter_event_mode:
             self._logg_step_event += [solver.t]
             #Event have been detect, call event iteration.
             self.handle_event(solver,[0])
-            return 1 #Tell to reinitiate the solver.
-        else:
-            return 0
+            ret_flag =  1 #Tell to reinitiate the solver.
+        
+        if self._synchronize_factor > 0:
+            under_run = solver.t/self._synchronize_factor - (timer()-self._start_time)
+            if under_run > 0:
+                time.sleep(under_run)
+        
+        return ret_flag
 
     def _get_debug_file_object(self):
         if not self.debug_file_object:
@@ -1183,6 +1203,9 @@ cdef class FMIODE2(cExplicit_Problem):
         if hasattr(solver,"linear_solver"):
             if solver.linear_solver == "SPARSE":
                 self._sparse_representation = True
+        
+        if self._synchronize_factor > 0:
+            self._start_time = timer()
 
         if self._logging and (self._logging_to_mat == 0):
             solver_name = solver.__class__.__name__
