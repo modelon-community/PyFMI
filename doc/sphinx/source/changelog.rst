@@ -2,6 +2,12 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.9.7 ---
+    * Added an argument to ResultDymolaBinary to allow for reading updated
+      data from the loaded file.
+    * Added option "synchronize_simulation" to allow for synchronizing 
+      simulation with (scaled) real-time.
+
 --- PyFMI-2.9.6 ---
     * Added setup.cfg that lists all Python package dependencies in order to run PyFMI.
     * Resolved an issue that would occurr when reading large result files or streams causing the data to be corrupt due to an integer overflow.
