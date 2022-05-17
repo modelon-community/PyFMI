@@ -1320,12 +1320,12 @@ class ResultDymolaBinary(ResultDymola):
             if self._allow_file_updates:
                 self._update_data_info()
             else:
-                raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
+                raise JIOError("The result file has been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
 
     def _get_data_1(self):
         if self._data_1 is None:
             if not self._is_stream and self._mtime != os.path.getmtime(self._fname) and not self._allow_file_updates:
-                raise JIOError("The result file have been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
+                raise JIOError("The result file has been modified since the result object was created. Please make sure that different filenames are used for different simulations.")
 
             self._data_1 = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["data_1"])["data_1"]
 
