@@ -46,8 +46,8 @@ AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
 VERSION = "3.0-dev"
 LICENSE = "LGPL"
-URL = "https://jmodelica.org/pyfmi"
-DOWNLOAD_URL = "https://jmodelica.org/pyfmi/installation.html"
+URL = "https://github.com/modelon-community/PyFMI"
+DOWNLOAD_URL = "https://github.com/modelon-community/PyFMI/releases"
 DESCRIPTION = "A package for working with dynamic models compliant with the Functional Mock-Up Interface standard."
 PLATFORMS = ["Linux", "Windows", "MacOS X"]
 CLASSIFIERS = [ 'Programming Language :: Python',
@@ -77,19 +77,16 @@ adds industrial grade simulation capabilities of FMUs to Python.
 Requirements:
 -------------
 - `FMI Library (at least 2.0.1) <https://github.com/modelon-community/fmi-library>`_
-- `Numpy (recommended 1.6.2) <http://pypi.python.org/pypi/numpy>`_
-- `Scipy (recommended 0.10.1) <http://pypi.python.org/pypi/scipy>`_
-- `lxml (at least 2.3) <http://pypi.python.org/pypi/lxml>`_
-- `Assimulo (at least 3.0) <http://pypi.python.org/pypi/Assimulo>`_
-- `Cython (at least 0.18) <http://cython.org/>`_
-- Python-headers (usually included on Windows, python-dev on Ubuntu)
+- `Python-headers (usually included on Windows, python-dev on Ubuntu)`_
+- `Python 3.7 or newer`_
+- Python package dependencies are listed in file setup.cfg.
 
 Optional
 ---------
 - `wxPython <http://pypi.python.org/pypi/wxPython>`_ For the Plot GUI.
 - `matplotlib <http://pypi.python.org/pypi/matplotlib>`_ For the Plot GUI.
 
-Source Installation:
+Source Installation (note that assimulo needs to be installed and on PYTHONPATH in order to install pyfmi):
 ----------------------
 
 python setup.py install --fmil-home=/path/to/FMI_Library/
