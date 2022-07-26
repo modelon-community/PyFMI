@@ -21,7 +21,6 @@ Module containing the tests for the FMI interface.
 
 import nose
 import os
-import scipy.sparse.csc
 import numpy as np
 from collections import OrderedDict
 
