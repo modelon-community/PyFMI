@@ -211,7 +211,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'sensitivities':None,
             'write_scaled_result':False,
             'result_file_name':'',
-            'with_jacobian':True,
+            'with_jacobian':'Default',
             'logging':False,
             'dynamic_diagnostics':False,
             'result_handling':"binary",
@@ -586,6 +586,10 @@ class AssimuloFMIAlg(AlgorithmBase):
         self.with_jacobian = self.options['with_jacobian']
         if not (isinstance(self.model, fmi.FMUModelME2)): # or isinstance(self.model, fmi_coupled.CoupledFMUModelME2) For coupled FMUs, currently not supported
             self.with_jacobian = False #Force false flag in this case as it is not supported
+        elif solver == "Radau5ODE" and self.with_jacobian == 'Default': ## Force sparse jacobian for testing purposes
+            self.with_jacobian = True
+            self.solver_options["solver"] = "c"
+            self.solver_options["linear_solver"] = "SPARSE"
         elif self.with_jacobian == "Default" and (isinstance(self.model, fmi.FMUModelME2)): #or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)
             if self.model.get_capability_flags()['providesDirectionalDerivatives']:
                 self.with_jacobian = True
