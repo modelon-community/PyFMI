@@ -1,4 +1,7 @@
 --- CHANGELOG ---
+--- PyFMI-2.10.0 ---
+    * Changed default behavior for Radau5ODE to switch to analytical and sparse Jacobians, dependent on problem size.
+
 --- PyFMI-2.9.7 ---
     * Added an argument to ResultDymolaBinary to allow for reading updated
       data from the loaded file.
@@ -7,7 +10,7 @@
 
 --- PyFMI-2.9.6 ---
     * Added setup.cfg that lists all Python package dependencies in order to run PyFMI.
-    * Resolved an issue that would occurr when reading large result files or streams causing the data to be corrupt due to an integer overflow.
+    * Resolved an issue that would occur when reading large result files or streams causing the data to be corrupt due to an integer overflow.
 
 --- PyFMI-2.9.5 ---
     * Updated structure of diagnostics data and renamed several of the variables. The top level prefix has also been changed from Diagnostics to @Diagnostics, hence the error check for name clashes has been removed.
@@ -57,7 +60,7 @@
 --- PyFMI-2.8.6 ---
     * Fixed so that the written binary file is always consistent (i.e.
       if a simulation aborts, it can still be read)
-    * Changed default loading strategiy for binary files, now the
+    * Changed default loading strategy for binary files, now the
       trajectories are loaded on demand instead of all at the same time.
     * Updated Master algorithm options documentation and fixed result
       file naming.
@@ -86,7 +89,7 @@
       with the FMU state (when using save / get state).
 
 --- PyFMI-2.8 ---
-    * Fixed so that default options are not overriden when setting
+    * Fixed so that default options are not overridden when setting
       solver options.
     * Improved performance when simulating FMI 2.0 ME FMUs.
     * Building PyFMI now requires that Assimulo is installed.

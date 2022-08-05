@@ -2,6 +2,9 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.10.0 ---
+    * Changed default behavior for Radau5ODE to switch to analytical and sparse Jacobians, dependent on problem size.
+    
 --- PyFMI-2.9.7 ---
     * Added an argument to ResultDymolaBinary to allow for reading updated
       data from the loaded file.
