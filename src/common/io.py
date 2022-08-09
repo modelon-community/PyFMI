@@ -28,9 +28,14 @@ from functools import reduce
 
 import numpy as N
 import numpy as np
+import scipy
 import scipy.io
 from scipy import interpolate
-from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template, mxSPARSE_CLASS
+scipy_minmaj = tuple(map(int, scipy.__version__.split('.')[:2]))
+if scipy_minmaj >= (1, 8):
+    from scipy.io.matlab import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template, mxSPARSE_CLASS
+else:
+    from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template, mxSPARSE_CLASS
 
 import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
