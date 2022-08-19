@@ -603,7 +603,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                             if nnz/float(fnbr*fnbr) <= PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT:
                                 self.solver_options["linear_solver"] = "SPARSE"
                                 if solver == "Radau5ODE":
-                                    self.solver_options["solver"] = "c"
+                                    self.solver_options["implementation"] = "c"
                 else:
                     self.with_jacobian = False
 
