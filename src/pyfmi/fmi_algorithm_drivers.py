@@ -602,7 +602,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                             nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+fnbr
                             if nnz/float(fnbr*fnbr) <= PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT:
                                 if solver == "Radau5ODE":
-                                    self.solver_options["solver"] = "c"
+                                    self.solver_options["implementation"] = "c"
                                 else:
                                     self.solver_options["linear_solver"] = "SPARSE"
                 else:
