@@ -33,7 +33,8 @@ import scipy.io
 from scipy import interpolate
 scipy_minmaj = tuple(map(int, scipy.__version__.split('.')[:2]))
 if scipy_minmaj >= (1, 8):
-    from scipy.io.matlab import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template, mxSPARSE_CLASS
+    # due to a DeprecationWarning, we do below, this will likely need another change in a future update of scipy.
+    from scipy.io.matlab._mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template, mxSPARSE_CLASS
 else:
     from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template, mxSPARSE_CLASS
 
