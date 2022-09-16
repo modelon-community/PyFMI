@@ -4,6 +4,7 @@
       data from the loaded file.
     * Added option "synchronize_simulation" to allow for synchronizing 
       simulation with (scaled) real-time.
+    * Bugfix in fmi20_bouncing_ball_native.py, would trigger a step_event every timestep.
 
 --- PyFMI-2.9.6 ---
     * Added setup.cfg that lists all Python package dependencies in order to run PyFMI.
