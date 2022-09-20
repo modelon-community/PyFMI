@@ -24,7 +24,6 @@ from pyfmi import load_fmu
 curr_dir = O.path.dirname(O.path.abspath(__file__));
 path_to_fmus = O.path.join(curr_dir, 'files', 'FMUs')
 path_to_fmus_me2 = O.path.join(path_to_fmus,"ME2.0")
-path_to_fmus_cs2 = O.path.join(path_to_fmus,"CS2.0")
 
 def run_demo(with_plots=True):
     """
@@ -40,10 +39,11 @@ def run_demo(with_plots=True):
     """
     
     #Load the FMU by specifying the fmu and the directory
-    bouncing_fmu = load_fmu('bouncingBall.fmu',path_to_fmus_me2)
+    bouncing_fmu = load_fmu(O.path.join(path_to_fmus_me2, 'bouncingBall.fmu'))
 
     Tstart = 0.5 #The start time.
     Tend   = 3.0 #The final simulation time.
+    rtol   = 1e-6 ## relative tolerance
     
     # Initialize the model. Also sets all the start attributes defined in the 
     # XML file.
@@ -104,11 +104,13 @@ def run_demo(with_plots=True):
         event_ind_new = bouncing_fmu.get_event_indicators()
         
         #Inform the model about an accepted step and check for step events
-        step_event = bouncing_fmu.completed_integrator_step()
+        step_event, terminate = bouncing_fmu.completed_integrator_step()
+        if terminate: 
+            return
         
         #Check for time and state events
         time_event  = abs(time-Tnext) <= 1.e-10
-        state_event = True if True in ((event_ind_new>0.0) != (event_ind>0.0)) else False
+        state_event = True in ((event_ind_new>0.0) != (event_ind>0.0))
 
         #Event handling
         if step_event or time_event or state_event:
