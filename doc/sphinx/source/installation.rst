@@ -11,7 +11,7 @@ Current version:
 
 Additionally, PyFMI is available through `conda <http://conda.pydata.org/docs/index.html>`_::
 
-    conda install -c https://conda.binstar.org/chria pyfmi
+    conda install -c conda-forge pyfmi
 
 Requirements:
 -------------
