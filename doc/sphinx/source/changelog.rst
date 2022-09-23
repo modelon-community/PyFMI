@@ -2,6 +2,10 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.9.8 ---
+    * Resolved a bug in the example fmi20_bouncing_ball_native where a step-event is triggered in every timestep.
+    * Changed some imports to remove DeprecationWarnings.
+    
 --- PyFMI-2.9.7 ---
     * Added an argument to ResultDymolaBinary to allow for reading updated
       data from the loaded file.
