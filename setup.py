@@ -109,7 +109,6 @@ copy_gcc_lib = False
 gcc_lib = None
 force_32bit = False
 no_msvcr = False
-python3_flag = True if S.hexversion > 0x03000000 else False
 with_openmp = False
 
 static_link_gcc = "-static-libgcc"
@@ -269,8 +268,7 @@ def check_extensions():
             ext_list[i].extra_link_args.append("-fopenmp")
             ext_list[i].extra_compile_args.append("-fopenmp")
         
-        if python3_flag:
-            ext_list[i].cython_directives = {"language_level": 3}
+        ext_list[i].cython_directives = {"language_level": 3}
 
     return ext_list
 
