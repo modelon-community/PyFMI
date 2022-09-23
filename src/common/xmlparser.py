@@ -213,7 +213,7 @@ def _parse_XML(filename, schemaname=''):
         
         schema = etree.XMLSchema(schemadoc)
 
-        result = schema.validate(xmldoc)
+        result = schema.validate(schemadoc)
     
         if not result:
             raise XMLException("The XML file: %s is not valid \
