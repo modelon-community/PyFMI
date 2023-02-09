@@ -41,7 +41,7 @@ if assimulo_installed:
         
         @testattr(stddist = True)
         def test_quadtank_estimate(self):
-            model = Dummy_FMUModelME2([], "QuadTankPack_Sim_QuadTank.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "QuadTankPack_Sim_QuadTank.fmu"), _connect_dll=False)
 
             g = model.values[model.get_variable_valueref("qt.g")]
             g1_nmp = model.values[model.get_variable_valueref("qt.g1_nmp")]

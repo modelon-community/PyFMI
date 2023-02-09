@@ -37,7 +37,6 @@ from fmi import FMI_OK, FMI_DEFAULT_LOG_LEVEL, FMI_ME
 
 cdef class FMUModelME1Extended(FMUModelME1):
 
-    cdef public object _relativeTolerance
     cdef public object _explicit_problem, _solver
     cdef public object _current_time, _stop_time, _input_time
     cdef public list _input_value_refs, _input_alias_type, _input_factorials
@@ -45,9 +44,9 @@ cdef class FMUModelME1Extended(FMUModelME1):
     cdef public dict _input_derivatives, _options
     cdef public N.ndarray _input_tmp
 
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _connect_dll=True):
+    def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _connect_dll=True):
         #Instantiate the FMU
-        FMUModelME1.__init__(self, fmu, path, enable_logging,log_file_name, log_level, _connect_dll=_connect_dll)
+        FMUModelME1.__init__(self, fmu, log_file_name, log_level, _connect_dll=_connect_dll)
         
         nbr_f, nbr_g = self.get_ode_sizes()
 
@@ -65,7 +64,6 @@ cdef class FMUModelME1Extended(FMUModelME1):
         self._input_factorials = [1.0, 2.0, 6.0, 24.0]
         
         #Default values
-        self._relativeTolerance = None
         self._input_value_refs = input_value_refs
         self._input_alias_type = input_alias_type
         self._input_active = 0
@@ -413,7 +411,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
-    def initialize(self, start_time=0.0, stop_time=1.0, stop_time_defined=False, tStart=None, tStop=None, StopTimeDefined=None):
+    def initialize(self, start_time=0.0, stop_time=1.0, stop_time_defined=False):
         """
         Initializes the slave.
 
@@ -436,24 +434,11 @@ cdef class FMUModelME1Extended(FMUModelME1):
         """
         cdef char tolerance_controlled
         cdef FMIL.fmi1_real_t tolerance
-        
-        if tStart is not None:
-            logging.warning("The attribute 'tStart' is deprecated and will be removed. Please use 'start_time' instead.")
-            start_time = tStart #If the user has used this, use it!
-        if tStop is not None:
-            logging.warning("The attribute 'tStop' is deprecated and will be removed. Please use 'stop_time' instead.")
-            stop_time = tStop #If the user has used this, use it!
-        if StopTimeDefined is not None:
-            logging.warning("The attribute 'StopTimeDefined' is deprecated and will be removed. Please use 'stop_time_defined' instead.")
-            stop_time_defined = StopTimeDefined #If the user has used this, use it!
 
         self.time = start_time
 
         tolerance_controlled = 1
-        if self._relativeTolerance == None:
-            tolerance = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
-        else:
-            tolerance = self._relativeTolerance
+        tolerance = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
 
         status = FMIL.fmi1_import_initialize(self._fmu, tolerance_controlled, tolerance, &self._eventInfo)
 
@@ -464,7 +449,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
                     ' Check the log for information (FMUModel.get_log).')
             else:
                 logging.warning('Initialize returned with a warning.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Increase log_level for more information, (FMUModel(..., log_level=...)).')
 
         if status > 1:
             if self._enable_logging:
@@ -473,7 +458,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
                     ' Check the log for information (FMUModel.get_log).')
             else:
                 raise FMUException('Initialize returned with a error.' \
-                    ' Enable logging for more information, (FMUModel(..., enable_logging=True)).')
+                    ' Increase log_level for more information, (FMUModel(..., log_level=...)).')
 
         self._allocated_fmu = True
         

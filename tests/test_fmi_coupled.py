@@ -42,8 +42,8 @@ if assimulo_installed:
     class Test_CoupledFMUModelME2_Simulation:
         @testattr(stddist = True)
         def test_linear_example(self):
-            model_sub_1 = Dummy_FMUModelME2([], "LinearStability.SubSystem1.fmu", me2_xml_path, _connect_dll=False)
-            model_sub_2 = Dummy_FMUModelME2([], "LinearStability.SubSystem2.fmu", me2_xml_path, _connect_dll=False)
+            model_sub_1 = Dummy_FMUModelME2([], os.path.join(me2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
+            model_sub_2 = Dummy_FMUModelME2([], os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
 
             def sub1(*args, **kwargs):
                 u1 = model_sub_1.values[model_sub_1.get_variable_valueref("u1")]
@@ -95,9 +95,9 @@ class Test_CoupledFMUModelME2:
     
     @testattr(stddist = True)
     def test_reversed_connections(self):
-        model_sub_1 = FMUModelME2("LinearStability.SubSystem1.fmu", me2_xml_path, _connect_dll=False)
-        model_sub_2 = FMUModelME2("LinearStability.SubSystem2.fmu", me2_xml_path, _connect_dll=False)
-        model_full  = FMUModelME2("LinearStability.FullSystem.fmu", me2_xml_path, _connect_dll=False)
+        model_sub_1 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
+        model_sub_2 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
+        model_full  = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.FullSystem.fmu"), _connect_dll=False)
         
         models = [("First", model_sub_1), ("Second", model_sub_2)]
         connections = [(model_sub_2,"y1",model_sub_1,"u2"),
@@ -113,9 +113,9 @@ class Test_CoupledFMUModelME2:
     @testattr(stddist = True)
     def test_inputs_list(self):
         
-        model_sub_1 = FMUModelME2("LinearStability.SubSystem1.fmu", me2_xml_path, _connect_dll=False)
-        model_sub_2 = FMUModelME2("LinearStability.SubSystem2.fmu", me2_xml_path, _connect_dll=False)
-        model_full  = FMUModelME2("LinearStability.FullSystem.fmu", me2_xml_path, _connect_dll=False)
+        model_sub_1 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
+        model_sub_2 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
+        model_full  = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.FullSystem.fmu"), _connect_dll=False)
         
         models = [("First", model_sub_1), ("Second", model_sub_2)]
         connections = [(model_sub_1,"y1",model_sub_2,"u2"),
@@ -134,8 +134,8 @@ class Test_CoupledFMUModelME2:
     
     @testattr(stddist = True)
     def test_alias(self):
-        model_cc_1 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
-        model_cc_2 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
+        model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
+        model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         
         models = [("First", model_cc_1), ("Second", model_cc_2)]
         connections = []
@@ -148,8 +148,8 @@ class Test_CoupledFMUModelME2:
     
     @testattr(stddist = True)
     def test_loading(self):
-        model_cc_1 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
-        model_cc_2 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
+        model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
+        model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         
         models = [model_cc_1, model_cc_2]
         connections = []
@@ -173,8 +173,8 @@ class Test_CoupledFMUModelME2:
     
     @testattr(stddist = True)
     def test_get_variable_valueref(self):
-        model_cc_1 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
-        model_cc_2 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
+        model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
+        model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         
         models = [("First", model_cc_1), ("Second", model_cc_2)]
         connections = []
@@ -196,8 +196,8 @@ class Test_CoupledFMUModelME2:
     
     @testattr(stddist = True)
     def test_ode_sizes(self):
-        model_cc_1 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
-        model_cc_2 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
+        model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
+        model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         
         models = [("First", model_cc_1), ("Second", model_cc_2)]
         connections = []
@@ -211,8 +211,8 @@ class Test_CoupledFMUModelME2:
     
     @testattr(stddist = True)
     def test_variable_variability(self):
-        model_cc_1 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
-        model_cc_2 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
+        model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
+        model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         
         models = [("First", model_cc_1), ("Second", model_cc_2)]
         connections = []
@@ -227,8 +227,8 @@ class Test_CoupledFMUModelME2:
     
     @testattr(stddist = True)
     def test_variable_causality(self):
-        model_cc_1 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
-        model_cc_2 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
+        model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
+        model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         
         models = [("First", model_cc_1), ("Second", model_cc_2)]
         connections = []
@@ -243,8 +243,8 @@ class Test_CoupledFMUModelME2:
     
     @testattr(stddist = True)
     def test_derivatives_list(self):
-        model_cc_1 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
-        model_cc_2 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
+        model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
+        model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         
         models = [("First", model_cc_1), ("Second", model_cc_2)]
         connections = []
@@ -261,8 +261,8 @@ class Test_CoupledFMUModelME2:
     
     @testattr(stddist = True)
     def test_states_list(self):
-        model_cc_1 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
-        model_cc_2 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
+        model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
+        model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         
         models = [("First", model_cc_1), ("Second", model_cc_2)]
         connections = []
@@ -279,8 +279,8 @@ class Test_CoupledFMUModelME2:
     
     @testattr(stddist = True)
     def test_model_variables(self):
-        model_cc_1 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
-        model_cc_2 = FMUModelME2("CoupledClutches.fmu", me2_xml_path, _connect_dll=False)
+        model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
+        model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         
         models = [("First", model_cc_1), ("Second", model_cc_2)]
         connections = []

@@ -37,14 +37,14 @@ class Test_FMUModelME1Extended:
     
     @testattr(stddist = True)
     def test_log_file_name(self):
-        model = FMUModelME1Extended("bouncingBall.fmu",me1_xml_path, _connect_dll=False)
+        model = FMUModelME1Extended(os.path.join(me1_xml_path, "bouncingBall.fmu"), _connect_dll=False)
         assert os.path.exists("bouncingBall_log.txt")
-        model = FMUModelME1Extended("bouncingBall.fmu",me1_xml_path,log_file_name="Test_log.txt", _connect_dll=False)
+        model = FMUModelME1Extended(os.path.join(me1_xml_path, "bouncingBall.fmu"), log_file_name="Test_log.txt", _connect_dll=False)
         assert os.path.exists("Test_log.txt")
     
     @testattr(stddist = True)
     def test_default_experiment(self):
-        model = FMUModelME1Extended("CoupledClutches.fmu", me1_xml_path, _connect_dll=False)
+        model = FMUModelME1Extended(os.path.join(me1_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
 
         assert np.abs(model.get_default_experiment_start_time()) < 1e-4
         assert np.abs(model.get_default_experiment_stop_time()-1.5) < 1e-4
