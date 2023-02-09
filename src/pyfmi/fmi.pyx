@@ -1588,6 +1588,7 @@ cdef class FMUModelBase(ModelBase):
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
         nref = val_ref.size
         cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref, dtype=float, ndmin=1)
+        nref = val_ref.size
 
         if nref == 0: ## get_real([])
             return val
