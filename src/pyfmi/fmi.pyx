@@ -1586,10 +1586,10 @@ cdef class FMUModelBase(ModelBase):
         cdef int status
         cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        nref = len(val_ref)
         cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref, dtype=float, ndmin=1)
+        nref = val_ref.size
 
-        if not nref: ## get_real([])
+        if nref == 0: ## get_real([])
             return val
 
         status = FMIL.fmi1_import_get_real(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_real_t*>val.data)
@@ -1655,11 +1655,10 @@ cdef class FMUModelBase(ModelBase):
         cdef int status
         cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-
         nref = val_ref.size
         cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = N.array([0]*nref, dtype=int,ndmin=1)
 
-        if not nref: ## get_integer([])
+        if nref == 0: ## get_integer([])
             return val
 
         status = FMIL.fmi1_import_get_integer(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_integer_t*>val.data)
@@ -1727,14 +1726,12 @@ cdef class FMUModelBase(ModelBase):
         cdef int status
         cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-
         nref = val_ref.size
 
-        if not nref: ## get_boolean([])
+        if nref == 0: ## get_boolean([])
             return N.array([])
 
         cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
-
 
         status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val)
 
@@ -1815,10 +1812,11 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiGetString
         """
         cdef int status
+        cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1, mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
-        cdef int nref = input_valueref.size
+        nref = input_valueref.size
 
-        if not nref: ## get_string([])
+        if nref == 0: ## get_string([])
             return []
 
         cdef FMIL.fmi1_string_t* output_value = <FMIL.fmi1_string_t*>FMIL.malloc(sizeof(FMIL.fmi1_string_t)*nref)
@@ -4213,11 +4211,12 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2GetReal
         """
         cdef int status
+        cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        cdef int nref = input_valueref.size
+        nref = input_valueref.size
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            output_value   = N.zeros(nref)
 
-        if not nref: ## get_real([])
+        if nref == 0: ## get_real([])
             return output_value
 
         status = FMIL.fmi2_import_get_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_real_t*> output_value.data)
@@ -4292,12 +4291,11 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int         status
         cdef FMIL.size_t nref
-
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
         nref = input_valueref.size
         cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         output_value   = N.zeros(nref, dtype=int)
 
-        if not nref: ## get_integer([])
+        if nref == 0: ## get_integer([])
             return output_value
 
         status = FMIL.fmi2_import_get_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> output_value.data)
@@ -4376,11 +4374,10 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int         status
         cdef FMIL.size_t nref
-
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
         nref = input_valueref.size
 
-        if not nref: ## get_boolean([])
+        if nref == 0: ## get_boolean([])
             return N.array([])
 
         cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
@@ -4463,10 +4460,11 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2GetString
         """
         cdef int status
+        cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
-        cdef int nref = input_valueref.size
+        nref = input_valueref.size
 
-        if not nref: ## get_string([])
+        if nref == 0: ## get_string([])
             return []
         
         cdef FMIL.fmi2_string_t* output_value = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*nref)
