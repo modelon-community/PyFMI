@@ -1,4 +1,7 @@
 --- CHANGELOG ---
+--- PyFMI-2.9.9 ---
+    * Added shortcut such that get_(real|integer|boolean|string)([]) calls no longer trigger a call to the FMU.
+
 --- PyFMI-2.9.8 ---
     * Resolved a bug in the example fmi20_bouncing_ball_native where a step-event is triggered in every timestep.
     * Changed some imports to remove DeprecationWarnings.

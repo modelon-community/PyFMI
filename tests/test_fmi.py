@@ -235,6 +235,16 @@ class Test_FMUModelME1:
         bounce = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
         assert isinstance(bounce.simulate_options(), fmi_algorithm_drivers.AssimuloFMIAlgOptions)
 
+    @testattr(stddist = True)
+    def test_get_xxx_empty(self):
+        """ Test that get_xxx([]) do not calls do not trigger calls to FMU. """
+        model = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        ## Tests that these do not crash and return empty arrays/lists
+        assert len(model.get_real([]))    == 0, "get_real   ([]) has non-empty return"
+        assert len(model.get_integer([])) == 0, "get_integer([]) has non-empty return"
+        assert len(model.get_boolean([])) == 0, "get_boolean([]) has non-empty return"
+        assert len(model.get_string([]))  == 0, "get_string ([]) has non-empty return"
+
 class Test_FMUModelCS1:
 
     @testattr(stddist = True)
@@ -1042,6 +1052,16 @@ class Test_FMUModelME2:
 
         assert model.get_variable_display_unit("J1.phi") == "deg", model.get_variable_display_unit("J1.phi")
         nose.tools.assert_raises(FMUException, model.get_variable_display_unit, "J1.w")
+
+    @testattr(stddist = True)
+    def test_get_xxx_empty(self):
+        """ Test that get_xxx([]) do not calls do not trigger calls to FMU. """
+        model = FMUModelME2("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        ## Tests that these do not crash and return empty arrays/lists
+        assert len(model.get_real([]))    == 0, "get_real   ([]) has non-empty return"
+        assert len(model.get_integer([])) == 0, "get_integer([]) has non-empty return"
+        assert len(model.get_boolean([])) == 0, "get_boolean([]) has non-empty return"
+        assert len(model.get_string([]))  == 0, "get_string ([]) has non-empty return"
 
 class Test_FMUModelBase2:
 
