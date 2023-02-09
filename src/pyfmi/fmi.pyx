@@ -1547,8 +1547,8 @@ cdef class FMUModelBase(ModelBase):
         cdef int status
         cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref, dtype=float, ndmin=1)
         nref = val_ref.size
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref, dtype=float, ndmin=1)
 
         if nref == 0: ## get_real([])
             return val
@@ -4387,6 +4387,11 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
         nref = input_valueref.size
+
+        if nref == 0: ## get_string([])
+            return []
+        
+        cdef FMIL.fmi2_string_t* output_value = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*nref)
 
         status = FMIL.fmi2_import_get_string(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, output_value)
 
