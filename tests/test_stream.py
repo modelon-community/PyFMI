@@ -23,7 +23,7 @@ from shutil import rmtree
 from filecmp import cmp as compare_files
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
+from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
 from pyfmi.tests.test_util import get_examples_folder
 
 file_path = os.path.dirname(os.path.abspath(__file__))

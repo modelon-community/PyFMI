@@ -22,7 +22,7 @@ from zipfile import ZipFile
 import tempfile
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUModel, FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
+from pyfmi.fmi import FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
@@ -222,7 +222,7 @@ class Test_FMUModelME1:
     @testattr(stddist = True)
     def test_instantiate_jmu(self):
         """
-        Test that FMUModel can not be instantiated with a JMU file.
+        Test that FMUModelME1 can not be instantiated with a JMU file.
         """
         nose.tools.assert_raises(FMUException,FMUModelME1,'model.jmu')
 

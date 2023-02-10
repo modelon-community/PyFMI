@@ -20,7 +20,7 @@ import os
 import numpy as np
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
+from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 from pyfmi import Master
