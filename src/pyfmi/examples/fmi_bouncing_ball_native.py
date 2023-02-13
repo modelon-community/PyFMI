@@ -14,17 +14,17 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-import os as O
+import os
 
 import pylab as P
 import numpy as N
 
 from pyfmi import load_fmu
 
-curr_dir = O.path.dirname(O.path.abspath(__file__));
-path_to_fmus = O.path.join(curr_dir, 'files', 'FMUs')
-path_to_fmus_me1 = O.path.join(path_to_fmus,"ME1.0")
-path_to_fmus_cs1 = O.path.join(path_to_fmus,"CS1.0")
+curr_dir = os.path.dirname(os.path.abspath(__file__));
+path_to_fmus = os.path.join(curr_dir, 'files', 'FMUs')
+path_to_fmus_me1 = os.path.join(path_to_fmus,"ME1.0")
+path_to_fmus_cs1 = os.path.join(path_to_fmus,"CS1.0")
 
 def run_demo(with_plots=True):
     """
@@ -40,7 +40,7 @@ def run_demo(with_plots=True):
     """
     
     #Load the FMU by specifying the fmu and the directory
-    bouncing_fmu = load_fmu('bouncingBall.fmu',path_to_fmus_me1)
+    bouncing_fmu = load_fmu(os.path.join(path_to_fmus_me1, 'bouncingBall.fmu'))
 
     Tstart = 0.5 #The start time.
     Tend   = 3.0 #The final simulation time.
