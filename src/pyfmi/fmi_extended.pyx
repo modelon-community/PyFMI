@@ -46,7 +46,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
 
     def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _connect_dll=True):
         #Instantiate the FMU
-        FMUModelME1.__init__(self, fmu, log_file_name, log_level, _connect_dll=_connect_dll)
+        FMUModelME1.__init__(self, fmu = fmu, log_file_name = log_file_name, log_level = log_level, _connect_dll=_connect_dll)
         
         nbr_f, nbr_g = self.get_ode_sizes()
 
