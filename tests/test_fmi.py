@@ -22,7 +22,7 @@ from zipfile import ZipFile
 import tempfile
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUModel, FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
+from pyfmi.fmi import FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
@@ -54,7 +54,7 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_simulate_with_debug_option_no_state(self):
             """ Verify that an instance of CVodeDebugInformation is created """
-            model = Dummy_FMUModelME1([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+            model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NoState.Example1.fmu"), _connect_dll=False)
 
             opts=model.simulate_options()
             opts["logging"] = True
@@ -68,7 +68,7 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_no_result(self):
-            model = Dummy_FMUModelME1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+            model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
             opts = model.simulate_options()
             opts["result_handling"] = "none"
@@ -76,7 +76,7 @@ if assimulo_installed:
 
             nose.tools.assert_raises(Exception,res._get_result_data)
 
-            model = Dummy_FMUModelME1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+            model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
             opts = model.simulate_options()
             opts["return_result"] = False
@@ -86,7 +86,7 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_custom_result_handler(self):
-            model = Dummy_FMUModelME1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+            model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
             class A:
                 pass
@@ -151,7 +151,7 @@ class Test_FMUModelME1:
 
     @testattr(stddist = True)
     def test_get_time_varying_variables(self):
-        model = FMUModelME1("RLC_Circuit.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu"), _connect_dll=False)
 
         [r,i,b] = model.get_model_time_varying_value_references()
         [r_f, i_f, b_f] = model.get_model_time_varying_value_references(filter="*")
@@ -162,7 +162,7 @@ class Test_FMUModelME1:
 
     @testattr(stddist = True)
     def test_get_time_varying_variables_with_alias(self):
-        model = FMUModelME1("Alias1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "Alias1.fmu"), _connect_dll=False)
 
         [r,i,b] = model.get_model_time_varying_value_references(filter="y*")
 
@@ -171,7 +171,7 @@ class Test_FMUModelME1:
 
     @testattr(stddist = True)
     def test_get_variable_by_valueref(self):
-        bounce = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        bounce = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         assert "der(v)" == bounce.get_variable_by_valueref(3)
         assert "v" == bounce.get_variable_by_valueref(2)
 
@@ -179,12 +179,12 @@ class Test_FMUModelME1:
 
     @testattr(stddist = True)
     def test_get_variable_nominal_valueref(self):
-        bounce = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        bounce = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         assert bounce.get_variable_nominal("v") == bounce.get_variable_nominal(valueref=2)
 
     @testattr(windows_full = True)
     def test_default_experiment(self):
-        model = FMUModelME1("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         assert np.abs(model.get_default_experiment_start_time()) < 1e-4
         assert np.abs(model.get_default_experiment_stop_time()-1.5) < 1e-4
@@ -193,15 +193,15 @@ class Test_FMUModelME1:
 
     @testattr(stddist = True)
     def test_log_file_name(self):
-        model = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         assert os.path.exists("bouncingBall_log.txt")
-        model = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False, log_file_name="Test_log.txt")
+        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False, log_file_name="Test_log.txt")
         assert os.path.exists("Test_log.txt")
 
     @testattr(stddist = True)
     def test_ode_get_sizes(self):
-        bounce = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
-        dq = FMUModelME1("dq.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        bounce = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
+        dq = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "dq.fmu"), _connect_dll=False)
 
         [nCont,nEvent] = bounce.get_ode_sizes()
         assert nCont == 2
@@ -213,8 +213,8 @@ class Test_FMUModelME1:
 
     @testattr(stddist = True)
     def test_get_name(self):
-        bounce = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
-        dq = FMUModelME1("dq.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        bounce = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
+        dq = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "dq.fmu"), _connect_dll=False)
 
         assert bounce.get_name() == 'bouncingBall'
         assert dq.get_name() == 'dq'
@@ -222,7 +222,7 @@ class Test_FMUModelME1:
     @testattr(stddist = True)
     def test_instantiate_jmu(self):
         """
-        Test that FMUModel can not be instantiated with a JMU file.
+        Test that FMUModelME1 can not be instantiated with a JMU file.
         """
         nose.tools.assert_raises(FMUException,FMUModelME1,'model.jmu')
 
@@ -232,7 +232,7 @@ class Test_FMUModelME1:
         Test that simulate_options on an FMU returns the correct options
         class instance.
         """
-        bounce = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        bounce = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         assert isinstance(bounce.simulate_options(), fmi_algorithm_drivers.AssimuloFMIAlgOptions)
 
     @testattr(stddist = True)
@@ -291,7 +291,7 @@ class Test_FMUModelCS1:
 
     @testattr(stddist = True)
     def test_custom_result_handler(self):
-        model = Dummy_FMUModelCS1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS1([], os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
         class A:
             pass
@@ -311,7 +311,7 @@ class Test_FMUModelCS1:
 
     @testattr(stddist = True)
     def test_no_result(self):
-        model = Dummy_FMUModelCS1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS1([], os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
         opts = model.simulate_options()
         opts["result_handling"] = "none"
@@ -319,7 +319,7 @@ class Test_FMUModelCS1:
 
         nose.tools.assert_raises(Exception,res._get_result_data)
 
-        model = Dummy_FMUModelCS1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS1([], os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
         opts = model.simulate_options()
         opts["return_result"] = False
@@ -329,7 +329,7 @@ class Test_FMUModelCS1:
 
     @testattr(stddist = True)
     def test_result_name_file(self):
-        model = Dummy_FMUModelCS1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS1([], os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         res = model.simulate(options={"result_handling":"file"})
 
@@ -337,7 +337,7 @@ class Test_FMUModelCS1:
         assert res.result_file == "CoupledClutches_result.txt"
         assert os.path.exists(res.result_file)
 
-        model = Dummy_FMUModelCS1([], "CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS1([], os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "CoupledClutches.fmu"), _connect_dll=False)
         res = model.simulate(options={"result_file_name":
                                     "CoupledClutches_result_test.txt"})
 
@@ -347,7 +347,7 @@ class Test_FMUModelCS1:
 
     @testattr(stddist = True)
     def test_default_experiment(self):
-        model = FMUModelCS1("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        model = FMUModelCS1(os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         assert np.abs(model.get_default_experiment_start_time()) < 1e-4
         assert np.abs(model.get_default_experiment_stop_time()-1.5) < 1e-4
@@ -355,14 +355,14 @@ class Test_FMUModelCS1:
 
     @testattr(stddist = True)
     def test_log_file_name(self):
-        model = FMUModelCS1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        model = FMUModelCS1(os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "bouncingBall.fmu", ), _connect_dll=False)
         assert os.path.exists("bouncingBall_log.txt")
-        model = FMUModelCS1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False, log_file_name="Test_log.txt")
+        model = FMUModelCS1(os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "bouncingBall.fmu"), _connect_dll=False, log_file_name="Test_log.txt")
         assert os.path.exists("Test_log.txt")
 
     @testattr(stddist = True)
     def test_erreneous_ncp(self):
-        model = Dummy_FMUModelCS1([], "NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS1([], os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
         opts = model.simulate_options()
         opts["ncp"] = 0
@@ -382,14 +382,14 @@ class Test_FMUModelBase:
 
     @testattr(stddist = True)
     def test_get_erronous_nominals(self):
-        model = FMUModelME1("NominalTest4.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NominalTest4.fmu"), _connect_dll=False)
 
         nose.tools.assert_almost_equal(model.get_variable_nominal("x"), 2.0)
         nose.tools.assert_almost_equal(model.get_variable_nominal("y"), 1.0)
 
     @testattr(stddist = True)
     def test_caching(self):
-        negated_alias = FMUModelME1("NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        negated_alias = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
         assert len(negated_alias.cache) == 0 #No starting cache
 
@@ -408,7 +408,7 @@ class Test_FMUModelBase:
         assert id(vars_5) != id(vars_1)
         assert id(vars_5) == id(vars_7)
 
-        negated_alias = FMUModelME1("NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        negated_alias = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
         assert len(negated_alias.cache) == 0 #No starting cache
 
@@ -417,7 +417,7 @@ class Test_FMUModelBase:
 
     @testattr(stddist = True)
     def test_get_scalar_variable(self):
-        negated_alias = FMUModelME1("NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        negated_alias = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
         sc_x = negated_alias.get_scalar_variable("x")
 
@@ -432,18 +432,18 @@ class Test_FMUModelBase:
 
     @testattr(stddist = True)
     def test_get_variable_description(self):
-        model = FMUModelME1("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
         assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
 
     @testattr(stddist = True)
     def test_simulation_without_initialization(self):
-        model = Dummy_FMUModelME1([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["initialize"] = False
 
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
 
-        model = Dummy_FMUModelCS1([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS1([], os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["initialize"] = False
 
@@ -493,7 +493,7 @@ class Test_FMUModelCS2:
         model = FMUModelCS2(full_path, _connect_dll=False)
 
         path, file_name = os.path.split(full_path)
-        assert model.get_log_file_name() == file_name.replace(".","_")[:-4]+"_log.txt"
+        assert model.get_log_filename() == file_name.replace(".","_")[:-4]+"_log.txt"
 
     @testattr(stddist = True)
     def test_invalid_binary(self):
@@ -513,14 +513,12 @@ class Test_FMUModelCS2:
     def test_unzipped_fmu_exceptions(self):
         """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelCS2. """
         err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0")
         with nose.tools.assert_raises_regex(FMUException, err_msg):
-            model = FMUModelCS2("LinearStability.SubSystem1.fmu", full_path, _connect_dll=False, allow_unzipped_fmu=True)
+            model = FMUModelCS2(os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "LinearStability.SubSystem1.fmu"), _connect_dll=False, allow_unzipped_fmu=True)
 
     @testattr(stddist = True)
     def test_erreneous_ncp(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu")
-        model = FMUModelCS2(full_path, _connect_dll=False)
+        model = FMUModelCS2(os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         opts = model.simulate_options()
         opts["ncp"] = 0
@@ -533,7 +531,7 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_basicsens1(self):
             #Noncompliant FMI test as 'd' is parameter is not supposed to be able to be set during simulation
-            model = Dummy_FMUModelME2([], "BasicSens1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BasicSens1.fmu"), _connect_dll=False)
 
             def f(*args, **kwargs):
                 d = model.values[model.variables["d"].value_reference]
@@ -553,7 +551,7 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_basicsens1dir(self):
-            model = Dummy_FMUModelME2([], "BasicSens1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BasicSens1.fmu"), _connect_dll=False)
 
             caps = model.get_capability_flags()
             caps["providesDirectionalDerivatives"] = True
@@ -586,7 +584,7 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_basicsens2(self):
-            model = Dummy_FMUModelME2([], "BasicSens2.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BasicSens2.fmu"), _connect_dll=False)
 
             caps = model.get_capability_flags()
             caps["providesDirectionalDerivatives"] = True
@@ -618,7 +616,7 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_relative_tolerance(self):
-            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
 
             opts = model.simulate_options()
             opts["CVode_options"]["rtol"] = 1e-8
@@ -630,7 +628,7 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_simulate_with_debug_option_no_state(self):
             """ Verify that an instance of CVodeDebugInformation is created """
-            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
 
             opts=model.simulate_options()
             opts["logging"] = True
@@ -644,7 +642,7 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_maxord_is_set(self):
-            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
             opts = model.simulate_options()
             opts["solver"] = "CVode"
             opts["CVode_options"]["maxord"] = 1
@@ -655,7 +653,7 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_with_jacobian_option(self):
-            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
             opts = model.simulate_options()
             opts["solver"] = "CVode"
             opts["result_handling"] = "none"
@@ -701,7 +699,7 @@ if assimulo_installed:
                     def get_derivatives_dependencies(self):
                         return (nnz, {})
 
-                model = Sparse_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+                model = Sparse_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
                 opts = model.simulate_options()
                 opts["solver"] = "CVode"
                 opts["result_handling"] = "none"
@@ -721,13 +719,13 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_ncp_option(self):
-            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
             opts = model.simulate_options()
             assert opts["ncp"] == 500, opts["ncp"]
 
         @testattr(stddist = True)
         def test_solver_options(self):
-            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
             opts = model.simulate_options()
 
             try:
@@ -742,7 +740,7 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_solver_options_using_defaults(self):
-            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
             opts = model.simulate_options()
 
             opts["CVode_options"] = {"maxh":1.0}
@@ -767,7 +765,7 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_maxh_option(self):
-            model = Dummy_FMUModelME2([], "NoState.Example1.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
             opts = model.simulate_options()
             opts["result_handling"] = "none"
 
@@ -838,28 +836,24 @@ class Test_FMUModelME2:
     def test_unzipped_fmu_exceptions(self):
         """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelME2. """
         err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0")
         with nose.tools.assert_raises_regex(FMUException, err_msg):
-            model = FMUModelME2("LinearStability.SubSystem2.fmu", full_path, _connect_dll=False, allow_unzipped_fmu=True)
+            model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu"), _connect_dll=False, allow_unzipped_fmu=True)
 
     @testattr(stddist = True)
     def test_invalid_binary(self):
         err_msg = "The FMU could not be loaded."
-        fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu")
         with nose.tools.assert_raises_regex(InvalidBinaryException, err_msg):
-            model = FMUModelME2(fmu, _connect_dll=True)
+            model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu"), _connect_dll=True)
 
     @testattr(stddist = True)
     def test_invalid_version(self):
         err_msg = "The FMU version is not supported by this class"
-        fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu")
         with nose.tools.assert_raises_regex(InvalidVersionException, err_msg):
-            model = FMUModelME2(fmu, _connect_dll=True)
+            model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu"), _connect_dll=True)
 
     @testattr(stddist = True)
     def test_estimate_directional_derivatives_linearstate(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStateSpace.fmu")
-        model = Dummy_FMUModelME2([], full_path, _connect_dll=False)
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStateSpace.fmu"), _connect_dll=False)
 
         def f(*args, **kwargs):
             derx1 = -1.*model.values[model.variables["x[1]"].value_reference] + model.values[model.variables["u[1]"].value_reference]
@@ -889,8 +883,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_estimate_directional_derivatives_without_structure_info(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu")
-        model = Dummy_FMUModelME2([], full_path, _connect_dll=False)
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu"), _connect_dll=False)
 
         def f(*args, **kwargs):
             derh = model.values[model.variables["v"].value_reference]
@@ -918,8 +911,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_estimate_directional_derivatives_BCD(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "OutputTest2.fmu")
-        model = Dummy_FMUModelME2([], full_path, _connect_dll=False)
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "OutputTest2.fmu"), _connect_dll=False)
 
         def f(*args, **kwargs):
             x1 = model.values[model.variables["x1"].value_reference]
@@ -972,8 +964,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_output_dependencies(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "OutputTest2.fmu")
-        model = FMUModelME2(full_path, _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "OutputTest2.fmu"), _connect_dll=False)
 
         [state_dep, input_dep] = model.get_output_dependencies()
 
@@ -987,9 +978,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_output_dependencies_2(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu")
-
-        model = FMUModelME2(full_path, _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         [state_dep, input_dep] = model.get_output_dependencies()
 
@@ -998,9 +987,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_derivative_dependencies(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu")
-
-        model = FMUModelME2(full_path, _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
 
         [state_dep, input_dep] = model.get_derivatives_dependencies()
 
@@ -1033,11 +1020,11 @@ class Test_FMUModelME2:
         model = FMUModelME2(full_path, _connect_dll=False)
 
         path, file_name = os.path.split(full_path)
-        assert model.get_log_file_name() == file_name.replace(".","_")[:-4]+"_log.txt"
+        assert model.get_log_filename() == file_name.replace(".","_")[:-4]+"_log.txt"
 
     @testattr(stddist = True)
     def test_units(self):
-        model = FMUModelME2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         assert model.get_variable_unit("J1.w") == "rad/s", model.get_variable_unit("J1.w")
         assert model.get_variable_unit("J1.phi") == "rad", model.get_variable_unit("J1.phi")
@@ -1048,7 +1035,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_display_units(self):
-        model = FMUModelME2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         assert model.get_variable_display_unit("J1.phi") == "deg", model.get_variable_display_unit("J1.phi")
         nose.tools.assert_raises(FMUException, model.get_variable_display_unit, "J1.w")
@@ -1067,8 +1054,7 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_relative_quantity(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "test_type_definitions.fmu")
-        model = FMUModelME2(full_path, _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "test_type_definitions.fmu"), _connect_dll=False)
 
         rel = model.get_variable_relative_quantity("real_with_attr")
         assert rel == True, "Relative quantity should be True"
@@ -1085,8 +1071,7 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_unicode_description(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Description.fmu")
-        model = FMUModelME2(full_path, _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Description.fmu"), _connect_dll=False)
 
         desc = model.get_variable_description("x")
 
@@ -1094,7 +1079,7 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_declared_enumeration_type(self):
-        model = FMUModelME2("Enumerations.Enumeration3.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Enumerations.Enumeration3.fmu"), _connect_dll=False)
 
         enum = model.get_variable_declared_type("x")
         assert len(enum.items.keys()) == 2, len(enum.items.keys())
@@ -1109,7 +1094,7 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_get_erronous_nominals(self):
-        model = FMUModelME2("NominalTests.NominalTest4.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NominalTests.NominalTest4.fmu"), _connect_dll=False)
 
         nose.tools.assert_almost_equal(model.get_variable_nominal("x"), 2.0)
         nose.tools.assert_almost_equal(model.get_variable_nominal("y"), 1.0)
@@ -1129,7 +1114,7 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_get_time_varying_variables(self):
-        model = FMUModelME2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         [r,i,b] = model.get_model_time_varying_value_references()
         [r_f, i_f, b_f] = model.get_model_time_varying_value_references(filter="*")
@@ -1148,14 +1133,14 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_get_directional_derivative_capability(self):
-        bounce = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        bounce = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
         bounce.setup_experiment()
         bounce.initialize()
 
         # Bouncing ball don't have the capability, check that this is handled
         nose.tools.assert_raises(FMUException, bounce.get_directional_derivative, [1], [1], [1])
 
-        bounce = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        bounce = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "bouncingBall.fmu"), _connect_dll=False)
         bounce.setup_experiment()
         bounce.initialize()
 
@@ -1164,13 +1149,13 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_simulation_without_initialization(self):
-        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["initialize"] = False
 
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
 
-        model = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["initialize"] = False
 
@@ -1181,13 +1166,13 @@ class Test_FMUModelBase2:
         """
         Verifies the allowed values for the option to synchronize simulations (ME)
         """
-        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["synchronize_simulation"] = "Hej"
         
         nose.tools.assert_raises(InvalidOptionException, model.simulate, options=opts)
         
-        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["synchronize_simulation"] = -1.0
         
@@ -1198,13 +1183,13 @@ class Test_FMUModelBase2:
         """
         Verifies the allowed values for the option to synchronize simulations (CS)
         """
-        model = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["synchronize_simulation"] = "Hej"
         
         nose.tools.assert_raises(InvalidOptionException, model.simulate, options=opts)
         
-        model = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["synchronize_simulation"] = -1.0
         
@@ -1215,14 +1200,14 @@ class Test_FMUModelBase2:
         """
         Verifies that the option synchronize simulation works as intended in the most basic test for ME FMUs.
         """
-        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["synchronize_simulation"] = True
         
         res = model.simulate(final_time=0.1, options=opts)
         t = res.detailed_timings["computing_solution"]
         
-        model = Dummy_FMUModelME2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["synchronize_simulation"] = 0.1
         
@@ -1237,14 +1222,14 @@ class Test_FMUModelBase2:
         """
         Verifies that the option synchronize simulation works as intended in the most basic test for CS FMUs.
         """
-        model = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["synchronize_simulation"] = True
         
         res = model.simulate(final_time=0.1, options=opts)
         t = res.detailed_timings["computing_solution"]
         
-        model = Dummy_FMUModelCS2([], "bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = model.simulate_options()
         opts["synchronize_simulation"] = 0.1
         
@@ -1255,7 +1240,7 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_caching(self):
-        negated_alias = FMUModelME2("NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        negated_alias = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
 
         assert len(negated_alias.cache) == 0 #No starting cache
 
@@ -1274,7 +1259,7 @@ class Test_FMUModelBase2:
         assert id(vars_5) != id(vars_1)
         assert id(vars_5) == id(vars_7)
 
-        negated_alias = FMUModelME2("NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        negated_alias = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
 
         assert len(negated_alias.cache) == 0 #No starting cache
 
@@ -1283,7 +1268,7 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_get_scalar_variable(self):
-        negated_alias = FMUModelME2("NegatedAlias.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        negated_alias = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
 
         sc_x = negated_alias.get_scalar_variable("x")
 
@@ -1298,7 +1283,7 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_get_variable_description(self):
-        model = FMUModelME2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
         assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
 
 
@@ -1307,27 +1292,27 @@ class Test_load_fmu_only_XML:
     @testattr(stddist = True)
     def test_loading_xml_me1(self):
 
-        model = FMUModelME1("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         assert model.get_name() == "CoupledClutches", model.get_name()
 
     @testattr(stddist = True)
     def test_loading_xml_cs1(self):
 
-        model = FMUModelCS1("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS1.0"), _connect_dll=False)
+        model = FMUModelCS1(os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         assert model.get_name() == "CoupledClutches", model.get_name()
 
     @testattr(stddist = True)
     def test_loading_xml_me2(self):
 
-        model = FMUModelME2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         assert model.get_name() == "CoupledClutches", model.get_name()
 
     @testattr(stddist = True)
     def test_loading_xml_cs2(self):
 
-        model = FMUModelCS2("CoupledClutches.fmu", os.path.join(file_path, "files", "FMUs", "XML", "CS2.0"), _connect_dll=False)
+        model = FMUModelCS2(os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         assert model.get_name() == "CoupledClutches", model.get_name()

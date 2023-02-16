@@ -72,7 +72,7 @@ class Test_Log:
             pass
 
     def _test_logging_different_solver(self, solver_name):
-        model = Dummy_FMUModelME2([], "Bouncing_Ball.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu"), _connect_dll=False)
         opts=model.simulate_options()
         opts["dynamic_diagnostics"] = True
         opts["solver"] = solver_name

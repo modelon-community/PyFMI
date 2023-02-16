@@ -435,7 +435,7 @@ class ResultWriterDymola(ResultWriter):
 
             file_name --
                 If no file name is given, the name of the model (as defined by
-                FMUModel.get_identifier()) concatenated with the string '_result' is
+                FMUModel*.get_identifier()) concatenated with the string '_result' is
                 used. A file suffix equal to the format argument is then
                 appended to the file name.
                 Default: Empty string.
@@ -706,7 +706,7 @@ class ResultWriterDymola(ResultWriter):
                 data --
                     A one dimensional array of variable trajectory data. data
                     should consist of information about the status in the order
-                    specified by FMUModel.save_time_point()
+                    specified by FMUModel*.save_time_point()
                     Default: None
         """
         f = self._file
@@ -767,7 +767,7 @@ class ResultStorageMemory(ResultDymola):
         Parameters::
 
             model --
-                Instance of the FMUModel.
+                Instance of the FMUModel*.
             data --
                 The simulation data.
         """
@@ -1881,7 +1881,7 @@ class ResultHandlerCSV(ResultHandler):
                 data --
                     A one dimensional array of variable trajectory data. data
                     should consist of information about the status in the order
-                    specified by FMUModel.save_time_point()
+                    specified by FMUModel*.save_time_point()
                     Default: None
         """
         f = self._file
@@ -2317,7 +2317,7 @@ class ResultHandlerFile(ResultHandler):
                 data --
                     A one dimensional array of variable trajectory data. data
                     should consist of information about the status in the order
-                    specified by FMUModel.save_time_point()
+                    specified by FMUModel*.save_time_point()
                     Default: None
         """
         f = self._file

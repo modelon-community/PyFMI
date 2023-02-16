@@ -20,7 +20,7 @@ import os
 import numpy as np
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
+from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
@@ -41,7 +41,7 @@ if assimulo_installed:
         
         @testattr(stddist = True)
         def test_quadtank_estimate(self):
-            model = Dummy_FMUModelME2([], "QuadTankPack_Sim_QuadTank.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "QuadTankPack_Sim_QuadTank.fmu"), _connect_dll=False)
 
             g = model.values[model.get_variable_valueref("qt.g")]
             g1_nmp = model.values[model.get_variable_valueref("qt.g1_nmp")]

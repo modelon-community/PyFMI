@@ -16,7 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 Module for simulation algorithms to be used together with
-pyfmi.fmi.FMUModel.simulate.
+pyfmi.fmi.FMUModel*.simulate.
 """
 
 #from abc import ABCMeta, abstractmethod
@@ -254,7 +254,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         Parameters::
 
             model --
-                fmi.FMUModel object representation of the model.
+                fmi.FMUModel* object representation of the model.
 
             options --
                 The options that should be used in the algorithm. For details on

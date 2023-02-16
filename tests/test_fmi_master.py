@@ -20,7 +20,7 @@ import os
 import numpy as np
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUModel, FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
+from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
 import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 from pyfmi import Master
@@ -38,8 +38,8 @@ class Test_Master:
     
     @testattr(stddist = True)
     def test_loading_models(self):
-        model_sub1 = FMUModelCS2("LinearStability.SubSystem1.fmu", cs2_xml_path, _connect_dll=False)
-        model_sub2 = FMUModelCS2("LinearStability.SubSystem2.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
+        model_sub2 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
        
         models = [model_sub1, model_sub2]
         connections = [(model_sub1,"y1",model_sub2,"u2"),
@@ -50,8 +50,8 @@ class Test_Master:
     
     @testattr(stddist = True)
     def test_loading_wrong_model(self):
-        model_sub1 = FMUModelCS2("LinearStability.SubSystem1.fmu", cs2_xml_path, _connect_dll=False)
-        model_sub2 = FMUModelME2("LinearStability.SubSystem2.fmu", me2_xml_path, _connect_dll=False)
+        model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
+        model_sub2 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
        
         models = [model_sub1, model_sub2]
         connections = [(model_sub1,"y1",model_sub2,"u2"),
@@ -61,8 +61,8 @@ class Test_Master:
     
     @testattr(stddist = True)
     def test_connection_variables(self):
-        model_sub1 = FMUModelCS2("LinearStability.SubSystem1.fmu", cs2_xml_path, _connect_dll=False)
-        model_sub2 = FMUModelCS2("LinearStability.SubSystem2.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
+        model_sub2 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
        
         models = [model_sub1, model_sub2]
        
@@ -80,8 +80,8 @@ class Test_Master:
     
     @testattr(stddist = True)
     def test_basic_algebraic_loop(self):
-        model_sub1 = FMUModelCS2("LinearStability.SubSystem1.fmu", cs2_xml_path, _connect_dll=False)
-        model_sub2 = FMUModelCS2("LinearStability.SubSystem2.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
+        model_sub2 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
         
         models = [model_sub1, model_sub2]
         connections = [(model_sub1,"y1",model_sub2,"u2"),
@@ -90,8 +90,8 @@ class Test_Master:
         sim = Master(models, connections)
         assert sim.algebraic_loops
        
-        model_sub1 = FMUModelCS2("LinearStability_LinearSubSystemNoFeed1.fmu", cs2_xml_path, _connect_dll=False)
-        model_sub2 = FMUModelCS2("LinearStability_LinearSubSystemNoFeed2.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability_LinearSubSystemNoFeed1.fmu"), _connect_dll=False)
+        model_sub2 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability_LinearSubSystemNoFeed2.fmu"), _connect_dll=False)
        
         models = [model_sub1, model_sub2]
         connections = [(model_sub1,"y1",model_sub2,"u2"),
@@ -101,8 +101,8 @@ class Test_Master:
         assert not sim.algebraic_loops
     
     def _load_basic_simulation(self):
-        model_sub1 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem1.fmu", cs2_xml_path, _connect_dll=False)
-        model_sub2 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem2.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub1 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "LinearCoSimulation_LinearSubSystem1.fmu"), _connect_dll=False)
+        model_sub2 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "LinearCoSimulation_LinearSubSystem2.fmu"), _connect_dll=False)
         
         a1 = model_sub1.values[model_sub1.get_variable_valueref("a1")]
         b1 = model_sub1.values[model_sub1.get_variable_valueref("b1")]
@@ -214,8 +214,8 @@ class Test_Master:
     
     @testattr(stddist = True)
     def test_integer_connections(self):
-        model_sub1 = Dummy_FMUModelCS2([], "IntegerStep.fmu", cs2_xml_path, _connect_dll=False)
-        model_sub2 = Dummy_FMUModelCS2([], "GainTestInteger.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub1 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "IntegerStep.fmu"), _connect_dll=False)
+        model_sub2 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "GainTestInteger.fmu"), _connect_dll=False)
         
         model_sub1.set("y", 1)
         def do_step1(current_t, step_size, new_step=True):
@@ -247,8 +247,8 @@ class Test_Master:
     
     @testattr(stddist = True)
     def test_integer_to_real_connections(self):
-        model_sub1 = Dummy_FMUModelCS2([], "IntegerStep.fmu", cs2_xml_path, _connect_dll=False)
-        model_sub2 = Dummy_FMUModelCS2([], "GainTestReal.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub1 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "IntegerStep.fmu"), _connect_dll=False)
+        model_sub2 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "GainTestReal.fmu"), _connect_dll=False)
         
         model_sub1.set("y", 1)
         def do_step1(current_t, step_size, new_step=True):
@@ -280,8 +280,8 @@ class Test_Master:
     
     @testattr(stddist = True)
     def test_unstable_simulation(self):
-        model_sub1 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem1.fmu", cs2_xml_path, _connect_dll=False)
-        model_sub2 = Dummy_FMUModelCS2([], "LinearCoSimulation_LinearSubSystem2.fmu", cs2_xml_path, _connect_dll=False)
+        model_sub1 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "LinearCoSimulation_LinearSubSystem1.fmu"), _connect_dll=False)
+        model_sub2 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "LinearCoSimulation_LinearSubSystem2.fmu"), _connect_dll=False)
         
         model_sub2.set("d2", 1.1) #Coupled system becomes unstable
         

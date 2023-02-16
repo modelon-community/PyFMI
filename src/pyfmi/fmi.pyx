@@ -538,10 +538,6 @@ cdef class ModelBase:
         """
         return '{}_log'.format(self._modelId) if self._log_is_stream else decode(self._fmu_log_name)
 
-    def get_log_file_name(self):
-        logging.warning("The method 'get_log_file_name()' is deprecated and will be removed. Please use 'get_log_filename()' instead.")
-        return self.get_log_filename()
-
     def get_number_of_lines_log(self):
         """
             Returns the number of lines in the log file.
@@ -1305,7 +1301,7 @@ cdef class FMUModelBase(ModelBase):
     """
     An FMI Model loaded from a DLL.
     """
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
@@ -1314,16 +1310,6 @@ cdef class FMUModelBase(ModelBase):
 
             fmu --
                 Name of the fmu as a string.
-
-            path [DEPRECATED] --
-                This option is DEPRECATED and will be removed. Please
-                use the option "fmu" instead.
-                Path to the fmu-directory.
-                Default: '.' (working directory)
-
-            enable_logging [DEPRECATED] --
-                This option is DEPRECATED and will be removed. Please
-                use the option "log_level" instead.
 
             log_file_name --
                 Filename for file used to save logmessages.
@@ -1379,22 +1365,16 @@ cdef class FMUModelBase(ModelBase):
         self.callbacks.logger  = importlogger
         self.callbacks.context = <void*>self #Class loggger
 
-        display_path_deprecation(path)
-
-        if enable_logging==None:
-            if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
-                if log_level == FMIL.jm_log_level_nothing:
-                    enable_logging = False
-                else:
-                    enable_logging = True
-                self.callbacks.log_level = log_level
+        if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
+            if log_level == FMIL.jm_log_level_nothing:
+                enable_logging = False
             else:
-                raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
+                enable_logging = True
+            self.callbacks.log_level = log_level
         else:
-            logging.warning("The attribute 'enable_logging' is deprecated. Please use 'log_level' instead. Setting 'log_level' to INFO...")
-            self.callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
+            raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
 
-        self._fmu_full_path = os.path.abspath(os.path.join(path,fmu))
+        self._fmu_full_path = os.path.abspath(fmu)
         if _unzipped_dir:
             fmu_temp_dir = encode(_unzipped_dir)
         elif self._allow_unzipped_fmu:
@@ -1524,25 +1504,6 @@ cdef class FMUModelBase(ModelBase):
         """
         version = FMIL.fmi1_import_get_version(self._fmu)
         return decode(version)
-
-    def _get_version(self):
-        """
-        Returns the FMI version of the Model which it was generated according.
-
-        Returns::
-
-            version --
-                The version.
-
-        Example::
-
-            model.version
-        """
-        logging.warning("The attribute 'version' is deprecated, use 'get_version()' instead.")
-        version = FMIL.fmi1_import_get_version(self._fmu)
-        return version
-
-    version = property(fget=_get_version)
 
     def get_ode_sizes(self):
         """
@@ -1903,10 +1864,6 @@ cdef class FMUModelBase(ModelBase):
 
         if status != 0:
             raise FMUException('Failed to set the debugging option.')
-
-    def set_fmil_log_level(self, FMIL.jm_log_level_enu_t level):
-        logging.warning("The method 'set_fmil_log_level' is deprecated, use 'set_log_level' instead.")
-        self.set_log_level(level)
 
     def _set(self, variable_name, value):
         """
@@ -2803,10 +2760,10 @@ cdef class FMUModelCS1(FMUModelBase):
     #First step only support fmi1_fmu_kind_enu_cs_standalone
     #stepFinished not supported
 
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)
+        FMUModelBase.__init__(self,fmu,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
         if self._fmu_kind != FMI_CS_STANDALONE and self._fmu_kind != FMI_CS_TOOL:
             raise InvalidVersionException("The FMU could not be loaded. This class only supports FMI 1.0 for Co-simulation.")
@@ -3158,7 +3115,7 @@ cdef class FMUModelCS1(FMUModelBase):
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
-    def initialize(self, start_time=0.0, stop_time=1.0, stop_time_defined=False, tStart=None, tStop=None, StopTimeDefined=None):
+    def initialize(self, start_time=0.0, stop_time=1.0, stop_time_defined=False):
         """
         Initializes the slave.
 
@@ -3181,16 +3138,6 @@ cdef class FMUModelCS1(FMUModelBase):
         """
         cdef int status
         cdef FMIL.fmi1_boolean_t stop_defined
-
-        if tStart is not None:
-            logging.warning("The attribute 'tStart' is deprecated and will be removed. Please use 'start_time' instead.")
-            start_time = tStart #If the user has used this, use it!
-        if tStop is not None:
-            logging.warning("The attribute 'tStop' is deprecated and will be removed. Please use 'stop_time' instead.")
-            stop_time = tStop #If the user has used this, use it!
-        if StopTimeDefined is not None:
-            logging.warning("The attribute 'StopTimeDefined' is deprecated and will be removed. Please use 'stop_time_defined' instead.")
-            stop_time_defined = StopTimeDefined #If the user has used this, use it!
 
         self.time = start_time
         stop_defined = 1 if stop_time_defined else 0
@@ -3328,10 +3275,10 @@ cdef class FMUModelME1(FMUModelBase):
     An FMI Model loaded from a DLL.
     """
 
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         #Call super
-        FMUModelBase.__init__(self,fmu,path,enable_logging,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)
+        FMUModelBase.__init__(self,fmu,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
         if self._fmu_kind != FMI_ME:
             raise InvalidVersionException("The FMU could not be loaded. This class only supports FMI 1.0 for Model Exchange.")
@@ -3717,7 +3664,7 @@ cdef class FMUModelME1(FMUModelBase):
             return False
 
 
-    def initialize(self, tolerance_defined=True, tolerance="Default", tolControlled=None, relativeTolerance=None):
+    def initialize(self, tolerance_defined=True, tolerance="Default"):
         """
         Initializes the model and computes initial values for all variables,
         including setting the start values of variables defined with a the start
@@ -3743,13 +3690,6 @@ cdef class FMUModelME1(FMUModelBase):
         #Trying to set the initial time from the xml file, else 0.0
         if self.time == None:
             self.time = FMIL.fmi1_import_get_default_experiment_start(self._fmu)
-
-        if tolControlled is not None:
-            logging.warning("The attribute 'tolControlled' is deprecated and will be removed. Please use 'tolerance_defined' instead.")
-            tolerance_defined = tolControlled #If the user has used this, use it!
-        if relativeTolerance is not None:
-            logging.warning("The attribute 'relativeTolerance' is deprecated and will be removed. Please use 'tolerance' instead.")
-            tolerance = relativeTolerance #If the user has used this, use it!
 
         if tolerance_defined:
             tolerance_controlled = 1
@@ -3955,7 +3895,7 @@ cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
     """
-    def __init__(self, fmu, path='.', enable_logging=None, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
@@ -3964,16 +3904,6 @@ cdef class FMUModelBase2(ModelBase):
 
             fmu --
                 Name of the fmu as a string.
-
-            path [DEPRECATED] --
-                This option is DEPRECATED and will be removed. Please
-                use the option "fmu" instead.
-                Path to the fmu-directory.
-                Default: '.' (working directory)
-
-            enable_logging [DEPRECATED] --
-                This option is DEPRECATED and will be removed. Please
-                use the option "log_level" instead.
 
             log_file_name --
                 Filename for file used to save logmessages.
@@ -4010,7 +3940,6 @@ cdef class FMUModelBase2(ModelBase):
 
         #Contains the log information
         self._log               = []
-        self._enable_logging    = enable_logging
 
         #Used for deallocation
         self._allocated_context = 0
@@ -4065,22 +3994,17 @@ cdef class FMUModelBase2(ModelBase):
         self.callBackFunctions.stepFinished         = NULL
         self.callBackFunctions.componentEnvironment = NULL
 
-        display_path_deprecation(path)
-
-        if enable_logging==None:
-            if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
-                if log_level == FMIL.jm_log_level_nothing:
-                    enable_logging = False
-                else:
-                    enable_logging = True
-                self.callbacks.log_level = log_level
+        if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
+            if log_level == FMIL.jm_log_level_nothing:
+                enable_logging = False
             else:
-                raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
+                enable_logging = True
+            self.callbacks.log_level = log_level
         else:
-            logging.warning("The attribute 'enable_logging' is deprecated. Please use 'log_level' instead. Setting 'log_level' to INFO...")
-            self.callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
+            raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
+        self._enable_logging = enable_logging
 
-        self._fmu_full_path = encode(os.path.abspath(os.path.join(path,fmu)))
+        self._fmu_full_path = encode(os.path.abspath(fmu))
         check_fmu_args(self._allow_unzipped_fmu, fmu, self._fmu_full_path)
 
         # Create a struct for allocation
@@ -4823,10 +4747,6 @@ cdef class FMUModelBase2(ModelBase):
 
         if not log_open and self.get_log_level() > 2:
             self._close_log_file()
-
-    def set_fmil_log_level(self, FMIL.jm_log_level_enu_t level):
-        logging.warning("The method 'set_fmil_log_level' is deprecated, use 'set_log_level' instead.")
-        self.set_log_level(level)
 
     def get_fmil_log_level(self):
         """
@@ -6984,7 +6904,7 @@ cdef class FMUModelCS2(FMUModelBase2):
     """
     Co-simulation model loaded from a dll
     """
-    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
@@ -6993,16 +6913,6 @@ cdef class FMUModelCS2(FMUModelBase2):
 
             fmu --
                 Name of the fmu as a string.
-
-            path [DEPRECATED] --
-                This option is DEPRECATED and will be removed. Please
-                use the option "fmu" instead.
-                Path to the fmu-directory.
-                Default: '.' (working directory)
-
-            enable_logging [DEPRECATED] --
-                This option is DEPRECATED and will be removed. Please
-                use the option "log_level" instead.
 
             log_file_name --
                 Filename for file used to save logmessages.
@@ -7029,7 +6939,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
 
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level,
+        FMUModelBase2.__init__(self, fmu, log_file_name, log_level,
                                _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_cs:
@@ -7614,7 +7524,7 @@ cdef class FMUModelME2(FMUModelBase2):
     Model-exchange model loaded from a dll
     """
 
-    def __init__(self, fmu, path = '.', enable_logging = None, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
@@ -7623,16 +7533,6 @@ cdef class FMUModelME2(FMUModelBase2):
 
             fmu --
                 Name of the fmu as a string.
-
-            path [DEPRECATED] --
-                This option is DEPRECATED and will be removed. Please
-                use the option "fmu" instead.
-                Path to the fmu-directory.
-                Default: '.' (working directory)
-
-            enable_logging [DEPRECATED] --
-                This option is DEPRECATED and will be removed. Please
-                use the option "log_level" instead.
 
             log_file_name --
                 Filename for file used to save logmessages.
@@ -7658,7 +7558,7 @@ cdef class FMUModelME2(FMUModelBase2):
             A model as an object from the class FMUModelME2
         """
         #Call super
-        FMUModelBase2.__init__(self, fmu, path, enable_logging, log_file_name, log_level,
+        FMUModelBase2.__init__(self, fmu, log_file_name, log_level,
                                _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
         if self._fmu_kind != FMIL.fmi2_fmu_kind_me:
@@ -8492,21 +8392,9 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
             return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
 
-#Temporary should be removed! (after a period)
-cdef class FMUModel(FMUModelME1):
-    def __init__(self, fmu, path='.', enable_logging=True):
-        print("WARNING: This class is deprecated and has been superseded with FMUModelME1. The recommended entry-point for loading an FMU is now the function load_fmu.")
-        FMUModelME1.__init__(self,fmu,path,enable_logging)
-
 def _handle_load_fmu_exception(fmu, log_data):
     for log in log_data:
         print(log)
-
-def display_path_deprecation(path):
-    if path != '.':
-        w = "The argument 'path' is deprecated and will be removed in a future version."
-        w += " Please specify a full path to fmu via the argument 'fmu' instead."
-        logging.warning(w)
 
 def check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path):
     """ Function utilized by two base classes and load_fmu that does the
@@ -8538,7 +8426,7 @@ cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t* co
     else:
         return FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
 
-def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 'auto',
+def load_fmu(fmu, log_file_name = "", kind = 'auto',
              log_level=FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):
     """
     Helper method for creating a model instance.
@@ -8547,16 +8435,6 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
 
         fmu --
             Name of the fmu as a string.
-
-        path [DEPRECATED] --
-            This option is DEPRECATED and will be removed. Please use
-            argument 'fmu' specifying path to the FMU.
-            Path to the fmu-directory.
-            Default: '.' (working directory)
-
-        enable_logging [DEPRECATED] --
-            This option is DEPRECATED and will be removed. Please use
-            the option "log_level" instead.
 
         log_file_name --
             Filename for file used to save logmessages.
@@ -8609,7 +8487,7 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     fmu_temp_dir = None
     model        = None
 
-    fmu_full_path = os.path.abspath(os.path.join(path,fmu))
+    fmu_full_path = os.path.abspath(fmu)
     check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path)
 
     #Check that kind-argument is well-defined
@@ -8625,20 +8503,14 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
     callbacks.logger    = importlogger_load_fmu
     callbacks.context   = <void*>log_data
 
-    original_enable_logging = enable_logging
-
-    if enable_logging==None:
-        if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
-            if log_level == FMIL.jm_log_level_nothing:
-                enable_logging = False
-            else:
-                enable_logging = True
-            callbacks.log_level = log_level
+    if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
+        if log_level == FMIL.jm_log_level_nothing:
+            enable_logging = False
         else:
-            raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
+            enable_logging = True
+        callbacks.log_level = log_level
     else:
-        logging.warning("The attribute 'enable_logging' is deprecated. Please use 'log_level' instead. Setting 'log_level' to INFO...")
-        callbacks.log_level = FMIL.jm_log_level_info if enable_logging else FMIL.jm_log_level_error
+        raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
 
     # Create a struct for allocation
     context = FMIL.fmi_import_allocate_context(&callbacks)
@@ -8697,10 +8569,10 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
 
         #Compare fmu_kind with input-specified kind
         if fmu_1_kind == FMI_ME and kind.upper() != 'CS':
-            model=FMUModelME1(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+            model=FMUModelME1(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
                               allow_unzipped_fmu = allow_unzipped_fmu)
         elif (fmu_1_kind == FMI_CS_STANDALONE or fmu_1_kind == FMI_CS_TOOL) and kind.upper() != 'ME':
-            model=FMUModelCS1(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+            model=FMUModelCS1(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
                               allow_unzipped_fmu = allow_unzipped_fmu)
         else:
             FMIL.fmi1_import_free(fmu_1)
@@ -8746,18 +8618,18 @@ def load_fmu(fmu, path = '.', enable_logging = None, log_file_name = "", kind = 
         #FMU kind is known
         if kind.lower() == 'auto':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs:
-                model = FMUModelCS2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                model = FMUModelCS2(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
                                     allow_unzipped_fmu = allow_unzipped_fmu)
             elif fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                model = FMUModelME2(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
                                     allow_unzipped_fmu = allow_unzipped_fmu)
         elif kind.upper() == 'CS':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelCS2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                model = FMUModelCS2(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
                                     allow_unzipped_fmu = allow_unzipped_fmu)
         elif kind.upper() == 'ME':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2(fmu, path, original_enable_logging, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                model = FMUModelME2(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
                                     allow_unzipped_fmu = allow_unzipped_fmu)
 
         #Could not match FMU kind with input-specified kind
