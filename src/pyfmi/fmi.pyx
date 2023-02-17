@@ -8173,10 +8173,15 @@ cdef class FMUModelME2(FMUModelBase2):
             if "nominals" in group:
                 nominals = <float*>PyArray_DATA(group["nominals"])
             else:
-                group["nominals"] = N.empty(len_v, dtype=float)
-                nominals = <float*>PyArray_DATA(group["nominals"])
-                for i in range(len_v):
-                    nominals[i] = self.get_variable_nominal(valueref = v_ref_pt[i])
+                #If we are using the states, then the nominals should instead be picked up from the C callback function for nominals
+                if self._states_references and len_v == len(self._states_references) and (self._states_references[i] == var_ref[i] for i in range(len_v)):
+                    group["nominals"] = self.nominal_continuous_states
+                    nominals = <float*>PyArray_DATA(group["nominals"])
+                else:
+                    group["nominals"] = N.empty(len_v, dtype=float)
+                    nominals = <float*>PyArray_DATA(group["nominals"])
+                    for i in range(len_v):
+                        nominals[i] = self.get_variable_nominal(valueref = v_ref_pt[i])
 
             for i in range(len_v):
                 eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominals[i]))
