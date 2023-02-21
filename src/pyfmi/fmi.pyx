@@ -8129,7 +8129,7 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef double nominal, fac, tmp
         cdef int method = FORWARD_DIFFERENCE if self.force_finite_differences is True or self.force_finite_differences == 0 else CENTRAL_DIFFERENCE
         cdef double RUROUND = FORWARD_DIFFERENCE_EPS if method == FORWARD_DIFFERENCE else CENTRAL_DIFFERENCE_EPS
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert, df, eps
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert, df, eps, nominals
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.array(var_ref, copy=False, dtype = N.uint32)
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.array(func_ref, copy=False, dtype = N.uint32)
         cdef int ind_local = 5 if add_diag else 4
@@ -8149,7 +8149,7 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef int* local_indices_matrix_rows_pt
         cdef int* local_indices_matrix_columns_pt
         cdef int* local_data_indices
-        cdef float* nominals
+        cdef FMIL.fmi2_real_t* nominals_pt
 
         #Make sure that the work vectors has the correct lengths
         self._worker_object.verify_dimensions(max(len_v, len_f))
@@ -8171,24 +8171,27 @@ cdef class FMUModelME2(FMUModelBase2):
 
         if group is not None:
             if "nominals" in group:
-                nominals = <float*>PyArray_DATA(group["nominals"])
+                nominals = group["nominals"]
+                nominals_pt = <FMIL.fmi2_real_t*>PyArray_DATA(nominals)
             else:
                 #If we are using the states, then the nominals should instead be picked up from the C callback function for nominals
                 if self._states_references and len_v == len(self._states_references) and (self._states_references[i] == var_ref[i] for i in range(len_v)):
-                    group["nominals"] = self.nominal_continuous_states
-                    nominals = <float*>PyArray_DATA(group["nominals"])
+                    group["nominals"] = N.array(self.nominal_continuous_states, dtype=float)
+                    nominals = group["nominals"]
+                    nominals_pt = <FMIL.fmi2_real_t*>PyArray_DATA(nominals)
                 else:
                     group["nominals"] = N.empty(len_v, dtype=float)
-                    nominals = <float*>PyArray_DATA(group["nominals"])
+                    nominals = group["nominals"]
+                    nominals_pt = <FMIL.fmi2_real_t*>PyArray_DATA(nominals)
                     for i in range(len_v):
-                        nominals[i] = self.get_variable_nominal(valueref = v_ref_pt[i])
+                        nominals_pt[i] = self.get_variable_nominal(valueref = v_ref_pt[i])
 
             for i in range(len_v):
-                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominals[i]))
+                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominals_pt[i]))
         else:
             for i in range(len_v):
-                nominal = self.get_variable_nominal(valueref = v_ref_pt[i])
-                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominal))
+                tmp_nominal = self.get_variable_nominal(valueref = v_ref_pt[i])
+                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), tmp_nominal))
 
         if group is not None:
             if output_matrix is not None:
