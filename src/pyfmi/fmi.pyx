@@ -8126,7 +8126,7 @@ cdef class FMUModelME2(FMUModelBase2):
     def _estimate_directional_derivative(self, var_ref, func_ref, dict group=None, add_diag=False, output_matrix=None):
         cdef list data = [], row = [], col = []
         cdef int sol_found = 0, dim = 0, i, j, len_v = len(var_ref), len_f = len(func_ref), local_indices_vars_nbr, status
-        cdef double nominal, fac, tmp
+        cdef double fac, tmp
         cdef int method = FORWARD_DIFFERENCE if self.force_finite_differences is True or self.force_finite_differences == 0 else CENTRAL_DIFFERENCE
         cdef double RUROUND = FORWARD_DIFFERENCE_EPS if method == FORWARD_DIFFERENCE else CENTRAL_DIFFERENCE_EPS
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert, df, eps, nominals
@@ -8170,10 +8170,10 @@ cdef class FMUModelME2(FMUModelBase2):
         self.__get_real(v_ref_pt, len_v, v_pt)
 
         if group is not None:
-            if "nominals" in group:
+            if "nominals" in group: # Re-use extracted nominals
                 nominals = group["nominals"]
                 nominals_pt = <FMIL.fmi2_real_t*>PyArray_DATA(nominals)
-            else:
+            else: # First time extraction of nominals
                 #If we are using the states, then the nominals should instead be picked up from the C callback function for nominals
                 if self._states_references and len_v == len(self._states_references) and (self._states_references[i] == var_ref[i] for i in range(len_v)):
                     group["nominals"] = N.array(self.nominal_continuous_states, dtype=float)
