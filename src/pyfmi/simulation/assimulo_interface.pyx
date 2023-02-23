@@ -1007,13 +1007,15 @@ cdef class FMIODE2(cExplicit_Problem):
                             diag_data[index] = 0
                             index +=1
                         diag_data[index] = 1.0
+                        index +=1
                     else:
                         for ei in event_info[0]:
                             diag_data[index] = ei
                             index +=1
                         diag_data[index] = 0.0
-                if index != self.export.nof_diag_vars-1:
-                    raise fmi.FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self.export.nof_diag_vars-1, index))
+                        index +=1
+                if index != self.export.nof_diag_vars:
+                    raise fmi.FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self.export.nof_diag_vars, index))
                 self.export.diagnostics_point(diag_data)
 
 
