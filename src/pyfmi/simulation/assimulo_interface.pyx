@@ -982,7 +982,7 @@ cdef class FMIODE2(cExplicit_Problem):
                     for e in solver.get_weighted_local_errors():
                         diag_data[index] = e
                         index +=1
-                if (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="LSODAR" or solver_name=="ImplicitEuler"):
+                if (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="LSODAR" or solver_name=="ImplicitEuler" or solver_name=="ExplicitEuler"):
                     if self._g_nbr > 0:
                         for ei in self._model.get_event_indicators():
                             diag_data[index] = ei
@@ -992,13 +992,15 @@ cdef class FMIODE2(cExplicit_Problem):
                             diag_data[index] = 0
                             index +=1
                         diag_data[index] = 1.0
+                        index +=1
                     else:
                         for ei in event_info[0]:
                             diag_data[index] = ei
                             index +=1
                         diag_data[index] = 0.0
-                if index != self.export.nof_diag_vars-1:
-                    raise fmi.FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self.export.nof_diag_vars-1, index))
+                        index +=1
+                if index != self.export.nof_diag_vars:
+                    raise fmi.FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self.export.nof_diag_vars, index))
                 self.export.diagnostics_point(diag_data)
 
 

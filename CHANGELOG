@@ -14,6 +14,7 @@
     * Removed the following deprecated attribute:
       * pyfmi.fmi.FMUModelCS1, FMUModelME1, FMUModelCS2, FMUModelME2, load_fmu, pyfmi.fmi.FMUModelME1Extended: 'version': use 'get_version' function instead
     * Note that pyfmi.load_fmu creates instances of pyfmi.fmi.FMUModelCS1, FMUModelME1, FMUModelCS2, FMUModelME2
+    * Fixed a crash when using ExplicitEuler with dynamic_diagnostics on models with events.
 
 --- PyFMI-2.9.9 ---
     * Added shortcut such that get_(real|integer|boolean|string)([]) calls no longer trigger a call to the FMU.
