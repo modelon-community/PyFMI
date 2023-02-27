@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2014-2022 Modelon AB
+# Copyright (C) 2014-2023 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -668,7 +668,7 @@ class Graph:
                         if node in trees[model][out]: #Node is in a previouos spanning tree (cannot join them)
                             pass
                         else:
-                            print "Joining: ", out, node
+                            print("Joining: ", out, node)
                             joined_nodes[out].append(node)
                             trees[model][out].update(self.dfs(node)) #Can be needed if they are not in the same tree
                             included = True
@@ -841,7 +841,7 @@ class Graph:
                         if valid_choices[node] > valid_choices[torn_node]: #If the weight is greater
                             torn_node = node
 
-                    print "Variable to tear: ", torn_node
+                    print("Variable to tear: ", torn_node)
                     self.tear_node(torn_node)
 
         return torn_graph
@@ -934,13 +934,10 @@ class Graph:
                             SCCs.pop(i)
                             b = 1
                             break
-            #print "Middle: ", i, SCCs
             if b == 0:
                 i = i +1
             if len(f) > 1:
-                #print "Outside: ", i, f
                 self.group_node(f)
-            #print "End: ", i, SCCs
 
         return self.split_components(self.strongly_connected_components())
 
