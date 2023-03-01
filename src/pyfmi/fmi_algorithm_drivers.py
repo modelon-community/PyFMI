@@ -676,7 +676,12 @@ class AssimuloFMIAlg(AlgorithmBase):
             except:
                 support_elapsed_time=False
 
-            support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="LSODAR" or solver_name=="ImplicitEuler" or solver_name=="ExplicitEuler")
+            support_event_indicators = (solver_name=="CVode" or
+                                        solver_name=="Radau5ODE" or
+                                        solver_name=="LSODAR" or
+                                        solver_name=="ImplicitEuler" or
+                                        solver_name=="ExplicitEuler"
+                                        )
 
             states_list = self.model.get_states_list() if isinstance(self.model, fmi.FMUModelME2) else []
 
