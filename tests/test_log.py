@@ -24,12 +24,25 @@ from pyfmi import testattr
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.common import diagnostics_prefix
 from pyfmi.tests.test_util import Dummy_FMUModelME2
+from pyfmi.fmi_util import decode
 
 import numpy as np
 file_path = os.path.dirname(os.path.abspath(__file__))
 logs = os.path.join(file_path, "files", "Logs")
 
 class Test_Log:
+    
+    @testattr(stddist = True)
+    def test_decode_bytes(self):
+        """
+        Verifies that malformed strings are still accepted and don't cause exceptions
+        """
+        b_string = b'[WARNING][FMU status:Warning]           <ModelicaError category="warning"><value name="msg">"\xc0\x15"</value></ModelicaError>'
+        
+        s_string = decode(b_string)
+        
+        assert s_string == '[WARNING][FMU status:Warning]           <ModelicaError category="warning"><value name="msg">"�\x15"</value></ModelicaError>', s_string
+        
 
     @testattr(stddist = True)
     def test_extract_log(self):
