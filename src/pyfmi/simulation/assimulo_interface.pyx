@@ -802,6 +802,13 @@ cdef class FMIODE2(cExplicit_Problem):
         """
         The jacobian function for an ODE problem.
         """
+        if self._logging:
+            preface = "[INFO][FMU status:OK] "
+            solver_info_tag = 'Jacobian'
+
+            msg = preface + '<%s>Starting Jacobian calculation at <value name="t">        %.14E</value>.'%(solver_info_tag, t)
+            self._model.append_log_message("Model", 4, msg)
+        
         if self._extra_f_nbr > 0:
             y_extra = y[-self._extra_f_nbr:]
             y       = y[:-self._extra_f_nbr]
@@ -812,6 +819,10 @@ cdef class FMIODE2(cExplicit_Problem):
 
         #If there are no states return a dummy jacobian.
         if self._f_nbr == 0:
+            if self._logging:
+                msg = preface + '</%s>'%(solver_info_tag)
+                self._model.append_log_message("Model", 6, msg)
+            
             return N.array([[0.0]])
 
         A = self._model._get_A(add_diag=True, output_matrix=self._A)
@@ -840,6 +851,10 @@ cdef class FMIODE2(cExplicit_Problem):
                 raise fmi.FMUException("No Jacobian provided for the extra equations")
         else:
             Jac = A
+            
+        if self._logging:
+            msg = preface + '</%s>'%(solver_info_tag)
+            self._model.append_log_message("Model", 4, msg)
 
         return Jac
 
