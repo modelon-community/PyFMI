@@ -17,6 +17,7 @@
     * Fixed a crash when using ExplicitEuler with dynamic_diagnostics on models with events.
 
     * Changed Jacobian to use nominals retrieved via fmu.nominals_continuous_states instead of fmu.get_variable_nominal(<valueref>).
+    * Fixed so that malformed log messages do not trigger exceptions and instead the troublesome characters are replaced with a standard replacement character.
 
 --- PyFMI-2.9.9 ---
     * Added shortcut such that get_(real|integer|boolean|string)([]) calls no longer trigger a call to the FMU.
