@@ -238,7 +238,7 @@ class Test_FMUModelME1:
     @testattr(stddist = True)
     def test_get_xxx_empty(self):
         """ Test that get_xxx([]) do not calls do not trigger calls to FMU. """
-        model = FMUModelME1("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME1.0"), _connect_dll=False)
+        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         ## Tests that these do not crash and return empty arrays/lists
         assert len(model.get_real([]))    == 0, "get_real   ([]) has non-empty return"
         assert len(model.get_integer([])) == 0, "get_integer([]) has non-empty return"
@@ -1043,7 +1043,7 @@ class Test_FMUModelME2:
     @testattr(stddist = True)
     def test_get_xxx_empty(self):
         """ Test that get_xxx([]) do not calls do not trigger calls to FMU. """
-        model = FMUModelME2("bouncingBall.fmu", os.path.join(file_path, "files", "FMUs", "XML", "ME2.0"), _connect_dll=False)
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
         ## Tests that these do not crash and return empty arrays/lists
         assert len(model.get_real([]))    == 0, "get_real   ([]) has non-empty return"
         assert len(model.get_integer([])) == 0, "get_integer([]) has non-empty return"
