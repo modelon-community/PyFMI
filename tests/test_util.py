@@ -19,12 +19,13 @@ import nose
 import os
 import numpy as np
 
-from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, __ForTestingFMUModelME2
+from pyfmi.fmi import FMUException, FMUModelME1, __ForTestingFMUModelME1, FMUModelCS1, load_fmu, \
+                      FMUModelCS2, FMUModelME2, __ForTestingFMUModelME2
 
 def get_examples_folder():
     return os.path.join(os.path.dirname(__file__), '..', 'examples')
 
-class Dummy_FMUModelME1(FMUModelME1):
+class Dummy_FMUModelME1(__ForTestingFMUModelME1):
     #Override properties
     time = None
     continuous_states = None
@@ -200,7 +201,7 @@ class Dummy_FMUModelME2(__ForTestingFMUModelME2):
     continuous_states = None
     nominal_continuous_states = None
 
-    def __init__(self, negated_aliases, *args,**kwargs):
+    def __init__(self, negated_aliases, *args, **kwargs):
         FMUModelME2.__init__(self, *args, **kwargs)
 
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])

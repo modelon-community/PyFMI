@@ -3442,17 +3442,41 @@ cdef class FMUModelME1(FMUModelBase):
     the low-level FMI function: fmiSetContinuousStates/fmiGetContinuousStates.
     """)
 
+
+    cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx):
+        return FMIL.fmi1_import_get_nominal_continuous_states(self._fmu, xnominal, nx)
+
     def _get_nominal_continuous_states(self):
+        """
+        Returns the nominal values of the continuous states.
+
+        Returns::
+            The nominal values.
+        """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = N.zeros(self._nContinuousStates,dtype=N.double)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1, mode='c'] xn = N.zeros(self._nContinuousStates, dtype=N.double)
 
-        status = FMIL.fmi1_import_get_nominal_continuous_states(
-                self._fmu, <FMIL.fmi1_real_t*>ndx.data, self._nContinuousStates)
-
+        status = self.__get_nominal_continuous_states(<FMIL.fmi1_real_t*> xn.data, self._nContinuousStates)
         if status != 0:
             raise FMUException('Failed to get the nominal values.')
 
-        return ndx
+        # Fallback - auto-correct the illegal nominal values:
+        xvrs = self.get_state_value_references()
+        # TODO: What about xvrs[i] == fmiUndefinedValueReference?
+        for i in range(self._nContinuousStates):
+            if xn[i] == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    xname = self.get_variable_by_valueref(xvrs[i])
+                    logging.warning(f"The nominal value for {xname} is 0.0 which is illegal according " + \
+                                     "to the FMI specification. Setting the nominal to 1.0.")
+                xn[i] = 1.0
+            elif xn[i] < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    xname = self.get_variable_by_valueref(xvrs[i])
+                    logging.warning(f"The nominal value for {xname} is <0.0 which is illegal according " + \
+                                    f"to the FMI specification. Setting the nominal to abs({xn[i]}).")
+                xn[i] = abs(xn[i])
+        return xn
 
     nominal_continuous_states = property(_get_nominal_continuous_states, doc =
     """
@@ -3920,6 +3944,14 @@ cdef class FMUModelME1(FMUModelBase):
             FMIL.fmi1_import_free_model_instance(self._fmu)
             self._instantiated_fmu = 0
 
+
+cdef class __ForTestingFMUModelME1(FMUModelME1):
+
+    cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx):
+        # Set some illegal values in order to test the fallback/auto-correction.
+        for i in range(nx):
+            xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
+        return FMIL.fmi1_status_ok
 
 
 cdef class FMUModelBase2(ModelBase):
@@ -7979,6 +8011,9 @@ cdef class FMUModelME2(FMUModelBase2):
     the low-level FMI function: fmi2SetContinuousStates/fmi2GetContinuousStates.
     """)
 
+    cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx):
+        return FMIL.fmi2_import_get_nominals_of_continuous_states(self._fmu, xnominal, nx)
+
     def _get_nominal_continuous_states(self):
         """
         Returns the nominal values of the continuous states.
@@ -7987,15 +8022,26 @@ cdef class FMUModelME2(FMUModelBase2):
             The nominal values.
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] xn = N.zeros(self._nContinuousStates, dtype=N.double)
 
-        status = FMIL.fmi2_import_get_nominals_of_continuous_states(
-                self._fmu, <FMIL.fmi2_real_t*> ndx.data, self._nContinuousStates)
-
+        status = self.__get_nominal_continuous_states(<FMIL.fmi2_real_t*> xn.data, self._nContinuousStates)
         if status != 0:
             raise FMUException('Failed to get the nominal values.')
 
-        return ndx
+        # Fallback - auto-correct the illegal nominal values:
+        xnames = list(self.get_states_list().keys())
+        for i in range(self._nContinuousStates):
+            if xn[i] == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning(f"The nominal value for {xnames[i]} is 0.0 which is illegal according " + \
+                                     "to the FMI specification. Setting the nominal to 1.0.")
+                xn[i] = 1.0
+            elif xn[i] < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning(f"The nominal value for {xnames[i]} is <0.0 which is illegal according " + \
+                                    f"to the FMI specification. Setting the nominal to abs({xn[i]}).")
+                xn[i] = abs(xn[i])
+        return xn
 
     nominal_continuous_states = property(_get_nominal_continuous_states, doc =
     """
@@ -8459,6 +8505,12 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
                 values[i] = tmp[i]
         except:
             return FMIL.fmi2_status_error
+        return FMIL.fmi2_status_ok
+
+    cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx):
+        # Set some illegal values in order to test the fallback/auto-correction.
+        for i in range(nx):
+            xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
         return FMIL.fmi2_status_ok
 
 def _handle_load_fmu_exception(fmu, log_data):

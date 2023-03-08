@@ -20,6 +20,9 @@ import os
 import numpy as np
 from zipfile import ZipFile
 import tempfile
+import types
+import logging
+from io import StringIO
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
@@ -38,6 +41,12 @@ except ImportError:
     assimulo_installed = False
 
 file_path = os.path.dirname(os.path.abspath(__file__))
+
+FMU_PATHS     = types.SimpleNamespace()
+FMU_PATHS.ME1 = types.SimpleNamespace()
+FMU_PATHS.ME2 = types.SimpleNamespace()
+FMU_PATHS.ME1.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu")
+FMU_PATHS.ME2.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu")
 
 
 def _helper_unzipped_fmu_exception_invalid_dir(fmu_loader):
@@ -184,7 +193,7 @@ class Test_FMUModelME1:
 
     @testattr(windows_full = True)
     def test_default_experiment(self):
-        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME1(FMU_PATHS.ME1.coupled_clutches, _connect_dll=False)
 
         assert np.abs(model.get_default_experiment_start_time()) < 1e-4
         assert np.abs(model.get_default_experiment_stop_time()-1.5) < 1e-4
@@ -432,7 +441,7 @@ class Test_FMUModelBase:
 
     @testattr(stddist = True)
     def test_get_variable_description(self):
-        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME1(FMU_PATHS.ME1.coupled_clutches, _connect_dll=False)
         assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
 
     @testattr(stddist = True)
@@ -448,6 +457,48 @@ class Test_FMUModelBase:
         opts["initialize"] = False
 
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
+
+    def test_get_erroneous_nominals_capi_fmi1(self):
+        """ Tests that erroneous nominals returned from getting nominals of continuous states get auto-corrected. """
+
+        # Don't enable this except during local development. It will break all logging
+        # for future test runs in the same python process.
+        # If other tests also has this kind of property, only enable one at the time.
+        # FIXME: Find a proper way to do it, or better, switch to a testing framework which has
+        # support for it (e.g. unittest with assertLogs).
+        one_off_test_logging = False
+
+        model = Dummy_FMUModelME1([], FMU_PATHS.ME1.coupled_clutches, log_level=3, _connect_dll=False)
+        model.initialize()
+
+        if one_off_test_logging:
+            log_stream = StringIO()
+            logging.basicConfig(stream=log_stream, level=logging.WARNING)
+
+        model.states_vref = [114, 115, 116, 117, 118, 119, 120, 121]
+        # NOTE: Property 'nominal_continuous_states' is already overriden in Dummy_FMUModelME1, so just
+        # call the underlying function immediately.
+        xn = model._get_nominal_continuous_states()
+
+        if one_off_test_logging:
+            # Check warning is given:
+            expected_msg1 = "The nominal value for clutch1.phi_rel is <0.0 which is illegal according to the " \
+                        + "FMI specification. Setting the nominal to abs(-2.0)."
+            expected_msg2 = "The nominal value for J4.w is 0.0 which is illegal according to the " \
+                        + "FMI specification. Setting the nominal to 1.0."
+            log = str(log_stream.getvalue())
+            nose.tools.assert_in(expected_msg1, log)  # First warning of 6.
+            nose.tools.assert_in(expected_msg2, log)  # Last warning of 6.
+
+        # Check values are auto-corrected:
+        nose.tools.assert_almost_equal(xn[0], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[1], 1.0)  #  0.0
+        nose.tools.assert_almost_equal(xn[2], 2.0)  #  2.0
+        nose.tools.assert_almost_equal(xn[3], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[4], 1.0)  #  0.0
+        nose.tools.assert_almost_equal(xn[5], 2.0)  #  2.0
+        nose.tools.assert_almost_equal(xn[6], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[7], 1.0)  #  0,0
 
 
 class Test_LoadFMU:
@@ -978,7 +1029,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_output_dependencies_2(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
 
         [state_dep, input_dep] = model.get_output_dependencies()
 
@@ -1015,7 +1066,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_log_file_name(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu")
+        full_path = FMU_PATHS.ME2.coupled_clutches
 
         model = FMUModelME2(full_path, _connect_dll=False)
 
@@ -1024,7 +1075,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_units(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
 
         assert model.get_variable_unit("J1.w") == "rad/s", model.get_variable_unit("J1.w")
         assert model.get_variable_unit("J1.phi") == "rad", model.get_variable_unit("J1.phi")
@@ -1035,7 +1086,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_display_units(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
 
         assert model.get_variable_display_unit("J1.phi") == "deg", model.get_variable_display_unit("J1.phi")
         nose.tools.assert_raises(FMUException, model.get_variable_display_unit, "J1.w")
@@ -1093,7 +1144,7 @@ class Test_FMUModelBase2:
         nose.tools.assert_raises(FMUException, model.get_variable_declared_type, "z")
 
     @testattr(stddist = True)
-    def test_get_erronous_nominals(self):
+    def test_get_erroneous_nominals_xml(self):
         model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NominalTests.NominalTest4.fmu"), _connect_dll=False)
 
         nose.tools.assert_almost_equal(model.get_variable_nominal("x"), 2.0)
@@ -1111,10 +1162,51 @@ class Test_FMUModelBase2:
         nose.tools.assert_almost_equal(model.get_variable_nominal(valueref=x_vref, _override_erroneous_nominal=False), -2.0)
         nose.tools.assert_almost_equal(model.get_variable_nominal(valueref=y_vref, _override_erroneous_nominal=False), 0.0)
 
+    def test_get_erroneous_nominals_capi(self):
+        """ Tests that erroneous nominals returned from GetNominalsOfContinuousStates get auto-corrected. """
+
+        # Don't enable this except during local development. It will break all logging
+        # for future test runs in the same python process.
+        # If other tests also has this kind of property, only enable one at the time.
+        # FIXME: Find a proper way to do it, or better, switch to a testing framework which has
+        # support for it (e.g. unittest with assertLogs).
+        one_off_test_logging = False
+
+        model = Dummy_FMUModelME2([], FMU_PATHS.ME2.coupled_clutches, log_level=3, _connect_dll=False)
+        model.setup_experiment()
+        model.initialize()
+
+        if one_off_test_logging:
+            log_stream = StringIO()
+            logging.basicConfig(stream=log_stream, level=logging.WARNING)
+
+        # NOTE: Property 'nominal_continuous_states' is already overriden in Dummy_FMUModelME2, so just
+        # call the underlying function immediately.
+        xn = model._get_nominal_continuous_states()
+
+        if one_off_test_logging:
+            # Check warning is given:
+            expected_msg1 = "The nominal value for clutch1.phi_rel is <0.0 which is illegal according to the " \
+                        + "FMI specification. Setting the nominal to abs(-2.0)."
+            expected_msg2 = "The nominal value for J4.w is 0.0 which is illegal according to the " \
+                        + "FMI specification. Setting the nominal to 1.0."
+            log = str(log_stream.getvalue())
+            nose.tools.assert_in(expected_msg1, log)  # First warning of 6.
+            nose.tools.assert_in(expected_msg2, log)  # Last warning of 6.
+
+        # Check values are auto-corrected:
+        nose.tools.assert_almost_equal(xn[0], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[1], 1.0)  #  0.0
+        nose.tools.assert_almost_equal(xn[2], 2.0)  #  2.0
+        nose.tools.assert_almost_equal(xn[3], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[4], 1.0)  #  0.0
+        nose.tools.assert_almost_equal(xn[5], 2.0)  #  2.0
+        nose.tools.assert_almost_equal(xn[6], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[7], 1.0)  #  0,0
 
     @testattr(stddist = True)
     def test_get_time_varying_variables(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
 
         [r,i,b] = model.get_model_time_varying_value_references()
         [r_f, i_f, b_f] = model.get_model_time_varying_value_references(filter="*")
@@ -1283,7 +1375,7 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_get_variable_description(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
         assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
 
 
@@ -1292,7 +1384,7 @@ class Test_load_fmu_only_XML:
     @testattr(stddist = True)
     def test_loading_xml_me1(self):
 
-        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME1(FMU_PATHS.ME1.coupled_clutches, _connect_dll=False)
 
         assert model.get_name() == "CoupledClutches", model.get_name()
 
@@ -1306,7 +1398,7 @@ class Test_load_fmu_only_XML:
     @testattr(stddist = True)
     def test_loading_xml_me2(self):
 
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
 
         assert model.get_name() == "CoupledClutches", model.get_name()
 
