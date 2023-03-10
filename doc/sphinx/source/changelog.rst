@@ -2,6 +2,26 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.10.0 ---
+    * Added shortcut such that get_(real|integer|boolean|string)([]) calls no longer trigger a call to the FMU.
+    * Removed the following deprecated functions:
+      * pyfmi.fmi.FMUModelCS1, FMUModelME1, FMUModelCS2, FMUModelME2, pyfmi.fmi.FMUModelME1Extended: get_log_file_name: use get_log_filename
+      * pyfmi.fmi.FMUModelCS1, FMUModelME1, FMUModelCS2, FMUModelME2, pyfmi.fmi.FMUModelME1Extended: set_fmil_log_level: use set_log_level
+    * Removed the following deprecated arguments:
+      * pyfmi.fmi.FMUModelCS1, FMUModelME1, FMUModelCS2, FMUModelME2, load_fmu, pyfmi.fmi.FMUModelME1Extended: 'path': use 'fmu' instead
+      * pyfmi.fmi.FMUModelCS1, FMUModelME1, FMUModelCS2, FMUModelME2, load_fmu, pyfmi.fmi.FMUModelME1Extended: 'enable_logging': use 'log_level' instead
+      * pyfmi.fmi.FMUModelCS1, FMUModelME1Extended.initialize: 'tStart': use 'start_time' instead
+      * pyfmi.fmi.FMUModelCS1, FMUModelME1Extended.initialize: 'tStop': use 'stop_time' instead
+      * pyfmi.fmi.FMUModelCS1, FMUModelME1Extended.initialize: 'StopTimeDefined': use 'stop_time_defined' instead
+      * pyfmi.fmi.FMUModelCS1, FMUModelME1.initialize: 'tolControlled': use 'tolerance_defined' instead
+      * pyfmi.fmi.FMUModelCS1, FMUModelME1.initialize: 'relativeTolerance': use 'tolerance' instead
+    * Removed the following deprecated attribute:
+      * pyfmi.fmi.FMUModelCS1, FMUModelME1, FMUModelCS2, FMUModelME2, load_fmu, pyfmi.fmi.FMUModelME1Extended: 'version': use 'get_version' function instead
+    * Note that pyfmi.load_fmu creates instances of pyfmi.fmi.FMUModelCS1, FMUModelME1, FMUModelCS2, FMUModelME2
+    * Fixed a crash when using ExplicitEuler with dynamic_diagnostics on models with events.
+    * Changed Jacobian to use nominals retrieved via fmu.nominals_continuous_states instead of fmu.get_variable_nominal(<valueref>).
+    * Fixed so that malformed log messages do not trigger exceptions and instead the troublesome characters are replaced with a standard replacement character.
+
 --- PyFMI-2.9.8 ---
     * Resolved a bug in the example fmi20_bouncing_ball_native where a step-event is triggered in every timestep.
     * Changed some imports to remove DeprecationWarnings.
