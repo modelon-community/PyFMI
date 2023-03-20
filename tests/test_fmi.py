@@ -16,6 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import nose
+import nose.tools as nt
 import os
 import numpy as np
 from zipfile import ZipFile
@@ -26,13 +27,19 @@ from io import StringIO
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
-import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
-import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
+from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg, AssimuloFMIAlgOptions, \
+                                        PYFMI_JACOBIAN_LIMIT, PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT
 from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2, get_examples_folder
 from pyfmi.common.io import ResultHandler
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 from pyfmi.common.core import create_temp_dir
+
+
+class TempAlg(AssimuloFMIAlg):
+    def solve(self):
+        pass
+
 
 assimulo_installed = True
 try:
@@ -47,6 +54,9 @@ FMU_PATHS.ME1 = types.SimpleNamespace()
 FMU_PATHS.ME2 = types.SimpleNamespace()
 FMU_PATHS.ME1.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu")
 FMU_PATHS.ME2.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu")
+FMU_PATHS.ME1.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NominalTest4.fmu")
+FMU_PATHS.ME2.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NominalTests.NominalTest4.fmu")
+
 
 
 def _helper_unzipped_fmu_exception_invalid_dir(fmu_loader):
@@ -242,7 +252,7 @@ class Test_FMUModelME1:
         class instance.
         """
         bounce = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
-        assert isinstance(bounce.simulate_options(), fmi_algorithm_drivers.AssimuloFMIAlgOptions)
+        assert isinstance(bounce.simulate_options(), AssimuloFMIAlgOptions)
 
     @testattr(stddist = True)
     def test_get_xxx_empty(self):
@@ -391,7 +401,7 @@ class Test_FMUModelBase:
 
     @testattr(stddist = True)
     def test_get_erronous_nominals(self):
-        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NominalTest4.fmu"), _connect_dll=False)
+        model = FMUModelME1(FMU_PATHS.ME1.nominal_test4, _connect_dll=False)
 
         nose.tools.assert_almost_equal(model.get_variable_nominal("x"), 2.0)
         nose.tools.assert_almost_equal(model.get_variable_nominal("y"), 1.0)
@@ -709,12 +719,6 @@ if assimulo_installed:
             opts["solver"] = "CVode"
             opts["result_handling"] = "none"
 
-            from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg, PYFMI_JACOBIAN_LIMIT
-
-            class TempAlg(AssimuloFMIAlg):
-                def solve(self):
-                    pass
-
             def run_case(expected, default="Default"):
                 model.reset()
                 res = model.simulate(final_time=1.5,options=opts, algorithm=TempAlg)
@@ -739,11 +743,6 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_sparse_option(self):
-            from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg, PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT, PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT
-
-            class TempAlg(AssimuloFMIAlg):
-                def solve(self):
-                    pass
 
             def run_case(expected_jacobian, expected_sparse, fnbr=0, nnz={}, set_sparse=False):
                 class Sparse_FMUModelME2(Dummy_FMUModelME2):
@@ -804,7 +803,6 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_deepcopy_option(self):
-            from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlgOptions
             opts = AssimuloFMIAlgOptions()
             opts["CVode_options"]["maxh"] = 2.0
 
@@ -819,12 +817,6 @@ if assimulo_installed:
             model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
             opts = model.simulate_options()
             opts["result_handling"] = "none"
-
-            from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg
-
-            class TempAlg(AssimuloFMIAlg):
-                def solve(self):
-                    pass
 
             def run_case(tstart, tstop, solver, ncp="Default"):
                 model.reset()
@@ -851,7 +843,24 @@ if assimulo_installed:
             run_case(0,1,"LSODAR")
             run_case(0,1,"LSODAR")
 
-
+        @testattr(stddist = True)
+        def test_atol_auto_update(self):
+            """
+            Tests that atol automatically gets updated when "atol = factor * pre_init_nominals".
+            """
+            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+            model.override_nominal_continuous_states = False
+            opts = model.simulate_options()
+            opts["return_result"] = False
+            opts["solver"] = "CVode"
+            opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
+            atol = opts["CVode_options"]["atol"]
+            nt.assert_almost_equal(atol[0], 0.02)
+            nt.assert_almost_equal(atol[1], 0.01)
+            model.simulate(options=opts, algorithm=TempAlg)
+            atol = opts["CVode_options"]["atol"]
+            nt.assert_almost_equal(atol[0], 3e-6)
+            nt.assert_almost_equal(atol[1], 3e-6)
 
 class Test_FMUModelME2:
 
@@ -1145,7 +1154,7 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_get_erroneous_nominals_xml(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NominalTests.NominalTest4.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
 
         nose.tools.assert_almost_equal(model.get_variable_nominal("x"), 2.0)
         nose.tools.assert_almost_equal(model.get_variable_nominal("y"), 1.0)

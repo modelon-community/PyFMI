@@ -598,17 +598,35 @@ class AssimuloFMIAlg(AlgorithmBase):
 
     def _set_absolute_tolerance_options(self):
         """
-        Sets the absolute tolerance. Must not be called before initialization since it depends on nominals.
+        Sets the absolute tolerance. Must not be called before initialization since it depends
+        on state nominals.
 
-        Assumes some initial setup has been done via previous call to _set_options.
+        Assumes initial setup of default atol has been done via previous call to _set_options.
+
+        Will try to auto-update absolute tolerances that depend on state nominals retrieved
+        before initialization.
         """
         try:
-            if isinstance(self.solver_options["atol"], str) and self.solver_options["atol"] == "Default":
+            atol = self.solver_options["atol"]
+            rtol = self.solver_options["rtol"]
+            preinit_nominals = self.model._pre_init_nominal_continuous_states
+            if isinstance(atol, str) and atol == "Default":
                 fnbr, _ = self.model.get_ode_sizes()
                 if fnbr == 0:
-                    self.solver_options['atol'] = 0.01*self.solver_options['rtol']
+                    self.solver_options["atol"] = 0.01*rtol
                 else:
-                    self.solver_options['atol'] = 0.01*self.solver_options['rtol']*self.model.nominal_continuous_states
+                    self.solver_options["atol"] = 0.01*rtol*self.model.nominal_continuous_states
+            elif isinstance(preinit_nominals, N.ndarray) and (preinit_nominals.size > 0):
+                # Heuristic:
+                # Try to find if atol was specified as "atol = factor * model.nominal_continuous_states",
+                # and if that's the case, recompute atol with nominals from after initialization.
+                factors = atol / self.model._pre_init_nominal_continuous_states
+                f0 = factors[0]
+                for f in factors:
+                    if abs(f0 - f) > f0 * 1e-6:  # TODO: Fix tolerance calculation
+                        return  # Heuristic failed since not all factors equal
+                self.solver_options["atol"] = f0*rtol*self.model.nominal_continuous_states
+                # TODO: Log that we auto-update, and include the new values
         except KeyError:
             pass
 

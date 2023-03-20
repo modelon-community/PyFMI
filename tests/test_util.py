@@ -196,16 +196,19 @@ class Dummy_FMUModelCS2(FMUModelCS2):
             self.values[v] = values[i]
 
 class Dummy_FMUModelME2(__ForTestingFMUModelME2):
+
+    # Test options
+    override_nominal_continuous_states = True
+
     #Override properties
     time = None
     continuous_states = None
-    nominal_continuous_states = None
+    
 
     def __init__(self, negated_aliases, *args, **kwargs):
         FMUModelME2.__init__(self, *args, **kwargs)
 
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
-        self.nominal_continuous_states = np.ones(self.get_ode_sizes()[0])
         self.variables = self.get_model_variables(include_alias=False)
         self.negated_aliases = negated_aliases
         self.states = self.get_states_list()
@@ -227,6 +230,8 @@ class Dummy_FMUModelME2(__ForTestingFMUModelME2):
         for i,state in enumerate(states):
             self.continuous_states[i] = self.values[states[state].value_reference]
 
+        self.set_initialized_fmu(0)
+
     def setup_experiment(self, *args, **kwargs):
         self.time = 0.0
 
@@ -236,10 +241,19 @@ class Dummy_FMUModelME2(__ForTestingFMUModelME2):
 
     def exit_initialization_mode(self, *args, **kwargs):
         self._has_entered_init_mode = True
+        self.set_initialized_fmu(1)
         return 0
 
     def initialize(self, *args, **kwargs):
         self.enter_initialization_mode()
+        self.exit_initialization_mode()
+
+    def simulate(self, *args, **kwargs):
+        super().simulate(*args, **kwargs)
+
+        # Testing e.g. that nominals get auto-updated requires that _initialized_fmu
+        # is set, but that flag must be reset before __dealloc__ to avoid segfaults.
+        self.set_initialized_fmu(0)  
 
     def event_update(self, *args, **kwargs):
         pass
@@ -279,3 +293,11 @@ class Dummy_FMUModelME2(__ForTestingFMUModelME2):
 
     def get_event_indicators(self, *args, **kwargs):
         return np.ones(self.get_ode_sizes()[1])
+
+    def get_nominal_continuous_states_testimpl(self):
+        if self.override_nominal_continuous_states:
+            return np.ones(self.get_ode_sizes()[0])
+        else:
+            return super().nominal_continuous_states
+
+    nominal_continuous_states = property(get_nominal_continuous_states_testimpl)

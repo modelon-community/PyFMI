@@ -135,6 +135,7 @@ cdef class FMUModelBase(ModelBase):
     cdef public list _save_bool_variables_val
     cdef int _fmu_kind
     cdef char* _fmu_temp_dir
+    cdef public object _pre_init_nominal_continuous_states
 
     cpdef _internal_set_fmu_null(self)
     cpdef get_variable_description(self, variablename)
@@ -267,3 +268,6 @@ cdef class WorkerClass2:
     cdef N.ndarray get_value_reference_numpy_vector(self, int index)
     cdef N.ndarray get_real_numpy_vector(self, int index)
     cpdef verify_dimensions(self, int dim)
+
+cdef class __ForTestingFMUModelME2(FMUModelME2):
+    cpdef set_initialized_fmu(self, int value)

@@ -1365,6 +1365,9 @@ cdef class FMUModelBase(ModelBase):
         self.callbacks.logger  = importlogger
         self.callbacks.context = <void*>self #Class loggger
 
+        # State nominals retrieved before initialization
+        self._pre_init_nominal_continuous_states = None
+
         if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
             if log_level == FMIL.jm_log_level_nothing:
                 enable_logging = False
@@ -3476,6 +3479,11 @@ cdef class FMUModelME1(FMUModelBase):
                     logging.warning(f"The nominal value for {xname} is <0.0 which is illegal according " + \
                                     f"to the FMI specification. Setting the nominal to abs({xn[i]}).")
                 xn[i] = abs(xn[i])
+
+        # If called before initialization, save values in order to later perform auto-correction
+        if self._allocated_fmu == 0:
+            self._pre_init_nominal_continuous_states = xn
+
         return xn
 
     nominal_continuous_states = property(_get_nominal_continuous_states, doc =
@@ -8041,6 +8049,11 @@ cdef class FMUModelME2(FMUModelBase2):
                     logging.warning(f"The nominal value for {xnames[i]} is <0.0 which is illegal according " + \
                                     f"to the FMI specification. Setting the nominal to abs({xn[i]}).")
                 xn[i] = abs(xn[i])
+
+        # If called before initialization, save values in order to later perform auto-correction
+        if self._initialized_fmu == 0:
+            self._pre_init_nominal_continuous_states = xn
+
         return xn
 
     nominal_continuous_states = property(_get_nominal_continuous_states, doc =
@@ -8508,10 +8521,17 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
         return FMIL.fmi2_status_ok
 
     cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx):
-        # Set some illegal values in order to test the fallback/auto-correction.
         for i in range(nx):
-            xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
+            if self._initialized_fmu == 1:
+                # Set new values to test that atol gets auto-corrected.
+                xnominal[i] = 3.0
+            else:
+                # Set some illegal values in order to test the fallback/auto-correction.
+                xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
         return FMIL.fmi2_status_ok
+
+    cpdef set_initialized_fmu(self, int value):
+        self._initialized_fmu = value
 
 def _handle_load_fmu_exception(fmu, log_data):
     for log in log_data:
