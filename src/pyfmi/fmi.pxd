@@ -135,7 +135,6 @@ cdef class FMUModelBase(ModelBase):
     cdef public list _save_bool_variables_val
     cdef int _fmu_kind
     cdef char* _fmu_temp_dir
-    cdef public object _pre_init_nominal_continuous_states
 
     cpdef _internal_set_fmu_null(self)
     cpdef get_variable_description(self, variablename)
@@ -160,6 +159,7 @@ cdef class FMUModelME1(FMUModelBase):
     cpdef _set_time(self, FMIL.fmi1_real_t t)
     cpdef get_derivatives(self)
     cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx)
+    cdef public object _preinit_nominal_continuous_states
 
 cdef class FMUModelBase2(ModelBase):
     """
@@ -256,6 +256,7 @@ cdef class FMUModelME2(FMUModelBase2):
     cdef int _get_event_indicators(self, FMIL.fmi2_real_t[:] values)
     cdef int _completed_integrator_step(self, int* enter_event_mode, int* terminate_simulation)
     cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx)
+    cdef public object _preinit_nominal_continuous_states
 
 cdef class WorkerClass2:
     cdef int _dim

@@ -197,8 +197,16 @@ class Dummy_FMUModelCS2(FMUModelCS2):
 
 class Dummy_FMUModelME2(__ForTestingFMUModelME2):
 
-    # Test options
+    # -- Test options --
+    
+    # If true, makes use of the real __ForTesting implementation for nominal_continuous_states,
+    # else just returns 1.0 for each.
     override_nominal_continuous_states = True
+
+    # Values for nominal_continuous_states. 'test_sparse_option()' and more tests will break
+    # if the values are not calculated from get_ode_sizes() as defined at __init__.
+    # REVIEW: Can we fix the tests instead? I don't know how to.
+    _nominal_continuous_states = None
 
     #Override properties
     time = None
@@ -212,6 +220,7 @@ class Dummy_FMUModelME2(__ForTestingFMUModelME2):
         self.variables = self.get_model_variables(include_alias=False)
         self.negated_aliases = negated_aliases
         self.states = self.get_states_list()
+        self._nominal_continuous_states = np.ones(self.get_ode_sizes()[0])
 
         self.reset()
 
@@ -247,13 +256,6 @@ class Dummy_FMUModelME2(__ForTestingFMUModelME2):
     def initialize(self, *args, **kwargs):
         self.enter_initialization_mode()
         self.exit_initialization_mode()
-
-    def simulate(self, *args, **kwargs):
-        super().simulate(*args, **kwargs)
-
-        # Testing e.g. that nominals get auto-updated requires that _initialized_fmu
-        # is set, but that flag must be reset before __dealloc__ to avoid segfaults.
-        self.set_initialized_fmu(0)  
 
     def event_update(self, *args, **kwargs):
         pass
@@ -296,7 +298,7 @@ class Dummy_FMUModelME2(__ForTestingFMUModelME2):
 
     def get_nominal_continuous_states_testimpl(self):
         if self.override_nominal_continuous_states:
-            return np.ones(self.get_ode_sizes()[0])
+            return self._nominal_continuous_states
         else:
             return super().nominal_continuous_states
 

@@ -844,7 +844,7 @@ if assimulo_installed:
             run_case(0,1,"LSODAR")
 
         @testattr(stddist = True)
-        def test_atol_auto_update(self):
+        def test_atol_auto_update1(self):
             """
             Tests that atol automatically gets updated when "atol = factor * pre_init_nominals".
             """
@@ -853,14 +853,95 @@ if assimulo_installed:
             opts = model.simulate_options()
             opts["return_result"] = False
             opts["solver"] = "CVode"
+
             opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
-            atol = opts["CVode_options"]["atol"]
-            nt.assert_almost_equal(atol[0], 0.02)
-            nt.assert_almost_equal(atol[1], 0.01)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
             model.simulate(options=opts, algorithm=TempAlg)
-            atol = opts["CVode_options"]["atol"]
-            nt.assert_almost_equal(atol[0], 3e-6)
-            nt.assert_almost_equal(atol[1], 3e-6)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update2(self):
+            """
+            Tests that atol doesn't get auto-updated when heuristic fails.
+            """
+            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+            model.override_nominal_continuous_states = False
+            opts = model.simulate_options()
+            opts["return_result"] = False
+            opts["solver"] = "CVode"
+
+            opts["CVode_options"]["atol"] = (0.01 * model.nominal_continuous_states) + [0.01, 0.01]
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
+            model.simulate(options=opts, algorithm=TempAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update3(self):
+            """
+            Tests that atol doesn't get auto-updated when nominals are never retrieved.
+            """
+            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+            model.override_nominal_continuous_states = False
+            opts = model.simulate_options()
+            opts["return_result"] = False
+            opts["solver"] = "CVode"
+
+            opts["CVode_options"]["atol"] = [0.02, 0.01]
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+            model.simulate(options=opts, algorithm=TempAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update4(self):
+            """
+            Tests that atol is not auto-updated when it's set the "correct" way (post initialization).
+            """
+            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+            model.override_nominal_continuous_states = False
+            opts = model.simulate_options()
+            opts["return_result"] = False
+            opts["solver"] = "CVode"
+            
+            model.setup_experiment()
+            model.initialize()
+            opts["initialize"] = False
+            opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+            model.simulate(options=opts, algorithm=TempAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update5(self):
+            """
+            Tests that atol is automatically set and depends on rtol.
+            """
+            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+            model.override_nominal_continuous_states = False
+            opts = model.simulate_options()
+            opts["return_result"] = False
+            opts["solver"] = "CVode"
+            
+            opts["CVode_options"]["rtol"] = 1e-6
+            model.simulate(options=opts, algorithm=TempAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [3e-8, 3e-8])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update6(self):
+            """
+            Tests that rtol doesn't affect explicitly set atol.
+            """
+            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+            model.override_nominal_continuous_states = False
+            opts = model.simulate_options()
+            opts["return_result"] = False
+            opts["solver"] = "CVode"
+
+            opts["CVode_options"]["rtol"] = 1e-9
+            opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+            model.simulate(options=opts, algorithm=TempAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+
 
 class Test_FMUModelME2:
 
@@ -1182,8 +1263,6 @@ class Test_FMUModelBase2:
         one_off_test_logging = False
 
         model = Dummy_FMUModelME2([], FMU_PATHS.ME2.coupled_clutches, log_level=3, _connect_dll=False)
-        model.setup_experiment()
-        model.initialize()
 
         if one_off_test_logging:
             log_stream = StringIO()
@@ -1203,7 +1282,7 @@ class Test_FMUModelBase2:
             nose.tools.assert_in(expected_msg1, log)  # First warning of 6.
             nose.tools.assert_in(expected_msg2, log)  # Last warning of 6.
 
-        # Check values are auto-corrected:
+        # Check that values are auto-corrected:
         nose.tools.assert_almost_equal(xn[0], 2.0)  # -2.0
         nose.tools.assert_almost_equal(xn[1], 1.0)  #  0.0
         nose.tools.assert_almost_equal(xn[2], 2.0)  #  2.0

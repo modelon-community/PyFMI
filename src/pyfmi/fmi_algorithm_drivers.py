@@ -608,10 +608,10 @@ class AssimuloFMIAlg(AlgorithmBase):
         """
         try:
             atol = self.solver_options["atol"]
-            rtol = self.solver_options["rtol"]
-            preinit_nominals = self.model._pre_init_nominal_continuous_states
+            preinit_nominals = self.model._preinit_nominal_continuous_states
             if isinstance(atol, str) and atol == "Default":
                 fnbr, _ = self.model.get_ode_sizes()
+                rtol = self.solver_options["rtol"]
                 if fnbr == 0:
                     self.solver_options["atol"] = 0.01*rtol
                 else:
@@ -620,13 +620,16 @@ class AssimuloFMIAlg(AlgorithmBase):
                 # Heuristic:
                 # Try to find if atol was specified as "atol = factor * model.nominal_continuous_states",
                 # and if that's the case, recompute atol with nominals from after initialization.
-                factors = atol / self.model._pre_init_nominal_continuous_states
+                factors = atol / preinit_nominals
                 f0 = factors[0]
                 for f in factors:
-                    if abs(f0 - f) > f0 * 1e-6:  # TODO: Fix tolerance calculation
-                        return  # Heuristic failed since not all factors equal
-                self.solver_options["atol"] = f0*rtol*self.model.nominal_continuous_states
-                # TODO: Log that we auto-update, and include the new values
+                    if abs(f0 - f) > f0 * 1e-6:  # REVIEW: How to do this properly?
+                        # REVIEW: Should this give warning? In Case 2 we mention something about it, but hard to understand.
+                        return
+                # Success.
+                self.solver_options["atol"] = atol * self.model.nominal_continuous_states / preinit_nominals
+                logging.info("Absolute tolerances have been recalculated by using values for state nominals from " +
+                             "after initialization.")
         except KeyError:
             pass
 

@@ -1365,9 +1365,6 @@ cdef class FMUModelBase(ModelBase):
         self.callbacks.logger  = importlogger
         self.callbacks.context = <void*>self #Class loggger
 
-        # State nominals retrieved before initialization
-        self._pre_init_nominal_continuous_states = None
-
         if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
             if log_level == FMIL.jm_log_level_nothing:
                 enable_logging = False
@@ -3283,6 +3280,9 @@ cdef class FMUModelME1(FMUModelBase):
         #Call super
         FMUModelBase.__init__(self,fmu,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
+        # State nominals retrieved before initialization
+        self._preinit_nominal_continuous_states = None
+
         if self._fmu_kind != FMI_ME:
             raise InvalidVersionException("The FMU could not be loaded. This class only supports FMI 1.0 for Model Exchange.")
 
@@ -3482,7 +3482,7 @@ cdef class FMUModelME1(FMUModelBase):
 
         # If called before initialization, save values in order to later perform auto-correction
         if self._allocated_fmu == 0:
-            self._pre_init_nominal_continuous_states = xn
+            self._preinit_nominal_continuous_states = xn
 
         return xn
 
@@ -7648,6 +7648,9 @@ cdef class FMUModelME2(FMUModelBase2):
 
         self.force_finite_differences = 0
 
+        # State nominals retrieved before initialization
+        self._preinit_nominal_continuous_states = None
+
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
 
         if _connect_dll:
@@ -7658,7 +7661,7 @@ cdef class FMUModelME2(FMUModelBase2):
         Deallocate memory allocated
         """
         self._invoked_dealloc = 1
-
+        
         if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
 
@@ -8052,7 +8055,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         # If called before initialization, save values in order to later perform auto-correction
         if self._initialized_fmu == 0:
-            self._pre_init_nominal_continuous_states = xn
+            self._preinit_nominal_continuous_states = xn
 
         return xn
 
@@ -8532,6 +8535,11 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
 
     cpdef set_initialized_fmu(self, int value):
         self._initialized_fmu = value
+
+    def __dealloc__(self):
+        # Avoid segfaults in dealloc. The FMU binaries should never be loaded for this
+        # test class, so we should never try to terminate or deallocate the FMU instance.
+        self._initialized_fmu = 0
 
 def _handle_load_fmu_exception(fmu, log_data):
     for log in log_data:
