@@ -1788,6 +1788,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
     cdef public object _order, _blocks
     cdef public object _values_continuous_states_changed
     cdef public object _nominals_continuous_states_changed
+    cdef public object _preinit_nominal_continuous_states
     
     def __init__(self, models, connections):
         """
@@ -1828,6 +1829,9 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
         
         self._values_continuous_states_changed = False
         self._nominals_continuous_states_changed = False                                     
+
+        # State nominals retrieved before initialization
+        self._preinit_nominal_continuous_states = None
     
     cpdef _get_time(self):
         """
