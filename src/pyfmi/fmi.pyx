@@ -3956,10 +3956,22 @@ cdef class FMUModelME1(FMUModelBase):
 cdef class __ForTestingFMUModelME1(FMUModelME1):
 
     cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx):
-        # Set some illegal values in order to test the fallback/auto-correction.
         for i in range(nx):
-            xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
+            if self._allocated_fmu == 1:  # If initialized
+                # Set new values to test that atol gets auto-corrected.
+                xnominal[i] = 3.0
+            else:
+                # Set some illegal values in order to test the fallback/auto-correction.
+                xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
         return FMIL.fmi1_status_ok
+
+    cpdef set_allocated_fmu(self, int value):
+        self._allocated_fmu = value
+
+    def __dealloc__(self):
+        # Avoid segfaults in dealloc. The FMU binaries should never be loaded for this
+        # test class, so we should never try to terminate or deallocate the FMU instance.
+        self._allocated_fmu = 0
 
 
 cdef class FMUModelBase2(ModelBase):

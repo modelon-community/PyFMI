@@ -26,16 +26,20 @@ def get_examples_folder():
     return os.path.join(os.path.dirname(__file__), '..', 'examples')
 
 class Dummy_FMUModelME1(__ForTestingFMUModelME1):
+    # If true, makes use of the real __ForTesting implementation for nominal_continuous_states,
+    # else just returns 1.0 for each.
+    override_nominal_continuous_states = True
+
     #Override properties
     time = None
     continuous_states = None
-    nominal_continuous_states = None
+    _nominal_continuous_states = None
 
     def __init__(self, states_vref, *args,**kwargs):
         FMUModelME1.__init__(self, *args, **kwargs)
 
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
-        self.nominal_continuous_states = np.ones(self.get_ode_sizes()[0])
+        self._nominal_continuous_states = np.ones(self.get_ode_sizes()[0])
         self.variables = self.get_model_variables(include_alias=False)
         self.states_vref = states_vref
 
@@ -52,6 +56,7 @@ class Dummy_FMUModelME1(__ForTestingFMUModelME1):
 
     def initialize(self, *args, **kwargs):
         self.time = 0.0
+        self.set_allocated_fmu(1)
 
     def completed_integrator_step(self, *args, **kwargs):
         for i,vref in enumerate(self.states_vref):
@@ -77,6 +82,14 @@ class Dummy_FMUModelME1(__ForTestingFMUModelME1):
 
     def get_event_indicators(self, *args, **kwargs):
         return np.ones(self.get_ode_sizes()[1])
+
+    def get_nominal_continuous_states_testimpl(self):
+        if self.override_nominal_continuous_states:
+            return self._nominal_continuous_states
+        else:
+            return super().nominal_continuous_states
+
+    nominal_continuous_states = property(get_nominal_continuous_states_testimpl)
 
 class Dummy_FMUModelCS1(FMUModelCS1):
     #Override properties

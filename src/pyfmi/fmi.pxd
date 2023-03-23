@@ -161,6 +161,9 @@ cdef class FMUModelME1(FMUModelBase):
     cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx)
     cdef public object _preinit_nominal_continuous_states
 
+cdef class __ForTestingFMUModelME1(FMUModelME1):
+    cpdef set_allocated_fmu(self, int value)
+
 cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
