@@ -1,4 +1,7 @@
 --- CHANGELOG ---
+--- PyFMI-NEXT_VERSION ---
+    * Changed such that absolute tolerances calculated with state nominals retrieved before initialization will be recalculated with state nominals from after initialization when possible.
+
 --- PyFMI-2.10.0 ---
     * Removed the following deprecated functions:
       * pyfmi.fmi.FMUModelCS1, FMUModelME1, FMUModelCS2, FMUModelME2, pyfmi.fmi.FMUModelME1Extended: get_log_file_name: use get_log_filename
