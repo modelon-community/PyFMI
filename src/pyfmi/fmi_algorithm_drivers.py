@@ -623,8 +623,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                 factors = atol / preinit_nominals
                 f0 = factors[0]
                 for f in factors:
-                    if abs(f0 - f) > f0 * 1e-6:  # REVIEW: How to do this properly?
-                        # REVIEW: Should this give warning? In Case 2 we mention something about it, but hard to understand.
+                    if abs(f0 - f) > f0 * 1e-6:
                         return
                 # Success.
                 self.solver_options["atol"] = atol * self.model.nominal_continuous_states / preinit_nominals

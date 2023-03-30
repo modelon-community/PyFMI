@@ -3551,7 +3551,8 @@ cdef class FMUModelME1(FMUModelBase):
         the FMI specification, atol = 0.01*rtol*(nominal values of the
         continuous states).
 
-        This method should not be called before initialization, since it depends on state nominals.
+        This method should not be called before initialization, since it depends on state nominals
+        which can change during initialization.
 
         Returns::
 
@@ -7885,7 +7886,8 @@ cdef class FMUModelME2(FMUModelBase2):
         the FMI specification, atol = 0.01*rtol*(nominal values of the
         continuous states).
 
-        This method should not be called before initialization, since it depends on state nominals.
+        This method should not be called before initialization, since it depends on state nominals
+        which can change during initialization.
 
         Returns::
 

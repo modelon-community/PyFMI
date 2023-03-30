@@ -218,7 +218,6 @@ class Dummy_FMUModelME2(__ForTestingFMUModelME2):
 
     # Values for nominal_continuous_states. 'test_sparse_option()' and more tests will break
     # if the values are not calculated from get_ode_sizes() as defined at __init__.
-    # REVIEW: Can we fix the tests instead? I don't know how to.
     _nominal_continuous_states = None
 
     #Override properties
