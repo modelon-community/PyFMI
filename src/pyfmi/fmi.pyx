@@ -3465,7 +3465,6 @@ cdef class FMUModelME1(FMUModelBase):
 
         # Fallback - auto-correct the illegal nominal values:
         xvrs = self.get_state_value_references()
-        # TODO: What about xvrs[i] == fmiUndefinedValueReference?
         for i in range(self._nContinuousStates):
             if xn[i] == 0.0:
                 if self.callbacks.log_level >= FMIL.jm_log_level_warning:
