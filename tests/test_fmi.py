@@ -36,7 +36,12 @@ from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 from pyfmi.common.core import create_temp_dir
 
 
-class TempAlg(AssimuloFMIAlg):
+class NoSolveAlg(AssimuloFMIAlg):
+    """
+    Algorithm that skips the solve step. Typically necessary to test DummyFMUs that
+    don't have an implementation that can handle that step.
+    """
+
     def solve(self):
         pass
 
@@ -140,7 +145,7 @@ if assimulo_installed:
 
             opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
-            model.simulate(options=opts, algorithm=TempAlg)
+            model.simulate(options=opts, algorithm=NoSolveAlg)
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
 
         @testattr(stddist = True)
@@ -152,7 +157,7 @@ if assimulo_installed:
 
             opts["CVode_options"]["atol"] = (0.01 * model.nominal_continuous_states) + [0.01, 0.01]
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
-            model.simulate(options=opts, algorithm=TempAlg)
+            model.simulate(options=opts, algorithm=NoSolveAlg)
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
 
         @testattr(stddist = True)
@@ -164,7 +169,7 @@ if assimulo_installed:
 
             opts["CVode_options"]["atol"] = [0.02, 0.01]
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
-            model.simulate(options=opts, algorithm=TempAlg)
+            model.simulate(options=opts, algorithm=NoSolveAlg)
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
 
         # NOTE:
@@ -769,7 +774,7 @@ if assimulo_installed:
 
             def run_case(expected, default="Default"):
                 model.reset()
-                res = model.simulate(final_time=1.5,options=opts, algorithm=TempAlg)
+                res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
                 assert res.options["with_jacobian"] == default, res.options["with_jacobian"]
                 assert res.solver.problem._with_jacobian == expected, res.solver.problem._with_jacobian
 
@@ -806,7 +811,7 @@ if assimulo_installed:
 
                 model.get_ode_sizes = lambda: (fnbr, 0)
 
-                res = model.simulate(final_time=1.5,options=opts, algorithm=TempAlg)
+                res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
                 assert res.solver.problem._with_jacobian == expected_jacobian, res.solver.problem._with_jacobian
                 assert res.solver.linear_solver == expected_sparse, res.solver.linear_solver
 
@@ -879,7 +884,7 @@ if assimulo_installed:
                 else:
                     expected = (float(tstop)-float(tstart))/float(opts["ncp"])
 
-                res = model.simulate(start_time=tstart, final_time=tstop,options=opts, algorithm=TempAlg)
+                res = model.simulate(start_time=tstart, final_time=tstop,options=opts, algorithm=NoSolveAlg)
                 assert res.solver.maxh == expected, res.solver.maxh
                 assert res.options[solver+"_options"]["maxh"] == "Default", res.options[solver+"_options"]["maxh"]
 
@@ -908,7 +913,7 @@ if assimulo_installed:
 
             opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
-            model.simulate(options=opts, algorithm=TempAlg)
+            model.simulate(options=opts, algorithm=NoSolveAlg)
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
 
         @testattr(stddist = True)
@@ -920,7 +925,7 @@ if assimulo_installed:
 
             opts["CVode_options"]["atol"] = (0.01 * model.nominal_continuous_states) + [0.01, 0.01]
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
-            model.simulate(options=opts, algorithm=TempAlg)
+            model.simulate(options=opts, algorithm=NoSolveAlg)
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
 
         @testattr(stddist = True)
@@ -932,7 +937,7 @@ if assimulo_installed:
 
             opts["CVode_options"]["atol"] = [0.02, 0.01]
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
-            model.simulate(options=opts, algorithm=TempAlg)
+            model.simulate(options=opts, algorithm=NoSolveAlg)
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
 
         @testattr(stddist = True)
@@ -947,7 +952,7 @@ if assimulo_installed:
             opts["initialize"] = False
             opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
-            model.simulate(options=opts, algorithm=TempAlg)
+            model.simulate(options=opts, algorithm=NoSolveAlg)
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
 
         @testattr(stddist = True)
@@ -958,7 +963,7 @@ if assimulo_installed:
             model, opts = self.setup_atol_auto_update_test_base()
             
             opts["CVode_options"]["rtol"] = 1e-6
-            model.simulate(options=opts, algorithm=TempAlg)
+            model.simulate(options=opts, algorithm=NoSolveAlg)
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [3e-8, 3e-8])
 
         @testattr(stddist = True)
@@ -971,7 +976,7 @@ if assimulo_installed:
             opts["CVode_options"]["rtol"] = 1e-9
             opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
-            model.simulate(options=opts, algorithm=TempAlg)
+            model.simulate(options=opts, algorithm=NoSolveAlg)
             np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
 
 
