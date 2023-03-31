@@ -532,7 +532,6 @@ class Test_FMUModelBase:
         one_off_test_logging = False
 
         model = Dummy_FMUModelME1([], FMU_PATHS.ME1.coupled_clutches, log_level=3, _connect_dll=False)
-        model.initialize()
 
         if one_off_test_logging:
             log_stream = StringIO()
