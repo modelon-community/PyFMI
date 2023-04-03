@@ -94,20 +94,20 @@ class AssimuloFMIAlgOptions(OptionBase):
 
         with_jacobian --
             Determines if the Jacobian should be computed from PyFMI (using
-            either the directional derivatives, if available, or estimed using
+            either the directional derivatives, if available, or estimated using
             finite differences) or if the Jacobian should be computed by the
-            choosen solver. The default is to use PyFMI if directional
-            derivatives are available, otherwise computed by the choosen
+            chosen solver. The default is to use PyFMI if directional
+            derivatives are available, otherwise computed by the chosen
             solver.
             Default: "Default"
 
         dynamic_diagnostics --
             If True, enables logging of diagnostics data to the binary result file. This requires that
             the option 'result_handler' is an instance of ResultHandlerBinaryFile, otherwise an exception is raised.
-            Model variable names are not allowed to start with 'Diagnostics'using this option
+            Model variable names are not allowed to start with 'Diagnostics' using this option
             and a check for this is performed before simulation start. If this criteria is not
             met an exception is raised.
-            The diagnostics data will be available via the simulation resuls and/or the
+            The diagnostics data will be available via the simulation results and/or the
             binary result file generated during simulation.
             Default: False
 
@@ -239,7 +239,7 @@ class AssimuloFMIAlgOptions(OptionBase):
 
 class AssimuloFMIAlg(AlgorithmBase):
     """
-    Simulation algortihm for FMUs using the Assimulo package.
+    Simulation algorithm for FMUs using the Assimulo package.
     """
 
     def __init__(self,
@@ -361,7 +361,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             try:
                 rtol = self.solver_options['rtol']
             except KeyError:
-                rtol, atol = self.model.get_tolerances()
+                rtol = self.model.get_relative_tolerance()
 
             if isinstance(self.model, fmi.FMUModelME1):
                 self.model.time = start_time #Set start time before initialization
@@ -383,6 +383,8 @@ class AssimuloFMIAlg(AlgorithmBase):
             raise fmi.FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
         elif self.model.time is None:
             raise fmi.FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
+
+        self._set_absolute_tolerance_options()
 
         if isinstance(self.result_handler, ResultHandlerBinaryFile):
             self._setup_diagnostics_variables()
@@ -562,24 +564,13 @@ class AssimuloFMIAlg(AlgorithmBase):
             if self.options['logging']:
                 self.solver_options['clock_step'] = True
 
-        #Check relative tolerance
-        #If the tolerances are not set specifically, they are set
-        #according to the 'DefaultExperiment' from the XML file.
+        # Check relative tolerance
+        # If the tolerances are not set specifically, they are set
+        # according to the 'DefaultExperiment' from the XML file.
         try:
             if isinstance(self.solver_options["rtol"], str) and self.solver_options["rtol"] == "Default":
-                rtol, atol = self.model.get_tolerances()
+                rtol = self.model.get_relative_tolerance()
                 self.solver_options['rtol'] = rtol
-        except KeyError:
-            pass
-
-        #Check absolute tolerance
-        try:
-            if isinstance(self.solver_options["atol"], str) and self.solver_options["atol"] == "Default":
-                fnbr, gnbr = self.model.get_ode_sizes()
-                if fnbr == 0:
-                    self.solver_options['atol'] = 0.01*self.solver_options['rtol']
-                else:
-                    self.solver_options['atol'] = 0.01*self.solver_options['rtol']*self.model.nominal_continuous_states
         except KeyError:
             pass
 
@@ -604,6 +595,42 @@ class AssimuloFMIAlg(AlgorithmBase):
                                 self.solver_options["linear_solver"] = "SPARSE"
                 else:
                     self.with_jacobian = False
+
+    def _set_absolute_tolerance_options(self):
+        """
+        Sets the absolute tolerance. Must not be called before initialization since it depends
+        on state nominals.
+
+        Assumes initial setup of default atol has been done via previous call to _set_options.
+
+        Will try to auto-update absolute tolerances that depend on state nominals retrieved
+        before initialization.
+        """
+        try:
+            atol = self.solver_options["atol"]
+            preinit_nominals = self.model._preinit_nominal_continuous_states
+            if isinstance(atol, str) and atol == "Default":
+                fnbr, _ = self.model.get_ode_sizes()
+                rtol = self.solver_options["rtol"]
+                if fnbr == 0:
+                    self.solver_options["atol"] = 0.01*rtol
+                else:
+                    self.solver_options["atol"] = 0.01*rtol*self.model.nominal_continuous_states
+            elif isinstance(preinit_nominals, N.ndarray) and (preinit_nominals.size > 0):
+                # Heuristic:
+                # Try to find if atol was specified as "atol = factor * model.nominal_continuous_states",
+                # and if that's the case, recompute atol with nominals from after initialization.
+                factors = atol / preinit_nominals
+                f0 = factors[0]
+                for f in factors:
+                    if abs(f0 - f) > f0 * 1e-6:
+                        return
+                # Success.
+                self.solver_options["atol"] = atol * self.model.nominal_continuous_states / preinit_nominals
+                logging.info("Absolute tolerances have been recalculated by using values for state nominals from " +
+                             "after initialization.")
+        except KeyError:
+            pass
 
     def _set_solver_options(self):
         """
@@ -887,7 +914,7 @@ class FMICSAlgOptions(OptionBase):
 
 class FMICSAlg(AlgorithmBase):
     """
-    Simulation algortihm for FMUs (Co-simulation).
+    Simulation algorithm for FMUs (Co-simulation).
     """
 
     def __init__(self,
@@ -897,7 +924,7 @@ class FMICSAlg(AlgorithmBase):
                  model,
                  options):
         """
-        Simulation algortihm for FMUs (Co-simulation).
+        Simulation algorithm for FMUs (Co-simulation).
 
         Parameters::
 
@@ -1174,7 +1201,7 @@ class FMICSAlg(AlgorithmBase):
 
 class SciEstAlg(AlgorithmBase):
     """
-    Estimation algortihm for FMUs.
+    Estimation algorithm for FMUs.
     """
 
     def __init__(self,
@@ -1184,7 +1211,7 @@ class SciEstAlg(AlgorithmBase):
                  model,
                  options):
         """
-        Estimation algortihm for FMUs .
+        Estimation algorithm for FMUs.
 
         Parameters::
 
@@ -1248,7 +1275,7 @@ class SciEstAlg(AlgorithmBase):
             self.options["simulate_options"] = self.model.simulate_options()
 
         #Modifiy necessary options:
-        self.options["simulate_options"]['ncp']    = self.measurements[1].shape[0] - 1 #Store at the same points as measurment data
+        self.options["simulate_options"]['ncp']    = self.measurements[1].shape[0] - 1 #Store at the same points as measurement data
         self.options["simulate_options"]['filter'] = self.measurements[0] #Only store the measurement variables (efficiency)
 
         if "solver" in self.options["simulate_options"]:

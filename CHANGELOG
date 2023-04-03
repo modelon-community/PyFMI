@@ -1,4 +1,7 @@
 --- CHANGELOG ---
+--- PyFMI-NEXT_VERSION ---
+    * Changed such that absolute tolerances calculated with state nominals retrieved before initialization will be recalculated with state nominals from after initialization when possible.
+
 --- PyFMI-2.10.0 ---
     * Added shortcut such that get_(real|integer|boolean|string)([]) calls no longer trigger a call to the FMU.
     * Removed the following deprecated functions:
