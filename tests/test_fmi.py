@@ -16,20 +16,35 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import nose
+import nose.tools as nt
 import os
 import numpy as np
 from zipfile import ZipFile
 import tempfile
+import types
+import logging
+from io import StringIO
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
-import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
-import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
+from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg, AssimuloFMIAlgOptions, \
+                                        PYFMI_JACOBIAN_LIMIT, PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT
 from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2, get_examples_folder
 from pyfmi.common.io import ResultHandler
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 from pyfmi.common.core import create_temp_dir
+
+
+class NoSolveAlg(AssimuloFMIAlg):
+    """
+    Algorithm that skips the solve step. Typically necessary to test DummyFMUs that
+    don't have an implementation that can handle that step.
+    """
+
+    def solve(self):
+        pass
+
 
 assimulo_installed = True
 try:
@@ -38,6 +53,15 @@ except ImportError:
     assimulo_installed = False
 
 file_path = os.path.dirname(os.path.abspath(__file__))
+
+FMU_PATHS     = types.SimpleNamespace()
+FMU_PATHS.ME1 = types.SimpleNamespace()
+FMU_PATHS.ME2 = types.SimpleNamespace()
+FMU_PATHS.ME1.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu")
+FMU_PATHS.ME2.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu")
+FMU_PATHS.ME1.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NominalTest4.fmu")
+FMU_PATHS.ME2.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NominalTests.NominalTest4.fmu")
+
 
 
 def _helper_unzipped_fmu_exception_invalid_dir(fmu_loader):
@@ -103,6 +127,54 @@ if assimulo_installed:
             nose.tools.assert_raises(Exception, model.simulate, options=opts)
             opts["result_handler"] = B()
             res = model.simulate(options=opts)
+
+        def setup_atol_auto_update_test_base(self):
+            model = Dummy_FMUModelME1([], FMU_PATHS.ME1.nominal_test4, _connect_dll=False)
+            model.override_nominal_continuous_states = False
+            opts = model.simulate_options()
+            opts["return_result"] = False
+            opts["solver"] = "CVode"
+            return model, opts
+
+        @testattr(stddist = True)
+        def test_atol_auto_update1(self):
+            """
+            Tests that atol automatically gets updated when "atol = factor * pre_init_nominals".
+            """
+            model, opts = self.setup_atol_auto_update_test_base()
+
+            opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+            model.simulate(options=opts, algorithm=NoSolveAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update2(self):
+            """
+            Tests that atol doesn't get auto-updated when heuristic fails.
+            """
+            model, opts = self.setup_atol_auto_update_test_base()
+
+            opts["CVode_options"]["atol"] = (0.01 * model.nominal_continuous_states) + [0.01, 0.01]
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
+            model.simulate(options=opts, algorithm=NoSolveAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update3(self):
+            """
+            Tests that atol doesn't get auto-updated when nominals are never retrieved.
+            """
+            model, opts = self.setup_atol_auto_update_test_base()
+
+            opts["CVode_options"]["atol"] = [0.02, 0.01]
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+            model.simulate(options=opts, algorithm=NoSolveAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+
+        # NOTE:
+        # There are more tests for ME2 for auto update of atol, but it should be enough to test
+        # one FMI version for that, because they mainly test algorithm drivers functionality.
 
 
 class Test_FMUModelME1:
@@ -184,7 +256,7 @@ class Test_FMUModelME1:
 
     @testattr(windows_full = True)
     def test_default_experiment(self):
-        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME1(FMU_PATHS.ME1.coupled_clutches, _connect_dll=False)
 
         assert np.abs(model.get_default_experiment_start_time()) < 1e-4
         assert np.abs(model.get_default_experiment_stop_time()-1.5) < 1e-4
@@ -233,7 +305,7 @@ class Test_FMUModelME1:
         class instance.
         """
         bounce = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
-        assert isinstance(bounce.simulate_options(), fmi_algorithm_drivers.AssimuloFMIAlgOptions)
+        assert isinstance(bounce.simulate_options(), AssimuloFMIAlgOptions)
 
     @testattr(stddist = True)
     def test_get_xxx_empty(self):
@@ -382,7 +454,7 @@ class Test_FMUModelBase:
 
     @testattr(stddist = True)
     def test_get_erronous_nominals(self):
-        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NominalTest4.fmu"), _connect_dll=False)
+        model = FMUModelME1(FMU_PATHS.ME1.nominal_test4, _connect_dll=False)
 
         nose.tools.assert_almost_equal(model.get_variable_nominal("x"), 2.0)
         nose.tools.assert_almost_equal(model.get_variable_nominal("y"), 1.0)
@@ -432,7 +504,7 @@ class Test_FMUModelBase:
 
     @testattr(stddist = True)
     def test_get_variable_description(self):
-        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME1(FMU_PATHS.ME1.coupled_clutches, _connect_dll=False)
         assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
 
     @testattr(stddist = True)
@@ -448,6 +520,47 @@ class Test_FMUModelBase:
         opts["initialize"] = False
 
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
+
+    def test_get_erroneous_nominals_capi_fmi1(self):
+        """ Tests that erroneous nominals returned from getting nominals of continuous states get auto-corrected. """
+
+        # Don't enable this except during local development. It will break all logging
+        # for future test runs in the same python process.
+        # If other tests also has this kind of property, only enable one at the time.
+        # FIXME: Find a proper way to do it, or better, switch to a testing framework which has
+        # support for it (e.g. unittest with assertLogs).
+        one_off_test_logging = False
+
+        model = Dummy_FMUModelME1([], FMU_PATHS.ME1.coupled_clutches, log_level=3, _connect_dll=False)
+
+        if one_off_test_logging:
+            log_stream = StringIO()
+            logging.basicConfig(stream=log_stream, level=logging.WARNING)
+
+        model.states_vref = [114, 115, 116, 117, 118, 119, 120, 121]
+        # NOTE: Property 'nominal_continuous_states' is already overriden in Dummy_FMUModelME1, so just
+        # call the underlying function immediately.
+        xn = model._get_nominal_continuous_states()
+
+        if one_off_test_logging:
+            # Check warning is given:
+            expected_msg1 = "The nominal value for clutch1.phi_rel is <0.0 which is illegal according to the " \
+                        + "FMI specification. Setting the nominal to abs(-2.0)."
+            expected_msg2 = "The nominal value for J4.w is 0.0 which is illegal according to the " \
+                        + "FMI specification. Setting the nominal to 1.0."
+            log = str(log_stream.getvalue())
+            nose.tools.assert_in(expected_msg1, log)  # First warning of 6.
+            nose.tools.assert_in(expected_msg2, log)  # Last warning of 6.
+
+        # Check values are auto-corrected:
+        nose.tools.assert_almost_equal(xn[0], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[1], 1.0)  #  0.0
+        nose.tools.assert_almost_equal(xn[2], 2.0)  #  2.0
+        nose.tools.assert_almost_equal(xn[3], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[4], 1.0)  #  0.0
+        nose.tools.assert_almost_equal(xn[5], 2.0)  #  2.0
+        nose.tools.assert_almost_equal(xn[6], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[7], 1.0)  #  0,0
 
 
 class Test_LoadFMU:
@@ -658,15 +771,9 @@ if assimulo_installed:
             opts["solver"] = "CVode"
             opts["result_handling"] = "none"
 
-            from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg, PYFMI_JACOBIAN_LIMIT
-
-            class TempAlg(AssimuloFMIAlg):
-                def solve(self):
-                    pass
-
             def run_case(expected, default="Default"):
                 model.reset()
-                res = model.simulate(final_time=1.5,options=opts, algorithm=TempAlg)
+                res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
                 assert res.options["with_jacobian"] == default, res.options["with_jacobian"]
                 assert res.solver.problem._with_jacobian == expected, res.solver.problem._with_jacobian
 
@@ -688,11 +795,6 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_sparse_option(self):
-            from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg, PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT, PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT
-
-            class TempAlg(AssimuloFMIAlg):
-                def solve(self):
-                    pass
 
             def run_case(expected_jacobian, expected_sparse, fnbr=0, nnz={}, set_sparse=False):
                 class Sparse_FMUModelME2(Dummy_FMUModelME2):
@@ -708,7 +810,7 @@ if assimulo_installed:
 
                 model.get_ode_sizes = lambda: (fnbr, 0)
 
-                res = model.simulate(final_time=1.5,options=opts, algorithm=TempAlg)
+                res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
                 assert res.solver.problem._with_jacobian == expected_jacobian, res.solver.problem._with_jacobian
                 assert res.solver.linear_solver == expected_sparse, res.solver.linear_solver
 
@@ -753,7 +855,6 @@ if assimulo_installed:
 
         @testattr(stddist = True)
         def test_deepcopy_option(self):
-            from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlgOptions
             opts = AssimuloFMIAlgOptions()
             opts["CVode_options"]["maxh"] = 2.0
 
@@ -769,12 +870,6 @@ if assimulo_installed:
             opts = model.simulate_options()
             opts["result_handling"] = "none"
 
-            from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg
-
-            class TempAlg(AssimuloFMIAlg):
-                def solve(self):
-                    pass
-
             def run_case(tstart, tstop, solver, ncp="Default"):
                 model.reset()
 
@@ -788,7 +883,7 @@ if assimulo_installed:
                 else:
                     expected = (float(tstop)-float(tstart))/float(opts["ncp"])
 
-                res = model.simulate(start_time=tstart, final_time=tstop,options=opts, algorithm=TempAlg)
+                res = model.simulate(start_time=tstart, final_time=tstop,options=opts, algorithm=NoSolveAlg)
                 assert res.solver.maxh == expected, res.solver.maxh
                 assert res.options[solver+"_options"]["maxh"] == "Default", res.options[solver+"_options"]["maxh"]
 
@@ -800,6 +895,88 @@ if assimulo_installed:
             run_case(0,1,"LSODAR")
             run_case(0,1,"LSODAR")
 
+        def setup_atol_auto_update_test_base(self):
+            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+            model.override_nominal_continuous_states = False
+            opts = model.simulate_options()
+            opts["return_result"] = False
+            opts["solver"] = "CVode"
+            return model, opts
+
+        @testattr(stddist = True)
+        def test_atol_auto_update1(self):
+            """
+            Tests that atol automatically gets updated when "atol = factor * pre_init_nominals".
+            """
+            model, opts = self.setup_atol_auto_update_test_base()
+
+            opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+            model.simulate(options=opts, algorithm=NoSolveAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update2(self):
+            """
+            Tests that atol doesn't get auto-updated when heuristic fails.
+            """
+            model, opts = self.setup_atol_auto_update_test_base()
+
+            opts["CVode_options"]["atol"] = (0.01 * model.nominal_continuous_states) + [0.01, 0.01]
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
+            model.simulate(options=opts, algorithm=NoSolveAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update3(self):
+            """
+            Tests that atol doesn't get auto-updated when nominals are never retrieved.
+            """
+            model, opts = self.setup_atol_auto_update_test_base()
+
+            opts["CVode_options"]["atol"] = [0.02, 0.01]
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+            model.simulate(options=opts, algorithm=NoSolveAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update4(self):
+            """
+            Tests that atol is not auto-updated when it's set the "correct" way (post initialization).
+            """
+            model, opts = self.setup_atol_auto_update_test_base()
+            
+            model.setup_experiment()
+            model.initialize()
+            opts["initialize"] = False
+            opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+            model.simulate(options=opts, algorithm=NoSolveAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update5(self):
+            """
+            Tests that atol is automatically set and depends on rtol.
+            """
+            model, opts = self.setup_atol_auto_update_test_base()
+            
+            opts["CVode_options"]["rtol"] = 1e-6
+            model.simulate(options=opts, algorithm=NoSolveAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [3e-8, 3e-8])
+
+        @testattr(stddist = True)
+        def test_atol_auto_update6(self):
+            """
+            Tests that rtol doesn't affect explicitly set atol.
+            """
+            model, opts = self.setup_atol_auto_update_test_base()
+
+            opts["CVode_options"]["rtol"] = 1e-9
+            opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+            model.simulate(options=opts, algorithm=NoSolveAlg)
+            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
 
 
 class Test_FMUModelME2:
@@ -978,7 +1155,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_output_dependencies_2(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
 
         [state_dep, input_dep] = model.get_output_dependencies()
 
@@ -1015,7 +1192,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_log_file_name(self):
-        full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu")
+        full_path = FMU_PATHS.ME2.coupled_clutches
 
         model = FMUModelME2(full_path, _connect_dll=False)
 
@@ -1024,7 +1201,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_units(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
 
         assert model.get_variable_unit("J1.w") == "rad/s", model.get_variable_unit("J1.w")
         assert model.get_variable_unit("J1.phi") == "rad", model.get_variable_unit("J1.phi")
@@ -1035,7 +1212,7 @@ class Test_FMUModelME2:
 
     @testattr(stddist = True)
     def test_display_units(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
 
         assert model.get_variable_display_unit("J1.phi") == "deg", model.get_variable_display_unit("J1.phi")
         nose.tools.assert_raises(FMUException, model.get_variable_display_unit, "J1.w")
@@ -1093,8 +1270,8 @@ class Test_FMUModelBase2:
         nose.tools.assert_raises(FMUException, model.get_variable_declared_type, "z")
 
     @testattr(stddist = True)
-    def test_get_erronous_nominals(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NominalTests.NominalTest4.fmu"), _connect_dll=False)
+    def test_get_erroneous_nominals_xml(self):
+        model = FMUModelME2(FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
 
         nose.tools.assert_almost_equal(model.get_variable_nominal("x"), 2.0)
         nose.tools.assert_almost_equal(model.get_variable_nominal("y"), 1.0)
@@ -1111,10 +1288,49 @@ class Test_FMUModelBase2:
         nose.tools.assert_almost_equal(model.get_variable_nominal(valueref=x_vref, _override_erroneous_nominal=False), -2.0)
         nose.tools.assert_almost_equal(model.get_variable_nominal(valueref=y_vref, _override_erroneous_nominal=False), 0.0)
 
+    def test_get_erroneous_nominals_capi(self):
+        """ Tests that erroneous nominals returned from GetNominalsOfContinuousStates get auto-corrected. """
+
+        # Don't enable this except during local development. It will break all logging
+        # for future test runs in the same python process.
+        # If other tests also has this kind of property, only enable one at the time.
+        # FIXME: Find a proper way to do it, or better, switch to a testing framework which has
+        # support for it (e.g. unittest with assertLogs).
+        one_off_test_logging = False
+
+        model = Dummy_FMUModelME2([], FMU_PATHS.ME2.coupled_clutches, log_level=3, _connect_dll=False)
+
+        if one_off_test_logging:
+            log_stream = StringIO()
+            logging.basicConfig(stream=log_stream, level=logging.WARNING)
+
+        # NOTE: Property 'nominal_continuous_states' is already overriden in Dummy_FMUModelME2, so just
+        # call the underlying function immediately.
+        xn = model._get_nominal_continuous_states()
+
+        if one_off_test_logging:
+            # Check warning is given:
+            expected_msg1 = "The nominal value for clutch1.phi_rel is <0.0 which is illegal according to the " \
+                        + "FMI specification. Setting the nominal to abs(-2.0)."
+            expected_msg2 = "The nominal value for J4.w is 0.0 which is illegal according to the " \
+                        + "FMI specification. Setting the nominal to 1.0."
+            log = str(log_stream.getvalue())
+            nose.tools.assert_in(expected_msg1, log)  # First warning of 6.
+            nose.tools.assert_in(expected_msg2, log)  # Last warning of 6.
+
+        # Check that values are auto-corrected:
+        nose.tools.assert_almost_equal(xn[0], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[1], 1.0)  #  0.0
+        nose.tools.assert_almost_equal(xn[2], 2.0)  #  2.0
+        nose.tools.assert_almost_equal(xn[3], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[4], 1.0)  #  0.0
+        nose.tools.assert_almost_equal(xn[5], 2.0)  #  2.0
+        nose.tools.assert_almost_equal(xn[6], 2.0)  # -2.0
+        nose.tools.assert_almost_equal(xn[7], 1.0)  #  0,0
 
     @testattr(stddist = True)
     def test_get_time_varying_variables(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
 
         [r,i,b] = model.get_model_time_varying_value_references()
         [r_f, i_f, b_f] = model.get_model_time_varying_value_references(filter="*")
@@ -1283,7 +1499,7 @@ class Test_FMUModelBase2:
 
     @testattr(stddist = True)
     def test_get_variable_description(self):
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
         assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
 
 
@@ -1292,7 +1508,7 @@ class Test_load_fmu_only_XML:
     @testattr(stddist = True)
     def test_loading_xml_me1(self):
 
-        model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME1(FMU_PATHS.ME1.coupled_clutches, _connect_dll=False)
 
         assert model.get_name() == "CoupledClutches", model.get_name()
 
@@ -1306,7 +1522,7 @@ class Test_load_fmu_only_XML:
     @testattr(stddist = True)
     def test_loading_xml_me2(self):
 
-        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
 
         assert model.get_name() == "CoupledClutches", model.get_name()
 

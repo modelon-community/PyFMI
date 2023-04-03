@@ -3280,6 +3280,9 @@ cdef class FMUModelME1(FMUModelBase):
         #Call super
         FMUModelBase.__init__(self,fmu,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
+        # State nominals retrieved before initialization
+        self._preinit_nominal_continuous_states = None
+
         if self._fmu_kind != FMI_ME:
             raise InvalidVersionException("The FMU could not be loaded. This class only supports FMI 1.0 for Model Exchange.")
 
@@ -3442,17 +3445,45 @@ cdef class FMUModelME1(FMUModelBase):
     the low-level FMI function: fmiSetContinuousStates/fmiGetContinuousStates.
     """)
 
+
+    cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx):
+        return FMIL.fmi1_import_get_nominal_continuous_states(self._fmu, xnominal, nx)
+
     def _get_nominal_continuous_states(self):
+        """
+        Returns the nominal values of the continuous states.
+
+        Returns::
+            The nominal values.
+        """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = N.zeros(self._nContinuousStates,dtype=N.double)
+        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1, mode='c'] xn = N.zeros(self._nContinuousStates, dtype=N.double)
 
-        status = FMIL.fmi1_import_get_nominal_continuous_states(
-                self._fmu, <FMIL.fmi1_real_t*>ndx.data, self._nContinuousStates)
-
+        status = self.__get_nominal_continuous_states(<FMIL.fmi1_real_t*> xn.data, self._nContinuousStates)
         if status != 0:
             raise FMUException('Failed to get the nominal values.')
 
-        return ndx
+        # Fallback - auto-correct the illegal nominal values:
+        xvrs = self.get_state_value_references()
+        for i in range(self._nContinuousStates):
+            if xn[i] == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    xname = self.get_variable_by_valueref(xvrs[i])
+                    logging.warning(f"The nominal value for {xname} is 0.0 which is illegal according " + \
+                                     "to the FMI specification. Setting the nominal to 1.0.")
+                xn[i] = 1.0
+            elif xn[i] < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    xname = self.get_variable_by_valueref(xvrs[i])
+                    logging.warning(f"The nominal value for {xname} is <0.0 which is illegal according " + \
+                                    f"to the FMI specification. Setting the nominal to abs({xn[i]}).")
+                xn[i] = abs(xn[i])
+
+        # If called before initialization, save values in order to later perform auto-correction
+        if self._allocated_fmu == 0:
+            self._preinit_nominal_continuous_states = xn
+
+        return xn
 
     nominal_continuous_states = property(_get_nominal_continuous_states, doc =
     """
@@ -3519,6 +3550,9 @@ cdef class FMUModelME1(FMUModelBase):
         the FMI specification, atol = 0.01*rtol*(nominal values of the
         continuous states).
 
+        This method should not be called before initialization, since it depends on state nominals
+        which can change during initialization.
+
         Returns::
 
             rtol --
@@ -3531,10 +3565,39 @@ cdef class FMUModelME1(FMUModelBase):
 
             [rtol, atol] = model.get_tolerances()
         """
-        rtol = self.get_default_experiment_tolerance()
-        atol = 0.01*rtol*self.nominal_continuous_states
+        rtol = self.get_relative_tolerance()
+        atol = self.get_absolute_tolerances()
 
         return [rtol, atol]
+
+    def get_relative_tolerance(self):
+        """
+        Returns the relative tolerance. If the relative tolerance
+        is defined in the XML-file it is used, otherwise a default of 1.e-4 is
+        used.
+
+        Returns::
+
+            rtol --
+                The relative tolerance.
+        """
+        return self.get_default_experiment_tolerance()
+
+    def get_absolute_tolerances(self):
+        """
+        Returns the absolute tolerances. They are calculated and returned according to
+        the FMI specification, atol = 0.01*rtol*(nominal values of the
+        continuous states)
+
+        This method should not be called before initialization, since it depends on state nominals.
+
+        Returns::
+
+            atol --
+                The absolute tolerances.
+        """
+        rtol = self.get_relative_tolerance()
+        return 0.01*rtol*self.nominal_continuous_states
 
     def event_update(self, intermediateResult=False):
         """
@@ -3889,6 +3952,26 @@ cdef class FMUModelME1(FMUModelBase):
             FMIL.fmi1_import_free_model_instance(self._fmu)
             self._instantiated_fmu = 0
 
+
+cdef class __ForTestingFMUModelME1(FMUModelME1):
+
+    cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx):
+        for i in range(nx):
+            if self._allocated_fmu == 1:  # If initialized
+                # Set new values to test that atol gets auto-corrected.
+                xnominal[i] = 3.0
+            else:
+                # Set some illegal values in order to test the fallback/auto-correction.
+                xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
+        return FMIL.fmi1_status_ok
+
+    cpdef set_allocated_fmu(self, int value):
+        self._allocated_fmu = value
+
+    def __dealloc__(self):
+        # Avoid segfaults in dealloc. The FMU binaries should never be loaded for this
+        # test class, so we should never try to terminate or deallocate the FMU instance.
+        self._allocated_fmu = 0
 
 
 cdef class FMUModelBase2(ModelBase):
@@ -7577,6 +7660,9 @@ cdef class FMUModelME2(FMUModelBase2):
 
         self.force_finite_differences = 0
 
+        # State nominals retrieved before initialization
+        self._preinit_nominal_continuous_states = None
+
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
 
         if _connect_dll:
@@ -7587,7 +7673,7 @@ cdef class FMUModelME2(FMUModelBase2):
         Deallocate memory allocated
         """
         self._invoked_dealloc = 1
-
+        
         if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
 
@@ -7799,6 +7885,9 @@ cdef class FMUModelME2(FMUModelBase2):
         the FMI specification, atol = 0.01*rtol*(nominal values of the
         continuous states).
 
+        This method should not be called before initialization, since it depends on state nominals
+        which can change during initialization.
+
         Returns::
 
             rtol --
@@ -7811,11 +7900,39 @@ cdef class FMUModelME2(FMUModelBase2):
 
             [rtol, atol] = model.get_tolerances()
         """
-
-        rtol = self.get_default_experiment_tolerance()
-        atol = 0.01*rtol*self.nominal_continuous_states
+        rtol = self.get_relative_tolerance()
+        atol = self.get_absolute_tolerances()
 
         return [rtol, atol]
+
+    def get_relative_tolerance(self):
+        """
+        Returns the relative tolerance. If the relative tolerance
+        is defined in the XML-file it is used, otherwise a default of 1.e-4 is
+        used.
+
+        Returns::
+
+            rtol --
+                The relative tolerance.
+        """
+        return self.get_default_experiment_tolerance()
+
+    def get_absolute_tolerances(self):
+        """
+        Returns the absolute tolerances. They are calculated and returned according to
+        the FMI specification, atol = 0.01*rtol*(nominal values of the
+        continuous states)
+
+        This method should not be called before initialization, since it depends on state nominals.
+
+        Returns::
+
+            atol --
+                The absolute tolerances.
+        """
+        rtol = self.get_relative_tolerance()
+        return 0.01*rtol*self.nominal_continuous_states
 
     cdef int _completed_integrator_step(self, int* enter_event_mode, int* terminate_simulation):
         cdef int status
@@ -7918,6 +8035,9 @@ cdef class FMUModelME2(FMUModelBase2):
     the low-level FMI function: fmi2SetContinuousStates/fmi2GetContinuousStates.
     """)
 
+    cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx):
+        return FMIL.fmi2_import_get_nominals_of_continuous_states(self._fmu, xnominal, nx)
+
     def _get_nominal_continuous_states(self):
         """
         Returns the nominal values of the continuous states.
@@ -7926,15 +8046,31 @@ cdef class FMUModelME2(FMUModelBase2):
             The nominal values.
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
+        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] xn = N.zeros(self._nContinuousStates, dtype=N.double)
 
-        status = FMIL.fmi2_import_get_nominals_of_continuous_states(
-                self._fmu, <FMIL.fmi2_real_t*> ndx.data, self._nContinuousStates)
-
+        status = self.__get_nominal_continuous_states(<FMIL.fmi2_real_t*> xn.data, self._nContinuousStates)
         if status != 0:
             raise FMUException('Failed to get the nominal values.')
 
-        return ndx
+        # Fallback - auto-correct the illegal nominal values:
+        xnames = list(self.get_states_list().keys())
+        for i in range(self._nContinuousStates):
+            if xn[i] == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning(f"The nominal value for {xnames[i]} is 0.0 which is illegal according " + \
+                                     "to the FMI specification. Setting the nominal to 1.0.")
+                xn[i] = 1.0
+            elif xn[i] < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning(f"The nominal value for {xnames[i]} is <0.0 which is illegal according " + \
+                                    f"to the FMI specification. Setting the nominal to abs({xn[i]}).")
+                xn[i] = abs(xn[i])
+
+        # If called before initialization, save values in order to later perform auto-correction
+        if self._initialized_fmu == 0:
+            self._preinit_nominal_continuous_states = xn
+
+        return xn
 
     nominal_continuous_states = property(_get_nominal_continuous_states, doc =
     """
@@ -8399,6 +8535,24 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
         except:
             return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
+
+    cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx):
+        for i in range(nx):
+            if self._initialized_fmu == 1:
+                # Set new values to test that atol gets auto-corrected.
+                xnominal[i] = 3.0
+            else:
+                # Set some illegal values in order to test the fallback/auto-correction.
+                xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
+        return FMIL.fmi2_status_ok
+
+    cpdef set_initialized_fmu(self, int value):
+        self._initialized_fmu = value
+
+    def __dealloc__(self):
+        # Avoid segfaults in dealloc. The FMU binaries should never be loaded for this
+        # test class, so we should never try to terminate or deallocate the FMU instance.
+        self._initialized_fmu = 0
 
 def _handle_load_fmu_exception(fmu, log_data):
     for log in log_data:

@@ -1788,6 +1788,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
     cdef public object _order, _blocks
     cdef public object _values_continuous_states_changed
     cdef public object _nominals_continuous_states_changed
+    cdef public object _preinit_nominal_continuous_states
     
     def __init__(self, models, connections):
         """
@@ -1828,6 +1829,9 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
         
         self._values_continuous_states_changed = False
         self._nominals_continuous_states_changed = False                                     
+
+        # State nominals retrieved before initialization
+        self._preinit_nominal_continuous_states = None
     
     cpdef _get_time(self):
         """
@@ -2063,6 +2067,8 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
         the FMI specification, atol = 0.01*rtol*(nominal values of the
         continuous states).
 
+        This method should not be called before initialization, since it depends on state nominals.
+
         Returns::
 
             rtol --
@@ -2075,13 +2081,42 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
 
             [rtol, atol] = model.get_tolerances()
         """
-        rtol = 0.0
-        for model in self.models:
-            rtol = max(rtol, model.get_default_experiment_tolerance())
-        atol = 0.01*rtol*self.nominal_continuous_states
+        rtol = self.get_relative_tolerance()
+        atol = self.get_absolute_tolerances()
 
         return [rtol, atol]
 
+    def get_relative_tolerance(self):
+        """
+        Returns the relative tolerance. If the relative tolerance
+        is defined in the XML-file it is used, otherwise a default of 1.e-4 is
+        used.
+
+        Returns::
+
+            rtol --
+                The relative tolerance.
+        """
+        rtol = 0.0
+        for model in self.models:
+            rtol = max(rtol, model.get_default_experiment_tolerance())
+        return rtol
+
+    def get_absolute_tolerances(self):
+        """
+        Returns the absolute tolerances. They are calculated and returned according to
+        the FMI specification, atol = 0.01*rtol*(nominal values of the
+        continuous states)
+
+        This method should not be called before initialization, since it depends on state nominals.
+
+        Returns::
+
+            atol --
+                The absolute tolerances.
+        """
+        rtol = self.get_relative_tolerance()
+        return 0.01*rtol*self.nominal_continuous_states
 
     def completed_integrator_step(self, no_set_FMU_state_prior_to_current_point = True):
         """

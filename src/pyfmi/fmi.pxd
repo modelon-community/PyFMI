@@ -158,6 +158,11 @@ cdef class FMUModelME1(FMUModelBase):
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi1_real_t t)
     cpdef get_derivatives(self)
+    cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx)
+    cdef public object _preinit_nominal_continuous_states
+
+cdef class __ForTestingFMUModelME1(FMUModelME1):
+    cpdef set_allocated_fmu(self, int value)
 
 cdef class FMUModelBase2(ModelBase):
     """
@@ -253,6 +258,8 @@ cdef class FMUModelME2(FMUModelBase2):
     cdef int __set_continuous_states(self, FMIL.fmi2_real_t[:] ndx)
     cdef int _get_event_indicators(self, FMIL.fmi2_real_t[:] values)
     cdef int _completed_integrator_step(self, int* enter_event_mode, int* terminate_simulation)
+    cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx)
+    cdef public object _preinit_nominal_continuous_states
 
 cdef class WorkerClass2:
     cdef int _dim
@@ -265,3 +272,6 @@ cdef class WorkerClass2:
     cdef N.ndarray get_value_reference_numpy_vector(self, int index)
     cdef N.ndarray get_real_numpy_vector(self, int index)
     cpdef verify_dimensions(self, int dim)
+
+cdef class __ForTestingFMUModelME2(FMUModelME2):
+    cpdef set_initialized_fmu(self, int value)
