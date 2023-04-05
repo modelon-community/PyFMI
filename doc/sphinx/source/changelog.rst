@@ -2,6 +2,9 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.10.2 ---
+    * Corrected version number.
+
 --- PyFMI-2.10.1 ---
     * Changed such that absolute tolerances calculated with state nominals retrieved before initialization will be recalculated with state nominals from after initialization when possible.
     * Added auto correction of retrieved state nominals with illegal values.
