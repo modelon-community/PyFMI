@@ -1,7 +1,7 @@
 #!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2017 Modelon AB
+# Copyright (C) 2017-2023 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -2125,9 +2125,11 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
         event_update() otherwise, no action is needed.
 
         Returns::
-
-            True -> Call event_update().
-            False -> Do nothing.
+            A tuple of format (a, b) where a and b indicates:
+                If a is True -> Call event_update().
+                        False -> Do nothing.
+                If b is True -> The simulation should be terminated.
+                        False -> Do nothing.
 
         Calls the low-level FMI function: fmi2CompletedIntegratorStep.
         """
