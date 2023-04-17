@@ -5687,6 +5687,40 @@ cdef class FMUModelBase2(ModelBase):
         relative_quantity = FMIL.fmi2_import_get_real_variable_relative_quantity(real_variable)
 
         return relative_quantity == FMI2_TRUE
+    
+    cpdef get_variable_unbounded(self, variable_name):
+        """
+        Get the unbounded attribute of a real variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            Boolean representing the unbounded attribute of the variable.
+        """
+        cdef FMIL.fmi2_import_variable_t* variable
+        cdef FMIL.fmi2_import_real_variable_t* real_variable
+        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_boolean_t unbounded
+
+        variable_name = encode(variable_name)
+        cdef char* variablename = variable_name
+
+        variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variablename)
+
+        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        if type != FMIL.fmi2_base_type_real:
+            raise FMUException("The variable %s is not a Real variable. Unbounded attribute only exists for Real variables."%variablename)
+
+        real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
+        unbounded = FMIL.fmi2_import_get_real_variable_unbounded(real_variable)
+
+        return unbounded == FMI2_TRUE
 
     def get_variable_display_unit(self, variable_name):
         """

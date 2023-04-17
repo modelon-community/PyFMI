@@ -1245,6 +1245,23 @@ class Test_FMUModelBase2:
         assert rel == True, "Relative quantity should be True"
 
         nose.tools.assert_raises(FMUException, model.get_variable_relative_quantity, "int_with_attr")
+    
+    @testattr(stddist = True)
+    def test_unbounded_attribute(self):
+        model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "test_type_definitions.fmu"), _connect_dll=False)
+        
+        unbounded = model.get_variable_unbounded("real_with_attr")
+        assert unbounded == True, "Unbounded should be True"
+        unbounded = model.get_variable_unbounded("real_with_attr_false")
+        assert unbounded == False, "Unbounded should be False"
+
+        unbounded = model.get_variable_unbounded("real_without_attr")
+        assert unbounded == False, "Unbounded should be (default) False"
+
+        unbounded = model.get_variable_unbounded("real_with_typedef")
+        assert unbounded == True, "Unbounded should be True"
+
+        nose.tools.assert_raises(FMUException, model.get_variable_unbounded, "int_with_attr")
 
     @testattr(stddist = True)
     def test_unicode_description(self):
