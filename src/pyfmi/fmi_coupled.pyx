@@ -1560,7 +1560,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         Returns::
 
             A dict consisting of the alias variables along with no alias variable.
-            The values indicates whether or not the variable should be negated or not.
+            The values indicate whether or not the variable should be negated or not.
 
         Raises::
 
@@ -2125,7 +2125,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
         event_update() otherwise, no action is needed.
 
         Returns::
-            A tuple of format (a, b) where a and b indicates:
+            A tuple of format (a, b) where a and b indicate:
                 If a is True -> Call event_update().
                         False -> Do nothing.
                 If b is True -> The simulation should be terminated.
