@@ -358,17 +358,13 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         # Initialize?
         if self.options['initialize']:
-            try:
-                rtol = self.solver_options['rtol']
-            except KeyError:
-                rtol = self.model.get_relative_tolerance()
 
             if isinstance(self.model, fmi.FMUModelME1):
                 self.model.time = start_time #Set start time before initialization
-                self.model.initialize(tolerance=rtol)
+                self.model.initialize(tolerance=self.rtol)
 
             elif isinstance(self.model, ((fmi.FMUModelME2, fmi_coupled.CoupledFMUModelME2))):
-                self.model.setup_experiment(tolerance=rtol, start_time=self.start_time, stop_time=self.final_time)
+                self.model.setup_experiment(tolerance=self.rtol, start_time=self.start_time, stop_time=self.final_time)
                 self.model.initialize()
                 self.model.event_update()
                 self.model.enter_continuous_time_mode()
@@ -571,8 +567,44 @@ class AssimuloFMIAlg(AlgorithmBase):
             if isinstance(self.solver_options["rtol"], str) and self.solver_options["rtol"] == "Default":
                 rtol = self.model.get_relative_tolerance()
                 self.solver_options['rtol'] = rtol
+                
+                if not isinstance(self.model, fmi.FMUModelME1):
+                    unbounded_attribute = False
+                    rtol_vector = []
+                    for state in self.model.get_states_list():
+                        if self.model.get_variable_unbounded(state):
+                            unbounded_attribute = True
+                            rtol_vector.append(0.0)
+                        else:
+                            rtol_vector.append(rtol)
+                    
+                    if unbounded_attribute:
+                        self.solver_options['rtol'] = rtol_vector
         except KeyError:
             pass
+        
+        #Check if relative tolerance is given as a vector and if all are equal -> set as a scalar
+        try:
+            if isinstance(self.solver_options["rtol"], N.ndarray) or isinstance(self.solver_options["rtol"], list):
+                if N.all(N.isclose(self.solver_options["rtol"], self.solver_options["rtol"][0])):
+                    self.solver_options["rtol"] = self.solver_options["rtol"][0]
+                    self.rtol = self.solver_options["rtol"]
+                else: #rtol is a vector where not all elements are equal (make sure that all are equal except zeros)
+                    fnbr, gnbr = self.model.get_ode_sizes()
+                    if len(self.solver_options["rtol"]) != fnbr:
+                        raise fmi.InvalidOptionException("If the relative tolerance is provided as a vector, it need to be equal to the number of states")
+                    rtol_scalar = 0.0
+                    for tol in self.solver_options["rtol"]:
+                        if rtol_scalar == 0.0 and tol != 0.0:
+                            rtol_scalar = tol
+                            continue
+                        if rtol_scalar != 0.0 and tol != 0.0 and rtol_scalar != tol:
+                            raise fmi.InvalidOptionException("If the relative tolerance is provided as a vector, the values need to be equal except for zeros")
+                    self.rtol = rtol_scalar
+            else:
+                self.rtol = self.solver_options["rtol"]
+        except KeyError:
+            self.rtol = self.model.get_relative_tolerance()
 
         self.with_jacobian = self.options['with_jacobian']
         if not (isinstance(self.model, fmi.FMUModelME2)): # or isinstance(self.model, fmi_coupled.CoupledFMUModelME2) For coupled FMUs, currently not supported
@@ -613,9 +645,9 @@ class AssimuloFMIAlg(AlgorithmBase):
                 fnbr, _ = self.model.get_ode_sizes()
                 rtol = self.solver_options["rtol"]
                 if fnbr == 0:
-                    self.solver_options["atol"] = 0.01*rtol
+                    self.solver_options["atol"] = 0.01*self.rtol
                 else:
-                    self.solver_options["atol"] = 0.01*rtol*self.model.nominal_continuous_states
+                    self.solver_options["atol"] = 0.01*self.rtol*self.model.nominal_continuous_states
             elif isinstance(preinit_nominals, N.ndarray) and (preinit_nominals.size > 0):
                 # Heuristic:
                 # Try to find if atol was specified as "atol = factor * model.nominal_continuous_states",
@@ -673,7 +705,10 @@ class AssimuloFMIAlg(AlgorithmBase):
                     raise InvalidSolverArgumentException(k)
                 setattr(self.probl, k, v)
                 continue
-            setattr(self.simulator, k, v)
+            try:
+                setattr(self.simulator, k, v)
+            except Exception as e:
+                raise fmi.InvalidOptionException("Failed to set the solver option '%s' with msg: %s"%(k, str(e))) from None
 
         #Needs to be set as last option in order to have an impact.
         if "maxord" in solver_options:

@@ -59,6 +59,7 @@ FMU_PATHS.ME1 = types.SimpleNamespace()
 FMU_PATHS.ME2 = types.SimpleNamespace()
 FMU_PATHS.ME1.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu")
 FMU_PATHS.ME2.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu")
+FMU_PATHS.ME2.coupled_clutches_modified = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutchesModified.fmu")
 FMU_PATHS.ME1.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NominalTest4.fmu")
 FMU_PATHS.ME2.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NominalTests.NominalTest4.fmu")
 
@@ -894,7 +895,80 @@ if assimulo_installed:
             run_case(0,1,"RodasODE")
             run_case(0,1,"LSODAR")
             run_case(0,1,"LSODAR")
+        
+        @testattr(stddist = True)
+        def test_rtol_auto_update(self):
+            """
+            Test that default rtol picks up the unbounded attribute
+            """
+            pass
+            """
+            NOTE: To be fixed ones Assimulo supports relative tolerance as a vector
+            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.coupled_clutches_modified,  _connect_dll=False)
+            
+            res = model.simulate()
+            
+            print(res.options["CVode_options"]["rtol"]) #Verify that the relative tolerance is a vector and verify its elements
+            """
+            
+        
+        @testattr(stddist = True)
+        def test_rtol_vector_manual(self):
+            """
+            Test that rtol works as a vector
+            """
+            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+            
+            opts = model.simulate_options()
+            opts["CVode_options"]["rtol"] = [1e-5, 0, 1e-5]
+            
+            err_msg = "If the relative tolerance"
+            with nose.tools.assert_raises_regex(InvalidOptionException, err_msg):
+                model.simulate(options=opts)
+            
+            model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
 
+            opts = model.simulate_options()
+            opts["CVode_options"]["rtol"] = [1e-5, 0, 1e-5, 1e-5, 0, 1e-5,1e-6, 0]
+            
+            
+            with nose.tools.assert_raises_regex(InvalidOptionException, err_msg):
+                model.simulate(options=opts)
+            
+            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+            
+            opts = model.simulate_options()
+            opts["CVode_options"]["rtol"] = [1e-5, 1e-5]
+            
+            #Verify no exception is raised as the rtol vector should be treated as a scalar
+            model.simulate(options=opts)
+        
+        @testattr(stddist = True)
+        def test_rtol_vector_unsupported(self):
+            """
+            Test that rtol as a vector triggers exceptions for unsupported solvers
+            """
+            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+            opts = model.simulate_options()
+            opts["result_handling"] = "none"
+
+            def run_case(solver):
+                model.reset()
+
+                opts["solver"] = solver
+                opts[solver+"_options"]["rtol"] = [1e-5, 0.0]
+                
+                err_msg = "Failed to set"
+                with nose.tools.assert_raises_regex(InvalidOptionException, err_msg):
+                    model.simulate(options=opts)
+
+            run_case("CVode")
+            run_case("Radau5ODE")
+            run_case("Dopri5")
+            run_case("RodasODE")
+            run_case("LSODAR")
+            run_case("LSODAR")
+        
         def setup_atol_auto_update_test_base(self):
             model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
             model.override_nominal_continuous_states = False
