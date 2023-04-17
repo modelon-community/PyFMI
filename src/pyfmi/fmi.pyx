@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2014-2021 Modelon AB
+# Copyright (C) 2014-2023 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -2573,7 +2573,7 @@ cdef class FMUModelBase(ModelBase):
         Returns::
 
             A dict consisting of the alias variables along with no alias variable.
-            The values indicates wheter or not the variable should be negated or not.
+            The values indicate whether or not the variable should be negated or not.
 
         Raises::
 
@@ -5033,7 +5033,7 @@ cdef class FMUModelBase2(ModelBase):
         Returns::
 
             A dict consisting of the alias variables along with no alias variable.
-            The values indicates whether or not the variable should be negated or not.
+            The values indicate whether or not the variable should be negated or not.
 
         Raises::
 
@@ -7990,9 +7990,11 @@ cdef class FMUModelME2(FMUModelBase2):
         event_update() otherwise, no action is needed.
 
         Returns::
-
-            True -> Call event_update().
-            False -> Do nothing.
+            A tuple of format (a, b) where a and b indicate:
+                If a is True -> Call event_update().
+                        False -> Do nothing.
+                If b is True -> The simulation should be terminated.
+                        False -> Do nothing.
 
         Calls the low-level FMI function: fmi2CompletedIntegratorStep.
         """
