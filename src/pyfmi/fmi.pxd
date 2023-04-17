@@ -224,6 +224,7 @@ cdef class FMUModelBase2(ModelBase):
     cpdef get_variable_start(self, variablename)
     cpdef get_variable_max(self, variablename)
     cpdef get_variable_min(self, variablename)
+    cpdef get_variable_unbounded(self, variablename)
     cpdef FMIL.fmi2_initial_enu_t get_variable_initial(self, variable_name) except *
     cpdef serialize_fmu_state(self, state)
     cpdef deserialize_fmu_state(self, serialized_fmu)

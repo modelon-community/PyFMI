@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-2.10.2 ---
     * Corrected version number.
+    * Added method to retrieve the unbounded attribute for real variables
 
 --- PyFMI-2.10.1 ---
     * Changed such that absolute tolerances calculated with state nominals retrieved before initialization will be recalculated with state nominals from after initialization when possible.
