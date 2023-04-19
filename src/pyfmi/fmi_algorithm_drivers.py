@@ -563,6 +563,9 @@ class AssimuloFMIAlg(AlgorithmBase):
         # Check relative tolerance
         # If the tolerances are not set specifically, they are set
         # according to the 'DefaultExperiment' from the XML file.
+
+        # existence of unbounded attributes may modify rtol, but solver may not support this
+        self._rtol_as_scalar_fallback = False
         try:
             #rtol was set as default
             if isinstance(self.solver_options["rtol"], str) and self.solver_options["rtol"] == "Default":
@@ -604,6 +607,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                             rtol_vector.append(self.rtol)
                     
                     if unbounded_attribute:
+                        self._rtol_as_scalar_fallback = True
                         self.solver_options['rtol'] = rtol_vector
             
         except KeyError:
@@ -701,9 +705,9 @@ class AssimuloFMIAlg(AlgorithmBase):
             rtol_is_vector      = (isinstance(self.solver_options["rtol"], N.ndarray) or isinstance(self.solver_options["rtol"], list))
             rtol_vector_support = self.simulator.supports.get("rtol_as_vector", False)
             
-            if rtol_is_vector and not rtol_vector_support:
-                logging.warning("The choosen solver do not support providing the relative tolerance as a vector, fallback to using a scalar instead. rtol = %g"%self.rtol)
-                self.solver_options["rtol"] = self.rtol
+            if rtol_is_vector and not rtol_vector_support and self._rtol_as_scalar_fallback:
+                logging.warning("The chosen solver do not support providing the relative tolerance as a vector, fallback to using a scalar instead. rtol = %g"%self.rtol)
+                solver_options["rtol"] = self.rtol
 
         #loop solver_args and set properties of solver
         for k, v in solver_options.items():
