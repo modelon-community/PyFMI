@@ -564,32 +564,20 @@ class AssimuloFMIAlg(AlgorithmBase):
         # If the tolerances are not set specifically, they are set
         # according to the 'DefaultExperiment' from the XML file.
         try:
+            #rtol was set as default
             if isinstance(self.solver_options["rtol"], str) and self.solver_options["rtol"] == "Default":
                 rtol = self.model.get_relative_tolerance()
                 self.solver_options['rtol'] = rtol
-                
-                if not isinstance(self.model, fmi.FMUModelME1):
-                    unbounded_attribute = False
-                    rtol_vector = []
-                    for state in self.model.get_states_list():
-                        if self.model.get_variable_unbounded(state):
-                            unbounded_attribute = True
-                            rtol_vector.append(0.0)
-                        else:
-                            rtol_vector.append(rtol)
-                    
-                    if unbounded_attribute:
-                        self.solver_options['rtol'] = rtol_vector
-        except KeyError:
-            pass
-        
-        #Check if relative tolerance is given as a vector and if all are equal -> set as a scalar
-        try:
+            
+            #rtol was provided as a vector
             if isinstance(self.solver_options["rtol"], N.ndarray) or isinstance(self.solver_options["rtol"], list):
+                
+                #rtol all are all equal -> set it as scalar and use that
                 if N.all(N.isclose(self.solver_options["rtol"], self.solver_options["rtol"][0])):
                     self.solver_options["rtol"] = self.solver_options["rtol"][0]
                     self.rtol = self.solver_options["rtol"]
-                else: #rtol is a vector where not all elements are equal (make sure that all are equal except zeros)
+                    
+                else: #rtol is a vector where not all elements are equal (make sure that all are equal except zeros) (and store the rtol value)
                     fnbr, gnbr = self.model.get_ode_sizes()
                     if len(self.solver_options["rtol"]) != fnbr:
                         raise fmi.InvalidOptionException("If the relative tolerance is provided as a vector, it need to be equal to the number of states")
@@ -601,10 +589,25 @@ class AssimuloFMIAlg(AlgorithmBase):
                         if rtol_scalar != 0.0 and tol != 0.0 and rtol_scalar != tol:
                             raise fmi.InvalidOptionException("If the relative tolerance is provided as a vector, the values need to be equal except for zeros")
                     self.rtol = rtol_scalar
-            else:
+            
+            else: #rtol was not provided as a vector -> modify if there are unbounded states
                 self.rtol = self.solver_options["rtol"]
+                
+                if not isinstance(self.model, fmi.FMUModelME1):
+                    unbounded_attribute = False
+                    rtol_vector = []
+                    for state in self.model.get_states_list():
+                        if self.model.get_variable_unbounded(state):
+                            unbounded_attribute = True
+                            rtol_vector.append(0.0)
+                        else:
+                            rtol_vector.append(self.rtol)
+                    
+                    if unbounded_attribute:
+                        self.solver_options['rtol'] = rtol_vector
+            
         except KeyError:
-            self.rtol = self.model.get_relative_tolerance()
+            self.rtol = self.model.get_relative_tolerance() #No support for relative tolerance in the used solver
 
         self.with_jacobian = self.options['with_jacobian']
         if not (isinstance(self.model, fmi.FMUModelME2)): # or isinstance(self.model, fmi_coupled.CoupledFMUModelME2) For coupled FMUs, currently not supported
@@ -693,6 +696,14 @@ class AssimuloFMIAlg(AlgorithmBase):
                 solver_options["maxh"] = 0.0
             else:
                 solver_options["maxh"] = float(self.final_time - self.start_time) / float(self.options["ncp"])
+        
+        if "rtol" in solver_options:
+            rtol_is_vector      = (isinstance(self.solver_options["rtol"], N.ndarray) or isinstance(self.solver_options["rtol"], list))
+            rtol_vector_support = self.simulator.supports.get("rtol_as_vector", False)
+            
+            if rtol_is_vector and not rtol_vector_support:
+                logging.warning("The choosen solver do not support providing the relative tolerance as a vector, fallback to using a scalar instead. rtol = %g"%self.rtol)
+                self.solver_options["rtol"] = self.rtol
 
         #loop solver_args and set properties of solver
         for k, v in solver_options.items():
