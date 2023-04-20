@@ -583,14 +583,14 @@ class AssimuloFMIAlg(AlgorithmBase):
                 else: #rtol is a vector where not all elements are equal (make sure that all are equal except zeros) (and store the rtol value)
                     fnbr, gnbr = self.model.get_ode_sizes()
                     if len(self.solver_options["rtol"]) != fnbr:
-                        raise fmi.InvalidOptionException("If the relative tolerance is provided as a vector, it need to be equal to the number of states")
+                        raise fmi.InvalidOptionException("If the relative tolerance is provided as a vector, it need to be equal to the number of states.")
                     rtol_scalar = 0.0
                     for tol in self.solver_options["rtol"]:
                         if rtol_scalar == 0.0 and tol != 0.0:
                             rtol_scalar = tol
                             continue
                         if rtol_scalar != 0.0 and tol != 0.0 and rtol_scalar != tol:
-                            raise fmi.InvalidOptionException("If the relative tolerance is provided as a vector, the values need to be equal except for zeros")
+                            raise fmi.InvalidOptionException("If the relative tolerance is provided as a vector, the values need to be equal except for zeros.")
                     self.rtol = rtol_scalar
             
             else: #rtol was not provided as a vector -> modify if there are unbounded states
