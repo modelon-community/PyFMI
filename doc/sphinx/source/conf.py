@@ -51,7 +51,7 @@ copyright = u'2012, Modelon AB'
 # built documents.
 #
 # The short X.Y version.
-version = '2.10'
+version = '2.10.2'
 # The full version, including alpha/beta/rc tags.
 release = '2.10.2'
 

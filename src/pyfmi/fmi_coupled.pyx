@@ -1277,6 +1277,30 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         
         return model.get_variable_start(variable_name[len(model_name)+1:])
         
+    cpdef get_variable_unbounded(self, variable_name):
+        """
+        Returns the unbounded attribute for the variable or else raises
+        FMUException.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable
+
+        Returns::
+
+            The start value.
+        """
+        name_parts = variable_name.split(".")
+        try:
+            model_name = name_parts[0]
+            ind = self.names[model_name]
+            model = self.models[ind]
+        except:
+            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+        
+        return model.get_variable_unbounded(variable_name[len(model_name)+1:])
+        
     
     cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, variable_name) except *:
         """
