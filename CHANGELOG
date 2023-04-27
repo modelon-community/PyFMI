@@ -1,6 +1,6 @@
 --- CHANGELOG ---
 --- PyFMI-2.10.4 ---
-    * Changed 'result_handling' option for not storing results from 'none' to None.
+    * Added 'result_handling' = None as option, deprecated 'none'.
 
 --- PyFMI-2.10.3 ---
     * Added method to retrieve the unbounded attribute for real variables in FMI2: get_variable_unbounded.
