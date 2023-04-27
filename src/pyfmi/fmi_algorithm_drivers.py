@@ -129,7 +129,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             the diagnostics data is written to the same binary file as data of FMU model variables.
             Note that these results are interpolated such that model variable trajectory points
             are given at the same time points as diagnostics data.
-            Available options: "file", "binary", "memory", "csv", "custom"
+            Available options: "file", "binary", "memory", "csv", "custom", None
             Default: "binary"
 
         result_handler --
@@ -342,7 +342,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                 raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
             if not isinstance(self.result_handler, ResultHandler):
                 raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
-        elif self.options["result_handling"] == "none": #No result handling (for performance)
+        elif self.options["result_handling"] is None: #No result handling (for performance)
             self.result_handler = ResultHandlerDummy(self.model)
         else:
             raise fmi.FMUException("Unknown option to result_handling.")
@@ -883,7 +883,7 @@ class FMICSAlgOptions(OptionBase):
             Specifies how the result should be handled. Either stored to
             file (txt or binary) or stored in memory. One can also use a
             custom handler.
-            Available options: "file", "binary", "memory", "csv", "custom"
+            Available options: "file", "binary", "memory", "csv", "custom", None
             Default: "binary"
 
         result_handler --
@@ -1051,7 +1051,7 @@ class FMICSAlg(AlgorithmBase):
                 raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
             if not isinstance(self.result_handler, ResultHandler):
                 raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
-        elif self.options["result_handling"] == "none": #No result handling (for performance)
+        elif self.options["result_handling"] is None: #No result handling (for performance)
             self.result_handler = ResultHandlerDummy(self.model)
         else:
             raise fmi.FMUException("Unknown option to result_handling.")

@@ -1,4 +1,7 @@
 --- CHANGELOG ---
+--- PyFMI-2.10.4 ---
+    * Changed 'result_handling' option for not storing results from 'none' to None.
+
 --- PyFMI-2.10.3 ---
     * Added method to retrieve the unbounded attribute for real variables in FMI2: get_variable_unbounded.
     * Note: With Assimulo >= 3.4.1 CVode adds supports relative tolerance vectors, see Assimulo README for details.
