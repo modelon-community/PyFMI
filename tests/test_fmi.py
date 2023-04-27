@@ -16,7 +16,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import nose
-import nose.tools as nt
 import os
 import numpy as np
 from zipfile import ZipFile
@@ -96,7 +95,7 @@ if assimulo_installed:
             model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
             opts = model.simulate_options()
-            opts["result_handling"] = "none"
+            opts["result_handling"] = None
             res = model.simulate(options=opts)
 
             nose.tools.assert_raises(Exception,res._get_result_data)
@@ -387,7 +386,7 @@ class Test_FMUModelCS1:
         model = Dummy_FMUModelCS1([], os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
         opts = model.simulate_options()
-        opts["result_handling"] = "none"
+        opts["result_handling"] = None
         res = model.simulate(options=opts)
 
         nose.tools.assert_raises(Exception,res._get_result_data)
@@ -770,7 +769,7 @@ if assimulo_installed:
             model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
             opts = model.simulate_options()
             opts["solver"] = "CVode"
-            opts["result_handling"] = "none"
+            opts["result_handling"] = None
 
             def run_case(expected, default="Default"):
                 model.reset()
@@ -805,7 +804,7 @@ if assimulo_installed:
                 model = Sparse_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
                 opts = model.simulate_options()
                 opts["solver"] = "CVode"
-                opts["result_handling"] = "none"
+                opts["result_handling"] = None
                 if set_sparse:
                     opts["CVode_options"]["linear_solver"] = "SPARSE"
 
@@ -869,7 +868,7 @@ if assimulo_installed:
         def test_maxh_option(self):
             model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
             opts = model.simulate_options()
-            opts["result_handling"] = "none"
+            opts["result_handling"] = None
 
             def run_case(tstart, tstop, solver, ncp="Default"):
                 model.reset()
@@ -973,7 +972,7 @@ if assimulo_installed:
             """ Test that rtol as a vector triggers exceptions for unsupported solvers. """
             model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
             opts = model.simulate_options()
-            opts["result_handling"] = "none"
+            opts["result_handling"] = None
 
             def run_case(solver):
                 model.reset()
