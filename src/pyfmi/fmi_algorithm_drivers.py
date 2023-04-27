@@ -342,7 +342,9 @@ class AssimuloFMIAlg(AlgorithmBase):
                 raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
             if not isinstance(self.result_handler, ResultHandler):
                 raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
-        elif self.options["result_handling"] is None: #No result handling (for performance)
+        elif (self.options["result_handling"] is None) or (self.options["result_handling"] == 'none'): #No result handling (for performance)
+            if self.options["result_handling"] == 'none':
+                logging.warning("result_handling = 'none' is deprecated. Please use None instead.")
             self.result_handler = ResultHandlerDummy(self.model)
         else:
             raise fmi.FMUException("Unknown option to result_handling.")
@@ -1051,7 +1053,9 @@ class FMICSAlg(AlgorithmBase):
                 raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
             if not isinstance(self.result_handler, ResultHandler):
                 raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
-        elif self.options["result_handling"] is None: #No result handling (for performance)
+        elif (self.options["result_handling"] is None) or (self.options["result_handling"] == 'none'): #No result handling (for performance)
+            if self.options["result_handling"] == 'none':
+                logging.warning("result_handling = 'none' is deprecated. Please use None instead.")
             self.result_handler = ResultHandlerDummy(self.model)
         else:
             raise fmi.FMUException("Unknown option to result_handling.")
