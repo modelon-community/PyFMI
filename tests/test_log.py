@@ -157,3 +157,23 @@ class Test_Log:
         eis = log.find("EventInfo")
         for ei in eis:
             assert isinstance(ei.time_event_info, bool), "Expected ei.time_event_info to be bool"
+
+    @testattr(stddist = True)
+    def test_hasattr_works(self):
+        """
+        Tests that 'hasattr' works on the log nodes.
+        """
+        log = parse_xml_log(os.path.join(logs, "boolean_log.xml"))
+        event_node = log.find("EventInfo")[0]
+        
+        assert hasattr(event_node, "t")
+        assert not hasattr(event_node, "not_in_node")
+        
+        event_node.t #Should not cause exception
+        
+        try:
+            event_node.not_in_node
+            raise Exception("An exception was not raised for 'event_node.not_in_node'")
+        except AttributeError:
+            pass
+        
