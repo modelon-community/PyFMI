@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-2.10.4 ---
     * Added 'result_handling' = None as option, deprecated 'none'.
+    * Fixed so that 'hasattr' works on log nodes.
 
 --- PyFMI-2.10.3 ---
     * Added method to retrieve the unbounded attribute for real variables in FMI2: get_variable_unbounded.

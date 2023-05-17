@@ -73,7 +73,12 @@ class Node(object):
         return self.dict[key]
 
     def __getattr__(self, name):
-        return self[name]
+        try:
+            return self[name]
+        except KeyError:
+            classname = type(self).__name__
+            msg = "%s object has no attribute %s"%(classname, name)
+            raise AttributeError(msg)
 
     def __setitem__(self, key, value):
          self.dict[key] = value
