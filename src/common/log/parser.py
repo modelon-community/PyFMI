@@ -20,11 +20,9 @@ Parser for a XML based FMU log format
 
 from xml import sax
 import re
-import os
 import numpy as np
 from distutils.util import strtobool
-from .tree import *
-from pyfmi.fmi_util import python3_flag
+from .tree import Node, Comment
 from pyfmi.fmi import FMUException
 
 ## Leaf parser ##
@@ -54,13 +52,10 @@ def parse_value(text):
         return float(text)
     elif boolean_pattern.match(text):
         return bool(strtobool(text))
+    elif quoted_string_pattern.match(text):
+        return text[1:-1].replace('""','"')
     else:
-        if quoted_string_pattern.match(text):
-            text = text[1:-1].replace('""','"')
-        else:
-            assert '"' not in text
-        # for python 2 we need to avoid printing all strings as u'...'
-        return text if python3_flag else text.encode('ascii', 'xmlcharrefreplace')
+        return text
 
 def parse_vector(text):
 
@@ -79,11 +74,7 @@ def parse_matrix(text):
     parts = filter(None, map(str, parts))
     return np.asarray([parse_vector(part) for part in parts])
 
-
 ## SAX based parser ##
-
-attribute_ns = "http://www.modelon.com/log/attribute"
-node_ns      = "http://www.modelon.com/log/node"
 
 class ContentHandler(sax.ContentHandler):
     def __init__(self):
@@ -206,7 +197,7 @@ def extract_xml_log(dest, log, modulename = 'Model'):
 
             dest  --
                 Name of the file which holds the extracted log, or a stream to write to
-                that supports the function 'write'. Default behaviour is to write to a file.
+                that supports the function 'write'. Default behavior is to write to a file.
                 Default: get_log_filename() + xml
             log --
                 String of filename to extract log from or a stream. The support for stream
@@ -216,7 +207,7 @@ def extract_xml_log(dest, log, modulename = 'Model'):
                 Selects the module as recorded in the beginning of each line by FMI Library.
                 Default: 'Model'
     """
-    # if it is a string, we assume we write to a file (since the file doesnt exist yet)
+    # if it is a string, we assume we write to a file (since the file doesn't exist yet)
     dest_is_file = isinstance(dest, str)
     if not dest_is_file:
         if not hasattr(dest, 'write'):
