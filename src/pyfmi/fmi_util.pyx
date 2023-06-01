@@ -19,6 +19,13 @@ Module containing the FMI interface Python wrappers.
 """
 import collections
 from collections import OrderedDict
+import sys
+if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+    from collections.abc import MutableSet
+    collections.MutableSet = collections.abc.MutableSet
+else:
+    from collections import MutableSet
+    
 import itertools
 from operator import attrgetter
 import numpy as np
