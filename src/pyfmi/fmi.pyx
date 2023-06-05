@@ -8118,7 +8118,7 @@ cdef class FMUModelME2(FMUModelBase2):
         if self._nContinuousStates > 0:
             return FMIL.fmi2_import_get_derivatives(self._fmu, &values[0], self._nContinuousStates)
         else:
-            return FMIL.fmi2_import_get_derivatives(self._fmu, NULL, self._nContinuousStates)
+            return FMIL.fmi2_status_ok
 
     cpdef get_derivatives(self):
         """
