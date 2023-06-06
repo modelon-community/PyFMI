@@ -1,0 +1,57 @@
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install system
+      run: |
+        sudo apt-get -y install python3-scipy python3-setuptools python3-nose cython3 python3-matplotlib python3-lxml
+        sudo apt-get -y install cmake liblapack-dev libsuitesparse-dev libhypre-dev
+        sudo cp -v /usr/lib/x86_64-linux-gnu/libblas.so /usr/lib/x86_64-linux-gnu/libblas_OPENMP.so
+    - name: Install superlu
+      run: |
+        cd /tmp
+        curl -fSsL https://portal.nersc.gov/project/sparse/superlu/superlu_mt_3.1.tar.gz | tar xz
+        cd SuperLU_MT_3.1
+        make CFLAGS="-O2 -fPIC -fopenmp" BLASLIB="-lblas" PLAT="_OPENMP" MPLIB="-fopenmp" lib -j1
+        sudo cp -v ./lib/libsuperlu_mt_OPENMP.a /usr/lib
+        sudo cp -v ./SRC/*.h /usr/include
+    - name: Install sundials
+      run: |
+        git clone --depth 1 -b v3.2.0 https://github.com/LLNL/sundials /tmp/sundials
+        cd /tmp/sundials
+        mkdir build && cd build
+        cmake -LAH -DSUPERLUMT_BLAS_LIBRARIES=blas -DSUPERLUMT_INCLUDE_DIR=/usr/include -DSUPERLUMT_LIBRARY=/usr/lib/libsuperlu_mt_OPENMP.a -DSUPERLUMT_THREAD_TYPE=OpenMP -DCMAKE_INSTALL_PREFIX=/usr -DSUPERLUMT_ENABLE=ON -DLAPACK_ENABLE=ON -DEXAMPLES_ENABLE=OFF ..
+        make -j4
+        sudo make install
+    - name: Install assimulo
+      run: |
+        cd /tmp
+        curl -fSsL https://github.com/modelon-community/Assimulo/archive/Assimulo-3.4.1.tar.gz | tar xz
+        cd Assimulo-Assimulo-3.4.1
+        python3 setup.py install --user --sundials-home=/usr --blas-home=/usr/lib/x86_64-linux-gnu/ --lapack-home=/usr/lib/x86_64-linux-gnu/ --superlu-home=/usr --extra-fortran-compile-flags="-fallow-argument-mismatch"
+    - name: Install fmilib
+      run: |
+        cd /tmp
+        curl -fSsL https://github.com/modelon-community/fmi-library/archive/2.4.1.tar.gz | tar xz
+        cd fmi-library-2.4.1
+        sed -i "/CMAKE_INSTALL_PREFIX/d" CMakeLists.txt
+        mkdir -p build && cd build
+        cmake -DCMAKE_INSTALL_PREFIX=/usr ..
+        make -j4
+        sudo make install
+    - name: Build
+      run: python3 setup.py install --user --fmil-home=/usr
+    - name: Test
+      run: |
+        rm src/pyfmi/__init__.py
+        cp -rv src/pyfmi/tests/files tests
+        nosetests3 tests
+
