@@ -3420,7 +3420,7 @@ cdef class FMUModelME1(FMUModelBase):
         if self._nContinuousStates > 0:
             status = FMIL.fmi1_import_get_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data ,self._nContinuousStates)
         else:
-            status = FMIL.fmi1_status_ok
+            return ndx
 
         if status != 0:
             raise FMUException('Failed to retrieve the continuous states.')
