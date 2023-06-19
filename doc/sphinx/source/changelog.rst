@@ -2,6 +2,17 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.10.4 ---
+    * Added 'result_handling' = None as option, deprecated 'none'.
+    * Fixed so that 'hasattr' works on log nodes.
+    * Calls to get continuous states derivatives when there are no such states will no longer result in FMU calls.
+
+--- PyFMI-2.10.3 ---
+    * Added method to retrieve the unbounded attribute for real variables in FMI2: get_variable_unbounded.
+    * Note: With Assimulo >= 3.4.1 CVode adds supports relative tolerance vectors, see Assimulo README for details.
+    * Added partial support for rtol vectors in simulate(): Values need to be equal except for zeros & requires support from used solver.
+    * For unbounded states, the simulate method attempts to create a vector of relative tolerances and entries that correspond to unbounded states are set to zero. (FMI2 ME only)
+
 --- PyFMI-2.10.2 ---
     * Corrected version number.
 
