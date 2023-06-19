@@ -3416,7 +3416,11 @@ cdef class FMUModelME1(FMUModelBase):
     def _get_continuous_states(self):
         cdef int status
         cdef N.ndarray[double, ndim=1,mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
-        status = FMIL.fmi1_import_get_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data ,self._nContinuousStates)
+
+        if self._nContinuousStates > 0:
+            status = FMIL.fmi1_import_get_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data ,self._nContinuousStates)
+        else:
+            status = FMIL.fmi1_status_ok
 
         if status != 0:
             raise FMUException('Failed to retrieve the continuous states.')
