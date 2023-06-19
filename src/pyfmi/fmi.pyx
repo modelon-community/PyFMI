@@ -3509,7 +3509,10 @@ cdef class FMUModelME1(FMUModelBase):
         cdef int status
         cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nContinuousStates,dtype=N.double)
 
-        status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
+        if self._nContinuousStates > 0:
+            status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
+        else:
+            return values
 
         if status != 0:
             raise FMUException('Failed to get the derivative values at time: %E.'%self.time)
@@ -8118,7 +8121,7 @@ cdef class FMUModelME2(FMUModelBase2):
         if self._nContinuousStates > 0:
             return FMIL.fmi2_import_get_derivatives(self._fmu, &values[0], self._nContinuousStates)
         else:
-            return FMIL.fmi2_import_get_derivatives(self._fmu, NULL, self._nContinuousStates)
+            return FMIL.fmi2_status_ok
 
     cpdef get_derivatives(self):
         """
