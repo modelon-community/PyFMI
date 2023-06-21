@@ -22,8 +22,13 @@ PyFMI can be built and installed from source, note this requires [FMI library](h
 
 `python setup.py install --fmil-home=/path/to/FMI_Library/`
 
+Here the flag "--fmil-home" points to where FMI Library is installed.
 
 Installation using CONDA
 -----------
 
 `conda install -c conda-forge pyfmi`
+
+Note that some examples requires optional dependencies for plotting, they are:
+- wxPython
+- matplotlib
