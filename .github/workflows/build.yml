@@ -25,8 +25,10 @@ jobs:
         sudo cp -v ./SRC/*.h /usr/include
     - name: Install sundials
       run: |
-        git clone --depth 1 -b v3.2.0 https://github.com/LLNL/sundials /tmp/sundials
+        git clone --depth 1 -b v2.7.0 https://github.com/LLNL/sundials /tmp/sundials
         cd /tmp/sundials
+        echo "target_link_libraries(sundials_idas_shared lapack blas superlu_mt_OPENMP)" >> src/idas/CMakeLists.txt
+        echo "target_link_libraries(sundials_kinsol_shared lapack blas superlu_mt_OPENMP)" >> src/kinsol/CMakeLists.txt
         mkdir build && cd build
         cmake -LAH -DSUPERLUMT_BLAS_LIBRARIES=blas -DSUPERLUMT_INCLUDE_DIR=/usr/include -DSUPERLUMT_LIBRARY=/usr/lib/libsuperlu_mt_OPENMP.a -DSUPERLUMT_THREAD_TYPE=OpenMP -DCMAKE_INSTALL_PREFIX=/usr -DSUPERLUMT_ENABLE=ON -DLAPACK_ENABLE=ON -DEXAMPLES_ENABLE=OFF ..
         make -j4
