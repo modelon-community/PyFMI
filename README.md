@@ -23,6 +23,7 @@ PyFMI can be built and installed from source, note this requires [FMI library](h
 `python setup.py install --fmil-home=/path/to/FMI_Library/`
 
 Here the flag "--fmil-home" points to where FMI Library is installed. The Python package [Assimulo](https://github.com/modelon-community/Assimulo) needs to be installed in order to build from source.
+
 Installation using CONDA
 -----------
 
