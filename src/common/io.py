@@ -92,11 +92,19 @@ class DiagnosticsBase:
     }
 
 class ResultHandler:
+    ## Which capabilities are supported
+    supports = {"dynamic_diagnostics": False}
 
-    def simulation_start(self):
+    def __init__(self, model):
+        pass
+
+    def simulation_start(self, diagnostics_params={}, diagnostics_vars={}):
         """
         This method is called before the simulation has started and
         after the initialization call for the FMU.
+        This function also takes two keyword arguments 'diagnostics_params'
+        and 'diagnostics_vars' which are dicts containing information about what
+        diagnostic parameters and variables to generate results for.
         """
         pass
 
@@ -110,8 +118,16 @@ class ResultHandler:
     def integration_point(self, solver=None):
         """
         This method is called for each time-point for which result are
-        to be stored as indicated by the "number of communcation points"
+        to be stored as indicated by the "number of communication points"
         provided to the simulation method.
+        """
+        pass
+
+    def diagnostics_point(self, diag_data):
+        ## TODO: improve docstring
+        """ 
+        Generates a data point for diagnostics data by invoking
+        the util function save_diagnostics_point.
         """
         pass
 
@@ -140,6 +156,8 @@ class ResultDymola:
     """
     Base class for representation of a result file.
     """
+    supports = {"dynamic_diagnostics": False}
+
     def _get_name(self):
         return [decode(n) for n in self.name_lookup.keys()]
 
@@ -166,7 +184,7 @@ class ResultDymola:
                 return self.name_lookup[encode(name)]
             else:
                 return self.name_lookup[name]
-        except KeyError as ex:
+        except KeyError:
             #Variable was not found so check if it was a derivative variable
             #and check if there exists a variable with another naming
             #convention
@@ -177,7 +195,7 @@ class ResultDymola:
                         return self.name_lookup[encode(self._convert_dx_name(name))]
                     else:
                         return self.name_lookup[self._convert_dx_name(name)]
-                except KeyError as ex:
+                except KeyError:
                     return self._exhaustive_search_for_derivatives(name)
             else:
                 raise VariableNotFoundError("Cannot find variable " +
@@ -286,6 +304,9 @@ class ResultDymola:
 
 class ResultCSVTextual:
     """ Class representing a simulation or optimization result loaded from a CSV-file. """
+
+    supports = {"dynamic_diagnostics": False}
+
     def __init__(self, filename, delimiter=";"):
         """
         Load a result file written on CSV format.
@@ -760,6 +781,8 @@ class ResultStorageMemory(ResultDymola):
     Class representing a simulation result that is kept in MEMORY.
     """
 
+    supports = {"dynamic_diagnostics": False}
+
     def __init__(self, model, data, vars_ref, vars):
         """
         Load result from the ResultHandlerMemory
@@ -890,6 +913,8 @@ class ResultDymolaTextual(ResultDymola):
     Class representing a simulation or optimization result loaded from a Dymola
     binary file.
     """
+
+    supports = {"dynamic_diagnostics": False}
 
     def __init__(self,fname):
         """
@@ -1208,6 +1233,8 @@ class ResultDymolaBinary(ResultDymola):
     Class representing a simulation or optimization result loaded from a Dymola
     binary file.
     """
+
+    supports = {"dynamic_diagnostics": False}
 
     def __init__(self, fname, delayed_trajectory_loading = True, allow_file_updates=False):
         """
@@ -1658,6 +1685,9 @@ class ResultDymolaBinary(ResultDymola):
         return self._data_2
 
 class ResultHandlerMemory(ResultHandler):
+
+    supports = {"dynamic_diagnostics": False}
+
     def __init__(self, model):
         self.model = model
 
@@ -1741,6 +1771,9 @@ class ResultHandlerMemory(ResultHandler):
         self.options = options
 
 class ResultHandlerCSV(ResultHandler):
+
+    supports = {"dynamic_diagnostics": False}
+
     def __init__(self, model, delimiter=";"):
         self.model = model
         self.delimiter = delimiter
@@ -1943,6 +1976,9 @@ class ResultHandlerFile(ResultHandler):
     Export an optimization or simulation result to file in Dymola's result file
     format.
     """
+
+    supports = {"dynamic_diagnostics": False}
+
     def __init__(self, model):
         self.model = model
 
@@ -2390,6 +2426,9 @@ class ResultHandlerFile(ResultHandler):
         self.options = options
 
 class ResultHandlerDummy(ResultHandler):
+
+    supports = {"dynamic_diagnostics": False}
+
     def __init__(self, model):
         self.model = model
 
@@ -2461,6 +2500,9 @@ class ResultHandlerBinaryFile(ResultHandler):
     Export an optimization or simulation result to file in Dymola's binary result file
     format (MATLAB v4 format).
     """
+
+    supports = {"dynamic_diagnostics": True}
+
     def __init__(self, model):
         self.model = model
         self.data_2_header_end_position = 0
@@ -2530,7 +2572,6 @@ class ResultHandlerBinaryFile(ResultHandler):
         diagnostic parameters and variables to generate results for.
         """
         opts = self.options
-        model = self.model
 
         #Internal values
         self.file_open = False
@@ -2543,7 +2584,7 @@ class ResultHandlerBinaryFile(ResultHandler):
             # since logging will always be set to True if dynamic_diagnostics is True when
             # invoked via normal simulation 'sequencing'
             self._with_diagnostics = opts["logging"] or opts["dynamic_diagnostics"]
-        except:
+        except Exception:
             self._with_diagnostics = False
 
         if self._with_diagnostics and (len(diagnostics_params) < 1 or self.nof_diag_vars < 1):
@@ -2570,7 +2611,6 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.model._result_file = self.file_name
 
         file_name = self.file_name
-        parameters = self.parameters
         if isinstance(self.file_name, str):
             self._file = open(file_name,'wb')
         else:
