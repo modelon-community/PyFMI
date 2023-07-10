@@ -1,4 +1,7 @@
 --- CHANGELOG ---
+--- PyFMI-2.10.5 ---
+    * Refactored result handling for dynamic_diagnostics. It is now possible use dynamic_diagnostics with a custom result handler.
+
 --- PyFMI-2.10.4 ---
     * Added 'result_handling' = None as option, deprecated 'none'.
     * Fixed so that 'hasattr' works on log nodes.

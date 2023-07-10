@@ -46,7 +46,7 @@ cimport fmil_import as FMIL
 try:
     import assimulo
     assimulo_present = True
-except:
+except Exception:
     logging.warning(
         'Could not load Assimulo module. Check pyfmi.check_packages()')
     assimulo_present = False
@@ -640,7 +640,7 @@ cdef class FMIODE2(cExplicit_Problem):
         self._sparse_representation = False
         self._with_jacobian = with_jacobian
 
-        if self._logging and isinstance(result_handler, ResultHandlerBinaryFile):
+        if self._logging and (isinstance(result_handler, ResultHandlerBinaryFile) or result_handler.supports.get('dynamic_diagnostics')):
             self._logging_to_mat = 1
         else:
             self._logging_to_mat = 0
@@ -675,7 +675,7 @@ cdef class FMIODE2(cExplicit_Problem):
                     self._synchronize_factor = synchronize_simulation
                 else:
                     raise fmi.InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
-            except:
+            except Exception:
                 raise fmi.InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.") 
         else:
             self._synchronize_factor = 0.0
@@ -982,7 +982,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 msg = preface + '</%s>'%(event_info_tag)
                 self._model.append_log_message("Model", 6, msg)
             else:
-                diag_data = N.ndarray(self.export.nof_diag_vars,dtype=float)
+                diag_data = N.ndarray(self.export.get_number_of_diag_vars(), dtype=float)
                 index = 0
                 diag_data[index] = solver.t
                 index +=1
@@ -1008,7 +1008,7 @@ cdef class FMIODE2(cExplicit_Problem):
                             diag_data[index] = ei
                             index +=1
                     if event_info[1]:
-                        while index < self.export.nof_diag_vars-1:
+                        while index < self.export.get_number_of_diag_vars() - 1:
                             diag_data[index] = 0
                             index +=1
                         diag_data[index] = 1.0
@@ -1019,8 +1019,8 @@ cdef class FMIODE2(cExplicit_Problem):
                             index +=1
                         diag_data[index] = 0.0
                         index +=1
-                if index != self.export.nof_diag_vars:
-                    raise fmi.FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self.export.nof_diag_vars, index))
+                if index != self.export.get_number_of_diag_vars():
+                    raise fmi.FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self.export.get_number_of_diag_vars(), index))
                 self.export.diagnostics_point(diag_data)
 
 
@@ -1157,7 +1157,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 msg = preface + '</%s>'%(solver_info_tag)
                 self._model.append_log_message("Model", 6, msg)
             else:
-                diag_data = N.ndarray(self.export.nof_diag_vars,dtype=float)
+                diag_data = N.ndarray(self.export.get_number_of_diag_vars(), dtype=float)
                 index = 0
                 diag_data[index] = solver.t
                 index +=1

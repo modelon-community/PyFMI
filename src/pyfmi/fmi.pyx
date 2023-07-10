@@ -372,7 +372,7 @@ cdef class ModelBase:
             alg = algorithm(start_time, final_time, input, self, options)
             # simulate
             alg.solve()
-        except:
+        except Exception:
             #close log file
             self._close_log_file()
             raise #Reraise the exception
@@ -418,7 +418,7 @@ cdef class ModelBase:
             alg = algorithm(parameters, measurements, input, self, options)
             # simulate
             alg.solve()
-        except:
+        except Exception:
             #close log file
             self._close_log_file()
             raise #Reraise the exception
@@ -706,7 +706,7 @@ cdef class ModelBase:
                 try:
                     with open(self._fmu_log_name,'a') as file:
                         file.write(msg)
-                except: #In somecases (especially when Python closes the above will fail when messages are provided from the FMI terminate/free methods)
+                except Exception: #In some cases (especially when Python closes the above will fail when messages are provided from the FMI terminate/free methods)
                     f = FMIL.fopen(self._fmu_log_name, "a");
                     if (f != NULL):
                         FMIL.fprintf(f, "FMIL: module = %s, log level = %d: %s\n",c_module, log_level, c_message)
@@ -714,7 +714,7 @@ cdef class ModelBase:
         elif self._log_stream:
             try:
                 self._log_stream.write(msg)
-            except:
+            except Exception:
                 # Try to catch exception if stream is closed or not writable
                 # which could be due to the stream is given in 'read-mode.
                 if not self._invoked_dealloc:
@@ -1465,7 +1465,7 @@ cdef class FMUModelBase(ModelBase):
             for i in range(len(self._log)):
                 try:
                     self._log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
-                except:
+                except Exception:
                     if hasattr(self._log_stream, 'closed') and self._log_stream.closed:
                         logging.warning("Unable to log to closed stream.")
                     else:
@@ -4825,7 +4825,7 @@ cdef class FMUModelBase2(ModelBase):
 
             self.enter_initialization_mode()
             self.exit_initialization_mode()
-        except:
+        except Exception:
             if not log_open and self.get_log_level() > 2:
                 self._close_log_file()
 
@@ -8526,7 +8526,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
 
         try:
             vv = self.get_real(vr)
-        except:
+        except Exception:
             return FMIL.fmi2_status_error
 
         for i in range(size):
@@ -8543,7 +8543,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
 
         try:
             self.set_real(vr, vv)
-        except:
+        except Exception:
             return FMIL.fmi2_status_error
 
         return FMIL.fmi2_status_ok
@@ -8553,7 +8553,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
             tmp = self.get_real(valueref)
             for i in range(size):
                 values[i] = tmp[i]
-        except:
+        except Exception:
             return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
 
@@ -8562,7 +8562,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
             tmp = self.get_integer(valueref)
             for i in range(size):
                 values[i] = tmp[i]
-        except:
+        except Exception:
             return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
 
@@ -8571,7 +8571,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
             tmp = self.get_boolean(valueref)
             for i in range(size):
                 values[i] = tmp[i]
-        except:
+        except Exception:
             return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
 

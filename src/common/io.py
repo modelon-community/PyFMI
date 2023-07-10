@@ -88,17 +88,15 @@ class DiagnosticsBase:
         'nbr_state_events': {'name': f'{diagnostics_prefix}nbr_state_events', 'description': 'Cumulative number of state events'},
         'nbr_steps': {'name': f'{diagnostics_prefix}nbr_steps', 'description': 'Cumulative number of steps'},
         'nbr_state_limits_step': {'name': f'{diagnostics_prefix}nbr_state_limits_step', 'description': 'Cumulative number of times states limit the step'},
-
     }
 
 class ResultHandler:
-    ## Which capabilities are supported
-    supports = {"dynamic_diagnostics": False}
+    def __init__(self, model = None):
+        self.model = model
+        ## Which capabilities are supported
+        self.supports = {"dynamic_diagnostics": False}
 
-    def __init__(self, model):
-        pass
-
-    def simulation_start(self, diagnostics_params={}, diagnostics_vars={}):
+    def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
         """
         This method is called before the simulation has started and
         after the initialization call for the FMU.
@@ -115,7 +113,7 @@ class ResultHandler:
         """
         pass
 
-    def integration_point(self, solver=None):
+    def integration_point(self, solver = None):
         """
         This method is called for each time-point for which result are
         to be stored as indicated by the "number of communication points"
@@ -123,13 +121,19 @@ class ResultHandler:
         """
         pass
 
-    def diagnostics_point(self, diag_data):
-        ## TODO: improve docstring
+    def diagnostics_point(self, diag_data = None):
         """ 
-        Generates a data point for diagnostics data by invoking
-        the util function save_diagnostics_point.
+        Generates a data point for diagnostics data.
         """
-        pass
+        if self.supports.get('dynamic_diagnostics'):
+            raise NotImplementedError
+        
+    def get_number_of_diag_vars(self):
+        """
+        Get number of diagnostics variables.
+        """
+        if self.supports.get('dynamic_diagnostics'):
+            raise NotImplementedError
 
     def simulation_end(self):
         """
@@ -137,7 +141,7 @@ class ResultHandler:
         """
         pass
 
-    def set_options(self, options):
+    def set_options(self, options = None):
         """
         Options are the options dictionary provided to the simulation
         method.
@@ -156,7 +160,6 @@ class ResultDymola:
     """
     Base class for representation of a result file.
     """
-    supports = {"dynamic_diagnostics": False}
 
     def _get_name(self):
         return [decode(n) for n in self.name_lookup.keys()]
@@ -176,7 +179,7 @@ class ResultDymola:
 
             In integer index.
         """
-        #Strip name of spaces, for instace a[2, 1] to a[2,1]
+        #Strip name of spaces, for instance a[2, 1] to a[2,1]
         name = name.replace(" ", "")
 
         try:
@@ -240,13 +243,13 @@ class ResultDymola:
                     return self.name_lookup[encode(der_trial_name)]
                 else:
                     return self.name_lookup[der_trial_name]
-            except KeyError as ex:
+            except KeyError:
                 try:
                     if python3_flag and isinstance(self, ResultDymolaBinary):
                         return self.name_lookup[encode(self._convert_dx_name(der_trial_name))]
                     else:
                         return self.name_lookup[self._convert_dx_name(der_trial_name)]
-                except KeyError as ex:
+                except KeyError:
                     pass
         else:
             raise VariableNotFoundError("Cannot find variable " +
@@ -304,9 +307,6 @@ class ResultDymola:
 
 class ResultCSVTextual:
     """ Class representing a simulation or optimization result loaded from a CSV-file. """
-
-    supports = {"dynamic_diagnostics": False}
-
     def __init__(self, filename, delimiter=";"):
         """
         Load a result file written on CSV format.
@@ -565,14 +565,14 @@ class ResultWriterDymola(ResultWriter):
         descs_sens = []
         cont_vars = []
 
-        if parameters != None:
+        if parameters is not None:
             vars = self.model.get_model_variables(type=0,include_alias=False,variability=3)
             for i in self.model.get_state_value_references():
                 for j in vars.keys():
                     if i == vars[j].value_reference:
                         cont_vars.append(vars[j].name)
 
-        if parameters != None:
+        if parameters is not None:
             for j in range(len(parameters)):
                 for i in range(len(self.model.continuous_states)):
                     names_sens += ['d'+cont_vars[i]+'/d'+parameters[j]]
@@ -734,7 +734,7 @@ class ResultWriterDymola(ResultWriter):
         data_order = self._data_order
 
         #If data is none, store the current point from the model
-        if data==None:
+        if data is None:
             #Retrieves the time-point
             [r,i,b] = self.model.save_time_point()
             data = N.append(N.append(N.append(self.model.time,r),i),b)
@@ -780,9 +780,6 @@ class ResultStorageMemory(ResultDymola):
     """
     Class representing a simulation result that is kept in MEMORY.
     """
-
-    supports = {"dynamic_diagnostics": False}
-
     def __init__(self, model, data, vars_ref, vars):
         """
         Load result from the ResultHandlerMemory
@@ -913,9 +910,6 @@ class ResultDymolaTextual(ResultDymola):
     Class representing a simulation or optimization result loaded from a Dymola
     binary file.
     """
-
-    supports = {"dynamic_diagnostics": False}
-
     def __init__(self,fname):
         """
         Load a result file written on Dymola textual format.
@@ -1233,9 +1227,6 @@ class ResultDymolaBinary(ResultDymola):
     Class representing a simulation or optimization result loaded from a Dymola
     binary file.
     """
-
-    supports = {"dynamic_diagnostics": False}
-
     def __init__(self, fname, delayed_trajectory_loading = True, allow_file_updates=False):
         """
         Load a result file written on Dymola binary format.
@@ -1286,7 +1277,7 @@ class ResultDymolaBinary(ResultDymola):
 
                     self._has_file_pos_data = False
 
-                except:
+                except Exception:
                     self._contains_diagnostic_data = False
                     data_sections = ["name", "dataInfo", "data_2"]
         else:
@@ -1545,7 +1536,7 @@ class ResultDymolaBinary(ResultDymola):
         steps_name = DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']
         try:
             event_type_data = self.get_variable_data(f'{diagnostics_prefix}event_data.event_info.event_type')
-        except:
+        except Exception:
             if name == steps_name:
                 self._data_3[steps_name] = N.array(range(len(self._get_diagnostics_trajectory(0))))
                 return self._data_3[name]
@@ -1685,12 +1676,6 @@ class ResultDymolaBinary(ResultDymola):
         return self._data_2
 
 class ResultHandlerMemory(ResultHandler):
-
-    supports = {"dynamic_diagnostics": False}
-
-    def __init__(self, model):
-        self.model = model
-
     def simulation_start(self):
         """
         This method is called before the simulation has started and before
@@ -1771,11 +1756,8 @@ class ResultHandlerMemory(ResultHandler):
         self.options = options
 
 class ResultHandlerCSV(ResultHandler):
-
-    supports = {"dynamic_diagnostics": False}
-
     def __init__(self, model, delimiter=";"):
-        self.model = model
+        super().__init__(model)
         self.delimiter = delimiter
 
     def initialize_complete(self):
@@ -1976,12 +1958,6 @@ class ResultHandlerFile(ResultHandler):
     Export an optimization or simulation result to file in Dymola's result file
     format.
     """
-
-    supports = {"dynamic_diagnostics": False}
-
-    def __init__(self, model):
-        self.model = model
-
     def initialize_complete(self):
         pass
 
@@ -2426,12 +2402,9 @@ class ResultHandlerFile(ResultHandler):
         self.options = options
 
 class ResultHandlerDummy(ResultHandler):
-
-    supports = {"dynamic_diagnostics": False}
-
-    def __init__(self, model):
-        self.model = model
-
+    # def __init__(self, model):
+    #     super().__init__(model = model)
+    
     def get_result(self):
         return None
 
@@ -2500,11 +2473,9 @@ class ResultHandlerBinaryFile(ResultHandler):
     Export an optimization or simulation result to file in Dymola's binary result file
     format (MATLAB v4 format).
     """
-
-    supports = {"dynamic_diagnostics": True}
-
     def __init__(self, model):
-        self.model = model
+        super().__init__(model)
+        self.supports['dynamic_diagnostics'] = True
         self.data_2_header_end_position = 0
 
     def _data_header(self, name, nbr_rows, nbr_cols, data_type):
@@ -2715,6 +2686,9 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.dump_data_internal.save_diagnostics_point(diag_data)
         self.nbr_diag_points += 1
         self._make_diagnostics_consistent()
+
+    def get_number_of_diag_vars(self):
+        return self.nof_diag_vars
 
     def _make_consistent(self):
         f = self._file

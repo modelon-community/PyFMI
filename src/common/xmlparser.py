@@ -5350,7 +5350,7 @@ class ModelDescription2 (ModelDescription):
         
         try:
             e_modelstructure = root.find('ModelStructure')
-        except:
+        except Exception:
             return
         
         inputs = e_modelstructure[0]
@@ -5455,11 +5455,11 @@ class ModelDescription2 (ModelDescription):
         try:
             v = self._model_structure_derivatives_dict[variable]
             return v.get_state_dependency()
-        except:
+        except Exception:
             try:
                 v = self._model_structure_outputs_dict[variable]
                 return v.get_state_dependency()
-            except:
+            except Exception:
                 raise Exception("No state dependency information is available for variable " + variable)
 
     def get_input_dependency(self, variable):
@@ -5475,11 +5475,11 @@ class ModelDescription2 (ModelDescription):
         try:
             v = self._model_structure_derivatives_dict[variable]
             return v.get_input_dependency()
-        except:
+        except Exception:
             try:
                 v = self._model_structure_outputs_dict[variable]
                 return v.get_input_dependency()
-            except:
+            except Exception:
                 raise Exception("No input dependency information is available for variable " + variable)
 
 
@@ -5524,13 +5524,13 @@ class MSDerivative(MSVariable):
             self._state_dependency = element.attrib['stateDependency'].split()  
             for i in range(len(self._state_dependency)):
                 self._state_dependency[i] = int(self._state_dependency[i]) - 1
-        except:
+        except Exception:
             self._state_dependency = []
         try:
             self._input_dependency = element.attrib['inputDependency'].split()      
             for i in range(len(self._input_dependency)):
                 self._input_dependency[i] = int(self._input_dependency[i]) - 1            
-        except:
+        except Exception:
             self._input_dependency = []      
         
     def get_state(self):
@@ -5576,13 +5576,13 @@ class MSOutput(MSVariable):
             self._state_dependency = element.attrib['stateDependency'].split()  
             for i in range(len(self._state_dependency)):
                 self._state_dependency[i] = int(self._state_dependency[i]) - 1
-        except:
+        except Exception:
             self._state_dependency = []
         try:
             self._input_dependency = element.attrib['inputDependency'].split()      
             for i in range(len(self._input_dependency)):
                 self._input_dependency[i] = int(self._input_dependency[i]) - 1            
-        except:
+        except Exception:
             self._input_dependency = []      
 
     def get_state_dependency(self):

@@ -24,7 +24,7 @@ from pyfmi.fmi cimport FMUModelME2
 try:
     import assimulo
     assimulo_present = True
-except:
+except Exception:
     logging.warning(
         'Could not load Assimulo module. Check pyfmi.check_packages()')
     assimulo_present = False

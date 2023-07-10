@@ -301,7 +301,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         else:
             raise InvalidAlgorithmOptionException(options)
         
-        self._set_results_handler() # sets self.results_handler
+        self._set_result_handler() # sets self.results_handler
         self._set_options() # set options
 
         #time_start = timer()
@@ -479,7 +479,7 @@ class AssimuloFMIAlg(AlgorithmBase):
 
     def _set_result_handler(self):
         """
-        Helper functions that sets the result_handler.
+        Helper functions that sets result_handler.
         """
         if self.options["result_handling"] == "file":
             self.result_handler = ResultHandlerFile(self.model)
@@ -534,7 +534,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         if self.options["dynamic_diagnostics"]:
             ## Result handler must have supports['dynamic_diagnostics'] = True
             ## e.g., result_handling = 'binary' = ResultHandlerBinaryFile 
-            if not self.result_handler['supports'].get('dynamic_diagnostics'):
+            if not self.result_handler.supports.get('dynamic_diagnostics'):
                 err_msg = ("The chosen result_handler does not support dynamic_diagnostics."
                            " Try using e.g., ResultHandlerBinaryFile.")
                 raise fmi.InvalidOptionException(err_msg)
@@ -1040,7 +1040,7 @@ class FMICSAlg(AlgorithmBase):
 
         #time_start = timer()
 
-        self._set_results_handler() ## set self.results_handler
+        self._set_result_handler() ## set self.results_handler
 
         self.result_handler.set_options(self.options)
 
@@ -1081,9 +1081,9 @@ class FMICSAlg(AlgorithmBase):
 
         self.timings["initializing_result"] = timer() - time_start - time_res_init
 
-    def _set_results_handler(self):
+    def _set_result_handler(self):
         """
-        Helper functions that sets results_handler.
+        Helper functions that sets result_handler.
         """
         if self.options["result_handling"] == "file":
             self.result_handler = ResultHandlerFile(self.model)

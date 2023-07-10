@@ -44,7 +44,7 @@ except ImportError:
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "3.0-dev"
+VERSION = "2.10.5"
 LICENSE = "LGPL"
 URL = "https://github.com/modelon-community/PyFMI"
 DOWNLOAD_URL = "https://github.com/modelon-community/PyFMI/releases"
@@ -167,7 +167,7 @@ if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
     if sys.platform.startswith("win"):
         try:
             files = O.listdir(O.path.join(libdirs))
-        except:
+        except Exception:
             raise Exception("The FMI Library binary cannot be found at path: "+str(O.path.join(libdirs)))
         for file in files:
             if "fmilib_shared" in file and not file.endswith("a"):
@@ -278,7 +278,7 @@ try:
     from subprocess import Popen, PIPE
     _p = Popen(["svnversion", "."], stdout=PIPE)
     revision = _p.communicate()[0].decode('ascii')
-except:
+except Exception:
     revision = "unknown"
 version_txt = 'src'+O.path.sep+'pyfmi'+O.path.sep+'version.txt'
 
@@ -296,7 +296,7 @@ else:# If it does not, check if the file exists and if not, create the file!
 try:
     shutil.copy2('LICENSE', 'src'+O.path.sep+'pyfmi'+O.path.sep+'LICENSE')
     shutil.copy2('CHANGELOG', 'src'+O.path.sep+'pyfmi'+O.path.sep+'CHANGELOG')
-except:
+except Exception:
     pass
 
 from numpy.distutils.core import setup
