@@ -15,13 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#from distutils.core import setup, Extension
-#from distutils.ccompiler import new_compiler
-
-
 import distutils
-import os as O
-import sys as S
+import os
 import shutil
 import numpy as N
 import ctypes.util
@@ -44,7 +39,7 @@ except ImportError:
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "2.10.5"
+VERSION = "2.11.0"
 LICENSE = "LGPL"
 URL = "https://github.com/modelon-community/PyFMI"
 DOWNLOAD_URL = "https://github.com/modelon-community/PyFMI/releases"
@@ -93,11 +88,11 @@ python setup.py install --fmil-home=/path/to/FMI_Library/
 
 """
 
-copy_args=sys.argv[1:]
+copy_args = sys.argv[1:]
 
-if O.getenv("FMIL_HOME"): #Check for if there exists and environment variable that specifies FMIL
-    incdirs = O.path.join(O.getenv("FMIL_HOME"),'include')
-    libdirs = O.path.join(O.getenv("FMIL_HOME"),'lib')
+if os.getenv("FMIL_HOME"): #Check for if there exists and environment variable that specifies FMIL
+    incdirs = os.path.join(os.getenv("FMIL_HOME"), 'include')
+    libdirs = os.path.join(os.getenv("FMIL_HOME"), 'lib')
 else:
     incdirs = ""
     libdirs = ""
@@ -118,10 +113,10 @@ extra_c_flags = ""
 # Fix path sep
 for x in sys.argv[1:]:
     if not x.find('--prefix'):
-        copy_args[copy_args.index(x)] = x.replace('/',O.sep)
+        copy_args[copy_args.index(x)] = x.replace('/',os.sep)
     if not x.find('--fmil-home'):
-        incdirs = O.path.join(x[12:],'include')
-        libdirs = O.path.join(x[12:],'lib')
+        incdirs = os.path.join(x[12:],'include')
+        libdirs = os.path.join(x[12:],'lib')
         copy_args.remove(x)
     if not x.find('--copy-libgcc'):
         if x[14:].upper() == "TRUE":
@@ -166,22 +161,22 @@ if not incdirs:
 if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
     if sys.platform.startswith("win"):
         try:
-            files = O.listdir(O.path.join(libdirs))
+            files = os.listdir(os.path.join(libdirs))
         except Exception:
-            raise Exception("The FMI Library binary cannot be found at path: "+str(O.path.join(libdirs)))
+            raise Exception("The FMI Library binary cannot be found at path: "+str(os.path.join(libdirs)))
         for file in files:
             if "fmilib_shared" in file and not file.endswith("a"):
-                shutil.copy2(O.path.join(libdirs,file),O.path.join(".","src","pyfmi"))
-                fmilib_shared = O.path.join(".","src","pyfmi",file)
+                shutil.copy2(os.path.join(libdirs,file),os.path.join(".","src","pyfmi"))
+                fmilib_shared = os.path.join(".","src","pyfmi",file)
                 break
         else:
             raise Exception("Could not find FMILibrary at: %s"%libdirs)
             
         if copy_gcc_lib:
             path_gcc_lib = ctypes.util.find_library("libgcc_s_dw2-1.dll")
-            if path_gcc_lib != None:
-                shutil.copy2(path_gcc_lib,O.path.join(".","src","pyfmi"))
-                gcc_lib = O.path.join(".","src","pyfmi","libgcc_s_dw2-1.dll")
+            if path_gcc_lib is not None:
+                shutil.copy2(path_gcc_lib,os.path.join(".","src","pyfmi"))
+                gcc_lib = os.path.join(".","src","pyfmi","libgcc_s_dw2-1.dll")
 
 if no_msvcr:
     # prevent the MSVCR* being added to the DLLs passed to the linker
@@ -203,11 +198,11 @@ def check_extensions():
 
     #COMMON PYX
     """
-    ext_list = cythonize(["src"+O.path.sep+"common"+O.path.sep+"core.pyx"], 
-                    include_path=[".","src","src"+O.sep+"common"],
+    ext_list = cythonize([os.path.join("src", "common", "core.pyx")], 
+                    include_path=[".","src",os.path.join("src", "common")],
                     include_dirs=[N.get_include()],pyrex_gdb=debug)
     
-    ext_list[-1].include_dirs = [N.get_include(), "src","src"+O.sep+"common", incdirs]
+    ext_list[-1].include_dirs = [N.get_include(), "src",os.path.join("src", "common"), incdirs]
         
     if debug:
         ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
@@ -216,35 +211,36 @@ def check_extensions():
         ext_list[-1].extra_compile_args = ["-O2", "-fno-strict-aliasing"]
         ext_list[-1].extra_link_args = extra_link_flags
     """
-    
+    incl_path = [".", "src", os.path.join("src", "pyfmi")]
     #FMI PYX
-    ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi.pyx"], 
-                    include_path=[".","src","src"+O.sep+"pyfmi"])
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi.pyx")], 
+                    include_path = incl_path)
     
     #FMI UTIL
-    ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi_util.pyx"], 
-                    include_path=[".","src","src"+O.sep+"pyfmi"])
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_util.pyx")], 
+                    include_path = incl_path)
     
     #FMI Extended PYX
-    ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi_extended.pyx"], 
-                    include_path=[".","src","src"+O.sep+"pyfmi"])
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_extended.pyx")], 
+                    include_path = incl_path)
                     
     #FMI Coupled PYX
-    ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"fmi_coupled.pyx"], 
-                    include_path=[".","src","src"+O.sep+"pyfmi"])
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_coupled.pyx")], 
+                    include_path = incl_path)
     
     #Simulation interface PYX
-    ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"simulation"+O.path.sep+"assimulo_interface.pyx"], 
-                    include_path=[".","src","src"+O.sep+"pyfmi"])
+    ext_list += cythonize([os.path.join("src", "pyfmi", "simulation", "assimulo_interface.pyx")], 
+                    include_path = incl_path)
                     
     #MASTER PYX
     compile_time_env = {'WITH_OPENMP': with_openmp}
-    ext_list += cythonize(["src"+O.path.sep+"pyfmi"+O.path.sep+"master.pyx"], 
-                    include_path=[".","src","src"+O.sep+"pyfmi"], compile_time_env=compile_time_env)
+    ext_list += cythonize([os.path.join("src", "pyfmi", "master.pyx")], 
+                    include_path = incl_path, 
+                    compile_time_env=compile_time_env)
     
     for i in range(len(ext_list)):
         
-        ext_list[i].include_dirs = [N.get_include(), "src","src"+O.sep+"pyfmi", incdirs]
+        ext_list[i].include_dirs = [N.get_include(), "src", os.path.join("src", "pyfmi"), incdirs]
         ext_list[i].library_dirs = [libdirs]
         ext_list[i].language = "c"
         ext_list[i].libraries = ["fmilib_shared"] if sys.platform.startswith("win") else ["fmilib"] #If windows shared, else static
@@ -280,7 +276,7 @@ try:
     revision = _p.communicate()[0].decode('ascii')
 except Exception:
     revision = "unknown"
-version_txt = 'src'+O.path.sep+'pyfmi'+O.path.sep+'version.txt'
+version_txt = os.path.join('src', 'pyfmi', 'version.txt')
 
 #If a revision is found, always write it!
 if revision != "unknown" and revision!="":
@@ -288,14 +284,14 @@ if revision != "unknown" and revision!="":
         f.write(VERSION+'\n')
         f.write("r"+revision)
 else:# If it does not, check if the file exists and if not, create the file!
-    if not O.path.isfile(version_txt):
+    if not os.path.isfile(version_txt):
         with open(version_txt, 'w') as f:
             f.write(VERSION+'\n')
             f.write("unknown")
             
 try:
-    shutil.copy2('LICENSE', 'src'+O.path.sep+'pyfmi'+O.path.sep+'LICENSE')
-    shutil.copy2('CHANGELOG', 'src'+O.path.sep+'pyfmi'+O.path.sep+'CHANGELOG')
+    shutil.copy2('LICENSE', os.path.join('src', 'pyfmi', 'LICENSE'))
+    shutil.copy2('CHANGELOG', os.path.join('src', 'pyfmi', 'CHANGELOG'))
 except Exception:
     pass
 
@@ -312,20 +308,22 @@ setup(name=NAME,
       platforms=PLATFORMS,
       classifiers=CLASSIFIERS,
       ext_modules = ext_list,
-      package_dir = {'pyfmi':'src'+O.path.sep+'pyfmi','pyfmi.common':'src'+O.path.sep+'common', 'pyfmi.tests':'tests'},
+      package_dir = {'pyfmi':        os.path.join('src', 'pyfmi'),
+                     'pyfmi.common': os.path.join('src', 'common'),
+                     'pyfmi.tests':  'tests'},
       packages=['pyfmi','pyfmi.simulation','pyfmi.examples','pyfmi.common','pyfmi.common.plotting', 'pyfmi.tests', 'pyfmi.common.log'],
-      package_data = {'pyfmi':['examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'ME1.0'+O.path.sep+'*',
-                               'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS1.0'+O.path.sep+'*',
-                               'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'ME2.0'+O.path.sep+'*',
-                               'examples'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'CS2.0'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'ME1.0'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'CS1.0'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'ME2.0'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'FMUs'+O.path.sep+'XML'+O.path.sep+'CS2.0'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'Results'+O.path.sep+'*',
-                               'tests'+O.path.sep+'files'+O.path.sep+'Logs'+O.path.sep+'*',
+      package_data = {'pyfmi':[os.path.join('examples', 'files', 'FMUs', 'ME1.0', '*'),
+                               os.path.join('examples', 'files', 'FMUs', 'CS1.0', '*'),
+                               os.path.join('examples', 'files', 'FMUs', 'ME2.0', '*'),
+                               os.path.join('examples', 'files', 'FMUs', 'CS2.0', '*'),
+                               os.path.join('tests', 'files', 'FMUs', 'XML', 'ME1.0', '*'),
+                               os.path.join('tests', 'files', 'FMUs', 'XML', 'CS1.0', '*'),
+                               os.path.join('tests', 'files', 'FMUs', 'XML', 'ME2.0', '*'),
+                               os.path.join('tests', 'files', 'FMUs', 'XML', 'CS2.0', '*'),
+                               os.path.join('tests', 'files', 'Results', '*'),
+                               os.path.join('tests', 'files', 'Logs', '*'),
                                'version.txt', 'LICENSE', 'CHANGELOG',
-                               'util'+O.path.sep+'*']+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])+(['libgcc_s_dw2-1.dll'] if copy_gcc_lib else [])},
+                               os.path.join('util', '*')]+(['*fmilib_shared*'] if sys.platform.startswith("win") else [])+(['libgcc_s_dw2-1.dll'] if copy_gcc_lib else [])},
       script_args=copy_args
       )
 
@@ -333,7 +331,7 @@ setup(name=NAME,
 #Dont forget to delete fmilib_shared
 if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
     if sys.platform.startswith("win"):
-        if O.path.exists(fmilib_shared):
-            O.remove(fmilib_shared)
-        if gcc_lib and O.path.exists(gcc_lib):
-            O.remove(gcc_lib)
+        if os.path.exists(fmilib_shared):
+            os.remove(fmilib_shared)
+        if gcc_lib and os.path.exists(gcc_lib):
+            os.remove(gcc_lib)

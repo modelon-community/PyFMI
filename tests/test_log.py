@@ -17,12 +17,9 @@
 
 import os
 
-from numpy import testing
-from numpy.testing._private.utils import assert_equal
-
 from pyfmi import testattr
 from pyfmi.common.log import extract_xml_log, parse_xml_log
-from pyfmi.common import diagnostics_prefix
+from pyfmi.common.diagnostics import diagnostics_prefix
 from pyfmi.tests.test_util import Dummy_FMUModelME2
 from pyfmi.fmi_util import decode
 

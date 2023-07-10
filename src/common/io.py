@@ -18,11 +18,9 @@
 Module for writing optimization and simulation results to file.
 """
 from operator import itemgetter, attrgetter
-import array
 import codecs
 import re
 import sys
-import io
 import os
 from functools import reduce
 
@@ -40,9 +38,8 @@ else:
 
 import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
-from pyfmi.common import python3_flag, encode, decode, diagnostics_prefix
-
-import struct
+from pyfmi.common import python3_flag, encode, decode
+from pyfmi.common.diagnostics import diagnostics_prefix, DiagnosticsBase
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
 
@@ -76,19 +73,6 @@ class ResultStorage:
 
     def is_negated(self, var):
         raise NotImplementedError
-
-
-class DiagnosticsBase:
-    """ Class serves as a template
-        to keep track of diagnostics variables not part of the generated result file.
-    """
-    calculated_diagnostics = {
-        'nbr_events': {'name': f'{diagnostics_prefix}nbr_events', 'description': 'Cumulative number of events'},
-        'nbr_time_events': {'name': f'{diagnostics_prefix}nbr_time_events', 'description': 'Cumulative number of time events'},
-        'nbr_state_events': {'name': f'{diagnostics_prefix}nbr_state_events', 'description': 'Cumulative number of state events'},
-        'nbr_steps': {'name': f'{diagnostics_prefix}nbr_steps', 'description': 'Cumulative number of steps'},
-        'nbr_state_limits_step': {'name': f'{diagnostics_prefix}nbr_state_limits_step', 'description': 'Cumulative number of times states limit the step'},
-    }
 
 class ResultHandler:
     def __init__(self, model = None):
@@ -2402,9 +2386,6 @@ class ResultHandlerFile(ResultHandler):
         self.options = options
 
 class ResultHandlerDummy(ResultHandler):
-    # def __init__(self, model):
-    #     super().__init__(model = model)
-    
     def get_result(self):
         return None
 

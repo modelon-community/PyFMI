@@ -26,7 +26,7 @@ from pyfmi import testattr
 from pyfmi.fmi import FMUException, FMUModelME2
 from pyfmi.common.io import (ResultHandler, ResultDymolaTextual, ResultDymolaBinary, JIOError,
                              ResultHandlerCSV, ResultCSVTextual, ResultHandlerBinaryFile, ResultHandlerFile)
-from pyfmi.common import diagnostics_prefix
+from pyfmi.common.diagnostics import diagnostics_prefix
 
 import pyfmi.fmi as fmi
 from pyfmi.tests.test_util import Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2

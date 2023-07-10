@@ -19,12 +19,14 @@ The JModelica.org <http:/www.jmodelica.org/> Python package for common classes
 and functions.
 """
 
-__all__ = ['algorithm_drivers', 'core', 'io', 'xmlparser', 'plotting']
-
+__all__ = ['algorithm_drivers', 'core', 'diagnostics', 'io', 'xmlparser', 'plotting']
 
 import sys
 python3_flag = True if sys.hexversion > 0x03000000 else False
-diagnostics_prefix = '@Diagnostics.'
+## for backwards compatibility, to not break 'from pyfmi.common import diagnostics_prefix'
+## TODO: Future: remove this
+from .diagnostics import diagnostics_prefix 
+
 if python3_flag:
     def encode(x):
         if isinstance(x, str):
