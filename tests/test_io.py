@@ -26,7 +26,7 @@ from pyfmi import testattr
 from pyfmi.fmi import FMUException, FMUModelME2
 from pyfmi.common.io import (ResultHandler, ResultDymolaTextual, ResultDymolaBinary, JIOError,
                              ResultHandlerCSV, ResultCSVTextual, ResultHandlerBinaryFile, ResultHandlerFile)
-from pyfmi.common.diagnostics import diagnostics_prefix
+from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
 
 import pyfmi.fmi as fmi
 from pyfmi.tests.test_util import Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
@@ -1189,17 +1189,17 @@ class TestResultFileBinary:
         model.initialize()
 
         # Need to mock the diagnostics variables in order to invoke simulation_start
-        diagnostics_params[diagnostics_prefix+"solver."+opts["solver"]] = (1.0, "Chosen solver.")
+        diagnostics_params[DIAGNOSTICS_PREFIX+"solver."+opts["solver"]] = (1.0, "Chosen solver.")
         try:
             rtol = opts['rtol']
             atol = opts['atol']
         except KeyError:
             rtol, atol = model.get_tolerances()
 
-        diagnostics_vars[diagnostics_prefix+"step_time"] = (0.0, "Step time")
+        diagnostics_vars[DIAGNOSTICS_PREFIX+"step_time"] = (0.0, "Step time")
         nof_states, nof_ei = model.get_ode_sizes()
         for i in range(nof_ei):
-            diagnostics_vars[diagnostics_prefix+"event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
+            diagnostics_vars[DIAGNOSTICS_PREFIX+"event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
 
         # values used as diagnostics data at each point
         diag_data = np.array([val[0] for val in diagnostics_vars.values()], dtype=float)
@@ -1241,7 +1241,7 @@ class TestResultFileBinary:
         res = ResultDymolaBinary(result_file_name)
         h = res.get_variable_data('h')
         derh = res.get_variable_data('der(h)')
-        ev_ind = res.get_variable_data(diagnostics_prefix+'event_info.state_event_info.index_1').x
+        ev_ind = res.get_variable_data(DIAGNOSTICS_PREFIX+'event_info.state_event_info.index_1').x
 
         # Verify
         nose.tools.assert_almost_equal(h.x[0], 1.000000, 5, msg="Incorrect initial value for 'h', should be 1.0")
@@ -1345,17 +1345,9 @@ class TestResultFileBinary:
                 super().__init__(model)
                 self.supports['dynamic_diagnostics'] = True
                 self.diagnostics_point_called = False
-                self.number_of_diag_vars_called = False
-
-            def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
-                self.diag_vars = len(diagnostics_vars)
 
             def diagnostics_point(self, diag_data = None):
                 self.diagnostics_point_called = True
-
-            def get_number_of_diag_vars(self):
-                self.number_of_diag_vars_called = True
-                return self.diag_vars
 
             def get_result(self):
                 return None
@@ -1364,7 +1356,6 @@ class TestResultFileBinary:
         opts["result_handler"] = res_handler
         model.simulate(options = opts)
 
-        nose.tools.assert_true(res_handler.number_of_diag_vars_called, msg = "get_number_of_diag_vars function was never called.")
         nose.tools.assert_true(res_handler.diagnostics_point_called, msg = "diagnostics_point function was never called.")
 
     @testattr(stddist = True)
@@ -1381,7 +1372,7 @@ class TestResultFileBinary:
                 super().__init__(model)
                 self.supports['dynamic_diagnostics'] = True
 
-            ## lacks implementation of diagnostics_point, get_number_of_diag_vars, will raise NotImplementedError
+            ## lacks implementation of diagnostics_point, default will raise NotImplementedError
 
             def get_result(self):
                 return None
@@ -1454,11 +1445,11 @@ class TestResultFileBinary:
         opts["ncp"] = 250
         res = model.simulate(options=opts)
         length = len(res['h'])
-        np.testing.assert_array_equal(res[f'{diagnostics_prefix}event_data.event_info.event_type'], np.ones(length) * (-1))
+        np.testing.assert_array_equal(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'], np.ones(length) * (-1))
 
         expected_solver_order = np.ones(length)
         expected_solver_order[0] = 0.0
-        np.testing.assert_array_equal(res[f'{diagnostics_prefix}solver.solver_order'], expected_solver_order)
+        np.testing.assert_array_equal(res[f'{DIAGNOSTICS_PREFIX}solver.solver_order'], expected_solver_order)
 
     @testattr(stddist = True)
     def test_get_last_result_file0(self):

@@ -20,18 +20,18 @@
 
 from pyfmi.fmi import FMUModelME2
 
-diagnostics_prefix = '@Diagnostics.'
+DIAGNOSTICS_PREFIX = '@Diagnostics.'
 
 class DiagnosticsBase:
     """ Class serves as a template
         to keep track of diagnostics variables not part of the generated result file.
     """
     calculated_diagnostics = {
-        'nbr_events': {'name': f'{diagnostics_prefix}nbr_events', 'description': 'Cumulative number of events'},
-        'nbr_time_events': {'name': f'{diagnostics_prefix}nbr_time_events', 'description': 'Cumulative number of time events'},
-        'nbr_state_events': {'name': f'{diagnostics_prefix}nbr_state_events', 'description': 'Cumulative number of state events'},
-        'nbr_steps': {'name': f'{diagnostics_prefix}nbr_steps', 'description': 'Cumulative number of steps'},
-        'nbr_state_limits_step': {'name': f'{diagnostics_prefix}nbr_state_limits_step', 'description': 'Cumulative number of times states limit the step'},
+        'nbr_events': {'name': f'{DIAGNOSTICS_PREFIX}nbr_events', 'description': 'Cumulative number of events'},
+        'nbr_time_events': {'name': f'{DIAGNOSTICS_PREFIX}nbr_time_events', 'description': 'Cumulative number of time events'},
+        'nbr_state_events': {'name': f'{DIAGNOSTICS_PREFIX}nbr_state_events', 'description': 'Cumulative number of state events'},
+        'nbr_steps': {'name': f'{DIAGNOSTICS_PREFIX}nbr_steps', 'description': 'Cumulative number of steps'},
+        'nbr_state_limits_step': {'name': f'{DIAGNOSTICS_PREFIX}nbr_state_limits_step', 'description': 'Cumulative number of times states limit the step'},
     }
 
 def setup_diagnostics_variables(model, start_time, options, solver_options):
@@ -42,7 +42,7 @@ def setup_diagnostics_variables(model, start_time, options, solver_options):
     if options.get("logging", False):
         solver_name = options["solver"]
 
-        _diagnostics_params[f"{diagnostics_prefix}solver.solver_name.{solver_name}"] = (1.0, "Chosen solver.")
+        _diagnostics_params[f"{DIAGNOSTICS_PREFIX}solver.solver_name.{solver_name}"] = (1.0, "Chosen solver.")
 
         support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE")
         support_solver_order = solver_name=="CVode"
@@ -58,31 +58,31 @@ def setup_diagnostics_variables(model, start_time, options, solver_options):
         states_list = model.get_states_list() if isinstance(model, FMUModelME2) else []
 
         if solver_name != "ExplicitEuler":
-            try:
-                rtol = solver_options['rtol']
-                atol = solver_options['atol']
-            except KeyError:
+            rtol = solver_options.get('rtol', None)
+            atol = solver_options.get('atol', None)
+            if (rtol is None) or (atol is None):
                 rtol, atol = model.get_tolerances()
-            _diagnostics_params[f"{diagnostics_prefix}solver.relative_tolerance"] = (rtol, "Relative solver tolerance.")
+                
+            _diagnostics_params[f"{DIAGNOSTICS_PREFIX}solver.relative_tolerance"] = (rtol, "Relative solver tolerance.")
 
             for idx, state in enumerate(states_list):
-                _diagnostics_params[f"{diagnostics_prefix}solver.absolute_tolerance."+state] = (atol[idx], "Absolute solver tolerance for "+state+".")
+                _diagnostics_params[f"{DIAGNOSTICS_PREFIX}solver.absolute_tolerance."+state] = (atol[idx], "Absolute solver tolerance for "+state+".")
 
-        _diagnostics_vars[f"{diagnostics_prefix}step_time"] = (start_time, "Step time")
+        _diagnostics_vars[f"{DIAGNOSTICS_PREFIX}step_time"] = (start_time, "Step time")
         if support_elapsed_time:
-            _diagnostics_vars[f"{diagnostics_prefix}cpu_time_per_step"] = (0, "CPU time per step.")
+            _diagnostics_vars[f"{DIAGNOSTICS_PREFIX}cpu_time_per_step"] = (0, "CPU time per step.")
         if support_solver_order:
-            _diagnostics_vars[f"{diagnostics_prefix}solver.solver_order"] = (0.0, "Solver order for CVode used in each time step")
+            _diagnostics_vars[f"{DIAGNOSTICS_PREFIX}solver.solver_order"] = (0.0, "Solver order for CVode used in each time step")
         if support_state_errors:
             for state in states_list:
-                _diagnostics_vars[f"{diagnostics_prefix}state_errors."+state] = (0.0, "State error for "+state+".")
+                _diagnostics_vars[f"{DIAGNOSTICS_PREFIX}state_errors."+state] = (0.0, "State error for "+state+".")
         if support_event_indicators:
             _, nof_ei = model.get_ode_sizes()
             ei_values = model.get_event_indicators() if nof_ei > 0 else []
             for i in range(nof_ei):
-                _diagnostics_vars[f"{diagnostics_prefix}event_data.event_info.indicator_"+str(i+1)] = (ei_values[i], "Value for event indicator {}.".format(i+1))
+                _diagnostics_vars[f"{DIAGNOSTICS_PREFIX}event_data.event_info.indicator_"+str(i+1)] = (ei_values[i], "Value for event indicator {}.".format(i+1))
             for i in range(nof_ei):
-                _diagnostics_vars[f"{diagnostics_prefix}event_data.event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
-            _diagnostics_vars[f"{diagnostics_prefix}event_data.event_info.event_type"] = (-1, "No event=-1, state event=0, time event=1")
+                _diagnostics_vars[f"{DIAGNOSTICS_PREFIX}event_data.event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
+            _diagnostics_vars[f"{DIAGNOSTICS_PREFIX}event_data.event_info.event_type"] = (-1, "No event=-1, state event=0, time event=1")
 
     return _diagnostics_params, _diagnostics_vars

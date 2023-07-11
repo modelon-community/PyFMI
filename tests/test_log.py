@@ -19,7 +19,7 @@ import os
 
 from pyfmi import testattr
 from pyfmi.common.log import extract_xml_log, parse_xml_log
-from pyfmi.common.diagnostics import diagnostics_prefix
+from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
 from pyfmi.tests.test_util import Dummy_FMUModelME2
 from pyfmi.fmi_util import decode
 
@@ -88,15 +88,15 @@ class Test_Log:
         opts["solver"] = solver_name
         res = model.simulate(options=opts)
         res_vars = res.keys()
-        full_solver_name = f"{diagnostics_prefix}solver.solver_name.{solver_name}"
+        full_solver_name = f"{DIAGNOSTICS_PREFIX}solver.solver_name.{solver_name}"
         assert full_solver_name in res_vars, f"Missing {full_solver_name} in results!"
-        assert f"{diagnostics_prefix}step_time" in res_vars, f"Missing {diagnostics_prefix}step_time in results!"
-        np.testing.assert_equal(res[f'{diagnostics_prefix}step_time'], res['time'], f"Expected {diagnostics_prefix}step_time and time to be equal but they weren't!")
-        np.testing.assert_equal(len(res[f'{diagnostics_prefix}cpu_time']), len(res['time']),
-                        f"Expected {diagnostics_prefix}cpu_time and time to be of equal length but they weren't!")
-        assert np.all(np.diff(res[f'{diagnostics_prefix}nbr_steps'])>= 0), "Expected cumulative number of steps to increase, but wasn't!"
-        np.testing.assert_equal(len(res[f'{diagnostics_prefix}nbr_steps']), len(res['time']),
-                        f"Expected {diagnostics_prefix}cpu_time and time to be of equal length but they weren't!")
+        assert f"{DIAGNOSTICS_PREFIX}step_time" in res_vars, f"Missing {DIAGNOSTICS_PREFIX}step_time in results!"
+        np.testing.assert_equal(res[f'{DIAGNOSTICS_PREFIX}step_time'], res['time'], f"Expected {DIAGNOSTICS_PREFIX}step_time and time to be equal but they weren't!")
+        np.testing.assert_equal(len(res[f'{DIAGNOSTICS_PREFIX}cpu_time']), len(res['time']),
+                        f"Expected {DIAGNOSTICS_PREFIX}cpu_time and time to be of equal length but they weren't!")
+        assert np.all(np.diff(res[f'{DIAGNOSTICS_PREFIX}nbr_steps'])>= 0), "Expected cumulative number of steps to increase, but wasn't!"
+        np.testing.assert_equal(len(res[f'{DIAGNOSTICS_PREFIX}nbr_steps']), len(res['time']),
+                        f"Expected {DIAGNOSTICS_PREFIX}cpu_time and time to be of equal length but they weren't!")
         np.testing.assert_equal(len(res['time']), len(res['h']), "Expected time and h to be of equal length but they weren't!")
         return res
 
@@ -104,47 +104,47 @@ class Test_Log:
     def test_logging_option_CVode(self):
         res = self._test_logging_different_solver("CVode")
         t = res['time']
-        np.testing.assert_equal(len(t), len(res[f'{diagnostics_prefix}solver.solver_order']), "Unequal length for time and solver_order!")
-        event_type = list(res[f'{diagnostics_prefix}event_data.event_info.event_type'])
+        np.testing.assert_equal(len(t), len(res[f'{DIAGNOSTICS_PREFIX}solver.solver_order']), "Unequal length for time and solver_order!")
+        event_type = list(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'])
         assert event_type.count(-1) == len(event_type), "Expected no events to have happened!"
-        assert (f'{diagnostics_prefix}state_errors.h' in res.keys()), f"'{diagnostics_prefix}state_errors.h' should be part of result variables!"
+        assert (f'{DIAGNOSTICS_PREFIX}state_errors.h' in res.keys()), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should be part of result variables!"
 
 
     @testattr(stddist = True)
     def test_logging_option_Radau5ODE(self):
         res = self._test_logging_different_solver("Radau5ODE")
-        event_type = list(res[f'{diagnostics_prefix}event_data.event_info.event_type'])
+        event_type = list(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'])
         assert event_type.count(-1) == len(event_type), "Expected no events to have happened!"
-        assert (f'{diagnostics_prefix}state_errors.h' in res.keys()), f"'{diagnostics_prefix}state_errors.h' should be part of result variables!"
+        assert (f'{DIAGNOSTICS_PREFIX}state_errors.h' in res.keys()), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should be part of result variables!"
 
     @testattr(stddist = True)
     def test_logging_option_ImplicitEuler(self):
         res = self._test_logging_different_solver("ImplicitEuler")
-        assert not (f'{diagnostics_prefix}state_errors.h' in res.keys()), f"'{diagnostics_prefix}state_errors.h' should not be part of result variables!"
+        assert not (f'{DIAGNOSTICS_PREFIX}state_errors.h' in res.keys()), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should not be part of result variables!"
 
     @testattr(stddist = True)
     def test_logging_option_ExplicitEuler(self):
         res = self._test_logging_different_solver("ExplicitEuler")
-        assert not (f'{diagnostics_prefix}state_errors.h' in res.keys()), f"'{diagnostics_prefix}state_errors.h' should not be part of result variables!"
+        assert not (f'{DIAGNOSTICS_PREFIX}state_errors.h' in res.keys()), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should not be part of result variables!"
 
     @testattr(stddist = True)
     def test_logging_option_LSODAR(self):
         res = self._test_logging_different_solver("LSODAR")
-        event_type = list(res[f'{diagnostics_prefix}event_data.event_info.event_type'])
+        event_type = list(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'])
         assert event_type.count(-1) == len(event_type), "Expected no events to have happened, but event_type contains: {}!".format(event_type)
 
     @testattr(stddist = True)
     def test_calculated_diagnostic(self):
          res = self._test_logging_different_solver("CVode")
-         np.testing.assert_equal(len(res['time']), len(res[f'{diagnostics_prefix}nbr_steps']),
+         np.testing.assert_equal(len(res['time']), len(res[f'{DIAGNOSTICS_PREFIX}nbr_steps']),
             "Expected time and Diagnostics.nbr_steps to be of equal length but they weren't!")
-         np.testing.assert_equal(len(res['time']), len(res[f'{diagnostics_prefix}nbr_time_events']),
+         np.testing.assert_equal(len(res['time']), len(res[f'{DIAGNOSTICS_PREFIX}nbr_time_events']),
             "Expected time and Diagnostics.nbr_time_events to be of equal length but they weren't!")
-         np.testing.assert_equal(len(res['time']), len(res[f'{diagnostics_prefix}nbr_state_events']),
+         np.testing.assert_equal(len(res['time']), len(res[f'{DIAGNOSTICS_PREFIX}nbr_state_events']),
             "Expected time and Diagnostics.nbr_state_events to be of equal length but they weren't!")
-         np.testing.assert_equal(len(res['time']), len(res[f'{diagnostics_prefix}nbr_events']),
+         np.testing.assert_equal(len(res['time']), len(res[f'{DIAGNOSTICS_PREFIX}nbr_events']),
             "Expected time and Diagnostics.nbr_events to be of equal length but they weren't!")
-         np.testing.assert_equal(len(res['time']), len(res[f'{diagnostics_prefix}nbr_state_limits_step.h']),
+         np.testing.assert_equal(len(res['time']), len(res[f'{DIAGNOSTICS_PREFIX}nbr_state_limits_step.h']),
             "Expected time and Diagnostics.nbr_state_limits_step.h to be of equal length but they weren't!")
 
 

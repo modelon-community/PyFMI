@@ -352,11 +352,13 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         self._set_absolute_tolerance_options()
 
+        number_of_diagnostics_variables = 0
         if self.result_handler.supports.get('dynamic_diagnostics'):
-            self._diagnostics_params, self._diagnostics_vars = setup_diagnostics_variables(model = self.model, 
-                                                                                           start_time = self.start_time,
-                                                                                           options = self.options,
-                                                                                           solver_options = self.solver_options)
+            _diagnostics_params, _diagnostics_vars = setup_diagnostics_variables(model = self.model, 
+                                                                                 start_time = self.start_time,
+                                                                                 options = self.options,
+                                                                                 solver_options = self.solver_options)
+            number_of_diagnostics_variables = len(_diagnostics_vars)
 
         #See if there is an time event at start time
         if isinstance(self.model, fmi.FMUModelME1):
@@ -372,7 +374,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         time_start = time_end
 
         if self.result_handler.supports.get('dynamic_diagnostics'):
-            self.result_handler.simulation_start(self._diagnostics_params, self._diagnostics_vars)
+            self.result_handler.simulation_start(_diagnostics_params, _diagnostics_vars)
         else:
             self.result_handler.simulation_start()
 
@@ -405,7 +407,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                          start_time = self.start_time,
                                          parameters = self.options["sensitivities"],
                                          logging = self.options["logging"],
-                                         result_handler = self.result_handler)
+                                         result_handler = self.result_handler,
+                                         number_of_diagnostics_variables = number_of_diagnostics_variables)
             else:
                 self.probl = FMIODE2(self.model,
                                      result_file_name = self.result_file_name,
@@ -414,7 +417,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                      logging = self.options["logging"],
                                      result_handler = self.result_handler,
                                      extra_equations = self.options["extra_equations"],
-                                     synchronize_simulation = self.options["synchronize_simulation"])
+                                     synchronize_simulation = self.options["synchronize_simulation"],
+                                     number_of_diagnostics_variables = number_of_diagnostics_variables)
         elif isinstance(self.model, ((fmi.FMUModelME2, fmi_coupled.CoupledFMUModelME2))):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(self.model,
@@ -424,7 +428,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                          start_time = self.start_time,
                                          parameters = self.options["sensitivities"],
                                          logging = self.options["logging"],
-                                         result_handler = self.result_handler)
+                                         result_handler = self.result_handler,
+                                         number_of_diagnostics_variables = number_of_diagnostics_variables)
             else:
                 self.probl = FMIODE2(self.model,
                                      input_traj,
@@ -434,7 +439,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                      logging = self.options["logging"],
                                      result_handler = self.result_handler,
                                      extra_equations = self.options["extra_equations"],
-                                     synchronize_simulation = self.options["synchronize_simulation"])
+                                     synchronize_simulation = self.options["synchronize_simulation"],
+                                     number_of_diagnostics_variables = number_of_diagnostics_variables)
 
         elif not self.input:
             if self.options["sensitivities"]:
@@ -537,6 +543,9 @@ class AssimuloFMIAlg(AlgorithmBase):
                            " Try using e.g., ResultHandlerBinaryFile.")
                 raise fmi.InvalidOptionException(err_msg)
             self.options['logging'] = True
+        elif self.options['logging']:
+            if self.result_handler.supports.get('dynamic_diagnostics'):
+                self.options["dynamic_diagnostics"] = True
 
         # solver options
         try:
@@ -684,7 +693,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         #If usejac is not set, try to set it according to if directional derivatives
         #exists. Also verifies that the option "usejac" exists for the solver.
         #(Only check for FMI2)
-        if self.with_jacobian and not "usejac" in solver_options:
+        if self.with_jacobian and "usejac" not in solver_options:
             try:
                 getattr(self.simulator, "usejac")
                 solver_options["usejac"] = True

@@ -39,7 +39,7 @@ else:
 import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
 from pyfmi.common import python3_flag, encode, decode
-from pyfmi.common.diagnostics import diagnostics_prefix, DiagnosticsBase
+from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, DiagnosticsBase
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
 
@@ -108,13 +108,6 @@ class ResultHandler:
     def diagnostics_point(self, diag_data = None):
         """ 
         Generates a data point for diagnostics data.
-        """
-        if self.supports.get('dynamic_diagnostics'):
-            raise NotImplementedError
-        
-    def get_number_of_diag_vars(self):
-        """
-        Get number of diagnostics variables.
         """
         if self.supports.get('dynamic_diagnostics'):
             raise NotImplementedError
@@ -1358,16 +1351,16 @@ class ResultDymolaBinary(ResultDymola):
             for name in dict_names:
                 if python3_flag and isinstance(name, bytes):
                     name = decode(name)
-                if name == f'{diagnostics_prefix}event_data.event_info.event_type':
+                if name == f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type':
                     name_dict[DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name']] = None
                     name_dict[DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name']] = None
                     name_dict[DiagnosticsBase.calculated_diagnostics['nbr_events']['name']] = None
                     continue
-                if f'{diagnostics_prefix}state_errors.' in name:
-                    state_name = name.replace(f'{diagnostics_prefix}state_errors.', '')
+                if f'{DIAGNOSTICS_PREFIX}state_errors.' in name:
+                    state_name = name.replace(f'{DIAGNOSTICS_PREFIX}state_errors.', '')
                     name_dict["{}.{}".format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name'], state_name)] = None
-                if name == f'{diagnostics_prefix}cpu_time_per_step':
-                    name_dict[f'{diagnostics_prefix}cpu_time'] = None
+                if name == f'{DIAGNOSTICS_PREFIX}cpu_time_per_step':
+                    name_dict[f'{DIAGNOSTICS_PREFIX}cpu_time'] = None
 
         return name_dict
 
@@ -1482,8 +1475,8 @@ class ResultDymolaBinary(ResultDymola):
             return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_events_and_steps(name))
         elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
              return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_nbr_state_limits_step(name))
-        elif name == f'{diagnostics_prefix}cpu_time':
-            return Trajectory(self._get_diagnostics_trajectory(0), N.cumsum(self.get_variable_data(f'{diagnostics_prefix}cpu_time_per_step').x))
+        elif name == f'{DIAGNOSTICS_PREFIX}cpu_time':
+            return Trajectory(self._get_diagnostics_trajectory(0), N.cumsum(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x))
         else:
             varInd  = self.get_variable_index(name)
 
@@ -1519,7 +1512,7 @@ class ResultDymolaBinary(ResultDymola):
         state_events_name = DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name']
         steps_name = DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']
         try:
-            event_type_data = self.get_variable_data(f'{diagnostics_prefix}event_data.event_info.event_type')
+            event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type')
         except Exception:
             if name == steps_name:
                 self._data_3[steps_name] = N.array(range(len(self._get_diagnostics_trajectory(0))))
@@ -1552,8 +1545,8 @@ class ResultDymolaBinary(ResultDymola):
             return self._data_3[name]
         step_limitation_name = '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name'])
         state_name = name.replace(step_limitation_name, '')
-        state_error_data = self.get_variable_data(f'{diagnostics_prefix}state_errors.'+state_name)
-        event_type_data = self.get_variable_data(f'{diagnostics_prefix}event_data.event_info.event_type')
+        state_error_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}state_errors.'+state_name)
+        event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type')
         self._data_3[name] = N.zeros(len(event_type_data.x))
         nof_times_state_limits_step = 0
         for ind, state_error in enumerate(state_error_data.x):
@@ -1581,7 +1574,7 @@ class ResultDymolaBinary(ResultDymola):
                       DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name'],
                       DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name'],
                       DiagnosticsBase.calculated_diagnostics['nbr_steps']['name'],
-                      f'{diagnostics_prefix}cpu_time']:
+                      f'{DIAGNOSTICS_PREFIX}cpu_time']:
             return True
         elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
             return True
@@ -2666,9 +2659,6 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.dump_data_internal.save_diagnostics_point(diag_data)
         self.nbr_diag_points += 1
         self._make_diagnostics_consistent()
-
-    def get_number_of_diag_vars(self):
-        return self.nof_diag_vars
 
     def _make_consistent(self):
         f = self._file
