@@ -1972,7 +1972,6 @@ class ResultHandlerFile(ResultHandler):
         #Store the continuous and discrete variables for result writing
         self.real_var_ref, self.int_var_ref, self.bool_var_ref = model.get_model_time_varying_value_references(filter=opts["filter"])
 
-        file_name = self.file_name
         parameters = self.parameters
 
         # Open file
@@ -2082,7 +2081,7 @@ class ResultHandlerFile(ResultHandler):
         descs_sens = []
         cont_vars = []
 
-        if parameters != None:
+        if parameters is not None:
 
             if isinstance(self.model, fmi.FMUModelME2):
                 vars = self.model.get_model_variables(type=fmi.FMI2_REAL,include_alias=False,variability=fmi.FMI2_CONTINUOUS,filter=self.options["filter"])

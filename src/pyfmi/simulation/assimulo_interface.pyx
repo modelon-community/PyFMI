@@ -19,7 +19,6 @@
 This file contains code for mapping FMUs to the Problem specifications
 required by Assimulo.
 """
-import logging
 import logging as logging_module
 from operator import index
 
@@ -47,7 +46,7 @@ try:
     import assimulo
     assimulo_present = True
 except Exception:
-    logging.warning(
+    logging_module.warning(
         'Could not load Assimulo module. Check pyfmi.check_packages()')
     assimulo_present = False
 
@@ -102,14 +101,14 @@ def createLogger(model, minimum_level):
     """
     filename = model.get_name()+'.log'
 
-    log = logging.getLogger(filename)
+    log = logging_module.getLogger(filename)
     log.setLevel(minimum_level)
 
-    #ch = logging.StreamHandler()
-    ch = logging.FileHandler(filename, mode='w', delay=True)
+    #ch = logging_module.StreamHandler()
+    ch = logging_module.FileHandler(filename, mode='w', delay=True)
     ch.setLevel(0)
 
-    formatter = logging.Formatter("%(name)s - %(message)s")
+    formatter = logging_module.Formatter("%(name)s - %(message)s")
 
     ch.setFormatter(formatter)
 
@@ -191,7 +190,7 @@ class FMIODE(Explicit_Problem):
             raise fmi.FMUException("Jacobians are not supported using FMI 1.0, please use FMI 2.0")
 
     def _adapt_input(self, input):
-        if input != None:
+        if input is not None:
             input_value_refs = []
             input_alias_type = []
             if isinstance(input[0],str):
@@ -216,7 +215,7 @@ class FMIODE(Explicit_Problem):
             self._model.continuous_states = y
 
         #Sets the inputs, if any
-        if self.input!=None:
+        if self.input is not None:
             self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
 
         #Evaluating the rhs
@@ -242,7 +241,7 @@ class FMIODE(Explicit_Problem):
             self._model.continuous_states = y
 
         #Sets the inputs, if any
-        if self.input!=None:
+        if self.input is not None:
             self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
 
         #Evaluating the event indicators
@@ -277,13 +276,13 @@ class FMIODE(Explicit_Problem):
                 self._model.continuous_states = y
 
             #Sets the inputs, if any
-            if self.input!=None:
+            if self.input is not None:
                 self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
-        if self.export != None:
+        if self.export is not None:
             self.export.integration_point()
 
         self.timings["handle_result"] += timer() - time_start
@@ -300,7 +299,7 @@ class FMIODE(Explicit_Problem):
                 self._model.continuous_states = solver.y
 
             #Sets the inputs, if any
-            if self.input!=None:
+            if self.input is not None:
                 self._model.set_real(self.input_value_refs, self.input[1].eval(N.array([solver.t]))[0,:]*self.input_alias_type)
 
             #Evaluating the rhs (Have to evaluate the values in the model)
@@ -391,7 +390,7 @@ class FMIODE(Explicit_Problem):
                 self._model.continuous_states = solver.y
 
             #Sets the inputs, if any
-            if self.input!=None:
+            if self.input is not None:
                 self._model.set_real(self.input_value_refs, self.input[1].eval(N.array([solver.t]))[0,:]*self.input_alias_type)
                 #self._model.set(self.input[0],self.input[1].eval(N.array([solver.t]))[0,:])
 
@@ -491,7 +490,7 @@ class FMIODE(Explicit_Problem):
             f.write(header+"\n")
 
     def finalize(self, solver):
-        if self.export != None:
+        if self.export is not None:
             self.export.simulation_end()
 
         if self.debug_file_object:
@@ -524,7 +523,7 @@ class FMIODESENS(FMIODE):
                 start_time,logging,result_handler)
 
         #Store the parameters
-        if parameters != None:
+        if parameters is not None:
             if not isinstance(parameters,list):
                 raise FMIModel_Exception("Parameters must be a list of names.")
             self.p0 = N.array(model.get(parameters)).flatten()
@@ -534,7 +533,7 @@ class FMIODESENS(FMIODE):
 
     def rhs(self, t, y, p=None, sw=None):
         #Sets the parameters, if any
-        if self.parameters != None:
+        if self.parameters is not None:
             self._model.set(self.parameters, p)
 
         return FMIODE.rhs(self,t,y,sw)
@@ -543,7 +542,7 @@ class FMIODESENS(FMIODE):
     def j(self, t, y, p=None, sw=None):
 
         #Sets the parameters, if any
-        if self.parameters != None:
+        if self.parameters is not None:
             self._model.set(self.parameters, p)
 
         return FMIODE.j(self,t,y,sw)
@@ -563,14 +562,14 @@ class FMIODESENS(FMIODE):
                 self._model.continuous_states = y
 
             #Sets the inputs, if any
-            if self.input!=None:
+            if self.input is not None:
                 self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
         #Sets the parameters, if any
-        if self.parameters != None:
+        if self.parameters is not None:
             p_data = N.array(solver.interpolate_sensitivity(t, 0)).flatten()
 
         self.export.integration_point(solver)#parameter_data=p_data)
@@ -684,7 +683,7 @@ cdef class FMIODE2(cExplicit_Problem):
         self._event_temp_1 = N.empty(g_nbr, dtype = N.double)
 
     def _adapt_input(self, input):
-        if input != None:
+        if input is not None:
             input_names = input[0]
             self.input_len_names = len(input_names)
             self.input_real_value_refs = []
@@ -1331,10 +1330,10 @@ class FMIODESENS2(FMIODE2):
 
         #Call FMIODE init method
         FMIODE2.__init__(self, model, input, result_file_name, with_jacobian,
-                start_time,logging, result_handler, extra_equations)
+                start_time, logging, result_handler, extra_equations)
 
         #Store the parameters
-        if parameters != None:
+        if parameters is not None:
             if not isinstance(parameters,list):
                 raise FMIModel_Exception("Parameters must be a list of names.")
             self.p0 = N.array(model.get(parameters)).flatten()
@@ -1368,14 +1367,14 @@ class FMIODESENS2(FMIODE2):
 
     def rhs(self, t, y, p=None, sw=None):
         #Sets the parameters, if any
-        if self.parameters != None:
+        if self.parameters is not None:
             self._model.set(self.parameters, p)
 
         return FMIODE2.rhs(self,t,y,sw)
 
     def jac(self, t, y, p=None, sw=None):
         #Sets the parameters, if any
-        if self.parameters != None:
+        if self.parameters is not None:
             self._model.set(self.parameters, p)
 
         return FMIODE2.jac(self,t,y,sw)

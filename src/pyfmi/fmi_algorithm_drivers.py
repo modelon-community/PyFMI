@@ -20,7 +20,7 @@ pyfmi.fmi.FMUModel*.simulate.
 """
 
 #from abc import ABCMeta, abstractmethod
-import logging
+import logging as logging_module
 import time
 import numpy as N
 
@@ -99,12 +99,9 @@ class AssimuloFMIAlgOptions(OptionBase):
             Default: "Default"
 
         dynamic_diagnostics --
-            If True, enables logging of diagnostics data to the binary result file. This requires that
+            If True, enables logging of diagnostics data to a result file. This requires that
             the option 'result_handler' supports 'dynamic_diagnostics', otherwise an exception is raised.
             The default 'result_handler' ResultHandlerBinaryFile supports 'dynamic_diagnostics'.
-            Model variable names are not allowed to start with 'Diagnostics' using this option
-            and a check for this is performed before simulation start. If this criteria is not
-            met an exception is raised.
             The diagnostics data will be available via the simulation results and/or the
             binary result file generated during simulation.
             Default: False
@@ -368,7 +365,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.model.event_update()
 
         if abs(start_time - model.time) > 1e-14:
-            logging.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
+            logging_module.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
 
         time_end = timer()
         self.timings["initializing_fmu"] = time_end - time_start - time_res_init
@@ -486,7 +483,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             self.result_handler = ResultHandlerFile(self.model)
         elif self.options["result_handling"] == "binary":
             if self.options["sensitivities"]:
-                logging.warning('The binary result file do not currently support storing of sensitivity results. Switching to textual result format.')
+                logging_module.warning('The binary result file do not currently support storing of sensitivity results. Switching to textual result format.')
                 self.result_handler = ResultHandlerFile(self.model)
             else:
                 self.result_handler = ResultHandlerBinaryFile(self.model)
@@ -501,8 +498,8 @@ class AssimuloFMIAlg(AlgorithmBase):
             if not isinstance(self.result_handler, ResultHandler):
                 raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
         elif (self.options["result_handling"] is None) or (self.options["result_handling"] == 'none'): #No result handling (for performance)
-            if self.options["result_handling"] == 'none':
-                logging.warning("result_handling = 'none' is deprecated. Please use None instead.")
+            if self.options["result_handling"] == 'none': ## TODO: Future; remove this
+                logging_module.warning("result_handling = 'none' is deprecated. Please use None instead.")
             self.result_handler = ResultHandlerDummy(self.model)
         else:
             raise fmi.FMUException("Unknown option to result_handling.")
@@ -670,7 +667,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                         return
                 # Success.
                 self.solver_options["atol"] = atol * self.model.nominal_continuous_states / preinit_nominals
-                logging.info("Absolute tolerances have been recalculated by using values for state nominals from " +
+                logging_module.info("Absolute tolerances have been recalculated by using values for state nominals from " +
                              "after initialization.")
         except KeyError:
             pass
@@ -710,7 +707,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             rtol_vector_support = self.simulator.supports.get("rtol_as_vector", False)
             
             if rtol_is_vector and not rtol_vector_support and self._rtol_as_scalar_fallback:
-                logging.warning("The chosen solver do not support providing the relative tolerance as a vector, fallback to using a scalar instead. rtol = %g"%self.rtol)
+                logging_module.warning("The chosen solver do not support providing the relative tolerance as a vector, fallback to using a scalar instead. rtol = %g"%self.rtol)
                 solver_options["rtol"] = self.rtol
 
         #loop solver_args and set properties of solver
@@ -1011,7 +1008,7 @@ class FMICSAlg(AlgorithmBase):
             raise fmi.FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
 
         if abs(start_time - model.time) > 1e-14:
-            logging.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
+            logging_module.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
 
         time_end = timer()
         self.timings["initializing_fmu"] = time_end - time_start - time_res_init
@@ -1041,7 +1038,7 @@ class FMICSAlg(AlgorithmBase):
                 raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
         elif (self.options["result_handling"] is None) or (self.options["result_handling"] == 'none'): #No result handling (for performance)
             if self.options["result_handling"] == 'none':
-                logging.warning("result_handling = 'none' is deprecated. Please use None instead.")
+                logging_module.warning("result_handling = 'none' is deprecated. Please use None instead.")
             self.result_handler = ResultHandlerDummy(self.model)
         else:
             raise fmi.FMUException("Unknown option to result_handling.")

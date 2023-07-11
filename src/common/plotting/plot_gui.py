@@ -174,7 +174,7 @@ class MainGUI(wx.Frame):
         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CHANGING, self.OnTabChanging, self.noteBook)
         #Bind the changed of a tab
         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CHANGED, self.OnTabChanged, self.noteBook)
-        if not filename == None:
+        if filename is not None:
             self._OpenFile(filename)
         
         self.Centre(True) #Position the GUI in the centre of the screen
@@ -717,10 +717,10 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         self.global_id = self.global_id + 1
         
         #print "Adding: ", name, "Options: ", timeVarying, parametersConstants, filter
-        #print "Condition: ", timeVarying == False or parametersConstants == False or filter != None
+        #print "Condition: ", timeVarying == False or parametersConstants == False or filter is not None
         
         #Hide nodes if options are choosen
-        if timeVarying == False or parametersConstants == False or filter != None:
+        if timeVarying == False or parametersConstants == False or filter is not None:
             self.HideNodes(timeVarying,parametersConstants,filter)
         
         #Un-Freeze the window
@@ -740,7 +740,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         """
         while True:
             nextItem,cookie = self.GetNextChild(child,0)
-            if nextItem != None:
+            if nextItem is not None:
                 child = nextItem
             else:
                 break
@@ -753,7 +753,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         while child != itemParent:
             nextItem = self.GetNextSibling(child)
             
-            if nextItem != None:
+            if nextItem is not None:
                 return nextItem
 
             child = self.GetItemParent(child)
@@ -776,8 +776,8 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         top_siblings = self.FindTopSiblings()
         
         #Hide items if any of the options are True
-        if showTimeVarying == False or showParametersConstants == False or filter != None:
-            while child != itemParent and child != None:
+        if showTimeVarying == False or showParametersConstants == False or filter is not None:
+            while child != itemParent and child is not None:
                 already_hidden = False
                 
                 #Find the first youngest child
@@ -794,7 +794,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                 #print "Found child:", self.GetItemText(found_child)
                 #print "Child: ", self.GetItemText(child), self.GetPyData(child), "Has Children: ", self.HasChildren(child)
                 
-                if data == None:
+                if data is None:
                     print("Found (wrong) child:", self.GetItemText(found_child))
                     raise Exception
                 
@@ -804,7 +804,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                     print("Found (wrong (exception)) child:", self.GetItemText(found_child))
                     raise Exception
                     
-                if data["timevarying"] == None:
+                if data["timevarying"] is None:
                     data["timevarying"] = data["result_object"].is_variable(data["full_name"])
                 
                 #Enable or disable depending on input to method
@@ -824,14 +824,14 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                     
                     already_hidden = True
                 
-                if not already_hidden and filter != None and not match(data["full_name"], filter):
+                if not already_hidden and filter is not None and not match(data["full_name"], filter):
                     self.HideItem(found_child, show=False)
                     
                     #Delete the parent if it has no children
                     self.HideNodeItem(found_child)
         
         #Re-add items if any of the options are True
-        if showTimeVarying == True or showParametersConstants == True or filter != None:
+        if showTimeVarying == True or showParametersConstants == True or filter is not None:
             self.AddHiddenItems(showTimeVarying, showParametersConstants, filter)
     
     def FindTopSiblings(self):
@@ -843,7 +843,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
             child,cookie = self.GetFirstChild(itemParent)
             
             siblings = []
-            while child != None:
+            while child is not None:
                 siblings.append(child)
                 child = self.GetNextSibling(child)
             self._top_siblings = siblings
@@ -867,20 +867,20 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                 i = i+1
                 continue
             
-            if filter != None:
+            if filter is not None:
                 matching = match(data["full_name"], filter)
             
-            if     data["timevarying"] and showTimeVarying == True and (filter == None or filter != None and matching == True) or \
-               not data["timevarying"] and showParametersConstants == True and (filter == None or filter != None and matching == True):
-               #or filter != None and match(data["full_name"], filter):
+            if     data["timevarying"] and showTimeVarying == True and (filter is None or filter is not None and matching == True) or \
+               not data["timevarying"] and showParametersConstants == True and (filter is None or filter is not None and matching == True):
+               #or filter is not None and match(data["full_name"], filter):
                 
-                if self.nodes[data["result_id"]][data["node_id"]]["node"] == None:
+                if self.nodes[data["result_id"]][data["node_id"]]["node"] is None:
                     self.AddHiddenNodes(data)
                 
                 #print "Adding: ", data
                 #print "At node: ", self.nodes[data["result_id"]][data["node_id"]]
                 item = self.AppendItem(self.nodes[data["result_id"]][data["node_id"]]["node"], data["child"],ct_type=1, data=data)
-                if item == None:
+                if item is None:
                     raise Exception("Something went wrong when adding the variable.")
                 
                 if data["item_checked"] is not None: #Item was previously checked.
@@ -896,10 +896,10 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         node = self.nodes[data["result_id"]][data["node_id"]]
         nodes_to_be_added = [node]
         
-        while node["node"] == None and node["parent_node_id"] != -1:
+        while node["node"] is None and node["parent_node_id"] != -1:
             node = self.nodes[data["result_id"]][node["parent_node_id"]]
             
-            if node["node"] != None:
+            if node["node"] is not None:
                 break
             
             nodes_to_be_added.append(node)
@@ -1167,7 +1167,7 @@ class DialogLinesLegends(wx.Dialog):
         self.plotWidth.SetValue(str(var[3].width))
         self.plotMarkerSize.SetValue(str(var[3].markersize))
         
-        if var[3].color == None:
+        if var[3].color is None:
             self.plotColor.SetSelection(0)
         else:
             self.plotColor.SetSelection(self.ColorsDict[var[3].color[0].upper()+var[3].color[1:]])
@@ -1201,10 +1201,10 @@ class DialogAxisLabels(wx.Dialog):
         plotXAxisStatic.SetFont(font)
         plotYAxisStatic.SetFont(font)
         
-        self.plotYAxisMin = wx.TextCtrl(self, -1, "" if settings["YAxisMin"]==None else str(settings["YAxisMin"]), style = wx.TE_LEFT , size =(150,-1))
-        self.plotYAxisMax = wx.TextCtrl(self, -1, "" if settings["YAxisMax"]==None else str(settings["YAxisMax"]), style = wx.TE_LEFT , size =(150,-1))
-        self.plotXAxisMin = wx.TextCtrl(self, -1, "" if settings["XAxisMin"]==None else str(settings["XAxisMin"]), style = wx.TE_LEFT , size =(150,-1))
-        self.plotXAxisMax = wx.TextCtrl(self, -1, "" if settings["XAxisMax"]==None else str(settings["XAxisMax"]), style = wx.TE_LEFT , size =(150,-1))
+        self.plotYAxisMin = wx.TextCtrl(self, -1, "" if settings["YAxisMin"] is None else str(settings["YAxisMin"]), style = wx.TE_LEFT , size =(150,-1))
+        self.plotYAxisMax = wx.TextCtrl(self, -1, "" if settings["YAxisMax"] is None else str(settings["YAxisMax"]), style = wx.TE_LEFT , size =(150,-1))
+        self.plotXAxisMin = wx.TextCtrl(self, -1, "" if settings["XAxisMin"] is None else str(settings["XAxisMin"]), style = wx.TE_LEFT , size =(150,-1))
+        self.plotXAxisMax = wx.TextCtrl(self, -1, "" if settings["XAxisMax"] is None else str(settings["XAxisMax"]), style = wx.TE_LEFT , size =(150,-1))
         
         self.plotTitle = wx.TextCtrl(self, -1, settings["Title"], style = wx.TE_LEFT , size =(150,-1))
         self.plotXLabel = wx.TextCtrl(self, -1, settings["XLabel"], style = wx.TE_LEFT , size =(150,-1))
@@ -1428,13 +1428,13 @@ class PlotPanel(wx.Panel):
     
     def DeletePlotVariable(self, local_id=None, global_id=None):
         
-        if local_id != None:
+        if local_id is not None:
             for i,var in enumerate(self.plotVariables):
                 if var[2]["variable_id"] == local_id:
                     self.plotVariables.pop(i)
                     break
                     
-        if global_id != None:
+        if global_id is not None:
             j = 0
             while j < len(self.plotVariables):
                 if self.plotVariables[j][2]["result_id"] == global_id:
@@ -1673,25 +1673,25 @@ class PlotPanel(wx.Panel):
             self.subplot.legend(loc=self.settings["LegendPosition"])
         
         #Draw axis settings
-        if self.settings["XAxisMin"] != None:
+        if self.settings["XAxisMin"] is not None:
             #self.subplot.set_xlim(left=self.settings["XAxisMin"])
             self.subplot.set_xlim(xmin=self.settings["XAxisMin"])
-        if self.settings["XAxisMax"] != None:
+        if self.settings["XAxisMax"] is not None:
             #self.subplot.set_xlim(right=self.settings["XAxisMax"])
             self.subplot.set_xlim(xmax=self.settings["XAxisMax"])
-        if self.settings["XAxisMax"] == None and self.settings["XAxisMin"] == None:
+        if self.settings["XAxisMax"] is None and self.settings["XAxisMin"] is None:
             self.subplot.set_xlim(None,None)
             self.subplot.set_autoscalex_on(True)
             #self.subplot.autoscale(axis="x")
             self.subplot.autoscale_view(scalex=True)
         
-        if self.settings["YAxisMin"] != None:
+        if self.settings["YAxisMin"] is not None:
             #self.subplot.set_ylim(bottom=self.settings["YAxisMin"])
             self.subplot.set_ylim(ymin=self.settings["YAxisMin"])
-        if self.settings["YAxisMax"] != None:
+        if self.settings["YAxisMax"] is not None:
             #self.subplot.set_ylim(top=self.settings["YAxisMax"])
             self.subplot.set_ylim(ymax=self.settings["YAxisMax"])
-        if self.settings["YAxisMax"] == None and self.settings["YAxisMin"] == None:
+        if self.settings["YAxisMax"] is None and self.settings["YAxisMin"] is None:
             self.subplot.set_ylim(None,None)
             self.subplot.set_autoscaley_on(True)
             #self.subplot.autoscale(axis="y") #METHOD DOES NOT EXIST ON VERSION LESS THAN 1.0
@@ -1706,28 +1706,28 @@ class PlotPanel(wx.Panel):
         """
         Updates the settings dict.
         """
-        if grid !=None:
+        if grid  is not None:
             self.settings["Grid"] = grid
-        if title !=None:
+        if title  is not None:
             self.settings["Title"] = title
-        if xlabel !=None:
+        if xlabel  is not None:
             self.settings["XLabel"] = xlabel
-        if ylabel !=None:
+        if ylabel  is not None:
             self.settings["YLabel"] = ylabel
-        if axes != None:
+        if axes is not None:
             self.settings["XAxisMin"]=axes[0]
             self.settings["XAxisMax"]=axes[1]
             self.settings["YAxisMin"]=axes[2]
             self.settings["YAxisMax"]=axes[3]
-        if move != None:
+        if move is not None:
             self.settings["Move"] = move
-        if zoom != None:
+        if zoom is not None:
             self.settings["Zoom"] = zoom
-        if xscale != None:
+        if xscale is not None:
             self.settings["XScale"] = xscale
-        if yscale != None:
+        if yscale is not None:
             self.settings["YScale"] = yscale
-        if legendposition != None:
+        if legendposition is not None:
             self.settings["LegendPosition"] = legendposition
 
     def UpdateCursor(self):

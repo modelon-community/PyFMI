@@ -436,7 +436,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
                                            fmi2EnterInitializationMode,
                                            fmi2ExitInitializationMode
         """
-        if self.time == None:
+        if self.time is None:
             self.setup_experiment(tolerance_defined, tolerance, start_time, stop_time_defined, stop_time)
         
         self.enter_initialization_mode()
@@ -464,7 +464,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         Note that the method initialize() performs both the enter and 
         exit of initialization mode.
         """
-        if self.time == None:
+        if self.time is None:
             raise fmi.FMUException("Setup Experiment has to be called prior to the initialization method.")
         
         self._update_coupling_equations()
@@ -1546,7 +1546,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             The nominal value of the given variable.
         """
 
-        if valueref != None:
+        if valueref is not None:
             local_vr = self._get_local_vr(valueref)#valueref & 0x00000000FFFFFFFF
             model_ind = self._get_model_index_from_vr(valueref)#valueref >> 32
             
@@ -1557,7 +1557,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
                 
             return model.get_variable_nominal(valueref=local_vr)
             
-        elif variable_name != None:
+        elif variable_name is not None:
             name_parts = variable_name.split(".")
             try:
                 model_name = name_parts[0]
