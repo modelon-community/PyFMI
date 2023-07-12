@@ -19,7 +19,6 @@
 This file contains code for mapping FMUs to the Problem specifications
 required by Assimulo.
 """
-import logging
 import logging as logging_module
 from operator import index
 
@@ -46,8 +45,8 @@ cimport fmil_import as FMIL
 try:
     import assimulo
     assimulo_present = True
-except:
-    logging.warning(
+except Exception:
+    logging_module.warning(
         'Could not load Assimulo module. Check pyfmi.check_packages()')
     assimulo_present = False
 
@@ -102,14 +101,14 @@ def createLogger(model, minimum_level):
     """
     filename = model.get_name()+'.log'
 
-    log = logging.getLogger(filename)
+    log = logging_module.getLogger(filename)
     log.setLevel(minimum_level)
 
-    #ch = logging.StreamHandler()
-    ch = logging.FileHandler(filename, mode='w', delay=True)
+    #ch = logging_module.StreamHandler()
+    ch = logging_module.FileHandler(filename, mode='w', delay=True)
     ch.setLevel(0)
 
-    formatter = logging.Formatter("%(name)s - %(message)s")
+    formatter = logging_module.Formatter("%(name)s - %(message)s")
 
     ch.setFormatter(formatter)
 
@@ -122,7 +121,8 @@ class FMIODE(Explicit_Problem):
     An Assimulo Explicit Model extended to FMI interface.
     """
     def __init__(self, model, input=None, result_file_name='',
-                 with_jacobian=False, start_time=0.0, logging=False, result_handler=None):
+                 with_jacobian=False, start_time=0.0, logging=False,
+                 result_handler=None):
         """
         Initialize the problem.
         """
@@ -171,11 +171,8 @@ class FMIODE(Explicit_Problem):
         self._write_header = True
         self._logging = logging
 
-        if self._logging and isinstance(result_handler, ResultHandlerBinaryFile):
-            self._logging_to_mat = 1
-        else:
-            self._logging_to_mat = 0
-
+        ## If result handler support is available, logging turns into dynamic_diagnostics
+        self._logging_as_dynamic_diagnostics = self._logging and result_handler.supports.get("dynamic_diagnostics")
 
         #Stores the first time point
         #[r,i,b] = self._model.save_time_point()
@@ -191,7 +188,7 @@ class FMIODE(Explicit_Problem):
             raise fmi.FMUException("Jacobians are not supported using FMI 1.0, please use FMI 2.0")
 
     def _adapt_input(self, input):
-        if input != None:
+        if input is not None:
             input_value_refs = []
             input_alias_type = []
             if isinstance(input[0],str):
@@ -216,7 +213,7 @@ class FMIODE(Explicit_Problem):
             self._model.continuous_states = y
 
         #Sets the inputs, if any
-        if self.input!=None:
+        if self.input is not None:
             self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
 
         #Evaluating the rhs
@@ -242,7 +239,7 @@ class FMIODE(Explicit_Problem):
             self._model.continuous_states = y
 
         #Sets the inputs, if any
-        if self.input!=None:
+        if self.input is not None:
             self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
 
         #Evaluating the event indicators
@@ -256,7 +253,7 @@ class FMIODE(Explicit_Problem):
         """
         eInfo = self._model.get_event_info()
 
-        if eInfo.upcomingTimeEvent == True:
+        if eInfo.upcomingTimeEvent:
             return eInfo.nextEventTime
         else:
             return None
@@ -277,13 +274,13 @@ class FMIODE(Explicit_Problem):
                 self._model.continuous_states = y
 
             #Sets the inputs, if any
-            if self.input!=None:
+            if self.input is not None:
                 self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
-        if self.export != None:
+        if self.export is not None:
             self.export.integration_point()
 
         self.timings["handle_result"] += timer() - time_start
@@ -300,7 +297,7 @@ class FMIODE(Explicit_Problem):
                 self._model.continuous_states = solver.y
 
             #Sets the inputs, if any
-            if self.input!=None:
+            if self.input is not None:
                 self._model.set_real(self.input_value_refs, self.input[1].eval(N.array([solver.t]))[0,:]*self.input_alias_type)
 
             #Evaluating the rhs (Have to evaluate the values in the model)
@@ -318,7 +315,7 @@ class FMIODE(Explicit_Problem):
             for i in self._model.get_derivatives():
                 str_der += " %.14E"%i
 
-            if self._logging_to_mat == 0:
+            if not self._logging_as_dynamic_diagnostics:
                 fwrite = self._get_debug_file_object()
                 fwrite.write("\nDetected event at t = %.14E \n"%solver.t)
                 fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
@@ -327,12 +324,12 @@ class FMIODE(Explicit_Problem):
         eInfo = self._model.get_event_info()
         eInfo.iterationConverged = False
 
-        while eInfo.iterationConverged == False:
+        while not eInfo.iterationConverged:
             self._model.event_update(intermediateResult=False)
 
             eInfo = self._model.get_event_info()
             #Retrieve solutions (if needed)
-            #if eInfo.iterationConverged == False:
+            #if not eInfo.iterationConverged:
             #    pass
 
         #Check if the event affected the state values and if so sets them
@@ -353,7 +350,7 @@ class FMIODE(Explicit_Problem):
         if eInfo.terminateSimulation:
             raise TerminateSimulation #Exception from Assimulo
 
-        if self._logging and (self._logging_to_mat == 0):
+        if self._logging and not self._logging_as_dynamic_diagnostics:
             str_ind2 = ""
             for i in self._model.get_event_indicators():
                 str_ind2 += " %.14E"%i
@@ -391,7 +388,7 @@ class FMIODE(Explicit_Problem):
                 self._model.continuous_states = solver.y
 
             #Sets the inputs, if any
-            if self.input!=None:
+            if self.input is not None:
                 self._model.set_real(self.input_value_refs, self.input[1].eval(N.array([solver.t]))[0,:]*self.input_alias_type)
                 #self._model.set(self.input[0],self.input[1].eval(N.array([solver.t]))[0,:])
 
@@ -419,7 +416,7 @@ class FMIODE(Explicit_Problem):
                 msg = preface + "</%s>"%solver_name
                 self._model.append_log_message("Model", 6, msg)
 
-            if self._logging_to_mat == 0:
+            if not self._logging_as_dynamic_diagnostics:
                 data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
 
                 if solver.__class__.__name__=="CVode": #Only available for CVode
@@ -465,7 +462,7 @@ class FMIODE(Explicit_Problem):
         return self.debug_file_object
 
     def initialize(self, solver):
-        if self._logging and (self._logging_to_mat == 0):
+        if self._logging and not self._logging_as_dynamic_diagnostics:
             self.debug_file_object = open(self.debug_file_name, 'w')
             f = self.debug_file_object
 
@@ -491,7 +488,7 @@ class FMIODE(Explicit_Problem):
             f.write(header+"\n")
 
     def finalize(self, solver):
-        if self.export != None:
+        if self.export is not None:
             self.export.simulation_end()
 
         if self.debug_file_object:
@@ -524,7 +521,7 @@ class FMIODESENS(FMIODE):
                 start_time,logging,result_handler)
 
         #Store the parameters
-        if parameters != None:
+        if parameters is not None:
             if not isinstance(parameters,list):
                 raise FMIModel_Exception("Parameters must be a list of names.")
             self.p0 = N.array(model.get(parameters)).flatten()
@@ -534,7 +531,7 @@ class FMIODESENS(FMIODE):
 
     def rhs(self, t, y, p=None, sw=None):
         #Sets the parameters, if any
-        if self.parameters != None:
+        if self.parameters is not None:
             self._model.set(self.parameters, p)
 
         return FMIODE.rhs(self,t,y,sw)
@@ -543,7 +540,7 @@ class FMIODESENS(FMIODE):
     def j(self, t, y, p=None, sw=None):
 
         #Sets the parameters, if any
-        if self.parameters != None:
+        if self.parameters is not None:
             self._model.set(self.parameters, p)
 
         return FMIODE.j(self,t,y,sw)
@@ -563,14 +560,14 @@ class FMIODESENS(FMIODE):
                 self._model.continuous_states = y
 
             #Sets the inputs, if any
-            if self.input!=None:
+            if self.input is not None:
                 self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
         #Sets the parameters, if any
-        if self.parameters != None:
+        if self.parameters is not None:
             p_data = N.array(solver.interpolate_sensitivity(t, 0)).flatten()
 
         self.export.integration_point(solver)#parameter_data=p_data)
@@ -585,7 +582,8 @@ cdef class FMIODE2(cExplicit_Problem):
 
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False,
-                 result_handler=None, extra_equations=None, synchronize_simulation=False):
+                 result_handler=None, extra_equations=None, synchronize_simulation=False,
+                 number_of_diagnostics_variables = 0):
         """
         Initialize the problem.
         """
@@ -640,10 +638,9 @@ cdef class FMIODE2(cExplicit_Problem):
         self._sparse_representation = False
         self._with_jacobian = with_jacobian
 
-        if self._logging and isinstance(result_handler, ResultHandlerBinaryFile):
-            self._logging_to_mat = 1
-        else:
-            self._logging_to_mat = 0
+        ## If result handler support is available, logging turns into dynamic_diagnostics
+        self._logging_as_dynamic_diagnostics = self._logging and result_handler.supports.get("dynamic_diagnostics")
+        self._number_of_diagnostics_variables = number_of_diagnostics_variables
 
         self.jac_use = False
         if f_nbr > 0 and with_jacobian:
@@ -675,7 +672,7 @@ cdef class FMIODE2(cExplicit_Problem):
                     self._synchronize_factor = synchronize_simulation
                 else:
                     raise fmi.InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
-            except:
+            except Exception:
                 raise fmi.InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.") 
         else:
             self._synchronize_factor = 0.0
@@ -684,7 +681,7 @@ cdef class FMIODE2(cExplicit_Problem):
         self._event_temp_1 = N.empty(g_nbr, dtype = N.double)
 
     def _adapt_input(self, input):
-        if input != None:
+        if input is not None:
             input_names = input[0]
             self.input_len_names = len(input_names)
             self.input_real_value_refs = []
@@ -887,7 +884,7 @@ cdef class FMIODE2(cExplicit_Problem):
         """
         eInfo = self._model.get_event_info()
 
-        if eInfo.nextEventTimeDefined == True:
+        if eInfo.nextEventTimeDefined:
             return eInfo.nextEventTime
         else:
             return None
@@ -961,7 +958,7 @@ cdef class FMIODE2(cExplicit_Problem):
             for i in self._model.get_derivatives():
                 str_der += " %.14E"%i
 
-            if self._logging_to_mat == 0:
+            if not self._logging_as_dynamic_diagnostics:
                 fwrite = self._get_debug_file_object()
                 fwrite.write("\nDetected event at t = %.14E \n"%solver.t)
                 fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
@@ -982,7 +979,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 msg = preface + '</%s>'%(event_info_tag)
                 self._model.append_log_message("Model", 6, msg)
             else:
-                diag_data = N.ndarray(self.export.nof_diag_vars,dtype=float)
+                diag_data = N.ndarray(self._number_of_diagnostics_variables, dtype=float)
                 index = 0
                 diag_data[index] = solver.t
                 index +=1
@@ -1008,7 +1005,7 @@ cdef class FMIODE2(cExplicit_Problem):
                             diag_data[index] = ei
                             index +=1
                     if event_info[1]:
-                        while index < self.export.nof_diag_vars-1:
+                        while index < self._number_of_diagnostics_variables - 1:
                             diag_data[index] = 0
                             index +=1
                         diag_data[index] = 1.0
@@ -1019,8 +1016,8 @@ cdef class FMIODE2(cExplicit_Problem):
                             index +=1
                         diag_data[index] = 0.0
                         index +=1
-                if index != self.export.nof_diag_vars:
-                    raise fmi.FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self.export.nof_diag_vars, index))
+                if index != self._number_of_diagnostics_variables:
+                    raise fmi.FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self._number_of_diagnostics_variables, index))
                 self.export.diagnostics_point(diag_data)
 
 
@@ -1057,7 +1054,7 @@ cdef class FMIODE2(cExplicit_Problem):
             for i in self._model.get_derivatives():
                 str_der2 += " %.14E"%i
 
-            if self._logging_to_mat == 0:
+            if not self._logging_as_dynamic_diagnostics:
                 fwrite = self._get_debug_file_object()
                 fwrite.write(" Indicators (pre) : "+str_ind + "\n")
                 fwrite.write(" Indicators (post): "+str_ind2+"\n")
@@ -1120,7 +1117,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 data_line += str_ev
 
 
-            if self._logging_to_mat == 0:
+            if not self._logging_as_dynamic_diagnostics:
                 fwrite = self._get_debug_file_object()
                 fwrite.write(data_line+"\n")
                 preface = "[INFO][FMU status:OK] "
@@ -1157,7 +1154,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 msg = preface + '</%s>'%(solver_info_tag)
                 self._model.append_log_message("Model", 6, msg)
             else:
-                diag_data = N.ndarray(self.export.nof_diag_vars,dtype=float)
+                diag_data = N.ndarray(self._number_of_diagnostics_variables, dtype=float)
                 index = 0
                 diag_data[index] = solver.t
                 index +=1
@@ -1229,7 +1226,7 @@ cdef class FMIODE2(cExplicit_Problem):
         if self._synchronize_factor > 0:
             self._start_time = timer()
 
-        if self._logging and (self._logging_to_mat == 0):
+        if self._logging and not self._logging_as_dynamic_diagnostics:
             solver_name = solver.__class__.__name__
             self.debug_file_object = open(self.debug_file_name, 'w')
             f = self.debug_file_object
@@ -1280,8 +1277,6 @@ cdef class FMIODE2(cExplicit_Problem):
                 msg = preface + '  <vector name="absolute_tolerance">' + atol_values[:-1] + '</vector>'
                 self._model.append_log_message("Model", 6, msg)
 
-
-
             msg = preface + '</%s>'%(init_tag)
             self._model.append_log_message("Model", 6, msg)
 
@@ -1327,14 +1322,16 @@ class FMIODESENS2(FMIODE2):
     """
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False,
-                 result_handler=None, extra_equations=None, parameters=None):
+                 result_handler=None, extra_equations=None, parameters=None,
+                 number_of_diagnostics_variables = 0):
 
         #Call FMIODE init method
         FMIODE2.__init__(self, model, input, result_file_name, with_jacobian,
-                start_time,logging, result_handler, extra_equations)
+                start_time, logging, result_handler, extra_equations,
+                number_of_diagnostics_variables = number_of_diagnostics_variables)
 
         #Store the parameters
-        if parameters != None:
+        if parameters is not None:
             if not isinstance(parameters,list):
                 raise FMIModel_Exception("Parameters must be a list of names.")
             self.p0 = N.array(model.get(parameters)).flatten()
@@ -1368,14 +1365,14 @@ class FMIODESENS2(FMIODE2):
 
     def rhs(self, t, y, p=None, sw=None):
         #Sets the parameters, if any
-        if self.parameters != None:
+        if self.parameters is not None:
             self._model.set(self.parameters, p)
 
         return FMIODE2.rhs(self,t,y,sw)
 
     def jac(self, t, y, p=None, sw=None):
         #Sets the parameters, if any
-        if self.parameters != None:
+        if self.parameters is not None:
             self._model.set(self.parameters, p)
 
         return FMIODE2.jac(self,t,y,sw)

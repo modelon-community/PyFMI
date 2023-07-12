@@ -23,13 +23,13 @@ from io import StringIO, BytesIO
 from collections import OrderedDict
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
-from pyfmi.common.io import ResultDymolaTextual, ResultDymolaBinary, ResultWriterDymola, JIOError, ResultHandlerCSV, ResultCSVTextual, ResultHandlerBinaryFile, ResultHandlerFile
-from pyfmi.common import diagnostics_prefix
+from pyfmi.fmi import FMUException, FMUModelME2
+from pyfmi.common.io import (ResultHandler, ResultDymolaTextual, ResultDymolaBinary, JIOError,
+                             ResultHandlerCSV, ResultCSVTextual, ResultHandlerBinaryFile, ResultHandlerFile)
+from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
 
-import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
-from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
+from pyfmi.tests.test_util import Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -79,7 +79,7 @@ if assimulo_installed:
             try:
                 res = simple_alias.simulate(options=opts)
                 successful_simulation = True #The above simulation should fail...
-            except:
+            except Exception:
                 pass
 
             if successful_simulation:
@@ -422,7 +422,7 @@ if assimulo_installed:
             try:
                 res = simple_alias.simulate(options=opts)
                 successful_simulation = True #The above simulation should fail...
-            except:
+            except Exception:
                 pass
 
             if successful_simulation:
@@ -1189,17 +1189,17 @@ class TestResultFileBinary:
         model.initialize()
 
         # Need to mock the diagnostics variables in order to invoke simulation_start
-        diagnostics_params[diagnostics_prefix+"solver."+opts["solver"]] = (1.0, "Chosen solver.")
+        diagnostics_params[DIAGNOSTICS_PREFIX+"solver."+opts["solver"]] = (1.0, "Chosen solver.")
         try:
             rtol = opts['rtol']
             atol = opts['atol']
         except KeyError:
             rtol, atol = model.get_tolerances()
 
-        diagnostics_vars[diagnostics_prefix+"step_time"] = (0.0, "Step time")
+        diagnostics_vars[DIAGNOSTICS_PREFIX+"step_time"] = (0.0, "Step time")
         nof_states, nof_ei = model.get_ode_sizes()
         for i in range(nof_ei):
-            diagnostics_vars[diagnostics_prefix+"event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
+            diagnostics_vars[DIAGNOSTICS_PREFIX+"event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
 
         # values used as diagnostics data at each point
         diag_data = np.array([val[0] for val in diagnostics_vars.values()], dtype=float)
@@ -1241,7 +1241,7 @@ class TestResultFileBinary:
         res = ResultDymolaBinary(result_file_name)
         h = res.get_variable_data('h')
         derh = res.get_variable_data('der(h)')
-        ev_ind = res.get_variable_data(diagnostics_prefix+'event_info.state_event_info.index_1').x
+        ev_ind = res.get_variable_data(DIAGNOSTICS_PREFIX+'event_info.state_event_info.index_1').x
 
         # Verify
         nose.tools.assert_almost_equal(h.x[0], 1.000000, 5, msg="Incorrect initial value for 'h', should be 1.0")
@@ -1276,30 +1276,37 @@ class TestResultFileBinary:
 
     @testattr(stddist = True)
     def test_exception_dynamic_diagnostics_and_non_binary_result_handling(self):
-        """ Verify that exception is raised if dynamic diagnostics is True and result_handling is not binary. """
+        """ Verify that an exception is raised if dynamic_diagnostics is True and result_handling is not binary. """
         model = self._get_bouncing_ball_dummy()
         opts = model.simulate_options()
         opts["dynamic_diagnostics"] = True
         opts["result_handling"] = "csv" # set to anything except "binary"
 
-        err_msg = "In order to simulate with 'dynamic\_diagnostics', "
-        err_msg += "the 'result_handler' must be an instance of ResultHandlerBinaryFile."
+        err_msg = ("The chosen result_handler does not support dynamic_diagnostics."
+                   " Try using e.g., ResultHandlerBinaryFile.")
         with nose.tools.assert_raises_regex(fmi.InvalidOptionException, err_msg):
             model.simulate(options = opts)
 
     @testattr(stddist = True)
     def test_exception_dynamic_diagnostics_and_non_binary_result_handling1(self):
-        """ Verify that exception is raised if dynamic diagnostics is True and result_handling is custom and invalid class. """
+        """ Verify that an exception is raised if dynamic diagnostics is True and result_handling is custom
+        and does not support dynamic_diagnostics. """
         model = self._get_bouncing_ball_dummy()
         opts = model.simulate_options()
         opts["dynamic_diagnostics"] = True
         opts["result_handling"] = "custom" # set to anything except "binary"
 
-        class Foo:
-            pass
-        opts["result_handler"] = Foo()
-        err_msg = "In order to simulate with 'dynamic\_diagnostics', "
-        err_msg += "the 'result_handler' must be an instance of ResultHandlerBinaryFile."
+        class Foo(ResultHandler):
+            def get_result(self):
+                return None
+            
+        foo_inst = Foo(model)
+        opts["result_handler"] = foo_inst
+
+        nose.tools.assert_false(foo_inst.supports.get('dynamic_diagnostics'))
+
+        err_msg = ("The chosen result_handler does not support dynamic_diagnostics."
+                   " Try using e.g., ResultHandlerBinaryFile.")
         with nose.tools.assert_raises_regex(fmi.InvalidOptionException, err_msg):
             model.simulate(options = opts)
 
@@ -1324,6 +1331,56 @@ class TestResultFileBinary:
         # In case error did not stop the test run
         nose.tools.assert_true(no_error, "Error occurred: {}".format(exception_msg))
 
+    @testattr(stddist = True)
+    def test_custom_result_handler_dynamic_diagnostics(self):
+        """ Test dynamic diagnostics with a custom results handler that supports it. """
+        model = self._get_bouncing_ball_dummy()
+        opts = model.simulate_options()
+        opts["dynamic_diagnostics"] = True
+        opts["result_handling"] = "custom" # set to anything except "binary"
+
+        class ResultDynDiag(ResultHandler):
+            """ Dummy result handler with necessary implementations for dynamic_diagnostics."""
+            def __init__(self, model = None):
+                super().__init__(model)
+                self.supports['dynamic_diagnostics'] = True
+                self.diagnostics_point_called = False
+
+            def diagnostics_point(self, diag_data = None):
+                self.diagnostics_point_called = True
+
+            def get_result(self):
+                return None
+
+        res_handler = ResultDynDiag()
+        opts["result_handler"] = res_handler
+        model.simulate(options = opts)
+
+        nose.tools.assert_true(res_handler.diagnostics_point_called, msg = "diagnostics_point function was never called.")
+
+    @testattr(stddist = True)
+    def test_result_handler_supports_dynamic_diagnostics(self):
+        """ Test dynamic diagnostics with a custom results handler that supports it, but lacks actual implementation. """
+        model = self._get_bouncing_ball_dummy()
+        opts = model.simulate_options()
+        opts["dynamic_diagnostics"] = True
+        opts["result_handling"] = "custom" # set to anything except "binary"
+
+        class ResultDynDiag(ResultHandler):
+            """ Dummy result handler with for dynamic_diagnostics."""
+            def __init__(self, model = None):
+                super().__init__(model)
+                self.supports['dynamic_diagnostics'] = True
+
+            ## lacks implementation of diagnostics_point, default will raise NotImplementedError
+
+            def get_result(self):
+                return None
+
+        res_handler = ResultDynDiag()
+        opts["result_handler"] = res_handler
+        nose.tools.assert_raises(NotImplementedError, model.simulate, options = opts)
+
     def _test_no_debug_file(self, fmu_type):
         model = self._get_bouncing_ball_dummy(fmu_type=fmu_type)
         opts = model.simulate_options()
@@ -1336,7 +1393,7 @@ class TestResultFileBinary:
         model.simulate(options = opts)
 
         nose.tools.assert_false(os.path.isfile(expected_debug_file),
-                                "Test failed, found file '{}'".format(expected_debug_file))
+                                msg = f"file {expected_debug_file} found.")
 
     @testattr(stddist = True)
     def test_debug_file_not_generated_me1(self):
@@ -1366,8 +1423,8 @@ class TestResultFileBinary:
 
         # Verify
         with open(expected_debug_file, 'r') as f:
-            l = f.readline()
-        nose.tools.assert_false(test_str in l, "Test failed, found '{}' in '{}'".format(test_str, l))
+            line = f.readline()
+        nose.tools.assert_false(test_str in line, "Test failed, found '{}' in '{}'".format(test_str, line))
 
     @testattr(stddist = True)
     def test_debug_file_opened_in_write_mode_me1(self):
@@ -1388,11 +1445,11 @@ class TestResultFileBinary:
         opts["ncp"] = 250
         res = model.simulate(options=opts)
         length = len(res['h'])
-        np.testing.assert_array_equal(res[f'{diagnostics_prefix}event_data.event_info.event_type'], np.ones(length) * (-1))
+        np.testing.assert_array_equal(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'], np.ones(length) * (-1))
 
         expected_solver_order = np.ones(length)
         expected_solver_order[0] = 0.0
-        np.testing.assert_array_equal(res[f'{diagnostics_prefix}solver.solver_order'], expected_solver_order)
+        np.testing.assert_array_equal(res[f'{DIAGNOSTICS_PREFIX}solver.solver_order'], expected_solver_order)
 
     @testattr(stddist = True)
     def test_get_last_result_file0(self):

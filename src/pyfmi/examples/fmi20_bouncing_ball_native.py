@@ -54,7 +54,7 @@ def run_demo(with_plots=True):
     eInfo = bouncing_fmu.get_event_info()
     eInfo.newDiscreteStatesNeeded = True
     #Event iteration
-    while eInfo.newDiscreteStatesNeeded == True:
+    while eInfo.newDiscreteStatesNeeded:
         bouncing_fmu.enter_event_mode()
         bouncing_fmu.event_update()
         eInfo = bouncing_fmu.get_event_info()

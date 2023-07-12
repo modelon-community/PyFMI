@@ -24,7 +24,7 @@ from pyfmi.fmi cimport FMUModelME2
 try:
     import assimulo
     assimulo_present = True
-except:
+except Exception:
     logging.warning(
         'Could not load Assimulo module. Check pyfmi.check_packages()')
     assimulo_present = False
@@ -57,7 +57,8 @@ cdef class FMIODE2(cExplicit_Problem):
     cdef public int model_me2_instance
     cdef public N.ndarray _state_temp_1, _event_temp_1
 
-    cdef int _logging_to_mat
+    cdef int _logging_as_dynamic_diagnostics
+    cdef int _number_of_diagnostics_variables
     cpdef _set_input_values(self, double t)
     cdef _update_model(self, double t, N.ndarray[double, ndim=1, mode="c"] y)
     cdef int _compare(self, double t, N.ndarray[double, ndim=1, mode="c"] y)

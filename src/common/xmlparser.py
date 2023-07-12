@@ -329,7 +329,7 @@ class ModelDescription:
         self._unit_definitions = []
         
         e_unitdefs = root.find('UnitDefinitions')
-        if e_unitdefs != None:
+        if e_unitdefs is not None:
             # list of base units (xml elements)
             e_baseunits = e_unitdefs.getchildren()
             for e_baseunit in e_baseunits:
@@ -343,7 +343,7 @@ class ModelDescription:
         self._type_definitions = []
         
         e_typedefs = root.find('TypeDefinitions')
-        if e_typedefs != None:
+        if e_typedefs is not None:
             # list of types
             e_types = e_typedefs.getchildren()
             for e_type in e_types:
@@ -357,7 +357,7 @@ class ModelDescription:
         self._default_experiment = None
         
         e_defaultexperiment = root.find('DefaultExperiment')
-        if e_defaultexperiment != None:
+        if e_defaultexperiment is not None:
             self._default_experiment = DefaultExperiment(e_defaultexperiment)
     
     def _fill_vendor_annotations(self, root):
@@ -368,7 +368,7 @@ class ModelDescription:
         self._vendor_annotations = []
         
         e_vendorannotations = root.find('VendorAnnotations')
-        if e_vendorannotations != None:
+        if e_vendorannotations is not None:
             # list of tools
             e_tools = e_vendorannotations.getchildren()
             for e_tool in e_tools:
@@ -383,7 +383,7 @@ class ModelDescription:
         self._model_variables_dict = {}
         
         e_modelvariables = root.find('ModelVariables')
-        if e_modelvariables != None:
+        if e_modelvariables is not None:
             # list of scalar variables
             e_scalarvariables = e_modelvariables.getchildren()
             for e_scalarvariable in e_scalarvariables:
@@ -413,7 +413,7 @@ class ModelDescription:
             
         ns="{"+opt+"}"
         e_optimization = root.find(ns+'Optimization')
-        if e_optimization != None:
+        if e_optimization is not None:
             self._optimization = Optimization(e_optimization)
             
     def get_fmi_version(self):
@@ -705,7 +705,7 @@ class ModelDescription:
                 variablename)
                 
         sv = self._model_variables_dict.get(variablename)
-        if sv != None:
+        if sv is not None:
             return sv.get_value_reference()
         else:
             raise XMLException("Variable: "+str(variablename)+" was not found \
@@ -737,7 +737,7 @@ class ModelDescription:
             return self.function_cache.get(self, 'is_alias', variablename)
                 
         sv = self._model_variables_dict.get(variablename)
-        if sv != None:
+        if sv is not None:
             return (sv.get_alias() != NO_ALIAS)
         else:
             raise XMLException("Variable: "+str(variablename)+" was not found \
@@ -770,7 +770,7 @@ class ModelDescription:
             variablename)
                 
         sv = self._model_variables_dict.get(variablename)
-        if sv != None:
+        if sv is not None:
             return (sv.get_alias() == NEGATED_ALIAS)
         else:
             raise XMLException("Variable: "+str(variablename)+" was not found \
@@ -802,7 +802,7 @@ class ModelDescription:
             return self.function_cache.get(self, 'is_constant', variablename)
                 
         sv = self._model_variables_dict.get(variablename)
-        if sv != None:
+        if sv is not None:
             return sv.get_variability() == CONSTANT
         else:
             raise XMLException("Variable: "+str(variablename)+" was not found \
@@ -834,7 +834,7 @@ class ModelDescription:
             return self.function_cache.get(self, 'get_data_type', variablename)
                 
         sv = self._model_variables_dict.get(variablename)
-        if sv != None:
+        if sv is not None:
             return _translate_fundamental_type(sv.get_fundamental_type())
         else:
             raise XMLException("Variable: "+str(variablename)+" was not found \
@@ -875,7 +875,7 @@ class ModelDescription:
         isnegated = []
         
         variable = self._model_variables_dict.get(variablename)
-        if variable != None:
+        if variable is not None:
             for sv in self.get_model_variables():
                 if sv.get_value_reference() == variable.get_value_reference() and \
                     sv.get_name()!=variablename:
@@ -912,7 +912,7 @@ class ModelDescription:
             variablename)
                 
         sv = self._model_variables_dict.get(variablename)
-        if sv != None:
+        if sv is not None:
             return sv.get_variability()
         else:
             raise XMLException("Variable: "+str(variablename)+" was not found \
@@ -1356,18 +1356,16 @@ class ModelDescription:
         
         if include_alias:
             for sv in scalarvariables:
-                if sv.get_variability() == PARAMETER and \
-                    sv.get_fundamental_type().get_free() == True:
-                        vrefs.append(sv.get_value_reference())
-                        names.append(sv.get_name())
+                if sv.get_variability() == PARAMETER and sv.get_fundamental_type().get_free():
+                    vrefs.append(sv.get_value_reference())
+                    names.append(sv.get_name())
             return list(zip(tuple(vrefs), tuple(names)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
-                sv.get_variability() == PARAMETER and \
-                sv.get_fundamental_type().get_free() == True:
-                        vrefs.append(sv.get_value_reference())
-                        names.append(sv.get_name())
+                sv.get_variability() == PARAMETER and sv.get_fundamental_type().get_free():
+                    vrefs.append(sv.get_value_reference())
+                    names.append(sv.get_name())
         return list(zip(tuple(vrefs), tuple(names)))
                 
     def get_dx_variable_names(self, include_alias=True, ignore_cache=False):
@@ -1547,7 +1545,7 @@ class ModelDescription:
 
     def get_p_opt_start(self, include_alias=True, ignore_cache=False):
         """ 
-        Get the start attributes of the independent paramenters 
+        Get the start attributes of the independent parameters 
         (variability:parameter, free: true) in the model.
         
         Parameters::
@@ -1577,8 +1575,7 @@ class ModelDescription:
         
         if include_alias:
             for sv in scalarvariables:
-                if sv.get_variability() == PARAMETER and \
-                    sv.get_fundamental_type().get_free() == True:
+                if sv.get_variability() == PARAMETER and sv.get_fundamental_type().get_free():
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
             return list(zip(tuple(vrefs), tuple(start_attributes)))
@@ -1586,7 +1583,7 @@ class ModelDescription:
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
                 sv.get_variability() == PARAMETER and \
-                sv.get_fundamental_type().get_free() == True:
+                sv.get_fundamental_type().get_free():
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
         return list(zip(tuple(vrefs), tuple(start_attributes)))
@@ -2110,8 +2107,7 @@ class ModelDescription:
         if include_alias:
             for sv in scalarvariables:
                 ftype = sv.get_fundamental_type()
-                if (sv.get_variability() == PARAMETER and 
-                    ftype.get_free() == True):
+                if (sv.get_variability() == PARAMETER and ftype.get_free()):
                     vrefs.append(sv.get_value_reference())
                     nominal_attributes.append(ftype.get_nominal())
             return list(zip(tuple(vrefs), tuple(nominal_attributes)))
@@ -2119,8 +2115,7 @@ class ModelDescription:
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
             if (sv.get_alias() == NO_ALIAS and 
-                sv.get_variability() == PARAMETER and 
-                ftype.get_free() == True):
+                sv.get_variability() == PARAMETER and ftype.get_free()):
                 vrefs.append(sv.get_value_reference())
                 nominal_attributes.append(ftype.get_nominal())
         return list(zip(tuple(vrefs), tuple(nominal_attributes)))
@@ -2161,7 +2156,7 @@ class ModelDescription:
                 if not isinstance(ftype, String) and not \
                     isinstance(ftype, Enumeration) and \
                     sv.get_variability() == PARAMETER and \
-                    ftype.get_free() == True:
+                    ftype.get_free():
                         
                     vrefs.append(sv.get_value_reference())
                     initial_values.append(ftype.get_initial_guess())
@@ -2173,7 +2168,7 @@ class ModelDescription:
                 isinstance(ftype, Enumeration) and \
                 sv.get_alias() == NO_ALIAS and \
                 sv.get_variability() == PARAMETER and \
-                ftype.get_free() == True:
+                ftype.get_free():
                     
                     vrefs.append(sv.get_value_reference())
                     initial_values.append(ftype.get_initial_guess())
@@ -2425,7 +2420,7 @@ class ModelDescription:
                 if not isinstance(ftype, String) and not \
                     isinstance(ftype, Boolean) and \
                     sv.get_variability() == PARAMETER and \
-                    ftype.get_free() == True:
+                    ftype.get_free():
                         
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
@@ -2437,7 +2432,7 @@ class ModelDescription:
                 isinstance(ftype, Boolean) and \
                 sv.get_alias() == NO_ALIAS and \
                 sv.get_variability() == PARAMETER and \
-                ftype.get_free() == True:
+                ftype.get_free():
                     
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
@@ -2685,7 +2680,7 @@ class ModelDescription:
                 if not isinstance(ftype, String) and not \
                     isinstance(ftype, Boolean) and \
                     sv.get_variability() == PARAMETER and \
-                    ftype.get_free() == True:
+                    ftype.get_free():
                         
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
@@ -2697,7 +2692,7 @@ class ModelDescription:
                 isinstance(ftype, Boolean) and \
                 sv.get_alias() == NO_ALIAS and \
                 sv.get_variability() == PARAMETER and \
-                ftype.get_free() == True:
+                ftype.get_free():
                     
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
@@ -2945,14 +2940,14 @@ class ModelDescription:
         if include_alias:
             for sv in scalarvariables:
                 if sv.get_variability() == PARAMETER and \
-                    sv.get_fundamental_type().get_free() == True:
+                    sv.get_fundamental_type().get_free():
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
             return list(zip(tuple(vrefs), tuple(is_linear)))
             
         for sv in scalarvariables:
             if sv.get_variability() == PARAMETER and \
-                sv.get_fundamental_type().get_free() == True:
+                sv.get_fundamental_type().get_free():
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
         return list(zip(tuple(vrefs), tuple(is_linear)))
@@ -3385,7 +3380,7 @@ class ModelDescription:
         
         for sv in self.get_model_variables():
             if sv.get_variability() == PARAMETER and \
-                sv.get_fundamental_type().get_free() == True:
+                sv.get_fundamental_type().get_free():
                     vrefs.append(sv.get_value_reference())
         return vrefs
 
@@ -3410,7 +3405,7 @@ class ModelDescription:
                 
         optimization = self.get_optimization()
         
-        if optimization == None:
+        if optimization is None:
             return None
         
         return optimization.get_interval_start_time().get_value()
@@ -3436,7 +3431,7 @@ class ModelDescription:
                 
         optimization = self.get_optimization()
         
-        if optimization == None:
+        if optimization is None:
             return None
         
         return optimization.get_interval_final_time().get_value()
@@ -3462,7 +3457,7 @@ class ModelDescription:
                 
         optimization = self.get_optimization()
         
-        if optimization == None:
+        if optimization is None:
             return None
         
         return optimization.get_interval_start_time().get_free()
@@ -3488,7 +3483,7 @@ class ModelDescription:
                 
         optimization = self.get_optimization()
         
-        if optimization == None:
+        if optimization is None:
             return None
         
         return optimization.get_interval_final_time().get_free()
@@ -3513,7 +3508,7 @@ class ModelDescription:
                 
         optimization = self.get_optimization()
         
-        if optimization == None:
+        if optimization is None:
             return None
             
         time_points = []
@@ -4111,27 +4106,27 @@ class ScalarVariable:
         # direct dependency
         self._direct_dependency = None
         e_directdependency = element.find('DirectDependency')
-        if e_directdependency != None:
+        if e_directdependency is not None:
             self._direct_dependency = DirectDependency(e_directdependency)
             
         #### Qualified Name here ####
         
         # isLinear
         self._is_linear = element.find('isLinear')
-        if self._is_linear != None:
+        if self._is_linear is not None:
             self._is_linear = _translate_xmlbool(self._is_linear.text)
             
         # isLinearTimedVariables
         self._is_linear_timed_variables = []
         e_lineartimedvariables = element.find('isLinearTimedVariables')
-        if e_lineartimedvariables != None:
+        if e_lineartimedvariables is not None:
             e_tpoints = e_lineartimedvariables.getchildren()
             for e_tp in e_tpoints:
                 self._is_linear_timed_variables.append(TimePoint(e_tp))
                 
         # variableCategory
         e_variablecategory = element.find('VariableCategory')
-        if e_variablecategory == None:
+        if e_variablecategory is None:
             self._variable_category = 'algebraic'
         else:
             self._variable_category = e_variablecategory.text
@@ -4861,13 +4856,13 @@ class Optimization:
         # interval start time
         self._interval_start_time = None
         e_intervalstartt = element.find(ns+'IntervalStartTime')
-        if e_intervalstartt != None:
+        if e_intervalstartt is not None:
             self._interval_start_time = Opt_IntervalTime(e_intervalstartt)
             
         # interval final time
         self._interval_final_time = None
         e_intervalfinalt = element.find(ns+'IntervalFinalTime')
-        if e_intervalfinalt != None:
+        if e_intervalfinalt is not None:
             self._interval_final_time = Opt_IntervalTime(e_intervalfinalt)
             
         # time points
@@ -4875,7 +4870,7 @@ class Optimization:
         e_timepoints = element.find(ns+'TimePoints')
         attr = {'index':'',
                 'value':''}
-        if e_timepoints != None:
+        if e_timepoints is not None:
             for e_timepoint in e_timepoints:
                 attr.update(e_timepoint.attrib)
                 self._time_points.append(Opt_TimePoint(attr['index'],attr['value']))
@@ -4940,21 +4935,21 @@ class Opt_IntervalTime:
         
         # value
         e_value = element.find(ns+"Value")
-        if e_value != None:
+        if e_value is not None:
             self._value = float(e_value.text)
         else:
             self._value = None
 
         # free
         e_free = element.find(ns+"Free")
-        if e_free != None:
+        if e_free is not None:
             self._free = _translate_xmlbool(e_free.text)
         else:
             self._free = None
             
         # initial guess
         e_initialguess = element.find(ns+"InitialGuess")
-        if e_initialguess != None:
+        if e_initialguess is not None:
             self._initial_guess = float(e_initialguess.text)
         else:
             self._initial_guess = None
@@ -5350,7 +5345,7 @@ class ModelDescription2 (ModelDescription):
         
         try:
             e_modelstructure = root.find('ModelStructure')
-        except:
+        except Exception:
             return
         
         inputs = e_modelstructure[0]
@@ -5455,11 +5450,11 @@ class ModelDescription2 (ModelDescription):
         try:
             v = self._model_structure_derivatives_dict[variable]
             return v.get_state_dependency()
-        except:
+        except Exception:
             try:
                 v = self._model_structure_outputs_dict[variable]
                 return v.get_state_dependency()
-            except:
+            except Exception:
                 raise Exception("No state dependency information is available for variable " + variable)
 
     def get_input_dependency(self, variable):
@@ -5475,11 +5470,11 @@ class ModelDescription2 (ModelDescription):
         try:
             v = self._model_structure_derivatives_dict[variable]
             return v.get_input_dependency()
-        except:
+        except Exception:
             try:
                 v = self._model_structure_outputs_dict[variable]
                 return v.get_input_dependency()
-            except:
+            except Exception:
                 raise Exception("No input dependency information is available for variable " + variable)
 
 
@@ -5524,13 +5519,13 @@ class MSDerivative(MSVariable):
             self._state_dependency = element.attrib['stateDependency'].split()  
             for i in range(len(self._state_dependency)):
                 self._state_dependency[i] = int(self._state_dependency[i]) - 1
-        except:
+        except Exception:
             self._state_dependency = []
         try:
             self._input_dependency = element.attrib['inputDependency'].split()      
             for i in range(len(self._input_dependency)):
                 self._input_dependency[i] = int(self._input_dependency[i]) - 1            
-        except:
+        except Exception:
             self._input_dependency = []      
         
     def get_state(self):
@@ -5576,13 +5571,13 @@ class MSOutput(MSVariable):
             self._state_dependency = element.attrib['stateDependency'].split()  
             for i in range(len(self._state_dependency)):
                 self._state_dependency[i] = int(self._state_dependency[i]) - 1
-        except:
+        except Exception:
             self._state_dependency = []
         try:
             self._input_dependency = element.attrib['inputDependency'].split()      
             for i in range(len(self._input_dependency)):
                 self._input_dependency[i] = int(self._input_dependency[i]) - 1            
-        except:
+        except Exception:
             self._input_dependency = []      
 
     def get_state_dependency(self):
@@ -5651,7 +5646,7 @@ class XMLFunctionCache:
         f = getattr(obj, function)
         # check if there is a key (argument to function f)
         # and get result (call function)
-        if key!=None:
+        if key is not None:
             result = f(key, ignore_cache=True)
         else:
             result = f(ignore_cache=True)
@@ -5660,7 +5655,7 @@ class XMLFunctionCache:
             # function is not in cache so add both function 
             # and return result which is either a dict or 
             # "normal" value entry dependent on key
-            if key!=None:
+            if key is not None:
                 self.cache[function] = {key:result}
             else:
                 self.cache[function] = result
@@ -5671,7 +5666,7 @@ class XMLFunctionCache:
             # ...should not have to do this check, 
             # have we got this far key can not be = None
             # but keep for now
-            if key!=None:
+            if key is not None:
                 values[key]=result
             else:
                 result=values
@@ -5700,14 +5695,14 @@ class XMLFunctionCache:
         # Get function result value/values from cache
         values = self.cache.get(function)
         # check if function could be found in cache
-        if values!=None:
+        if values is not None:
             # if key is none then values is = the function return value
             if key is None:
                 return values
             # otherwise, use the key (function arg) to get the correct value
             result = values.get(key)
             # check if found in cache
-            if result!=None:
+            if result is not None:
                 #return result is found
                 return result
         # result was not found - add to cache

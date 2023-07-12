@@ -26,7 +26,6 @@ import sys
 import shutil
 
 import numpy as N
-import numpy.ctypeslib as Nct
 
 # location for temporary JModelica files
 def get_temp_location():

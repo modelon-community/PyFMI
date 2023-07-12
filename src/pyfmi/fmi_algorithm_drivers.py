@@ -20,19 +20,16 @@ pyfmi.fmi.FMUModel*.simulate.
 """
 
 #from abc import ABCMeta, abstractmethod
-import logging
+import logging as logging_module
 import time
-from collections import OrderedDict
 import numpy as N
-from numpy.lib.function_base import append
 
-import pyfmi
 import pyfmi.fmi as fmi
 import pyfmi.fmi_coupled as fmi_coupled
 import pyfmi.fmi_extended as fmi_extended
-from pyfmi.common import diagnostics_prefix
-from pyfmi.common.algorithm_drivers import AlgorithmBase, AssimuloSimResult, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
-from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerBinaryFile, ResultHandlerMemory, ResultHandler, ResultHandlerDummy, ResultHandlerCSV, ResultCSVTextual
+from pyfmi.common.diagnostics import setup_diagnostics_variables 
+from pyfmi.common.algorithm_drivers import AlgorithmBase, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
+from pyfmi.common.io import ResultHandlerFile, ResultHandlerBinaryFile, ResultHandlerMemory, ResultHandler, ResultHandlerDummy, ResultHandlerCSV
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
@@ -102,11 +99,10 @@ class AssimuloFMIAlgOptions(OptionBase):
             Default: "Default"
 
         dynamic_diagnostics --
-            If True, enables logging of diagnostics data to the binary result file. This requires that
-            the option 'result_handler' is an instance of ResultHandlerBinaryFile, otherwise an exception is raised.
-            Model variable names are not allowed to start with 'Diagnostics' using this option
-            and a check for this is performed before simulation start. If this criteria is not
-            met an exception is raised.
+            If True, enables logging of diagnostics data to a result file. This requires that
+            the option 'result_handler' supports 'dynamic_diagnostics', otherwise an 
+            InvalidOptionException is raised.
+            The default 'result_handler' ResultHandlerBinaryFile supports 'dynamic_diagnostics'.
             The diagnostics data will be available via the simulation results and/or the
             binary result file generated during simulation.
             Default: False
@@ -117,7 +113,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             based on simulation option 'result_handling'.
 
             The diagnostics data is available via the simulation results similar to FMU model variables
-            only if 'result_handler' is an instance of ResultHandlerBinaryFile.
+            only if 'result_handler' supports 'dynamic_diagnostics'.
             Default: False
 
         result_handling --
@@ -278,7 +274,7 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         try:
             import assimulo
-        except:
+        except Exception:
             raise fmi.FMUException(
                 'Could not find Assimulo package. Check pyfmi.check_packages()')
 
@@ -300,9 +296,9 @@ class AssimuloFMIAlg(AlgorithmBase):
             self.options = options
         else:
             raise InvalidAlgorithmOptionException(options)
-
-        # set options
-        self._set_options()
+        
+        self._set_result_handler() # sets self.results_handler
+        self._set_options() # set options
 
         #time_start = timer()
 
@@ -323,33 +319,6 @@ class AssimuloFMIAlg(AlgorithmBase):
                 raise fmi.FMUException("The number of input variables is not equal to the number of input values, please verify the input object.")
 
             self.model.set(input_names, input_values)
-
-        if self.options["result_handling"] == "file":
-            self.result_handler = ResultHandlerFile(self.model)
-        elif self.options["result_handling"] == "binary":
-            if self.options["sensitivities"]:
-                logging.warning('The binary result file do not currently support storing of sensitivity results. Switching to textual result format.')
-                self.result_handler = ResultHandlerFile(self.model)
-            else:
-                self.result_handler = ResultHandlerBinaryFile(self.model)
-        elif self.options["result_handling"] == "memory":
-            self.result_handler = ResultHandlerMemory(self.model)
-        elif self.options["result_handling"] == "csv":
-            self.result_handler = ResultHandlerCSV(self.model, delimiter=",")
-        elif self.options["result_handling"] == "custom":
-            self.result_handler = self.options["result_handler"]
-            if self.result_handler is None:
-                raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
-            if not isinstance(self.result_handler, ResultHandler):
-                raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
-        elif (self.options["result_handling"] is None) or (self.options["result_handling"] == 'none'): #No result handling (for performance)
-            if self.options["result_handling"] == 'none':
-                logging.warning("result_handling = 'none' is deprecated. Please use None instead.")
-            self.result_handler = ResultHandlerDummy(self.model)
-        else:
-            raise fmi.FMUException("Unknown option to result_handling.")
-
-
 
         self.result_handler.set_options(self.options)
 
@@ -384,8 +353,13 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         self._set_absolute_tolerance_options()
 
-        if isinstance(self.result_handler, ResultHandlerBinaryFile):
-            self._setup_diagnostics_variables()
+        number_of_diagnostics_variables = 0
+        if self.result_handler.supports.get('dynamic_diagnostics'):
+            _diagnostics_params, _diagnostics_vars = setup_diagnostics_variables(model = self.model, 
+                                                                                 start_time = self.start_time,
+                                                                                 options = self.options,
+                                                                                 solver_options = self.solver_options)
+            number_of_diagnostics_variables = len(_diagnostics_vars)
 
         #See if there is an time event at start time
         if isinstance(self.model, fmi.FMUModelME1):
@@ -394,14 +368,14 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.model.event_update()
 
         if abs(start_time - model.time) > 1e-14:
-            logging.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
+            logging_module.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
 
         time_end = timer()
         self.timings["initializing_fmu"] = time_end - time_start - time_res_init
         time_start = time_end
 
-        if isinstance(self.result_handler, ResultHandlerBinaryFile):
-            self.result_handler.simulation_start(self._diagnostics_params, self._diagnostics_vars)
+        if self.result_handler.supports.get('dynamic_diagnostics'):
+            self.result_handler.simulation_start(_diagnostics_params, _diagnostics_vars)
         else:
             self.result_handler.simulation_start()
 
@@ -434,7 +408,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                          start_time = self.start_time,
                                          parameters = self.options["sensitivities"],
                                          logging = self.options["logging"],
-                                         result_handler = self.result_handler)
+                                         result_handler = self.result_handler,
+                                         number_of_diagnostics_variables = number_of_diagnostics_variables)
             else:
                 self.probl = FMIODE2(self.model,
                                      result_file_name = self.result_file_name,
@@ -443,7 +418,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                      logging = self.options["logging"],
                                      result_handler = self.result_handler,
                                      extra_equations = self.options["extra_equations"],
-                                     synchronize_simulation = self.options["synchronize_simulation"])
+                                     synchronize_simulation = self.options["synchronize_simulation"],
+                                     number_of_diagnostics_variables = number_of_diagnostics_variables)
         elif isinstance(self.model, ((fmi.FMUModelME2, fmi_coupled.CoupledFMUModelME2))):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(self.model,
@@ -453,7 +429,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                          start_time = self.start_time,
                                          parameters = self.options["sensitivities"],
                                          logging = self.options["logging"],
-                                         result_handler = self.result_handler)
+                                         result_handler = self.result_handler,
+                                         number_of_diagnostics_variables = number_of_diagnostics_variables)
             else:
                 self.probl = FMIODE2(self.model,
                                      input_traj,
@@ -463,7 +440,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                      logging = self.options["logging"],
                                      result_handler = self.result_handler,
                                      extra_equations = self.options["extra_equations"],
-                                     synchronize_simulation = self.options["synchronize_simulation"])
+                                     synchronize_simulation = self.options["synchronize_simulation"],
+                                     number_of_diagnostics_variables = number_of_diagnostics_variables)
 
         elif not self.input:
             if self.options["sensitivities"]:
@@ -504,6 +482,36 @@ class AssimuloFMIAlg(AlgorithmBase):
         self.simulator = self.solver(self.probl)
         self._set_solver_options()
 
+    def _set_result_handler(self):
+        """
+        Helper functions that sets result_handler.
+        """
+        if self.options["result_handling"] == "file":
+            self.result_handler = ResultHandlerFile(self.model)
+        elif self.options["result_handling"] == "binary":
+            if self.options["sensitivities"]:
+                logging_module.warning('The binary result file do not currently support storing of sensitivity results. Switching to textual result format.')
+                self.result_handler = ResultHandlerFile(self.model)
+            else:
+                self.result_handler = ResultHandlerBinaryFile(self.model)
+        elif self.options["result_handling"] == "memory":
+            self.result_handler = ResultHandlerMemory(self.model)
+        elif self.options["result_handling"] == "csv":
+            self.result_handler = ResultHandlerCSV(self.model, delimiter=",")
+        elif self.options["result_handling"] == "custom":
+            self.result_handler = self.options["result_handler"]
+            if self.result_handler is None:
+                raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
+            if not isinstance(self.result_handler, ResultHandler):
+                raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
+        elif (self.options["result_handling"] is None) or (self.options["result_handling"] == 'none'): #No result handling (for performance)
+            if self.options["result_handling"] == 'none': ## TODO: Future; remove this
+                logging_module.warning("result_handling = 'none' is deprecated. Please use None instead.")
+            self.result_handler = ResultHandlerDummy(self.model)
+        else:
+            raise fmi.FMUException("Unknown option to result_handling.")
+
+
     def _set_options(self):
         """
         Helper function that sets options for AssimuloFMI algorithm.
@@ -526,18 +534,19 @@ class AssimuloFMIAlg(AlgorithmBase):
         if hasattr(solvers, solver):
             self.solver = getattr(solvers, solver)
         else:
-            raise InvalidAlgorithmOptionException(
-                "The solver: "+solver+ " is unknown.")
+            raise InvalidAlgorithmOptionException(f"The solver: {solver} is unknown.")
 
         if self.options["dynamic_diagnostics"]:
-            # Now result_handling must be 'binary'
-            # or, result_handling 'custom' and 'result_handler' instance of ResultHandlerBinaryFile
-            if not ((self.options["result_handling"] == "binary") or \
-                (self.options["result_handling"] == "custom" and isinstance(self.options["result_handler"], ResultHandlerBinaryFile))):
-                err_msg = "In order to simulate with 'dynamic_diagnostics',"
-                err_msg += " the 'result_handler' must be an instance of ResultHandlerBinaryFile."
+            ## Result handler must have supports['dynamic_diagnostics'] = True
+            ## e.g., result_handling = 'binary' = ResultHandlerBinaryFile 
+            if not self.result_handler.supports.get('dynamic_diagnostics'):
+                err_msg = ("The chosen result_handler does not support dynamic_diagnostics."
+                           " Try using e.g., ResultHandlerBinaryFile.")
                 raise fmi.InvalidOptionException(err_msg)
             self.options['logging'] = True
+        elif self.options['logging']:
+            if self.result_handler.supports.get('dynamic_diagnostics'):
+                self.options["dynamic_diagnostics"] = True
 
         # solver options
         try:
@@ -668,7 +677,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                         return
                 # Success.
                 self.solver_options["atol"] = atol * self.model.nominal_continuous_states / preinit_nominals
-                logging.info("Absolute tolerances have been recalculated by using values for state nominals from " +
+                logging_module.info("Absolute tolerances have been recalculated by using values for state nominals from " +
                              "after initialization.")
         except KeyError:
             pass
@@ -685,7 +694,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         #If usejac is not set, try to set it according to if directional derivatives
         #exists. Also verifies that the option "usejac" exists for the solver.
         #(Only check for FMI2)
-        if self.with_jacobian and not "usejac" in solver_options:
+        if self.with_jacobian and "usejac" not in solver_options:
             try:
                 getattr(self.simulator, "usejac")
                 solver_options["usejac"] = True
@@ -708,7 +717,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             rtol_vector_support = self.simulator.supports.get("rtol_as_vector", False)
             
             if rtol_is_vector and not rtol_vector_support and self._rtol_as_scalar_fallback:
-                logging.warning("The chosen solver do not support providing the relative tolerance as a vector, fallback to using a scalar instead. rtol = %g"%self.rtol)
+                logging_module.warning("The chosen solver does not support providing the relative tolerance as a vector, fallback to using a scalar instead. rtol = %g"%self.rtol)
                 solver_options["rtol"] = self.rtol
 
         #loop solver_args and set properties of solver
@@ -731,67 +740,6 @@ class AssimuloFMIAlg(AlgorithmBase):
         if "maxord" in solver_options:
             setattr(self.simulator, "maxord", solver_options["maxord"])
 
-    def _setup_diagnostics_variables(self):
-        """ Sets up initial diagnostics data. This function is called before a simulation is initiated. """
-        self._diagnostics_params = OrderedDict()
-        self._diagnostics_vars = OrderedDict()
-
-        try:
-            self._diagnostics_logging = self.options["logging"]
-        except AttributeError:
-            self._diagnostics_logging = False
-
-        if self._diagnostics_logging:
-            solver_name = self.options["solver"]
-
-            self._diagnostics_params[f"{diagnostics_prefix}solver.solver_name.{solver_name}"] = (1.0, "Chosen solver.")
-
-            support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE")
-            support_solver_order = solver_name=="CVode"
-
-
-            try:
-                support_elapsed_time=self.solver_options["clock_step"]
-            except:
-                support_elapsed_time=False
-
-            support_event_indicators = (solver_name=="CVode" or
-                                        solver_name=="Radau5ODE" or
-                                        solver_name=="LSODAR" or
-                                        solver_name=="ImplicitEuler" or
-                                        solver_name=="ExplicitEuler"
-                                        )
-
-            states_list = self.model.get_states_list() if isinstance(self.model, fmi.FMUModelME2) else []
-
-            if solver_name != "ExplicitEuler":
-                try:
-                    rtol = self.solver_options['rtol']
-                    atol = self.solver_options['atol']
-                except KeyError:
-                    rtol, atol = self.model.get_tolerances()
-                self._diagnostics_params[f"{diagnostics_prefix}solver.relative_tolerance"] = (rtol, "Relative solver tolerance.")
-
-                for idx, state in enumerate(states_list):
-                    self._diagnostics_params[f"{diagnostics_prefix}solver.absolute_tolerance."+state] = (atol[idx], "Absolute solver tolerance for "+state+".")
-
-            self._diagnostics_vars[f"{diagnostics_prefix}step_time"] = (self.start_time, "Step time")
-            if support_elapsed_time:
-                self._diagnostics_vars[f"{diagnostics_prefix}cpu_time_per_step"] = (0, "CPU time per step.")
-            if support_solver_order:
-                self._diagnostics_vars[f"{diagnostics_prefix}solver.solver_order"] = (0.0, "Solver order for CVode used in each time step")
-            if support_state_errors:
-                for state in states_list:
-                    self._diagnostics_vars[f"{diagnostics_prefix}state_errors."+state] = (0.0, "State error for "+state+".")
-            if support_event_indicators:
-                nof_states, nof_ei = self.model.get_ode_sizes()
-                ei_values = self.model.get_event_indicators() if nof_ei > 0 else []
-                for i in range(nof_ei):
-                    self._diagnostics_vars[f"{diagnostics_prefix}event_data.event_info.indicator_"+str(i+1)] = (ei_values[i], "Value for event indicator {}.".format(i+1))
-                for i in range(nof_ei):
-                    self._diagnostics_vars[f"{diagnostics_prefix}event_data.event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
-                self._diagnostics_vars[f"{diagnostics_prefix}event_data.event_info.event_type"] = (-1, "No event=-1, state event=0, time event=1")
-
     def solve(self):
         """
         Runs the simulation.
@@ -800,7 +748,7 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         try:
             self.simulator.simulate(self.final_time, self.ncp)
-        except:
+        except Exception:
             self.result_handler.simulation_end() #Close the potentially open result files
             raise #Reraise the exception
 
@@ -1039,26 +987,7 @@ class FMICSAlg(AlgorithmBase):
 
         #time_start = timer()
 
-        if self.options["result_handling"] == "file":
-            self.result_handler = ResultHandlerFile(self.model)
-        elif self.options["result_handling"] == "binary":
-            self.result_handler = ResultHandlerBinaryFile(self.model)
-        elif self.options["result_handling"] == "memory":
-            self.result_handler = ResultHandlerMemory(self.model)
-        elif self.options["result_handling"] == "csv":
-            self.result_handler = ResultHandlerCSV(self.model, delimiter=",")
-        elif self.options["result_handling"] == "custom":
-            self.result_handler = self.options["result_handler"]
-            if self.result_handler is None:
-                raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
-            if not isinstance(self.result_handler, ResultHandler):
-                raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
-        elif (self.options["result_handling"] is None) or (self.options["result_handling"] == 'none'): #No result handling (for performance)
-            if self.options["result_handling"] == 'none':
-                logging.warning("result_handling = 'none' is deprecated. Please use None instead.")
-            self.result_handler = ResultHandlerDummy(self.model)
-        else:
-            raise fmi.FMUException("Unknown option to result_handling.")
+        self._set_result_handler() ## set self.results_handler
 
         self.result_handler.set_options(self.options)
 
@@ -1089,7 +1018,7 @@ class FMICSAlg(AlgorithmBase):
             raise fmi.FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
 
         if abs(start_time - model.time) > 1e-14:
-            logging.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
+            logging_module.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
 
         time_end = timer()
         self.timings["initializing_fmu"] = time_end - time_start - time_res_init
@@ -1098,6 +1027,31 @@ class FMICSAlg(AlgorithmBase):
         self.result_handler.simulation_start()
 
         self.timings["initializing_result"] = timer() - time_start - time_res_init
+
+    def _set_result_handler(self):
+        """
+        Helper functions that sets result_handler.
+        """
+        if self.options["result_handling"] == "file":
+            self.result_handler = ResultHandlerFile(self.model)
+        elif self.options["result_handling"] == "binary":
+            self.result_handler = ResultHandlerBinaryFile(self.model)
+        elif self.options["result_handling"] == "memory":
+            self.result_handler = ResultHandlerMemory(self.model)
+        elif self.options["result_handling"] == "csv":
+            self.result_handler = ResultHandlerCSV(self.model, delimiter=",")
+        elif self.options["result_handling"] == "custom":
+            self.result_handler = self.options["result_handler"]
+            if self.result_handler is None:
+                raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
+            if not isinstance(self.result_handler, ResultHandler):
+                raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
+        elif (self.options["result_handling"] is None) or (self.options["result_handling"] == 'none'): #No result handling (for performance)
+            if self.options["result_handling"] == 'none':
+                logging_module.warning("result_handling = 'none' is deprecated. Please use None instead.")
+            self.result_handler = ResultHandlerDummy(self.model)
+        else:
+            raise fmi.FMUException("Unknown option to result_handling.")
 
     def _set_options(self):
         """
@@ -1124,7 +1078,7 @@ class FMICSAlg(AlgorithmBase):
                     self._synchronize_factor = self.options["synchronize_simulation"]
                 else:
                     raise fmi.InvalidOptionException(f"Setting {self.options['synchronize_simulation']} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
-            except:
+            except Exception:
                 raise fmi.InvalidOptionException(f"Setting {self.options['synchronize_simulation']} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
         else:
             self._synchronize_factor = 0.0
@@ -1199,7 +1153,7 @@ class FMICSAlg(AlgorithmBase):
             if self.options["time_limit"] and (timer() - time_start) > self.options["time_limit"]:
                 raise fmi.TimeLimitExceeded("The time limit was exceeded at integration time %.8E."%final_time)
 
-            if self.input_traj != None:
+            if self.input_traj is not None:
                 self.model.set(self.input_traj[0], self.input_traj[1].eval(t+h)[0,:])
 
         #End of simulation, stop the clock
@@ -1321,14 +1275,14 @@ class SciEstAlg(AlgorithmBase):
 
         if isinstance(self.options["scaling"], str) and self.options["scaling"] == "Default":
             scale = []
-            for i,parameter in enumerate(self.parameters):
+            for parameter in self.parameters:
                 scale.append(self.model.get_variable_nominal(parameter))
             self.options["scaling"] = N.array(scale)
 
         if self.options["simulate_options"] == "Default":
             self.options["simulate_options"] = self.model.simulate_options()
 
-        #Modifiy necessary options:
+        # Modify necessary options:
         self.options["simulate_options"]['ncp']    = self.measurements[1].shape[0] - 1 #Store at the same points as measurement data
         self.options["simulate_options"]['filter'] = self.measurements[0] #Only store the measurement variables (efficiency)
 

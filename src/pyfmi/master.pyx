@@ -16,7 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import pyfmi.fmi as fmi
-from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException
+from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
 from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerDummy, ResultHandlerBinaryFile, ResultDymolaBinary
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
@@ -1520,7 +1520,6 @@ cdef class Master:
         #Load data
         for i,model in enumerate(self.models):
             if opts["result_handling"] == "file" or opts["result_handling"] == "binary":
-                from pyfmi.fmi_algorithm_drivers import AssimuloSimResult
                 stored_res = self.models_dict[model]["result"].get_result()
                 res[i] = AssimuloSimResult(model, self.models_dict[model]["result"].file_name, None, stored_res, None)
                 res[model] = res[i]

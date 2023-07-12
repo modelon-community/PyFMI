@@ -108,12 +108,12 @@ def run_demo(with_plots=True):
             eInfo.iterationConverged = False
             
             #Event iteration
-            while eInfo.iterationConverged == False:
+            while not eInfo.iterationConverged:
                 bouncing_fmu.event_update(intermediateResult=True) #Stops after each event iteration
                 eInfo = bouncing_fmu.get_event_info()
 
                 #Retrieve solutions (if needed)
-                if eInfo.iterationConverged == False:
+                if not eInfo.iterationConverged:
                     #bouncing_fmu.get_real, get_integer, get_boolean, 
                     # get_string(valueref)
                     pass

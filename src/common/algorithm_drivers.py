@@ -18,8 +18,6 @@
 Module containing optimization, simulation and initialization algorithms.
 """
 
-import logging
-import time
 import numpy as N
 
 default_int = int

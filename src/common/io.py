@@ -18,11 +18,9 @@
 Module for writing optimization and simulation results to file.
 """
 from operator import itemgetter, attrgetter
-import array
 import codecs
 import re
 import sys
-import io
 import os
 from functools import reduce
 
@@ -40,9 +38,8 @@ else:
 
 import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
-from pyfmi.common import python3_flag, encode, decode, diagnostics_prefix
-
-import struct
+from pyfmi.common import python3_flag, encode, decode
+from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, DiagnosticsBase
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
 
@@ -77,26 +74,19 @@ class ResultStorage:
     def is_negated(self, var):
         raise NotImplementedError
 
-
-class DiagnosticsBase:
-    """ Class serves as a template
-        to keep track of diagnostics variables not part of the generated result file.
-    """
-    calculated_diagnostics = {
-        'nbr_events': {'name': f'{diagnostics_prefix}nbr_events', 'description': 'Cumulative number of events'},
-        'nbr_time_events': {'name': f'{diagnostics_prefix}nbr_time_events', 'description': 'Cumulative number of time events'},
-        'nbr_state_events': {'name': f'{diagnostics_prefix}nbr_state_events', 'description': 'Cumulative number of state events'},
-        'nbr_steps': {'name': f'{diagnostics_prefix}nbr_steps', 'description': 'Cumulative number of steps'},
-        'nbr_state_limits_step': {'name': f'{diagnostics_prefix}nbr_state_limits_step', 'description': 'Cumulative number of times states limit the step'},
-
-    }
-
 class ResultHandler:
+    def __init__(self, model = None):
+        self.model = model
+        ## Which capabilities are supported
+        self.supports = {"dynamic_diagnostics": False}
 
-    def simulation_start(self):
+    def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
         """
         This method is called before the simulation has started and
         after the initialization call for the FMU.
+        This function also takes two keyword arguments 'diagnostics_params'
+        and 'diagnostics_vars' which are dicts containing information about what
+        diagnostic parameters and variables to generate results for.
         """
         pass
 
@@ -107,13 +97,20 @@ class ResultHandler:
         """
         pass
 
-    def integration_point(self, solver=None):
+    def integration_point(self, solver = None):
         """
         This method is called for each time-point for which result are
-        to be stored as indicated by the "number of communcation points"
+        to be stored as indicated by the "number of communication points"
         provided to the simulation method.
         """
         pass
+
+    def diagnostics_point(self, diag_data = None):
+        """ 
+        Generates a data point for diagnostics data.
+        """
+        if self.supports.get('dynamic_diagnostics'):
+            raise NotImplementedError
 
     def simulation_end(self):
         """
@@ -121,7 +118,7 @@ class ResultHandler:
         """
         pass
 
-    def set_options(self, options):
+    def set_options(self, options = None):
         """
         Options are the options dictionary provided to the simulation
         method.
@@ -140,6 +137,7 @@ class ResultDymola:
     """
     Base class for representation of a result file.
     """
+
     def _get_name(self):
         return [decode(n) for n in self.name_lookup.keys()]
 
@@ -158,7 +156,7 @@ class ResultDymola:
 
             In integer index.
         """
-        #Strip name of spaces, for instace a[2, 1] to a[2,1]
+        #Strip name of spaces, for instance a[2, 1] to a[2,1]
         name = name.replace(" ", "")
 
         try:
@@ -166,7 +164,7 @@ class ResultDymola:
                 return self.name_lookup[encode(name)]
             else:
                 return self.name_lookup[name]
-        except KeyError as ex:
+        except KeyError:
             #Variable was not found so check if it was a derivative variable
             #and check if there exists a variable with another naming
             #convention
@@ -177,7 +175,7 @@ class ResultDymola:
                         return self.name_lookup[encode(self._convert_dx_name(name))]
                     else:
                         return self.name_lookup[self._convert_dx_name(name)]
-                except KeyError as ex:
+                except KeyError:
                     return self._exhaustive_search_for_derivatives(name)
             else:
                 raise VariableNotFoundError("Cannot find variable " +
@@ -222,13 +220,13 @@ class ResultDymola:
                     return self.name_lookup[encode(der_trial_name)]
                 else:
                     return self.name_lookup[der_trial_name]
-            except KeyError as ex:
+            except KeyError:
                 try:
                     if python3_flag and isinstance(self, ResultDymolaBinary):
                         return self.name_lookup[encode(self._convert_dx_name(der_trial_name))]
                     else:
                         return self.name_lookup[self._convert_dx_name(der_trial_name)]
-                except KeyError as ex:
+                except KeyError:
                     pass
         else:
             raise VariableNotFoundError("Cannot find variable " +
@@ -544,14 +542,14 @@ class ResultWriterDymola(ResultWriter):
         descs_sens = []
         cont_vars = []
 
-        if parameters != None:
+        if parameters is not None:
             vars = self.model.get_model_variables(type=0,include_alias=False,variability=3)
             for i in self.model.get_state_value_references():
                 for j in vars.keys():
                     if i == vars[j].value_reference:
                         cont_vars.append(vars[j].name)
 
-        if parameters != None:
+        if parameters is not None:
             for j in range(len(parameters)):
                 for i in range(len(self.model.continuous_states)):
                     names_sens += ['d'+cont_vars[i]+'/d'+parameters[j]]
@@ -713,7 +711,7 @@ class ResultWriterDymola(ResultWriter):
         data_order = self._data_order
 
         #If data is none, store the current point from the model
-        if data==None:
+        if data is None:
             #Retrieves the time-point
             [r,i,b] = self.model.save_time_point()
             data = N.append(N.append(N.append(self.model.time,r),i),b)
@@ -759,7 +757,6 @@ class ResultStorageMemory(ResultDymola):
     """
     Class representing a simulation result that is kept in MEMORY.
     """
-
     def __init__(self, model, data, vars_ref, vars):
         """
         Load result from the ResultHandlerMemory
@@ -890,7 +887,6 @@ class ResultDymolaTextual(ResultDymola):
     Class representing a simulation or optimization result loaded from a Dymola
     binary file.
     """
-
     def __init__(self,fname):
         """
         Load a result file written on Dymola textual format.
@@ -1208,7 +1204,6 @@ class ResultDymolaBinary(ResultDymola):
     Class representing a simulation or optimization result loaded from a Dymola
     binary file.
     """
-
     def __init__(self, fname, delayed_trajectory_loading = True, allow_file_updates=False):
         """
         Load a result file written on Dymola binary format.
@@ -1259,7 +1254,7 @@ class ResultDymolaBinary(ResultDymola):
 
                     self._has_file_pos_data = False
 
-                except:
+                except Exception:
                     self._contains_diagnostic_data = False
                     data_sections = ["name", "dataInfo", "data_2"]
         else:
@@ -1356,16 +1351,16 @@ class ResultDymolaBinary(ResultDymola):
             for name in dict_names:
                 if python3_flag and isinstance(name, bytes):
                     name = decode(name)
-                if name == f'{diagnostics_prefix}event_data.event_info.event_type':
+                if name == f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type':
                     name_dict[DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name']] = None
                     name_dict[DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name']] = None
                     name_dict[DiagnosticsBase.calculated_diagnostics['nbr_events']['name']] = None
                     continue
-                if f'{diagnostics_prefix}state_errors.' in name:
-                    state_name = name.replace(f'{diagnostics_prefix}state_errors.', '')
+                if f'{DIAGNOSTICS_PREFIX}state_errors.' in name:
+                    state_name = name.replace(f'{DIAGNOSTICS_PREFIX}state_errors.', '')
                     name_dict["{}.{}".format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name'], state_name)] = None
-                if name == f'{diagnostics_prefix}cpu_time_per_step':
-                    name_dict[f'{diagnostics_prefix}cpu_time'] = None
+                if name == f'{DIAGNOSTICS_PREFIX}cpu_time_per_step':
+                    name_dict[f'{DIAGNOSTICS_PREFIX}cpu_time'] = None
 
         return name_dict
 
@@ -1480,8 +1475,8 @@ class ResultDymolaBinary(ResultDymola):
             return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_events_and_steps(name))
         elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
              return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_nbr_state_limits_step(name))
-        elif name == f'{diagnostics_prefix}cpu_time':
-            return Trajectory(self._get_diagnostics_trajectory(0), N.cumsum(self.get_variable_data(f'{diagnostics_prefix}cpu_time_per_step').x))
+        elif name == f'{DIAGNOSTICS_PREFIX}cpu_time':
+            return Trajectory(self._get_diagnostics_trajectory(0), N.cumsum(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x))
         else:
             varInd  = self.get_variable_index(name)
 
@@ -1517,8 +1512,8 @@ class ResultDymolaBinary(ResultDymola):
         state_events_name = DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name']
         steps_name = DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']
         try:
-            event_type_data = self.get_variable_data(f'{diagnostics_prefix}event_data.event_info.event_type')
-        except:
+            event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type')
+        except Exception:
             if name == steps_name:
                 self._data_3[steps_name] = N.array(range(len(self._get_diagnostics_trajectory(0))))
                 return self._data_3[name]
@@ -1550,8 +1545,8 @@ class ResultDymolaBinary(ResultDymola):
             return self._data_3[name]
         step_limitation_name = '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name'])
         state_name = name.replace(step_limitation_name, '')
-        state_error_data = self.get_variable_data(f'{diagnostics_prefix}state_errors.'+state_name)
-        event_type_data = self.get_variable_data(f'{diagnostics_prefix}event_data.event_info.event_type')
+        state_error_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}state_errors.'+state_name)
+        event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type')
         self._data_3[name] = N.zeros(len(event_type_data.x))
         nof_times_state_limits_step = 0
         for ind, state_error in enumerate(state_error_data.x):
@@ -1579,7 +1574,7 @@ class ResultDymolaBinary(ResultDymola):
                       DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name'],
                       DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name'],
                       DiagnosticsBase.calculated_diagnostics['nbr_steps']['name'],
-                      f'{diagnostics_prefix}cpu_time']:
+                      f'{DIAGNOSTICS_PREFIX}cpu_time']:
             return True
         elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
             return True
@@ -1658,9 +1653,6 @@ class ResultDymolaBinary(ResultDymola):
         return self._data_2
 
 class ResultHandlerMemory(ResultHandler):
-    def __init__(self, model):
-        self.model = model
-
     def simulation_start(self):
         """
         This method is called before the simulation has started and before
@@ -1742,7 +1734,7 @@ class ResultHandlerMemory(ResultHandler):
 
 class ResultHandlerCSV(ResultHandler):
     def __init__(self, model, delimiter=";"):
-        self.model = model
+        super().__init__(model)
         self.delimiter = delimiter
 
     def initialize_complete(self):
@@ -1943,9 +1935,6 @@ class ResultHandlerFile(ResultHandler):
     Export an optimization or simulation result to file in Dymola's result file
     format.
     """
-    def __init__(self, model):
-        self.model = model
-
     def initialize_complete(self):
         pass
 
@@ -1976,7 +1965,6 @@ class ResultHandlerFile(ResultHandler):
         #Store the continuous and discrete variables for result writing
         self.real_var_ref, self.int_var_ref, self.bool_var_ref = model.get_model_time_varying_value_references(filter=opts["filter"])
 
-        file_name = self.file_name
         parameters = self.parameters
 
         # Open file
@@ -2086,7 +2074,7 @@ class ResultHandlerFile(ResultHandler):
         descs_sens = []
         cont_vars = []
 
-        if parameters != None:
+        if parameters is not None:
 
             if isinstance(self.model, fmi.FMUModelME2):
                 vars = self.model.get_model_variables(type=fmi.FMI2_REAL,include_alias=False,variability=fmi.FMI2_CONTINUOUS,filter=self.options["filter"])
@@ -2390,9 +2378,6 @@ class ResultHandlerFile(ResultHandler):
         self.options = options
 
 class ResultHandlerDummy(ResultHandler):
-    def __init__(self, model):
-        self.model = model
-
     def get_result(self):
         return None
 
@@ -2462,7 +2447,8 @@ class ResultHandlerBinaryFile(ResultHandler):
     format (MATLAB v4 format).
     """
     def __init__(self, model):
-        self.model = model
+        super().__init__(model)
+        self.supports['dynamic_diagnostics'] = True
         self.data_2_header_end_position = 0
 
     def _data_header(self, name, nbr_rows, nbr_cols, data_type):
@@ -2530,7 +2516,6 @@ class ResultHandlerBinaryFile(ResultHandler):
         diagnostic parameters and variables to generate results for.
         """
         opts = self.options
-        model = self.model
 
         #Internal values
         self.file_open = False
@@ -2543,7 +2528,7 @@ class ResultHandlerBinaryFile(ResultHandler):
             # since logging will always be set to True if dynamic_diagnostics is True when
             # invoked via normal simulation 'sequencing'
             self._with_diagnostics = opts["logging"] or opts["dynamic_diagnostics"]
-        except:
+        except Exception:
             self._with_diagnostics = False
 
         if self._with_diagnostics and (len(diagnostics_params) < 1 or self.nof_diag_vars < 1):
@@ -2570,7 +2555,6 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.model._result_file = self.file_name
 
         file_name = self.file_name
-        parameters = self.parameters
         if isinstance(self.file_name, str):
             self._file = open(file_name,'wb')
         else:

@@ -797,7 +797,7 @@ class Graph:
                         self.graph_info[companion_output] #Node is still available? i.e. not in a SCC
                         if node != companion_output: #No edge to itself
                             self.edges.append((node, companion_output))
-                    except:
+                    except Exception:
                         pass
         self.edges = list(OrderedSet(self.edges))
 

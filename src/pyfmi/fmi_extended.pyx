@@ -188,7 +188,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
             else:
                 try:
                     flag, t, y = self._solver.do_step(tmid=self.time,tf=self.time, initialize=False)
-                except:
+                except Exception:
                     print "Warning: Failed to calculate the solution at %g"%current_time
                     print "Warning: Re-initializing..."
                     flag, t, y = self._solver.do_step(tmid=self.time,tf=self.time, initialize=True)

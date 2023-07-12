@@ -32,6 +32,14 @@ Module :mod:`core`
     :undoc-members:
     :show-inheritance:
 
+Module :mod:`diagnostics` 
+------------------
+
+.. automodule:: pyfmi.common.diagnostics
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 Module :mod:`io` 
 ----------------
 

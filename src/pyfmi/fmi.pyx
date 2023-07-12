@@ -164,7 +164,7 @@ GLOBAL_FMU_OBJECT = None
 cdef void importlogger_default(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     msg = decode(message)
     mod = decode(module)
-    if GLOBAL_FMU_OBJECT != None:
+    if GLOBAL_FMU_OBJECT is not None:
         GLOBAL_FMU_OBJECT.append_log_message(mod,log_level,msg)
     elif log_level <= GLOBAL_LOG_LEVEL:
         print("FMIL: module = %s, log level = %d: %s\n"%(mod, log_level, msg))
@@ -372,7 +372,7 @@ cdef class ModelBase:
             alg = algorithm(start_time, final_time, input, self, options)
             # simulate
             alg.solve()
-        except:
+        except Exception:
             #close log file
             self._close_log_file()
             raise #Reraise the exception
@@ -418,7 +418,7 @@ cdef class ModelBase:
             alg = algorithm(parameters, measurements, input, self, options)
             # simulate
             alg.solve()
-        except:
+        except Exception:
             #close log file
             self._close_log_file()
             raise #Reraise the exception
@@ -706,7 +706,7 @@ cdef class ModelBase:
                 try:
                     with open(self._fmu_log_name,'a') as file:
                         file.write(msg)
-                except: #In somecases (especially when Python closes the above will fail when messages are provided from the FMI terminate/free methods)
+                except Exception: #In some cases (especially when Python closes the above will fail when messages are provided from the FMI terminate/free methods)
                     f = FMIL.fopen(self._fmu_log_name, "a");
                     if (f != NULL):
                         FMIL.fprintf(f, "FMIL: module = %s, log level = %d: %s\n",c_module, log_level, c_message)
@@ -714,7 +714,7 @@ cdef class ModelBase:
         elif self._log_stream:
             try:
                 self._log_stream.write(msg)
-            except:
+            except Exception:
                 # Try to catch exception if stream is closed or not writable
                 # which could be due to the stream is given in 'read-mode.
                 if not self._invoked_dealloc:
@@ -1465,7 +1465,7 @@ cdef class FMUModelBase(ModelBase):
             for i in range(len(self._log)):
                 try:
                     self._log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
-                except:
+                except Exception:
                     if hasattr(self._log_stream, 'closed') and self._log_stream.closed:
                         logging.warning("Unable to log to closed stream.")
                     else:
@@ -2080,11 +2080,11 @@ cdef class FMUModelBase(ModelBase):
         cdef char* variablename = NULL
         cdef FMIL.fmi1_real_t value
 
-        if valueref != None:
+        if valueref is not None:
             variable = FMIL.fmi1_import_get_variable_by_vr(self._fmu, FMIL.fmi1_base_type_real, <FMIL.fmi1_value_reference_t>valueref)
             if variable == NULL:
                 raise FMUException("The variable with value reference: %s, could not be found."%str(valueref))
-        elif variable_name != None:
+        elif variable_name is not None:
             variable_name = encode(variable_name)
             variablename  = variable_name
 
@@ -2101,7 +2101,7 @@ cdef class FMUModelBase(ModelBase):
         value = FMIL.fmi1_import_get_real_variable_nominal(real_variable)
 
         if _override_erroneous_nominal:
-            if variable_name == None:
+            if variable_name is None:
                 variable_name = encode(self.get_variable_by_valueref(valueref))
                 variablename = variable_name
 
@@ -2357,13 +2357,13 @@ cdef class FMUModelBase(ModelBase):
         variable_list = FMIL.fmi1_import_get_variable_list(self._fmu)
         variable_list_size = FMIL.fmi1_import_get_variable_list_size(variable_list)
 
-        if type!=None: #A type have has been selected
+        if type is not None: #A type have has been selected
             target_type = type
             selected_type = 1
-        if causality!=None: #A causality has been selected
+        if causality is not None: #A causality has been selected
             target_causality = causality
             selected_causality = 1
-        if variability!=None: #A variability has been selected
+        if variability is not None: #A variability has been selected
             target_variability = variability
             selected_variability = 1
         if selected_filter:
@@ -3754,7 +3754,7 @@ cdef class FMUModelME1(FMUModelBase):
         cdef FMIL.fmi1_real_t c_tolerance
 
         #Trying to set the initial time from the xml file, else 0.0
-        if self.time == None:
+        if self.time is None:
             self.time = FMIL.fmi1_import_get_default_experiment_start(self._fmu)
 
         if tolerance_defined:
@@ -4755,7 +4755,7 @@ cdef class FMUModelBase2(ModelBase):
         Note that the method initialize() performs both the enter and
         exit of initialization mode.
         """
-        if self.time == None:
+        if self.time is None:
             raise FMUException("Setup Experiment has to be called prior to the initialization method.")
 
         status = FMIL.fmi2_import_enter_initialization_mode(self._fmu)
@@ -4820,12 +4820,12 @@ cdef class FMUModelBase2(ModelBase):
             self._open_log_file()
 
         try:
-            if self.time == None:
+            if self.time is None:
                 self.setup_experiment(tolerance_defined, tolerance, start_time, stop_time_defined, stop_time)
 
             self.enter_initialization_mode()
             self.exit_initialization_mode()
-        except:
+        except Exception:
             if not log_open and self.get_log_level() > 2:
                 self._close_log_file()
 
@@ -4925,11 +4925,11 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_real_t value
         cdef char* variablename = NULL
 
-        if valueref != None:
+        if valueref is not None:
             variable = FMIL.fmi2_import_get_variable_by_vr(self._fmu, FMIL.fmi2_base_type_real, <FMIL.fmi2_value_reference_t>valueref)
             if variable == NULL:
                 raise FMUException("The variable with value reference: %s, could not be found."%str(valueref))
-        elif variable_name != None:
+        elif variable_name is not None:
             variable_name = encode(variable_name)
             variablename = variable_name
 
@@ -4946,7 +4946,7 @@ cdef class FMUModelBase2(ModelBase):
         value = FMIL.fmi2_import_get_real_variable_nominal(real_variable)
 
         if _override_erroneous_nominal:
-            if variable_name == None:
+            if variable_name is None:
                 variable_name = encode(self.get_variable_by_valueref(valueref))
                 variablename = variable_name
             if value == 0.0:
@@ -5233,13 +5233,13 @@ cdef class FMUModelBase2(ModelBase):
         variable_list      = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
         variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
 
-        if type != None:        #A type have has been selected
+        if type is not None:        #A type have has been selected
             target_type = type
             selected_type = 1
-        if causality != None:   #A causality has been selected
+        if causality is not None:   #A causality has been selected
             target_causality = causality
             selected_causality = 1
-        if variability != None: #A variability has been selected
+        if variability is not None: #A variability has been selected
             target_variability = variability
             selected_variability = 1
         if selected_filter:
@@ -7066,7 +7066,7 @@ cdef class FMUModelCS2(FMUModelBase2):
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
                 raise InvalidVersionException("The FMU could not be loaded. This class only supports FMI 2.0 for Co-simulation.")
 
-        if self.get_capability_flags()['needsExecutionTool'] == True:
+        if self.get_capability_flags()['needsExecutionTool']:
             raise FMUException('Models that need an execution tool are not supported')
 
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
@@ -7685,7 +7685,7 @@ cdef class FMUModelME2(FMUModelBase2):
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
                 raise InvalidVersionException('The FMU could not be loaded. This class only supports FMI 2.0 for Model Exchange.')
 
-        if self.get_capability_flags()['needsExecutionTool'] == True:
+        if self.get_capability_flags()['needsExecutionTool']:
             raise FMUException('Models that need an execution tool are not supported')
 
         self._eventInfo.newDiscreteStatesNeeded           = FMI2_FALSE
@@ -8526,7 +8526,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
 
         try:
             vv = self.get_real(vr)
-        except:
+        except Exception:
             return FMIL.fmi2_status_error
 
         for i in range(size):
@@ -8543,7 +8543,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
 
         try:
             self.set_real(vr, vv)
-        except:
+        except Exception:
             return FMIL.fmi2_status_error
 
         return FMIL.fmi2_status_ok
@@ -8553,7 +8553,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
             tmp = self.get_real(valueref)
             for i in range(size):
                 values[i] = tmp[i]
-        except:
+        except Exception:
             return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
 
@@ -8562,7 +8562,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
             tmp = self.get_integer(valueref)
             for i in range(size):
                 values[i] = tmp[i]
-        except:
+        except Exception:
             return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
 
@@ -8571,7 +8571,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
             tmp = self.get_boolean(valueref)
             for i in range(size):
                 values[i] = tmp[i]
-        except:
+        except Exception:
             return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
 
