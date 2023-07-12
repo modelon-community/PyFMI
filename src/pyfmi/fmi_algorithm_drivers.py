@@ -716,7 +716,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             rtol_vector_support = self.simulator.supports.get("rtol_as_vector", False)
             
             if rtol_is_vector and not rtol_vector_support and self._rtol_as_scalar_fallback:
-                logging_module.warning("The chosen solver do not support providing the relative tolerance as a vector, fallback to using a scalar instead. rtol = %g"%self.rtol)
+                logging_module.warning("The chosen solver does not support providing the relative tolerance as a vector, fallback to using a scalar instead. rtol = %g"%self.rtol)
                 solver_options["rtol"] = self.rtol
 
         #loop solver_args and set properties of solver
