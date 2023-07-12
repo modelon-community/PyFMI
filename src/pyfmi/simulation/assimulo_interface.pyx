@@ -253,7 +253,7 @@ class FMIODE(Explicit_Problem):
         """
         eInfo = self._model.get_event_info()
 
-        if eInfo.upcomingTimeEvent == True:
+        if eInfo.upcomingTimeEvent:
             return eInfo.nextEventTime
         else:
             return None
@@ -324,12 +324,12 @@ class FMIODE(Explicit_Problem):
         eInfo = self._model.get_event_info()
         eInfo.iterationConverged = False
 
-        while eInfo.iterationConverged == False:
+        while not eInfo.iterationConverged:
             self._model.event_update(intermediateResult=False)
 
             eInfo = self._model.get_event_info()
             #Retrieve solutions (if needed)
-            #if eInfo.iterationConverged == False:
+            #if not eInfo.iterationConverged:
             #    pass
 
         #Check if the event affected the state values and if so sets them
@@ -884,7 +884,7 @@ cdef class FMIODE2(cExplicit_Problem):
         """
         eInfo = self._model.get_event_info()
 
-        if eInfo.nextEventTimeDefined == True:
+        if eInfo.nextEventTimeDefined:
             return eInfo.nextEventTime
         else:
             return None

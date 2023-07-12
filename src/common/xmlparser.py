@@ -1356,18 +1356,16 @@ class ModelDescription:
         
         if include_alias:
             for sv in scalarvariables:
-                if sv.get_variability() == PARAMETER and \
-                    sv.get_fundamental_type().get_free() == True:
-                        vrefs.append(sv.get_value_reference())
-                        names.append(sv.get_name())
+                if sv.get_variability() == PARAMETER and sv.get_fundamental_type().get_free():
+                    vrefs.append(sv.get_value_reference())
+                    names.append(sv.get_name())
             return list(zip(tuple(vrefs), tuple(names)))
             
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
-                sv.get_variability() == PARAMETER and \
-                sv.get_fundamental_type().get_free() == True:
-                        vrefs.append(sv.get_value_reference())
-                        names.append(sv.get_name())
+                sv.get_variability() == PARAMETER and sv.get_fundamental_type().get_free():
+                    vrefs.append(sv.get_value_reference())
+                    names.append(sv.get_name())
         return list(zip(tuple(vrefs), tuple(names)))
                 
     def get_dx_variable_names(self, include_alias=True, ignore_cache=False):
@@ -1547,7 +1545,7 @@ class ModelDescription:
 
     def get_p_opt_start(self, include_alias=True, ignore_cache=False):
         """ 
-        Get the start attributes of the independent paramenters 
+        Get the start attributes of the independent parameters 
         (variability:parameter, free: true) in the model.
         
         Parameters::
@@ -1577,8 +1575,7 @@ class ModelDescription:
         
         if include_alias:
             for sv in scalarvariables:
-                if sv.get_variability() == PARAMETER and \
-                    sv.get_fundamental_type().get_free() == True:
+                if sv.get_variability() == PARAMETER and sv.get_fundamental_type().get_free():
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
             return list(zip(tuple(vrefs), tuple(start_attributes)))
@@ -1586,7 +1583,7 @@ class ModelDescription:
         for sv in scalarvariables:
             if sv.get_alias() == NO_ALIAS and \
                 sv.get_variability() == PARAMETER and \
-                sv.get_fundamental_type().get_free() == True:
+                sv.get_fundamental_type().get_free():
                     vrefs.append(sv.get_value_reference())
                     start_attributes.append(sv.get_fundamental_type().get_start())
         return list(zip(tuple(vrefs), tuple(start_attributes)))
@@ -2110,8 +2107,7 @@ class ModelDescription:
         if include_alias:
             for sv in scalarvariables:
                 ftype = sv.get_fundamental_type()
-                if (sv.get_variability() == PARAMETER and 
-                    ftype.get_free() == True):
+                if (sv.get_variability() == PARAMETER and ftype.get_free()):
                     vrefs.append(sv.get_value_reference())
                     nominal_attributes.append(ftype.get_nominal())
             return list(zip(tuple(vrefs), tuple(nominal_attributes)))
@@ -2119,8 +2115,7 @@ class ModelDescription:
         for sv in scalarvariables:
             ftype = sv.get_fundamental_type()
             if (sv.get_alias() == NO_ALIAS and 
-                sv.get_variability() == PARAMETER and 
-                ftype.get_free() == True):
+                sv.get_variability() == PARAMETER and ftype.get_free()):
                 vrefs.append(sv.get_value_reference())
                 nominal_attributes.append(ftype.get_nominal())
         return list(zip(tuple(vrefs), tuple(nominal_attributes)))
@@ -2161,7 +2156,7 @@ class ModelDescription:
                 if not isinstance(ftype, String) and not \
                     isinstance(ftype, Enumeration) and \
                     sv.get_variability() == PARAMETER and \
-                    ftype.get_free() == True:
+                    ftype.get_free():
                         
                     vrefs.append(sv.get_value_reference())
                     initial_values.append(ftype.get_initial_guess())
@@ -2173,7 +2168,7 @@ class ModelDescription:
                 isinstance(ftype, Enumeration) and \
                 sv.get_alias() == NO_ALIAS and \
                 sv.get_variability() == PARAMETER and \
-                ftype.get_free() == True:
+                ftype.get_free():
                     
                     vrefs.append(sv.get_value_reference())
                     initial_values.append(ftype.get_initial_guess())
@@ -2425,7 +2420,7 @@ class ModelDescription:
                 if not isinstance(ftype, String) and not \
                     isinstance(ftype, Boolean) and \
                     sv.get_variability() == PARAMETER and \
-                    ftype.get_free() == True:
+                    ftype.get_free():
                         
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
@@ -2437,7 +2432,7 @@ class ModelDescription:
                 isinstance(ftype, Boolean) and \
                 sv.get_alias() == NO_ALIAS and \
                 sv.get_variability() == PARAMETER and \
-                ftype.get_free() == True:
+                ftype.get_free():
                     
                     vrefs.append(sv.get_value_reference())
                     min_values.append(ftype.get_min())
@@ -2685,7 +2680,7 @@ class ModelDescription:
                 if not isinstance(ftype, String) and not \
                     isinstance(ftype, Boolean) and \
                     sv.get_variability() == PARAMETER and \
-                    ftype.get_free() == True:
+                    ftype.get_free():
                         
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
@@ -2697,7 +2692,7 @@ class ModelDescription:
                 isinstance(ftype, Boolean) and \
                 sv.get_alias() == NO_ALIAS and \
                 sv.get_variability() == PARAMETER and \
-                ftype.get_free() == True:
+                ftype.get_free():
                     
                     vrefs.append(sv.get_value_reference())
                     max_values.append(ftype.get_max())
@@ -2945,14 +2940,14 @@ class ModelDescription:
         if include_alias:
             for sv in scalarvariables:
                 if sv.get_variability() == PARAMETER and \
-                    sv.get_fundamental_type().get_free() == True:
+                    sv.get_fundamental_type().get_free():
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
             return list(zip(tuple(vrefs), tuple(is_linear)))
             
         for sv in scalarvariables:
             if sv.get_variability() == PARAMETER and \
-                sv.get_fundamental_type().get_free() == True:
+                sv.get_fundamental_type().get_free():
                     vrefs.append(sv.get_value_reference())
                     is_linear.append(sv.get_is_linear())
         return list(zip(tuple(vrefs), tuple(is_linear)))
@@ -3385,7 +3380,7 @@ class ModelDescription:
         
         for sv in self.get_model_variables():
             if sv.get_variability() == PARAMETER and \
-                sv.get_fundamental_type().get_free() == True:
+                sv.get_fundamental_type().get_free():
                     vrefs.append(sv.get_value_reference())
         return vrefs
 

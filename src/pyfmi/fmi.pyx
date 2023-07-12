@@ -7066,7 +7066,7 @@ cdef class FMUModelCS2(FMUModelBase2):
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
                 raise InvalidVersionException("The FMU could not be loaded. This class only supports FMI 2.0 for Co-simulation.")
 
-        if self.get_capability_flags()['needsExecutionTool'] == True:
+        if self.get_capability_flags()['needsExecutionTool']:
             raise FMUException('Models that need an execution tool are not supported')
 
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
@@ -7685,7 +7685,7 @@ cdef class FMUModelME2(FMUModelBase2):
             if self._fmu_kind != FMIL.fmi2_fmu_kind_me_and_cs:
                 raise InvalidVersionException('The FMU could not be loaded. This class only supports FMI 2.0 for Model Exchange.')
 
-        if self.get_capability_flags()['needsExecutionTool'] == True:
+        if self.get_capability_flags()['needsExecutionTool']:
             raise FMUException('Models that need an execution tool are not supported')
 
         self._eventInfo.newDiscreteStatesNeeded           = FMI2_FALSE

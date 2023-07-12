@@ -100,7 +100,8 @@ class AssimuloFMIAlgOptions(OptionBase):
 
         dynamic_diagnostics --
             If True, enables logging of diagnostics data to a result file. This requires that
-            the option 'result_handler' supports 'dynamic_diagnostics', otherwise an exception is raised.
+            the option 'result_handler' supports 'dynamic_diagnostics', otherwise an 
+            InvalidOptionException is raised.
             The default 'result_handler' ResultHandlerBinaryFile supports 'dynamic_diagnostics'.
             The diagnostics data will be available via the simulation results and/or the
             binary result file generated during simulation.

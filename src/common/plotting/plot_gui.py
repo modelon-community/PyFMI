@@ -717,10 +717,10 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         self.global_id = self.global_id + 1
         
         #print "Adding: ", name, "Options: ", timeVarying, parametersConstants, filter
-        #print "Condition: ", timeVarying == False or parametersConstants == False or filter is not None
+        #print "Condition: ", not timeVarying or not parametersConstants or filter is not None
         
-        #Hide nodes if options are choosen
-        if timeVarying == False or parametersConstants == False or filter is not None:
+        #Hide nodes if options are chosen
+        if not timeVarying or not parametersConstants or filter is not None:
             self.HideNodes(timeVarying,parametersConstants,filter)
         
         #Un-Freeze the window
@@ -739,7 +739,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
             child - The youngest child from the starting point.
         """
         while True:
-            nextItem,cookie = self.GetNextChild(child,0)
+            nextItem, cookie = self.GetNextChild(child,0)
             if nextItem is not None:
                 child = nextItem
             else:
@@ -776,7 +776,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         top_siblings = self.FindTopSiblings()
         
         #Hide items if any of the options are True
-        if showTimeVarying == False or showParametersConstants == False or filter is not None:
+        if not showTimeVarying or not showParametersConstants or filter is not None:
             while child != itemParent and child is not None:
                 already_hidden = False
                 
@@ -808,7 +808,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                     data["timevarying"] = data["result_object"].is_variable(data["full_name"])
                 
                 #Enable or disable depending on input to method
-                if showTimeVarying == False and data["timevarying"]:
+                if not showTimeVarying and data["timevarying"]:
                     self.HideItem(found_child, showTimeVarying)
                     
                     #Delete the parent if it has no children
@@ -816,7 +816,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                     
                     already_hidden = True
                     
-                if showParametersConstants == False and not data["timevarying"]:
+                if not showParametersConstants and not data["timevarying"]:
                     self.HideItem(found_child, showParametersConstants)
                     
                     #Delete the parent if it has no children
@@ -831,7 +831,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
                     self.HideNodeItem(found_child)
         
         #Re-add items if any of the options are True
-        if showTimeVarying == True or showParametersConstants == True or filter is not None:
+        if showTimeVarying or showParametersConstants or filter is not None:
             self.AddHiddenItems(showTimeVarying, showParametersConstants, filter)
     
     def FindTopSiblings(self):
@@ -863,15 +863,15 @@ class VariableTree(wxCustom.CustomTreeCtrl):
             matching = False
             
             #Do not add any items!
-            if data["timevarying"] and showTimeVarying == False or not data["timevarying"] and showParametersConstants == False:
+            if data["timevarying"] and not showTimeVarying or not data["timevarying"] and not showParametersConstants:
                 i = i+1
                 continue
             
             if filter is not None:
                 matching = match(data["full_name"], filter)
             
-            if     data["timevarying"] and showTimeVarying == True and (filter is None or filter is not None and matching == True) or \
-               not data["timevarying"] and showParametersConstants == True and (filter is None or filter is not None and matching == True):
+            if     data["timevarying"] and showTimeVarying and (filter is None or filter is not None and matching) or \
+               not data["timevarying"] and showParametersConstants and (filter is None or filter is not None and matching):
                #or filter is not None and match(data["full_name"], filter):
                 
                 if self.nodes[data["result_id"]][data["node_id"]]["node"] is None:
@@ -933,7 +933,7 @@ class VariableTree(wxCustom.CustomTreeCtrl):
         parent = self.GetItemParent(item)
         top_siblings = self.FindTopSiblings()
         
-        while self.HasChildren(parent) == False and parent not in top_siblings:
+        while not self.HasChildren(parent) and parent not in top_siblings:
             old_parent = self.GetItemParent(parent)
             
             #Add the deleted nodes to the hidden list so that we can recreate the list
@@ -1324,7 +1324,7 @@ class FilterPanel(wx.Panel):
         self.Bind(wx.EVT_TEXT_ENTER, self.OnSearch, self.searchBox)
     
     def GetFilter(self):
-        if self.active_filter == True:
+        if self.active_filter:
             filter = self.searchBox.GetValue().split(";")
             if filter[0] == "": #If the filter is empty, match all
                 filter = ["*"]
