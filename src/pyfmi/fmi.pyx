@@ -7705,6 +7705,9 @@ cdef class FMUModelME2(FMUModelBase2):
         if _connect_dll:
             self.instantiate()
 
+        self._solver_rtol = None
+        self._solver_atol = None
+
     def __dealloc__(self):
         """
         Deallocate memory allocated
@@ -7738,6 +7741,10 @@ cdef class FMUModelME2(FMUModelBase2):
 
         if self._log_stream:
             self._log_stream = None
+
+    cpdef _set_solver_tols(self, double rtol, N.ndarray atol):
+        self._solver_rtol = rtol
+        self._solver_atol = atol
 
     cpdef _get_time(self):
         """

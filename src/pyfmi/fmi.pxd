@@ -250,6 +250,11 @@ cdef class FMUModelCS2(FMUModelBase2):
 
 cdef class FMUModelME2(FMUModelBase2):
 
+    cdef object _solver_rtol
+    cdef object _solver_atol
+
+    cpdef _set_solver_tols(self, double rtol, N.ndarray atol)
+
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi2_real_t t)
     cpdef get_derivatives(self)

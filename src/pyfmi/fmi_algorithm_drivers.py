@@ -419,7 +419,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                      result_handler = self.result_handler,
                                      extra_equations = self.options["extra_equations"],
                                      synchronize_simulation = self.options["synchronize_simulation"],
-                                     number_of_diagnostics_variables = number_of_diagnostics_variables)
+                                     number_of_diagnostics_variables = number_of_diagnostics_variables,
+                                     options = self.options)
         elif isinstance(self.model, ((fmi.FMUModelME2, fmi_coupled.CoupledFMUModelME2))):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(self.model,
@@ -441,7 +442,8 @@ class AssimuloFMIAlg(AlgorithmBase):
                                      result_handler = self.result_handler,
                                      extra_equations = self.options["extra_equations"],
                                      synchronize_simulation = self.options["synchronize_simulation"],
-                                     number_of_diagnostics_variables = number_of_diagnostics_variables)
+                                     number_of_diagnostics_variables = number_of_diagnostics_variables,
+                                     options = self.options)
 
         elif not self.input:
             if self.options["sensitivities"]:

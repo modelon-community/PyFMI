@@ -583,7 +583,8 @@ cdef class FMIODE2(cExplicit_Problem):
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, logging=False,
                  result_handler=None, extra_equations=None, synchronize_simulation=False,
-                 number_of_diagnostics_variables = 0):
+                 number_of_diagnostics_variables = 0,
+                 options = None):
         """
         Initialize the problem.
         """
@@ -595,6 +596,9 @@ cdef class FMIODE2(cExplicit_Problem):
         if type(model) == FMUModelME2: #isinstance(model, FMUModelME2):
             self.model_me2 = model
             self.model_me2_instance = 1
+            if options is not None:
+                _solver = options['solver']
+                model._set_solver_tols(options[f'{_solver}_options']['rtol'], N.array(options[f'{_solver}_options']['atol']))
         else:
             self.model_me2_instance = 0
 
