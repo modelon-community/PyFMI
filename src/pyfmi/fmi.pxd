@@ -252,8 +252,10 @@ cdef class FMUModelME2(FMUModelBase2):
 
     cdef object _solver_rtol
     cdef object _solver_atol
+    cdef object _sigma_0
 
     cpdef _set_solver_tols(self, double rtol, N.ndarray atol)
+    cpdef _set_sigma_0(self, double sig)
 
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi2_real_t t)

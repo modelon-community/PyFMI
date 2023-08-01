@@ -599,6 +599,7 @@ cdef class FMIODE2(cExplicit_Problem):
             if options is not None:
                 _solver = options['solver']
                 model._set_solver_tols(options[f'{_solver}_options']['rtol'], N.array(options[f'{_solver}_options']['atol']))
+                model._set_sigma_0(options['sigma_0'])
         else:
             self.model_me2_instance = 0
 

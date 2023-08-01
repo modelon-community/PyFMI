@@ -225,7 +225,8 @@ class AssimuloFMIAlgOptions(OptionBase):
             'RodasODE_options':{'atol':"Default",'rtol':"Default", "maxh":"Default"},
             'LSODAR_options':{'atol':"Default",'rtol':"Default", "maxh":"Default"},
             'ExplicitEuler_options':{},
-            'ImplicitEuler_options':{}
+            'ImplicitEuler_options':{},
+            'sigma_0': 1
             }
         super(AssimuloFMIAlgOptions,self).__init__(_defaults)
         # for those key-value-sets where the value is a dict, don't

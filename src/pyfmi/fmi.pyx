@@ -7707,6 +7707,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         self._solver_rtol = None
         self._solver_atol = None
+        self._sigma_0 = 1.
 
     def __dealloc__(self):
         """
@@ -7745,6 +7746,9 @@ cdef class FMUModelME2(FMUModelBase2):
     cpdef _set_solver_tols(self, double rtol, N.ndarray atol):
         self._solver_rtol = rtol
         self._solver_atol = atol
+
+    cpdef _set_sigma_0(self, double sig):
+        self._sigma_0 = sig
 
     cpdef _get_time(self):
         """
