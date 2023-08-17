@@ -19,7 +19,7 @@ The JModelica.org <http:/www.jmodelica.org/> Python package for common classes
 and functions.
 """
 
-__all__ = ['algorithm_drivers', 'core', 'diagnostics', 'io', 'xmlparser', 'plotting']
+__all__ = ['algorithm_drivers', 'core', 'diagnostics', 'io', 'plotting']
 
 import sys
 python3_flag = True if sys.hexversion > 0x03000000 else False
