@@ -449,7 +449,7 @@ def get_unit_name(class_name, unit_type='FMU'):
             The name of the model.
             
         unit_type --
-            The unit type. Possible values: FMU, FMUX.
+            The unit type. Possible values: FMU (other values have been removed).
             Default: 'FMU'
         
     Returns::
@@ -458,8 +458,6 @@ def get_unit_name(class_name, unit_type='FMU'):
     """
     if unit_type == 'FMU':
         return class_name.replace('.','_')+'.fmu' 
-    elif unit_type == 'FMUX':
-        return class_name.replace('.','_')+'.fmux'
     else:
         raise Exception("The unit type %s is unknown" %unit_type)
         
