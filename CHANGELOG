@@ -1,4 +1,7 @@
 --- CHANGELOG ---
+--- PyFMI-NEXT_VERSION ---
+    * Removed utilities related to the obsolete FMUX model interface.
+
 --- PyFMI-2.11.0 ---
     * Refactored result handling for dynamic_diagnostics. It is now possible use dynamic_diagnostics with a custom result handler.
     * Migrated some diagnostics functionality into a new file: src/common/diagnostics.py. This should be seamless.

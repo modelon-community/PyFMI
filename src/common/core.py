@@ -438,31 +438,6 @@ def delete_temp_dir(tmp_dir):
     if os.path.exists(tmp_dir):
         shutil.rmtree(tmp_dir)
 
-        
-def get_unit_name(class_name, unit_type='FMU'):
-    """
-    Computes the unit name from a class name.
-    
-    Parameters::
-        
-        class_name -- 
-            The name of the model.
-            
-        unit_type --
-            The unit type. Possible values: FMU, FMUX.
-            Default: 'FMU'
-        
-    Returns::
-    
-        The unit name (replaced dots with underscores).
-    """
-    if unit_type == 'FMU':
-        return class_name.replace('.','_')+'.fmu' 
-    elif unit_type == 'FMUX':
-        return class_name.replace('.','_')+'.fmux'
-    else:
-        raise Exception("The unit type %s is unknown" %unit_type)
-        
 def get_temp_location():
     """
     Get the directory where the temporary files are placed.

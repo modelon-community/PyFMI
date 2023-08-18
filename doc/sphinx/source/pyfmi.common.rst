@@ -47,14 +47,3 @@ Module :mod:`io`
     :members:
     :undoc-members:
     :show-inheritance:
-
-Module :mod:`xmlparser` 
------------------------
-
-.. automodule:: pyfmi.common.xmlparser
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-
