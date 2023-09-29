@@ -28,6 +28,8 @@ from .master import Master
 from .fmi_extended import FMUModelME1Extended
 import numpy as N
 import os.path
+import sys
+import time
 
 int = N.int32
 N.int = N.int32
@@ -58,7 +60,6 @@ except Exception:
 
 
 def check_packages():
-    import sys, time
     le=30
     le_short=15
     startstr = "Performing pyfmi package check"
@@ -102,7 +103,7 @@ def check_packages():
         "%s %s" % (("-"*len(modstr)).ljust(le), ("-"*len(verstr)).ljust(le)))
     sys.stdout.write("\n")
     
-    packages=["assimulo", "Cython", "lxml", "matplotlib", "numpy", "scipy", "wxPython"]
+    packages=["assimulo", "Cython", "matplotlib", "numpy", "scipy", "wxPython"]
     
     if platform == "win32":
         packages.append("pyreadline")
@@ -120,9 +121,6 @@ def check_packages():
             try:
                 if package == "pyreadline":
                     vers = mod.release.version
-                elif package == "lxml":
-                    from lxml import etree
-                    vers = etree.__version__
                 else:
                     vers = mod.__version__
             except AttributeError:
