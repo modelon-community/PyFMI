@@ -2491,7 +2491,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         data[data == ""] = " "
 
         if dtype.kind == "U":
-            tmp = np.ndarray(shape=(), dtype=(dtype.str[:2] + str(np.product(dims))), buffer=data)
+            tmp = np.ndarray(shape=(), dtype=(dtype.str[:2] + str(np.prod(dims))), buffer=data)
             buf = tmp.item().encode('latin-1')
             data = np.ndarray(shape=dims, dtype="S1", buffer=buf)
 
