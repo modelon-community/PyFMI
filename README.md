@@ -1,18 +1,15 @@
-PyFMI
-=====
+About
+-----------
 
 PyFMI is a package for loading and interacting with Functional Mock-Up Units
 (FMUs) both for Model Exchange and Co-Simulation, which are compiled dynamic
-models compliant with the Functional Mock-Up Interface (FMI). See
- https://fmi-standard.org/ for more
-information.
+models compliant with the Functional Mock-Up Interface ([FMI](https://fmi-standard.org/)).
 
-For a more indebt technical description of the features / functionality see:
-https://portal.research.lu.se/portal/files/7201641/pyfmi_tech.pdf
+For a more indebt technical description of the features / functionality see the following [link](https://portal.research.lu.se/portal/files/7201641/pyfmi_tech.pdf).
 
 For citing PyFMI, please use:
 
-Andersson, C, Åkesson, J & Führer, C 2016, PyFMI: A Python Package for Simulation of Coupled Dynamic Models with the Functional Mock-up Interface. Technical Report in Mathematical Sciences, nr. 2, vol. 2016, vol. LUTFNA-5008-2016, Centre for Mathematical Sciences, Lund University.
+<em>Andersson, C, Åkesson, J & Führer, C 2016, PyFMI: A Python Package for Simulation of Coupled Dynamic Models with the Functional Mock-up Interface. Technical Report in Mathematical Sciences, nr. 2, vol. 2016, vol. LUTFNA-5008-2016, Centre for Mathematical Sciences, Lund University</em>.
 
 For information about contributing, see [here](https://github.com/modelon/contributing).
 
@@ -32,3 +29,8 @@ Installation using CONDA
 Note that some examples requires optional dependencies for plotting, they are:
 - wxPython
 - matplotlib
+
+FMU Import Compliance
+-----------
+PyFMI is tested on an everyday basis both with the unit tests found in the `tests` directory but also extensively outside of this project with the `Optimica Compiler Toolkit` (OCT) provided by [Modelon](https://help.modelon.com/latest/reference/oct/). All models from the libraries provided by Modelon have been tested via simulation tests (which covers over 30000+ Modelica models) as FMUs (using the FMU Export functionality from OCT). PyFMI is the default execution engine for [Modelon Impact](https://modelon.com/modelon-impact/).
+Additionally, PyFMI has been tested with Dymola FMUs and FMUs from [FMI Cross Check](https://github.com/modelica/fmi-cross-check), but not as extensively as those previously mentioned.
