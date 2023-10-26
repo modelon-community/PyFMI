@@ -294,6 +294,8 @@ try:
     shutil.copy2('CHANGELOG', os.path.join('src', 'pyfmi', 'CHANGELOG'))
 except Exception:
     pass
+extra_package_data = ['*fmilib_shared*'] if sys.platform.startswith("win") else []
+extra_package_data += ['libgcc_s_dw2-1.dll'] if copy_gcc_lib else []
 
 from numpy.distutils.core import setup
 setup(name=NAME,
