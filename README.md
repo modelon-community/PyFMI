@@ -40,9 +40,8 @@ PyFMI is tested daily in several different ways:
   * FMUs in the example directory are generated via <em>FMU SDK by Qtronic</em>, more information is available in related `README.txt` for these FMUs with proper license text. 
 * PyFMI is the default execution engine for [Modelon Impact](https://modelon.com/modelon-impact/).
 * Testing with FMUs from [FMI Cross Check](https://github.com/modelica/fmi-cross-check) and commit [55c6704](https://github.com/modelica/fmi-cross-check/commit/55c6704bbcaed3e0f4f788a02af0aba08b7faa4a):
-  * 95 FMUs pass, 21 fail. 
   * All the `win64` Dymola FMUs have been tested with PyFMI `2.11.0` and pass with default options.
-  * On `Ubuntu 20.04` using `Python 3.9`, `PyFMI 2.11.0`, the following FMUs pass:
+  * On `Ubuntu 20.04` using `Python 3.9`, `PyFMI 2.11.0`, the following FMUs pass (95 out of 116):
      * fmus/2.0/me/linux64/MapleSim/2015.1/ControlledTemperature/ControlledTemperature.fmu
      * fmus/2.0/me/linux64/MapleSim/2015.1/CoupledClutches/CoupledClutches.fmu
      * fmus/2.0/me/linux64/MapleSim/2015.1/Rectifier/Rectifier.fmu
