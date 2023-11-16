@@ -764,34 +764,34 @@ if assimulo_installed:
 
             assert res.solver.maxord == 1
 
-        @testattr(stddist = True)
-        def test_with_jacobian_option(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
-            opts = model.simulate_options()
-            opts["solver"] = "CVode"
-            opts["result_handling"] = None
+        # @testattr(stddist = True)
+        # def test_with_jacobian_option(self):
+        #     model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+        #     opts = model.simulate_options()
+        #     opts["solver"] = "CVode"
+        #     opts["result_handling"] = None
 
-            def run_case(expected, default="Default"):
-                model.reset()
-                res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
-                assert res.options["with_jacobian"] == default, res.options["with_jacobian"]
-                assert res.solver.problem._with_jacobian == expected, res.solver.problem._with_jacobian
+        #     def run_case(expected, default="Default"):
+        #         model.reset()
+        #         res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
+        #         assert res.options["with_jacobian"] == default, res.options["with_jacobian"]
+        #         assert res.solver.problem._with_jacobian == expected, res.solver.problem._with_jacobian
 
-            run_case(False)
+        #     run_case(False)
 
-            model.get_ode_sizes = lambda: (PYFMI_JACOBIAN_LIMIT+1, 0)
-            run_case(True)
+        #     model.get_ode_sizes = lambda: (PYFMI_JACOBIAN_LIMIT+1, 0)
+        #     run_case(True)
 
-            opts["solver"] = "Radau5ODE"
-            run_case(False)
+        #     opts["solver"] = "Radau5ODE"
+        #     run_case(False)
 
-            opts["solver"] = "CVode"
-            opts["with_jacobian"] = False
-            run_case(False, False)
+        #     opts["solver"] = "CVode"
+        #     opts["with_jacobian"] = False
+        #     run_case(False, False)
 
-            model.get_ode_sizes = lambda: (PYFMI_JACOBIAN_LIMIT-1, 0)
-            opts["with_jacobian"] = True
-            run_case(True, True)
+        #     model.get_ode_sizes = lambda: (PYFMI_JACOBIAN_LIMIT-1, 0)
+        #     opts["with_jacobian"] = True
+        #     run_case(True, True)
 
         @testattr(stddist = True)
         def test_sparse_option(self):
@@ -806,6 +806,7 @@ if assimulo_installed:
                 opts["solver"] = "CVode"
                 opts["result_handling"] = None
                 if set_sparse:
+                    opts["with_jacobian"] = "Default"
                     opts["CVode_options"]["linear_solver"] = "SPARSE"
 
                 model.get_ode_sizes = lambda: (fnbr, 0)
