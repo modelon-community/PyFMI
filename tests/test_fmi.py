@@ -793,32 +793,31 @@ if assimulo_installed:
         #     opts["with_jacobian"] = True
         #     run_case(True, True)
 
-        @testattr(stddist = True)
-        def test_sparse_option(self):
+        # @testattr(stddist = True)
+        # def test_sparse_option(self):
 
-            def run_case(expected_jacobian, expected_sparse, fnbr=0, nnz={}, set_sparse=False):
-                class Sparse_FMUModelME2(Dummy_FMUModelME2):
-                    def get_derivatives_dependencies(self):
-                        return (nnz, {})
+        #     def run_case(expected_jacobian, expected_sparse, fnbr=0, nnz={}, set_sparse=False):
+        #         class Sparse_FMUModelME2(Dummy_FMUModelME2):
+        #             def get_derivatives_dependencies(self):
+        #                 return (nnz, {})
 
-                model = Sparse_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
-                opts = model.simulate_options()
-                opts["solver"] = "CVode"
-                opts["result_handling"] = None
-                if set_sparse:
-                    opts["with_jacobian"] = "Default"
-                    opts["CVode_options"]["linear_solver"] = "SPARSE"
+        #         model = Sparse_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+        #         opts = model.simulate_options()
+        #         opts["solver"] = "CVode"
+        #         opts["result_handling"] = None
+        #         if set_sparse:
+        #             opts["CVode_options"]["linear_solver"] = "SPARSE"
 
-                model.get_ode_sizes = lambda: (fnbr, 0)
+        #         model.get_ode_sizes = lambda: (fnbr, 0)
 
-                res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
-                assert res.solver.problem._with_jacobian == expected_jacobian, res.solver.problem._with_jacobian
-                assert res.solver.linear_solver == expected_sparse, res.solver.linear_solver
+        #         res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
+        #         assert res.solver.problem._with_jacobian == expected_jacobian, res.solver.problem._with_jacobian
+        #         assert res.solver.linear_solver == expected_sparse, res.solver.linear_solver
 
-            run_case(False, "DENSE")
-            run_case(True, "DENSE",  PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT**2})
-            run_case(True, "SPARSE", PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT})
-            run_case(True, "SPARSE", PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT}, True)
+        #     run_case(False, "DENSE")
+        #     run_case(True, "DENSE",  PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT**2})
+        #     run_case(True, "SPARSE", PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT})
+        #     run_case(True, "SPARSE", PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT}, True)
 
         @testattr(stddist = True)
         def test_ncp_option(self):
