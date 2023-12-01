@@ -8363,26 +8363,18 @@ cdef class FMUModelME2(FMUModelBase2):
                         nominals_pt[i] = self.get_variable_nominal(valueref = v_ref_pt[i])
 
             for i in range(len_v):
-                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), RRUROUND))
+                eps_pt[i] = max((N.nextafter(abs(v_pt[i]), N.inf)-abs(v_pt[i]))/RUROUND, RUROUND*2**(-9))
                 if N.sign(v_pt[i]):
-                    eps_pt[i] *= N.sign(v_pt[i])                     
-                    if abs(v_pt[i])/2 <= abs(v_pt[i] + eps_pt[i]) <= 2*abs(v_pt[i]):
-                        temp = v_pt[i] + eps_pt[i]      
-                        eps_pt[i] = temp - v_pt[i]
-                    elif abs(v_pt[i])/2 <= abs(v_pt[i] - eps_pt[i]) <= 2*abs(v_pt[i]):
-                        temp = v_pt[i] - eps_pt[i]
-                        eps_pt[i] = temp - v_pt[i]
+                    eps_pt[i] *= N.sign(v_pt[i])
+                temp = v_pt[i] + eps_pt[i]
+                eps_pt[i] = temp - v_pt[i]
         else:
             for i in range(len_v):
-                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), RRUROUND))
+                eps_pt[i] = max((N.nextafter(abs(v_pt[i]), N.inf)-abs(v_pt[i]))/RUROUND, RUROUND*2**(-9))
                 if N.sign(v_pt[i]):
-                    eps_pt[i] *= N.sign(v_pt[i])                     
-                    if abs(v_pt[i])/2 <= abs(v_pt[i] + eps_pt[i]) <= 2*abs(v_pt[i]):
-                        temp = v_pt[i] + eps_pt[i]      
-                        eps_pt[i] = temp - v_pt[i]
-                    elif abs(v_pt[i])/2 <= abs(v_pt[i] - eps_pt[i]) <= 2*abs(v_pt[i]):
-                        temp = v_pt[i] - eps_pt[i]
-                        eps_pt[i] = temp - v_pt[i]
+                    eps_pt[i] *= N.sign(v_pt[i])
+                temp = v_pt[i] + eps_pt[i]
+                eps_pt[i] = temp - v_pt[i]
 
 
         if group is not None:
