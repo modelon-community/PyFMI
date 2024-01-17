@@ -33,13 +33,13 @@ try:
     from Cython.Distutils import build_ext
     from Cython.Build import cythonize
 except ImportError:
-    raise Exception("Please upgrade to a newer Cython version, >= 0.15.")
+    raise Exception("Please upgrade to a newer Cython version, >= 3.")
 
 
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "3.0-dev"
+VERSION = "2.12.0"
 LICENSE = "LGPL"
 URL = "https://github.com/modelon-community/PyFMI"
 DOWNLOAD_URL = "https://github.com/modelon-community/PyFMI/releases"
