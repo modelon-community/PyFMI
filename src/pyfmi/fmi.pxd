@@ -29,7 +29,7 @@ cimport numpy as N
 
 N.import_array()
 
-cimport fmil_import as FMIL
+cimport pyfmi.fmil_import as FMIL
 
 cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t*, char*, char*, int)
 

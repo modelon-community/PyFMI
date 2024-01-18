@@ -680,7 +680,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
 
             The ValueReference for the variable passed as argument.
         """
-        cdef FMIL.fmi2_value_reference_t  vr
+        cdef FMIL.fmi2_value_reference_t vr
         
         name_parts = variable_name.split(".")
         try:

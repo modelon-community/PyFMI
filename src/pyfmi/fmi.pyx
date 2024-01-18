@@ -37,15 +37,11 @@ import numpy as N
 cimport numpy as N
 from numpy cimport PyArray_DATA
 
-N.import_array()
-
-cimport fmil_import as FMIL
+cimport pyfmi.fmil_import as FMIL
 
 from pyfmi.common.core import create_temp_dir, delete_temp_dir
 from pyfmi.common.core import create_temp_file, delete_temp_file
-#from pyfmi.common.core cimport BaseModel
 
-#from pyfmi.common import python3_flag, encode, decode
 from pyfmi.fmi_util import cpr_seed, enable_caching, python3_flag
 from pyfmi.fmi_util cimport encode, decode
 
