@@ -1442,7 +1442,7 @@ cdef class FMUModelBase(ModelBase):
             FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
 
         #Default values
-        self.__t = None
+        self._t = None
 
         #Internal values
         self._file_open = False
@@ -2786,10 +2786,10 @@ cdef class FMUModelCS1(FMUModelBase):
             GLOBAL_FMU_OBJECT = None
 
     cpdef _get_time(self):
-        return self.__t
+        return self._t
 
     cpdef _set_time(self, FMIL.fmi1_real_t t):
-        self.__t = t
+        self._t = t
 
     time = property(_get_time,_set_time, doc =
     """
@@ -3166,7 +3166,7 @@ cdef class FMUModelCS1(FMUModelBase):
         self._allocated_fmu = 0
 
         #Default values
-        self.__t = None
+        self._t = None
 
         #Internal values
         self._file_open = False
@@ -3346,7 +3346,7 @@ cdef class FMUModelME1(FMUModelBase):
         FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
 
         #Default values
-        self.__t = None
+        self._t = None
 
         #Internal values
         self._file_open = False
@@ -3392,11 +3392,11 @@ cdef class FMUModelME1(FMUModelBase):
             self._log_stream = None
 
     cpdef _get_time(self):
-        return self.__t
+        return self._t
 
     cpdef _set_time(self, FMIL.fmi1_real_t t):
         cdef int status
-        self.__t = t
+        self._t = t
 
         status = FMIL.fmi1_import_set_time(self._fmu,t)
 
@@ -4036,7 +4036,7 @@ cdef class FMUModelBase2(ModelBase):
         self._allow_unzipped_fmu = 1 if allow_unzipped_fmu else 0
 
         #Default values
-        self.__t = None
+        self._t = None
         self._A = None
         self._group_A = None
         self._mask_A = None
@@ -4263,13 +4263,13 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to set the Real values. See the log for possibly more information.')
 
-    cdef int _get_real(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
+    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
         return FMIL.fmi2_import_get_real(self._fmu, &valueref[0], size, &values[0])
 
-    cdef int __get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
+    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
         return FMIL.fmi2_import_get_real(self._fmu, vrefs, size, values)
 
-    cdef int __set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
         return FMIL.fmi2_import_set_real(self._fmu, vrefs, size, values)
 
     cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values):
@@ -4664,7 +4664,7 @@ cdef class FMUModelBase2(ModelBase):
         if stop_time == "Default":
             stop_time = self.get_default_experiment_stop_time()
 
-        self.__t = start_time
+        self._t = start_time
         self._last_accepted_time = start_time
         self._relative_tolerance = tolerance
 
@@ -4686,7 +4686,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('An error occured when reseting the model, see the log for possible more information')
 
         #Default values
-        self.__t = None
+        self._t = None
         self._has_entered_init_mode = False
 
         #Reseting the allocation flags
@@ -7111,7 +7111,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         Returns::
             The time.
         """
-        return self.__t
+        return self._t
 
     cpdef _set_time(self, FMIL.fmi2_real_t t):
         """
@@ -7121,7 +7121,7 @@ cdef class FMUModelCS2(FMUModelBase2):
             t--
                 The time to set.
         """
-        self.__t = t
+        self._t = t
 
     time = property(_get_time,_set_time, doc =
     """
@@ -7742,7 +7742,7 @@ cdef class FMUModelME2(FMUModelBase2):
         Returns::
             The time.
         """
-        return self.__t
+        return self._t
 
     cpdef _set_time(self, FMIL.fmi2_real_t t):
         """
@@ -7758,7 +7758,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         if status != 0:
             raise FMUException('Failed to set the time.')
-        self.__t = t
+        self._t = t
 
     time = property(_get_time,_set_time, doc =
     """
@@ -8337,8 +8337,8 @@ cdef class FMUModelME2(FMUModelBase2):
         local_z_vref_pt = self._worker_object.get_value_reference_vector(1)
 
         #Get updated values for the derivatives and states
-        self.__get_real(z_ref_pt, len_f, df_pt)
-        self.__get_real(v_ref_pt, len_v, v_pt)
+        self._get_real_by_ptr(z_ref_pt, len_f, df_pt)
+        self._get_real_by_ptr(v_ref_pt, len_v, v_pt)
 
         if group is not None:
             if "nominals" in group: # Re-use extracted nominals
@@ -8402,12 +8402,12 @@ cdef class FMUModelME2(FMUModelBase2):
 
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
                     for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]+fac*eps_pt[local_indices_vars_pt[i]]
-                    self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                    self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
 
                     if method == FORWARD_DIFFERENCE: #Forward and Backward difference
                         column_data_pt = tmp_val_pt
 
-                        status = self.__get_real(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
+                        status = self._get_real_by_ptr(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
                         if status == 0:
                             for i in range(local_indices_matrix_rows_nbr):
                                 column_data_pt[i] = (tmp_val_pt[i] - df_pt[local_indices_matrix_rows_pt[i]])/(fac*eps_pt[local_indices_matrix_columns_pt[i]])
@@ -8416,9 +8416,9 @@ cdef class FMUModelME2(FMUModelBase2):
                         else: #Backward
 
                             for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]-fac*eps_pt[local_indices_vars_pt[i]]
-                            self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                            self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
 
-                            status = self.__get_real(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
+                            status = self._get_real_by_ptr(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
                             if status == 0:
                                 for i in range(local_indices_matrix_rows_nbr):
                                     column_data_pt[i] = (df_pt[local_indices_matrix_rows_pt[i]] - tmp_val_pt[i])/(fac*eps_pt[local_indices_matrix_columns_pt[i]])
@@ -8429,7 +8429,7 @@ cdef class FMUModelME2(FMUModelBase2):
                         dfpertp = self.get_real(z_ref[local_group[2]])
 
                         for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]-fac*eps_pt[local_indices_vars_pt[i]]
-                        self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                        self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
 
                         dfpertm = self.get_real(z_ref[local_group[2]])
 
@@ -8453,7 +8453,7 @@ cdef class FMUModelME2(FMUModelBase2):
                     col.extend(local_group[3])
 
                 for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]
-                self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
 
             if output_matrix is not None:
                 A = output_matrix
@@ -8481,7 +8481,7 @@ cdef class FMUModelME2(FMUModelBase2):
                 tmp = v_pt[i]
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
                     v_pt[i] = tmp+fac*eps_pt[i]
-                    self.__set_real(v_ref_pt, v_pt, len_v)
+                    self._set_real(v_ref_pt, v_pt, len_v)
 
                     if method == FORWARD_DIFFERENCE: #Forward and Backward difference
                         try:
@@ -8490,7 +8490,7 @@ cdef class FMUModelME2(FMUModelBase2):
                             break
                         except FMUException: #Try backward difference
                             v_pt[i] = tmp - fac*eps_pt[i]
-                            self.__set_real(v_ref_pt, v_pt, len_v)
+                            self._set_real(v_ref_pt, v_pt, len_v)
                             try:
                                 dfpert = self.get_real(z_ref)
                                 A[:, i] = (df - dfpert)/(fac*eps_pt[i])
@@ -8501,7 +8501,7 @@ cdef class FMUModelME2(FMUModelBase2):
                     else: #Central difference
                         dfpertp = self.get_real(z_ref)
                         v_pt[i] = tmp - fac*eps_pt[i]
-                        self.__set_real(v_ref_pt, v_pt, len_v)
+                        self._set_real(v_ref_pt, v_pt, len_v)
                         dfpertm = self.get_real(z_ref)
                         A[:, i] = (dfpertp - dfpertm)/(2*fac*eps_pt[i])
                         break
@@ -8510,12 +8510,12 @@ cdef class FMUModelME2(FMUModelBase2):
 
                 #Reset values
                 v_pt[i] = tmp
-                self.__set_real(v_ref_pt, v_pt, len_v)
+                self._set_real(v_ref_pt, v_pt, len_v)
 
             return A
 
 cdef class __ForTestingFMUModelME2(FMUModelME2):
-    cdef int __get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
+    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
         vr = N.zeros(size)
         for i in range(size):
             vr[i] = vrefs[i]
@@ -8530,7 +8530,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
 
         return FMIL.fmi2_status_ok
 
-    cdef int __set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
         vr = N.zeros(size)
         vv = N.zeros(size)
         for i in range(size):
@@ -8544,7 +8544,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
 
         return FMIL.fmi2_status_ok
 
-    cdef int _get_real(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
+    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
         try:
             tmp = self.get_real(valueref)
             for i in range(size):

@@ -1391,11 +1391,13 @@ cdef class Master:
         cdef double alpha = 0.9
         cdef double fac1 = 6.0
         cdef double fac2 = 0.2
+        cdef double _tmp
         
         if error == 0.0:
             return step_size*fac1
         else:
-            return step_size*min(fac1,max(fac2,alpha*(1.0/error)**one_over_p))
+            _tmp = alpha*(1.0/error)**one_over_p
+            return step_size*min(fac1, max(fac2, _tmp))
             
     cdef reset_statistics(self):
         for key in self.elapsed_time: 

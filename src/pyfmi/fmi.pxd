@@ -116,7 +116,7 @@ cdef class FMUModelBase(ModelBase):
     cdef FMIL.jm_callbacks* callbacks_standard
 
     #Internal values
-    cdef public object __t
+    cdef public object _t
     cdef public object _file_open
     cdef public object _npoints
     cdef public object _enable_logging
@@ -191,7 +191,7 @@ cdef class FMUModelBase2(ModelBase):
     cdef public list    _save_real_variables_val
     cdef public list    _save_int_variables_val
     cdef public list    _save_bool_variables_val
-    cdef object         __t
+    cdef object         _t
     cdef public object  _pyEventInfo
     cdef char* _fmu_temp_dir
     cdef object         _states_references
@@ -235,9 +235,9 @@ cdef class FMUModelBase2(ModelBase):
     cdef int _get_directional_derivative(self, N.ndarray v_ref, N.ndarray z_ref, N.ndarray dv, N.ndarray dz) except -1
     cpdef set_real(self, valueref, values)
     cpdef N.ndarray get_real(self, valueref)
-    cdef int __set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size)
-    cdef int __get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values)
-    cdef int _get_real(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size)
+    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values)
+    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
     cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values)
     cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
 
@@ -276,9 +276,9 @@ cdef class WorkerClass2:
     cpdef verify_dimensions(self, int dim)
 
 cdef class __ForTestingFMUModelME2(FMUModelME2):
-    cdef int __get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values)
-    cdef int __set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size)
-    cdef int _get_real(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
+    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values)
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size)
+    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
     cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values)
     cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
     cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx)

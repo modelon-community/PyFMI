@@ -1070,7 +1070,7 @@ cdef class DumpData:
             self.dump_data(self.time_tmp)
 
             if self.real_size > 0:
-                self.model_me2._get_real(self.real_var_ref, self.real_size, self.real_var_tmp)
+                self.model_me2._get_real_by_list(self.real_var_ref, self.real_size, self.real_var_tmp)
                 self.dump_data(self.real_var_tmp)
 
             if self.int_size > 0:
@@ -1269,7 +1269,10 @@ def read_diagnostics_trajectory(
     flag_ptr = <DTYPE_t*>flag.data
 
     if has_position_data == 1:
-        file_pos_list = file_pos_diag_var if read_diag_data == 1 else file_pos_model_var
+        if read_diag_data == 1:
+            file_pos_list = file_pos_diag_var
+        else:
+            file_pos_list = file_pos_model_var
         for file_pos in file_pos_list:
             os_specific_fseek(cfile, file_pos+data_index*sizeof_type, 0)
             fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)

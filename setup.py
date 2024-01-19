@@ -154,7 +154,6 @@ for x in sys.argv[1:]:
             debug_flag = False
         copy_args.remove(x)
     
-
 if not incdirs:
     raise Exception("FMI Library cannot be found. Please specify its location, either using the flag to the setup script '--fmil-home' or specify it using the environment variable FMIL_HOME.")
 
