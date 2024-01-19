@@ -15,8 +15,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
 import pyfmi.fmi as fmi
-from fmi cimport FMUModelME2
+from pyfmi.fmi cimport FMUModelME2
 cimport fmil_import as FMIL
 
 from pyfmi.fmi_util import cpr_seed, enable_caching, Graph

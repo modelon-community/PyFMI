@@ -14,6 +14,9 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
 """
 Module containing the FMI interface Python wrappers.
 """
@@ -34,7 +37,7 @@ from pyfmi.fmi cimport FMUModelME2, FMUModelBase
 
 import functools
 import marshal
-import fmi
+import pyfmi.fmi as fmi
 import sys
 
 python3_flag = True if sys.hexversion > 0x03000000 else False

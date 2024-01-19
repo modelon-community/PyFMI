@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
 """
 This file contains code for mapping FMUs to the Problem specifications
 required by Assimulo.
@@ -54,7 +56,7 @@ if assimulo_present:
     from assimulo.problem import Implicit_Problem
     from assimulo.problem import Explicit_Problem
     from assimulo.problem cimport cExplicit_Problem
-    from assimulo.exception import *
+    from assimulo.exception import AssimuloRecoverableError, TerminateSimulation
 else:
     class Implicit_Problem:
         pass

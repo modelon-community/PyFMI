@@ -23,7 +23,7 @@ import re
 import os
 import numpy as np
 from distutils.util import strtobool
-from .tree import *
+from pyfmi.common.log.tree import *
 from pyfmi.fmi_util import python3_flag
 from pyfmi.fmi import FMUException
 
