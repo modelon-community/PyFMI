@@ -277,7 +277,10 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         data_info[2,i] = 0
         data_info[3,i] = -1
 
-        alias = -1 if var.alias == FMI_NEGATED_ALIAS else 1
+        if var.alias == FMI_NEGATED_ALIAS:
+            alias = -1
+        else:
+            alias = 1
 
         if last_vref == var.value_reference:
             data_info[0,i] = last_data_matrix
@@ -317,7 +320,10 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
             data_info[1,i] = alias*last_index
             data_info[0,i] = last_data_matrix
 
-    data_info[0,0] = 0; data_info[1, 0] = 1; data_info[2, 0] = 0; data_info[3, 0] = -1
+    data_info[0, 0] = 0
+    data_info[1, 0] = 1
+    data_info[2, 0] = 0
+    data_info[3, 0] = -1
 
     for i in range(nof_sorted_vars+1, nof_sorted_vars+1+nof_diag_params):
         data_info[0,i] = 1
@@ -339,7 +345,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
                                     model.get_integer(param_int).astype(float),
                                     model.get_boolean(param_bool).astype(float),
                                     np.array(diagnostics_param_values).astype(float)),
-                                    axis = 0,
+                                    axis = 0
                                 )
                     )
 
@@ -1022,17 +1028,7 @@ class Graph:
             f.write('}')
 
 cdef class DumpData:
-    cdef np.ndarray real_var_ref, int_var_ref, bool_var_ref
-    cdef np.ndarray real_var_tmp, int_var_tmp, bool_var_tmp
-    cdef np.ndarray time_tmp
-    cdef public FMUModelME2 model_me2
-    cdef public int model_me2_instance
-    cdef public object _file, model
-    cdef size_t real_size, int_size, bool_size
-    cdef int _with_diagnostics
-
     def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref, with_diagnostics):
-
         if type(model) != FMUModelME2:
             self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
             self.int_var_ref  = np.array(int_var_ref, ndmin=1).ravel()
@@ -1042,14 +1038,14 @@ cdef class DumpData:
             self.int_var_ref  = np.array(int_var_ref,  dtype=np.uint32, ndmin=1).ravel()
             self.bool_var_ref = np.array(bool_var_ref, dtype=np.uint32, ndmin=1).ravel()
 
-        self.real_var_tmp = np.zeros(self.real_var_ref.size)
-        self.int_var_tmp  = np.zeros(self.int_var_ref.size, dtype=np.int32)
-        self.bool_var_tmp = np.zeros(self.bool_var_ref.size)
-        self.time_tmp     = np.zeros(1)
+        self.real_size = np.size(self.real_var_ref)
+        self.int_size  = np.size(self.int_var_ref)
+        self.bool_size = np.size(bool_var_ref)
 
-        self.real_size = self.real_var_ref.size
-        self.int_size  = self.int_var_ref.size
-        self.bool_size = self.bool_var_ref.size
+        self.real_var_tmp = np.zeros(self.real_size)
+        self.int_var_tmp  = np.zeros(self.int_size, dtype=np.int32)
+        self.bool_var_tmp = np.zeros(self.bool_size)
+        self.time_tmp     = np.zeros(1)
 
         self._file = filep
 

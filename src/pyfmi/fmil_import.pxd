@@ -68,7 +68,7 @@ cdef extern from 'fmilib.h':
     ctypedef char   fmi2_byte_t
     ctypedef void * fmi2_FMU_state_t
     ctypedef void * fmi2_component_environment_t
-    ctypedef long unsigned int fmi2_value_reference_t
+    ctypedef size_t fmi2_value_reference_t
 
     #STRUCTS
     ctypedef enum jm_log_level_enu_t:

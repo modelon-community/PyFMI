@@ -666,7 +666,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                     self.solver_options["atol"] = 0.01*self.rtol
                 else:
                     self.solver_options["atol"] = 0.01*self.rtol*self.model.nominal_continuous_states
-            elif isinstance(preinit_nominals, N.ndarray) and (preinit_nominals.size > 0):
+            elif isinstance(preinit_nominals, N.ndarray) and (N.size(preinit_nominals) > 0):
                 # Heuristic:
                 # Try to find if atol was specified as "atol = factor * model.nominal_continuous_states",
                 # and if that's the case, recompute atol with nominals from after initialization.

@@ -1009,7 +1009,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         input_valueref = np.array(valueref, ndmin=1).ravel()
         set_value      = np.array(values, dtype=float, ndmin=1).ravel()
 
-        if input_valueref.size != set_value.size:
+        if np.size(input_valueref) != np.size(set_value):
             raise fmi.FMUException('The length of valueref and values are inconsistent.')
         
         for i,vref in enumerate(input_valueref):
@@ -1044,7 +1044,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         input_valueref = np.array(valueref, ndmin=1).ravel()
         set_value      = np.array(values, dtype=int,ndmin=1).ravel()
 
-        if input_valueref.size != set_value.size:
+        if np.size(input_valueref) != np.size(set_value):
             raise fmi.FMUException('The length of valueref and values are inconsistent.')
         
         for i,vref in enumerate(input_valueref):
@@ -1079,7 +1079,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         input_valueref = np.array(valueref, ndmin=1).ravel()
         set_value      = np.array(values, ndmin=1).ravel()
 
-        if input_valueref.size != set_value.size:
+        if np.size(input_valueref) != np.size(set_value):
             raise fmi.FMUException('The length of valueref and values are inconsistent.')
         
         for i,vref in enumerate(input_valueref):

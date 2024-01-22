@@ -15,12 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import nose
 import os
 import numpy as np
 
-from pyfmi.fmi import FMUException, FMUModelME1, _ForTestingFMUModelME1, FMUModelCS1, load_fmu, \
-                      FMUModelCS2, FMUModelME2, _ForTestingFMUModelME2
+from pyfmi.fmi import (FMUException, FMUModelME1, _ForTestingFMUModelME1, FMUModelCS1, 
+                      FMUModelCS2, FMUModelME2, _ForTestingFMUModelME2)
 
 def get_examples_folder():
     return os.path.join(os.path.dirname(__file__), '..', 'examples')

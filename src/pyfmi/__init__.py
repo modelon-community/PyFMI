@@ -49,7 +49,7 @@ def testattr(**kwargs):
 
 
 try:
-    curr_dir = os.path.dirname(os.path.abspath(__file__));
+    curr_dir = os.path.dirname(os.path.abspath(__file__))
     _fpath=os.path.join(curr_dir,'version.txt')
     with open(_fpath, 'r') as f:
         __version__=f.readline().strip()
@@ -178,5 +178,3 @@ in pyfmi.examples will not work.")
 This package is needed to be able to use the plot-GUI.")
 
             sys.stdout.write("\n\n")
-
-
