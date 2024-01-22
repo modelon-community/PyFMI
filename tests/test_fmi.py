@@ -25,7 +25,7 @@ import logging
 from io import StringIO
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
+from pyfmi.fmi import FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
 import pyfmi.fmi as fmi
 from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg, AssimuloFMIAlgOptions, \
                                         PYFMI_JACOBIAN_LIMIT, PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT
@@ -538,7 +538,7 @@ class Test_FMUModelBase:
             logging.basicConfig(stream=log_stream, level=logging.WARNING)
 
         model.states_vref = [114, 115, 116, 117, 118, 119, 120, 121]
-        # NOTE: Property 'nominal_continuous_states' is already overriden in Dummy_FMUModelME1, so just
+        # NOTE: Property 'nominal_continuous_states' is already overridden in Dummy_FMUModelME1, so just
         # call the underlying function immediately.
         xn = model._get_nominal_continuous_states()
 
@@ -1421,7 +1421,7 @@ class Test_FMUModelBase2:
             log_stream = StringIO()
             logging.basicConfig(stream=log_stream, level=logging.WARNING)
 
-        # NOTE: Property 'nominal_continuous_states' is already overriden in Dummy_FMUModelME2, so just
+        # NOTE: Property 'nominal_continuous_states' is already overridden in Dummy_FMUModelME2, so just
         # call the underlying function immediately.
         xn = model._get_nominal_continuous_states()
 

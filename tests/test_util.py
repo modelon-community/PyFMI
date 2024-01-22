@@ -19,13 +19,13 @@ import nose
 import os
 import numpy as np
 
-from pyfmi.fmi import FMUException, FMUModelME1, __ForTestingFMUModelME1, FMUModelCS1, load_fmu, \
-                      FMUModelCS2, FMUModelME2, __ForTestingFMUModelME2
+from pyfmi.fmi import FMUException, FMUModelME1, _ForTestingFMUModelME1, FMUModelCS1, load_fmu, \
+                      FMUModelCS2, FMUModelME2, _ForTestingFMUModelME2
 
 def get_examples_folder():
     return os.path.join(os.path.dirname(__file__), '..', 'examples')
 
-class Dummy_FMUModelME1(__ForTestingFMUModelME1):
+class Dummy_FMUModelME1(_ForTestingFMUModelME1):
     # If true, makes use of the real __ForTesting implementation for nominal_continuous_states,
     # else just returns 1.0 for each.
     override_nominal_continuous_states = True
@@ -208,7 +208,7 @@ class Dummy_FMUModelCS2(FMUModelCS2):
         for i,v in enumerate(vref):
             self.values[v] = values[i]
 
-class Dummy_FMUModelME2(__ForTestingFMUModelME2):
+class Dummy_FMUModelME2(_ForTestingFMUModelME2):
 
     # -- Test options --
     

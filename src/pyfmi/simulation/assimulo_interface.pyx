@@ -729,7 +729,7 @@ cdef class FMIODE2(cExplicit_Problem):
             self.model_me2._set_time(t)
             #Check if there are any states
             if self._f_nbr != 0:
-                self.model_me2.__set_continuous_states(y)
+                self.model_me2._set_continuous_states_fmil(y)
         else:
             #Moving data to the model
             self._model.time = t
@@ -750,7 +750,7 @@ cdef class FMIODE2(cExplicit_Problem):
             if self._f_nbr == 0:
                 return 0
 
-            self.model_me2.__get_continuous_states(self._state_temp_1)
+            self.model_me2._get_continuous_states_fmil(self._state_temp_1)
             res = FMIL.memcmp(self._state_temp_1.data, y.data, self._f_nbr*sizeof(double))
 
             if res == 0:

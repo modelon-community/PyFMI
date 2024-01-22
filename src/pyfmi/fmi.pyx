@@ -3445,7 +3445,7 @@ cdef class FMUModelME1(FMUModelBase):
     """)
 
 
-    cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx):
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx):
         return FMIL.fmi1_import_get_nominal_continuous_states(self._fmu, xnominal, nx)
 
     def _get_nominal_continuous_states(self):
@@ -3458,7 +3458,7 @@ cdef class FMUModelME1(FMUModelBase):
         cdef int status
         cdef N.ndarray[FMIL.fmi1_real_t, ndim=1, mode='c'] xn = N.zeros(self._nContinuousStates, dtype=N.double)
 
-        status = self.__get_nominal_continuous_states(<FMIL.fmi1_real_t*> xn.data, self._nContinuousStates)
+        status = self._get_nominal_continuous_states_fmil(<FMIL.fmi1_real_t*> xn.data, self._nContinuousStates)
         if status != 0:
             raise FMUException('Failed to get the nominal values.')
 
@@ -3955,9 +3955,9 @@ cdef class FMUModelME1(FMUModelBase):
             self._instantiated_fmu = 0
 
 
-cdef class __ForTestingFMUModelME1(FMUModelME1):
+cdef class _ForTestingFMUModelME1(FMUModelME1):
 
-    cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx):
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx):
         for i in range(nx):
             if self._allocated_fmu == 1:  # If initialized
                 # Set new values to test that atol gets auto-corrected.
@@ -8014,7 +8014,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         return enterEventMode==FMI2_TRUE, terminateSimulation==FMI2_TRUE
 
-    cdef int __get_continuous_states(self, FMIL.fmi2_real_t[:] ndx):
+    cdef int _get_continuous_states_fmil(self, FMIL.fmi2_real_t[:] ndx):
         if self._nContinuousStates > 0:
             return FMIL.fmi2_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
         else:
@@ -8030,14 +8030,14 @@ cdef class FMUModelME2(FMUModelBase2):
         """
         cdef int status
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
-        status = self.__get_continuous_states(ndx)
+        status = self._get_continuous_states_fmil(ndx)
 
         if status != 0:
             raise FMUException('Failed to retrieve the continuous states.')
 
         return ndx
 
-    cdef int __set_continuous_states(self, FMIL.fmi2_real_t[:] ndx):
+    cdef int _set_continuous_states_fmil(self, FMIL.fmi2_real_t[:] ndx):
         if self._nContinuousStates > 0:
             return FMIL.fmi2_import_set_continuous_states(self._fmu, &ndx[0] , self._nContinuousStates)
         else:
@@ -8061,7 +8061,7 @@ cdef class FMUModelME2(FMUModelBase2):
                 'The number of values are not consistent with the number of '\
                 'continuous states.')
 
-        status = self.__set_continuous_states(ndx)
+        status = self._set_continuous_states_fmil(ndx)
 
         if status >= 3:
             raise FMUException('Failed to set the new continuous states.')
@@ -8073,7 +8073,7 @@ cdef class FMUModelME2(FMUModelBase2):
     the low-level FMI function: fmi2SetContinuousStates/fmi2GetContinuousStates.
     """)
 
-    cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx):
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx):
         return FMIL.fmi2_import_get_nominals_of_continuous_states(self._fmu, xnominal, nx)
 
     def _get_nominal_continuous_states(self):
@@ -8086,7 +8086,7 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef int status
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] xn = N.zeros(self._nContinuousStates, dtype=N.double)
 
-        status = self.__get_nominal_continuous_states(<FMIL.fmi2_real_t*> xn.data, self._nContinuousStates)
+        status = self._get_nominal_continuous_states_fmil(<FMIL.fmi2_real_t*> xn.data, self._nContinuousStates)
         if status != 0:
             raise FMUException('Failed to get the nominal values.')
 
@@ -8517,7 +8517,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
             return A
 
-cdef class __ForTestingFMUModelME2(FMUModelME2):
+cdef class _ForTestingFMUModelME2(FMUModelME2):
     cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
         vr = N.zeros(size)
         for i in range(size):
@@ -8574,7 +8574,7 @@ cdef class __ForTestingFMUModelME2(FMUModelME2):
             return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
 
-    cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx):
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx):
         for i in range(nx):
             if self._initialized_fmu == 1:
                 # Set new values to test that atol gets auto-corrected.
