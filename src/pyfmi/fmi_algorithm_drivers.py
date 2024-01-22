@@ -1323,9 +1323,10 @@ class SciEstAlg(AlgorithmBase):
         p0 = []
         for i,parameter in enumerate(self.parameters):
             p0.append(self.model.get(parameter)/self.options["scaling"][i])
+        p0 = N.array(p0).flatten()
 
         print('\nRunning solver: ' + self.options["method"])
-        print(' Initial parameters (scaled): ' + str(N.array(p0).flatten()))
+        print(' Initial parameters (scaled): ' + str(p0))
         print(' ')
 
         res = sciopt.minimize(parameter_estimation_f, p0,

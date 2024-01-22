@@ -135,7 +135,6 @@ class Dummy_FMUModelCS2(FMUModelCS2):
     def __init__(self, negated_aliases, *args,**kwargs):
         FMUModelCS2.__init__(self, *args, **kwargs)
 
-
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
         self.variables = self.get_model_variables(include_alias=False)
         self.negated_aliases = negated_aliases

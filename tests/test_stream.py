@@ -23,7 +23,7 @@ from shutil import rmtree
 from filecmp import cmp as compare_files
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
+from pyfmi.fmi import FMUException, load_fmu, FMUModelCS2, FMUModelME2
 from pyfmi.tests.test_util import get_examples_folder
 
 file_path = os.path.dirname(os.path.abspath(__file__))
@@ -54,7 +54,7 @@ def simulate_and_verify_stream_contents(compiled_fmu, fmu_loader, stream, open_t
         is given in mode 'w'. This is solely used for testing to reduce duplicated code.
 
     """
-    fmu = fmu_loader(compiled_fmu, log_file_name = stream, log_level=3)
+    fmu = fmu_loader(compiled_fmu, log_file_name = stream, log_level = 3)
     results = fmu.simulate()
 
     contents = []
@@ -156,13 +156,13 @@ class Test_LoadFMU:
     def test_testio(self):
         """ load_fmu and custom IO class. """
         stream = TestIO("")
-        simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream)
+        simulate_and_verify_stream_contents(Test_LoadFMU.example_fmu, Test_LoadFMU.test_class, stream)
 
     @testattr(stddist = True)
     def test_stringio(self):
         """ load_fmu and StringIO. """
         stream = StringIO()
-        simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream)
+        simulate_and_verify_stream_contents(Test_LoadFMU.example_fmu, Test_LoadFMU.test_class, stream)
 
     @testattr(stddist = True)
     def test_textiowrapper(self):
@@ -170,7 +170,7 @@ class Test_LoadFMU:
         p = tempfile.mkdtemp()
         output_file = os.path.join(p, 'test.txt')
         stream = open(output_file, 'w')
-        simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream, True)
+        simulate_and_verify_stream_contents(Test_LoadFMU.example_fmu, Test_LoadFMU.test_class, stream, True)
         if not stream.closed:
             stream.close()
         rmtree(p)

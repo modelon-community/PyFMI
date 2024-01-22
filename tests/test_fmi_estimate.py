@@ -15,17 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import nose
 import os
 import numpy as np
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
-import pyfmi.fmi_util as fmi_util
-import pyfmi.fmi as fmi
-import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
-from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
-from pyfmi.common.io import ResultHandler
+from pyfmi.tests.test_util import Dummy_FMUModelME2
 from scipy.io.matlab.mio import loadmat
 
 assimulo_installed = True
@@ -60,24 +54,28 @@ if assimulo_installed:
             a2_vref = model.get_variable_valueref("qt.a2")
 
             def f(*args, **kwargs):
-                x1 = model.continuous_states[0]; x2 = model.continuous_states[1]; x3 = model.continuous_states[2]; x4 = model.continuous_states[3]
+                x1 = model.continuous_states[0]
+                x2 = model.continuous_states[1]
+                x3 = model.continuous_states[2]
+                x4 = model.continuous_states[3]
+
                 u1 = model.values[u1_vref]
                 u2 = model.values[u2_vref]
                 a1 = model.values[a1_vref]
                 a2 = model.values[a2_vref]
                     
                 sqrt = lambda x: (x)**0.5
-                der_x1 = -a1/A1*sqrt(2.*g*x1) + a3/A1*sqrt(2*g*x3) + g1_nmp*k1_nmp/A1*u1;
-                der_x2 = -a2/A2*sqrt(2.*g*x2) + a4/A2*sqrt(2*g*x4) + g2_nmp*k2_nmp/A2*u2;
-                der_x3 = -a3/A3*sqrt(2.*g*x3) + (1.-g2_nmp)*k2_nmp/A3*u2;
-                der_x4 = -a4/A4*sqrt(2.*g*x4) + (1.-g1_nmp)*k1_nmp/A4*u1;
-                return np.array([der_x1,der_x2,der_x3,der_x4])
+                der_x1 = -a1/A1*sqrt(2.*g*x1) + a3/A1*sqrt(2*g*x3) + g1_nmp*k1_nmp/A1*u1
+                der_x2 = -a2/A2*sqrt(2.*g*x2) + a4/A2*sqrt(2*g*x4) + g2_nmp*k2_nmp/A2*u2
+                der_x3 = -a3/A3*sqrt(2.*g*x3) + (1.-g2_nmp)*k2_nmp/A3*u2
+                der_x4 = -a4/A4*sqrt(2.*g*x4) + (1.-g1_nmp)*k1_nmp/A4*u1
+                return np.array([der_x1, der_x2, der_x3, der_x4])
 
 
             model.get_derivatives = f
 
             # Load measurement data from file
-            data = loadmat(os.path.join(file_path, "files", "Results", "qt_par_est_data.mat"),appendmat=False)
+            data = loadmat(os.path.join(file_path, "files", "Results", "qt_par_est_data.mat"), appendmat=False)
 
             # Extract data series
             t_meas = data['t'][6000::100,0]-60
