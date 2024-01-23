@@ -758,34 +758,31 @@ cdef class Master:
         return self.storing_fmu_state
         
     cpdef np.ndarray get_connection_outputs(self):
-        cdef int i = 0, inext = 0
+        cdef int i, index, index_start, index_end
         cdef np.ndarray y = np.empty((self._len_outputs))
 
         for model in self.models:
-            #y.extend(model.get(self.models_dict[model]["local_output"]))
-            #y.extend(model.get_real(self.models_dict[model]["local_output_vref"]))
-            i = self.models_dict[model]["global_index_outputs"]
-            inext = i + self.models_dict[model]["local_output_len"]
-            y[i:inext] = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
-            i = inext
-            
-        #return np.array(y)
+            index_start = self.models_dict[model]["global_index_outputs"]
+            index_end = index_start + self.models_dict[model]["local_output_len"]
+            local_output_vref_array = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
+            for i, index in enumerate(range(index_start, index_end)):
+                y[index] = local_output_vref_array[i]
         return y.reshape(-1,1)
     
     cpdef np.ndarray get_connection_outputs_discrete(self):
-        cdef int i = 0, inext = 0
+        cdef int i, index, index_start, index_end
         cdef np.ndarray y = np.empty((self._len_outputs_discrete))
 
         for model in self.models:
-            i = self.models_dict[model]["global_index_outputs_discrete"]
-            inext = i + self.models_dict[model]["local_output_discrete_len"]
-            y[i:inext] = model.get(self.models_dict[model]["local_output_discrete"])
-            i = inext
-            
+            index_start = self.models_dict[model]["global_index_outputs_discrete"]
+            index_end = index_start + self.models_dict[model]["local_output_discrete_len"]
+            local_output_discrete = model.get(self.models_dict[model]["local_output_discrete"])
+            for i, index in enumerate(range(index_start, index_end)):
+                y[index] = local_output_discrete[i]
         return y.reshape(-1,1)
         
     cpdef np.ndarray _get_derivatives(self):
-        cdef int i = 0, inext = 0
+        cdef int i, index, index_start, index_end
         cdef np.ndarray xd = np.empty((self._len_derivatives))
         
         for model in self.models_dict.keys():
@@ -793,10 +790,11 @@ cdef class Master:
                 return None
 
         for model in self.models:
-            i = self.models_dict[model]["global_index_derivatives"]
-            inext = i + self.models_dict[model]["local_derivative_len"]
-            xd[i:inext] = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_derivative_vref_array"])
-            i = inext
+            index_start = self.models_dict[model]["global_index_derivatives"]
+            index_end = index_start + self.models_dict[model]["local_derivative_len"]
+            local_derivative_vref_array = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_derivative_vref_array"])
+            for i, index in enumerate(range(index_start, index_end)):
+                xd[index] = local_derivative_vref_array[i]
 
         return xd.reshape(-1,1)
     

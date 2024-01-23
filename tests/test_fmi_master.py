@@ -233,14 +233,14 @@ class Test_Master:
         model_sub2.do_step = do_step2
         
         models = [model_sub1, model_sub2]
-        connections=[(model_sub1,'y',model_sub2,'u')]
+        connections = [(model_sub1, 'y', model_sub2, 'u')]
 
         master = Master(models,connections)
 
         opts = master.simulate_options()
         opts["block_initialization"] = True
 
-        res = master.simulate(start_time=0.0,final_time=2.0, options=opts)
+        res = master.simulate(start_time=0.0, final_time=2.0, options=opts)
         
         assert res[model_sub2]["u"][0] == 1
         assert res[model_sub2]["u"][-1] == 3
@@ -266,9 +266,9 @@ class Test_Master:
         model_sub2.do_step = do_step2
         
         models = [model_sub1, model_sub2]
-        connections=[(model_sub1,'y',model_sub2,'u')]
+        connections= [(model_sub1, 'y', model_sub2, 'u')]
 
-        master = Master(models,connections)
+        master = Master(models, connections)
 
         opts = master.simulate_options()
         opts["block_initialization"] = True

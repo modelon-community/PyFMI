@@ -1860,7 +1860,7 @@ cdef class FMUModelBase(ModelBase):
         Helper method to set, see docstring on set.
         """
         cdef FMIL.fmi1_value_reference_t ref
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
 
@@ -1872,20 +1872,20 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException("The variable %s could not be found."%variable_name)
 
         ref =  FMIL.fmi1_import_get_variable_vr(variable)
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
         alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
 
-        if type == FMIL.fmi1_base_type_real:  #REAL
+        if basetype == FMIL.fmi1_base_type_real:  #REAL
             if alias_kind == FMI_NEGATED_ALIAS:
                 value = -value
             self.set_real([ref], [value])
-        elif type == FMIL.fmi1_base_type_int or type == FMIL.fmi1_base_type_enum: #INTEGER
+        elif basetype == FMIL.fmi1_base_type_int or basetype == FMIL.fmi1_base_type_enum: #INTEGER
             if alias_kind == FMI_NEGATED_ALIAS:
                 value = -value
             self.set_integer([ref], [value])
-        elif type == FMIL.fmi1_base_type_str: #STRING
+        elif basetype == FMIL.fmi1_base_type_str: #STRING
             self.set_string([ref], [value])
-        elif type == FMIL.fmi1_base_type_bool: #BOOLEAN
+        elif basetype == FMIL.fmi1_base_type_bool: #BOOLEAN
             if alias_kind == FMI_NEGATED_ALIAS:
                 value = not value
             self.set_boolean([ref], [value])
@@ -1898,7 +1898,7 @@ cdef class FMUModelBase(ModelBase):
         Helper method to get, see docstring on get.
         """
         cdef FMIL.fmi1_value_reference_t ref
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
 
@@ -1910,18 +1910,18 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException("The variable %s could not be found."%variable_name)
 
         ref =  FMIL.fmi1_import_get_variable_vr(variable)
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
         alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
 
-        if type == FMIL.fmi1_base_type_real:  #REAL
+        if basetype == FMIL.fmi1_base_type_real:  #REAL
             value = self.get_real([ref])
             return -1*value if alias_kind == FMI_NEGATED_ALIAS else value
-        elif type == FMIL.fmi1_base_type_int or type == FMIL.fmi1_base_type_enum: #INTEGER
+        elif basetype == FMIL.fmi1_base_type_int or basetype == FMIL.fmi1_base_type_enum: #INTEGER
             value = self.get_integer([ref])
             return -1*value if alias_kind == FMI_NEGATED_ALIAS else value
-        elif type == FMIL.fmi1_base_type_str: #STRING
+        elif basetype == FMIL.fmi1_base_type_str: #STRING
             return self.get_string([ref])
-        elif type == FMIL.fmi1_base_type_bool: #BOOLEAN
+        elif basetype == FMIL.fmi1_base_type_bool: #BOOLEAN
             value = self.get_boolean([ref])
             return not value if alias_kind == FMI_NEGATED_ALIAS else value
         else:
@@ -2009,7 +2009,7 @@ cdef class FMUModelBase(ModelBase):
             The type of the variable.
         """
         cdef FMIL.fmi1_import_variable_t* variable
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -2018,9 +2018,9 @@ cdef class FMUModelBase(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
 
-        return type
+        return basetype
 
     cpdef FMIL.fmi1_value_reference_t get_variable_valueref(self, variable_name) except *:
         """
@@ -2160,7 +2160,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_import_bool_variable_t* bool_variable
         cdef FMIL.fmi1_import_enum_variable_t* enum_variable
         cdef FMIL.fmi1_import_string_variable_t*  str_variable
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
         cdef int status
         cdef FMIL.fmi1_boolean_t FMITRUE = 1
 
@@ -2176,25 +2176,25 @@ cdef class FMUModelBase(ModelBase):
         if status == 0:
             raise FMUException("The variable %s does not have a start value."%variablename)
 
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi1_base_type_real:
+        if basetype == FMIL.fmi1_base_type_real:
             real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
             return FMIL.fmi1_import_get_real_variable_start(real_variable)
 
-        elif type == FMIL.fmi1_base_type_int:
+        elif basetype == FMIL.fmi1_base_type_int:
             int_variable = FMIL.fmi1_import_get_variable_as_integer(variable)
             return FMIL.fmi1_import_get_integer_variable_start(int_variable)
 
-        elif type == FMIL.fmi1_base_type_bool:
+        elif basetype == FMIL.fmi1_base_type_bool:
             bool_variable = FMIL.fmi1_import_get_variable_as_boolean(variable)
             return FMIL.fmi1_import_get_boolean_variable_start(bool_variable) == FMITRUE
 
-        elif type == FMIL.fmi1_base_type_enum:
+        elif basetype == FMIL.fmi1_base_type_enum:
             enum_variable = FMIL.fmi1_import_get_variable_as_enum(variable)
             return FMIL.fmi1_import_get_enum_variable_start(enum_variable)
 
-        elif type == FMIL.fmi1_base_type_str:
+        elif basetype == FMIL.fmi1_base_type_str:
             str_variable = FMIL.fmi1_import_get_variable_as_string(variable)
             return FMIL.fmi1_import_get_string_variable_start(str_variable)
 
@@ -2218,7 +2218,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_import_integer_variable_t* int_variable
         cdef FMIL.fmi1_import_real_variable_t* real_variable
         cdef FMIL.fmi1_import_enum_variable_t* enum_variable
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -2227,17 +2227,17 @@ cdef class FMUModelBase(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi1_base_type_real:
+        if basetype == FMIL.fmi1_base_type_real:
             real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
             return FMIL.fmi1_import_get_real_variable_max(real_variable)
 
-        elif type == FMIL.fmi1_base_type_int:
+        elif basetype == FMIL.fmi1_base_type_int:
             int_variable = FMIL.fmi1_import_get_variable_as_integer(variable)
             return FMIL.fmi1_import_get_integer_variable_max(int_variable)
 
-        elif type == FMIL.fmi1_base_type_enum:
+        elif basetype == FMIL.fmi1_base_type_enum:
             enum_variable = FMIL.fmi1_import_get_variable_as_enum(variable)
             return FMIL.fmi1_import_get_enum_variable_max(enum_variable)
 
@@ -2261,7 +2261,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_import_integer_variable_t* int_variable
         cdef FMIL.fmi1_import_real_variable_t* real_variable
         cdef FMIL.fmi1_import_enum_variable_t* enum_variable
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -2270,17 +2270,17 @@ cdef class FMUModelBase(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi1_base_type_real:
+        if basetype == FMIL.fmi1_base_type_real:
             real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
             return FMIL.fmi1_import_get_real_variable_min(real_variable)
 
-        elif type == FMIL.fmi1_base_type_int:
+        elif basetype == FMIL.fmi1_base_type_int:
             int_variable = FMIL.fmi1_import_get_variable_as_integer(variable)
             return FMIL.fmi1_import_get_integer_variable_min(int_variable)
 
-        elif type == FMIL.fmi1_base_type_enum:
+        elif basetype == FMIL.fmi1_base_type_enum:
             enum_variable = FMIL.fmi1_import_get_variable_as_enum(variable)
             return FMIL.fmi1_import_get_enum_variable_min(enum_variable)
 
@@ -2288,9 +2288,9 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException("The variable type does not have a minimum value.")
 
     @enable_caching
-    def get_model_variables(self,type=None, int include_alias=True,
-                            causality=None,   variability=None,
-                            int only_start=False,  int only_fixed=False,
+    def get_model_variables(self, type=None, int include_alias=True,
+                            causality=None, variability=None,
+                            int only_start=False, int only_fixed=False,
                             filter=None, int _as_list = False):
         """
         Extract the names of the variables in a model.
@@ -4517,16 +4517,16 @@ cdef class FMUModelBase2(ModelBase):
         Helper method to set, see docstring on set.
         """
         cdef FMIL.fmi2_value_reference_t ref
-        cdef FMIL.fmi2_base_type_enu_t   type
+        cdef FMIL.fmi2_base_type_enu_t basetype
 
         ref  = self.get_variable_valueref(variable_name)
-        type = self.get_variable_data_type(variable_name)
+        basetype = self.get_variable_data_type(variable_name)
 
-        if type == FMIL.fmi2_base_type_real:  #REAL
+        if basetype == FMIL.fmi2_base_type_real:  #REAL
             self.set_real([ref], [value])
-        elif type == FMIL.fmi2_base_type_int:
+        elif basetype == FMIL.fmi2_base_type_int:
             self.set_integer([ref], [value])
-        elif type == FMIL.fmi2_base_type_enum:
+        elif basetype == FMIL.fmi2_base_type_enum:
             if isinstance(value, str) or isinstance(value, bytes):
                 enum_type = self.get_variable_declared_type(variable_name)
                 enum_values = {encode(v[0]): k for k, v in enum_type.items.items()}
@@ -4538,9 +4538,9 @@ cdef class FMUModelBase2(ModelBase):
                     raise FMUException(msg)
             else:
                 self.set_integer([ref], [value])
-        elif type == FMIL.fmi2_base_type_str: #STRING
+        elif basetype == FMIL.fmi2_base_type_str: #STRING
             self.set_string([ref], [value])
-        elif type == FMIL.fmi2_base_type_bool: #BOOLEAN
+        elif basetype == FMIL.fmi2_base_type_bool: #BOOLEAN
             self.set_boolean([ref], [value])
         else:
             raise FMUException('Type not supported.')
@@ -4550,18 +4550,18 @@ cdef class FMUModelBase2(ModelBase):
         Helper method to get, see docstring on get.
         """
         cdef FMIL.fmi2_value_reference_t ref
-        cdef FMIL.fmi2_base_type_enu_t type
+        cdef FMIL.fmi2_base_type_enu_t basetype
 
         ref  = self.get_variable_valueref(variable_name)
-        type = self.get_variable_data_type(variable_name)
+        basetype = self.get_variable_data_type(variable_name)
 
-        if type == FMIL.fmi2_base_type_real:  #REAL
+        if basetype == FMIL.fmi2_base_type_real:  #REAL
             return self.get_real([ref])
-        elif type == FMIL.fmi2_base_type_int or type == FMIL.fmi2_base_type_enum: #INTEGER
+        elif basetype == FMIL.fmi2_base_type_int or basetype == FMIL.fmi2_base_type_enum: #INTEGER
             return self.get_integer([ref])
-        elif type == FMIL.fmi2_base_type_str: #STRING
+        elif basetype == FMIL.fmi2_base_type_str: #STRING
             return self.get_string([ref])
-        elif type == FMIL.fmi2_base_type_bool: #BOOLEAN
+        elif basetype == FMIL.fmi2_base_type_bool: #BOOLEAN
             return self.get_boolean([ref])
         else:
             raise FMUException('Type not supported.')
@@ -5378,7 +5378,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_value_reference_t  vr
         cdef FMIL.fmi2_import_variable_typedef_t* variable_type
-        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_base_type_enu_t    basetype
         cdef FMIL.fmi2_import_enumeration_typedef_t * enumeration_type
         cdef FMIL.fmi2_import_integer_typedef_t * integer_type
         cdef FMIL.fmi2_import_real_typedef_t * real_type
@@ -5410,9 +5410,9 @@ cdef class FMUModelBase2(ModelBase):
         type_desc = FMIL.fmi2_import_get_type_description(variable_type)
         type_quantity = FMIL.fmi2_import_get_type_quantity(variable_type)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi2_base_type_enum:
+        if basetype == FMIL.fmi2_base_type_enum:
             enumeration_type  = FMIL.fmi2_import_get_type_as_enum(variable_type)
             enum_size = FMIL.fmi2_import_get_enum_type_size(enumeration_type)
             items = OrderedDict()
@@ -5430,7 +5430,7 @@ cdef class FMUModelBase2(ModelBase):
                                         decode(type_quantity) if type_quantity != NULL else "", items)
 
 
-        elif type == FMIL.fmi2_base_type_int:
+        elif basetype == FMIL.fmi2_base_type_int:
             integer_type = FMIL.fmi2_import_get_type_as_int(variable_type)
 
             min_val = FMIL.fmi2_import_get_integer_type_min(integer_type)
@@ -5440,7 +5440,7 @@ cdef class FMUModelBase2(ModelBase):
                                     decode(type_desc) if type_desc != NULL else "",
                                     decode(type_quantity) if type_quantity != NULL else "",
                                          min_val, max_val)
-        elif type == FMIL.fmi2_base_type_real:
+        elif basetype == FMIL.fmi2_base_type_real:
             real_type = FMIL.fmi2_import_get_type_as_real(variable_type)
 
             min_val = FMIL.fmi2_import_get_real_type_min(real_type)
@@ -5503,7 +5503,7 @@ cdef class FMUModelBase2(ModelBase):
             The type of the variable.
         """
         cdef FMIL.fmi2_import_variable_t* variable
-        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_base_type_enu_t    basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5512,9 +5512,9 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
 
-        return type
+        return basetype
 
     cpdef get_variable_description(self, variable_name):
         """
@@ -5613,7 +5613,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
         cdef FMIL.fmi2_import_unit_t* unit
-        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_base_type_enu_t basetype
         cdef char* unit_description
 
         variable_name = encode(variable_name)
@@ -5623,8 +5623,8 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
-        if type != FMIL.fmi2_base_type_real:
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if basetype != FMIL.fmi2_base_type_real:
             raise FMUException("The variable %s is not a Real variable. Units only exists for Real variables."%variablename)
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
@@ -5652,7 +5652,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
-        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_base_type_enu_t basetype
         cdef FMIL.fmi2_boolean_t relative_quantity
 
         variable_name = encode(variable_name)
@@ -5662,8 +5662,8 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
-        if type != FMIL.fmi2_base_type_real:
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if basetype != FMIL.fmi2_base_type_real:
             raise FMUException("The variable %s is not a Real variable. Relative quantity only exists for Real variables."%variablename)
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
@@ -5686,7 +5686,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
-        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_base_type_enu_t basetype
         cdef FMIL.fmi2_boolean_t unbounded
 
         variable_name = encode(variable_name)
@@ -5696,8 +5696,8 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
-        if type != FMIL.fmi2_base_type_real:
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if basetype != FMIL.fmi2_base_type_real:
             raise FMUException("The variable %s is not a Real variable. Unbounded attribute only exists for Real variables."%variablename)
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
@@ -5721,7 +5721,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
         cdef FMIL.fmi2_import_display_unit_t* display_unit
-        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_base_type_enu_t basetype
         cdef char* display_unit_description
 
         variable_name = encode(variable_name)
@@ -5731,8 +5731,8 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
-        if type != FMIL.fmi2_base_type_real:
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if basetype != FMIL.fmi2_base_type_real:
             raise FMUException("The variable %s is not a Real variable. Display units only exists for Real variables."%variablename)
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
@@ -5776,8 +5776,8 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
-        if type != FMIL.fmi2_base_type_real:
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if basetype != FMIL.fmi2_base_type_real:
             raise FMUException("The variable %s is not a Real variable. Display units only exists for Real variables."%variablename)
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
@@ -5838,7 +5838,7 @@ cdef class FMUModelBase2(ModelBase):
             The start value.
         """
         cdef FMIL.fmi2_import_variable_t *        variable
-        cdef FMIL.fmi2_base_type_enu_t            type
+        cdef FMIL.fmi2_base_type_enu_t            basetype
         cdef FMIL.fmi2_import_integer_variable_t* int_variable
         cdef FMIL.fmi2_import_real_variable_t*    real_variable
         cdef FMIL.fmi2_import_bool_variable_t*    bool_variable
@@ -5859,25 +5859,25 @@ cdef class FMUModelBase2(ModelBase):
         if status == 0:
             raise FMUException("The variable %s does not have a start value."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi2_base_type_real:
+        if basetype == FMIL.fmi2_base_type_real:
             real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
             return FMIL.fmi2_import_get_real_variable_start(real_variable)
 
-        elif type == FMIL.fmi2_base_type_int:
+        elif basetype == FMIL.fmi2_base_type_int:
             int_variable = FMIL.fmi2_import_get_variable_as_integer(variable)
             return FMIL.fmi2_import_get_integer_variable_start(int_variable)
 
-        elif type == FMIL.fmi2_base_type_bool:
+        elif basetype == FMIL.fmi2_base_type_bool:
             bool_variable = FMIL.fmi2_import_get_variable_as_boolean(variable)
             return FMIL.fmi2_import_get_boolean_variable_start(bool_variable) == FMITRUE
 
-        elif type == FMIL.fmi2_base_type_enum:
+        elif basetype == FMIL.fmi2_base_type_enum:
             enum_variable = FMIL.fmi2_import_get_variable_as_enum(variable)
             return FMIL.fmi2_import_get_enum_variable_start(enum_variable)
 
-        elif type == FMIL.fmi2_base_type_str:
+        elif basetype == FMIL.fmi2_base_type_str:
             str_variable = FMIL.fmi2_import_get_variable_as_string(variable)
             return FMIL.fmi2_import_get_string_variable_start(str_variable)
 
@@ -5901,7 +5901,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_integer_variable_t* int_variable
         cdef FMIL.fmi2_import_real_variable_t*    real_variable
         cdef FMIL.fmi2_import_enum_variable_t*    enum_variable
-        cdef FMIL.fmi2_base_type_enu_t            type
+        cdef FMIL.fmi2_base_type_enu_t            basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5910,17 +5910,17 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi2_base_type_real:
+        if basetype == FMIL.fmi2_base_type_real:
             real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
             return FMIL.fmi2_import_get_real_variable_max(real_variable)
 
-        elif type == FMIL.fmi2_base_type_int:
+        elif basetype == FMIL.fmi2_base_type_int:
             int_variable = FMIL.fmi2_import_get_variable_as_integer(variable)
             return FMIL.fmi2_import_get_integer_variable_max(int_variable)
 
-        elif type == FMIL.fmi2_base_type_enum:
+        elif basetype == FMIL.fmi2_base_type_enum:
             enum_variable = FMIL.fmi2_import_get_variable_as_enum(variable)
             return FMIL.fmi2_import_get_enum_variable_max(enum_variable)
 
@@ -5944,7 +5944,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_integer_variable_t* int_variable
         cdef FMIL.fmi2_import_real_variable_t*    real_variable
         cdef FMIL.fmi2_import_enum_variable_t*    enum_variable
-        cdef FMIL.fmi2_base_type_enu_t            type
+        cdef FMIL.fmi2_base_type_enu_t            basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5953,17 +5953,17 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi2_base_type_real:
+        if basetype == FMIL.fmi2_base_type_real:
             real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
             return FMIL.fmi2_import_get_real_variable_min(real_variable)
 
-        elif type == FMIL.fmi2_base_type_int:
+        elif basetype == FMIL.fmi2_base_type_int:
             int_variable = FMIL.fmi2_import_get_variable_as_integer(variable)
             return FMIL.fmi2_import_get_integer_variable_min(int_variable)
 
-        elif type == FMIL.fmi2_base_type_enum:
+        elif basetype == FMIL.fmi2_base_type_enum:
             enum_variable = FMIL.fmi2_import_get_variable_as_enum(variable)
             return FMIL.fmi2_import_get_enum_variable_min(enum_variable)
 
