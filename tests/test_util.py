@@ -24,8 +24,18 @@ from pyfmi.fmi import (FMUException, FMUModelME1, _ForTestingFMUModelME1, FMUMod
 def get_examples_folder():
     return os.path.join(os.path.dirname(__file__), '..', 'examples')
 
+class _ValuesDict(dict):
+    """Auxiliary dictionary that converts np.array() inputs of length 1 to simple numbers."""
+    def __setitem__(self, key, value):
+        if hasattr(value, "__len__"):
+            if len(value) > 1:
+                raise KeyError("expected value of length 1")
+            self.__setitem__(key, value[0])
+        else:
+            super().__setitem__(key, value)
+
 class Dummy_FMUModelME1(_ForTestingFMUModelME1):
-    # If true, makes use of the real __ForTesting implementation for nominal_continuous_states,
+    # If true, makes use of the real _ForTesting implementation for nominal_continuous_states,
     # else just returns 1.0 for each.
     override_nominal_continuous_states = True
 
@@ -42,7 +52,7 @@ class Dummy_FMUModelME1(_ForTestingFMUModelME1):
         self.variables = self.get_model_variables(include_alias=False)
         self.states_vref = states_vref
 
-        self.values = {}
+        self.values = _ValuesDict()
         for var in self.variables:
             try:
                 start = self.get_variable_start(var)
@@ -100,7 +110,7 @@ class Dummy_FMUModelCS1(FMUModelCS1):
         self.variables = self.get_model_variables(include_alias=False)
         self.states_vref = states_vref
 
-        self.values = {}
+        self.values = _ValuesDict()
         for var in self.variables:
             try:
                 start = self.get_variable_start(var)
@@ -139,7 +149,7 @@ class Dummy_FMUModelCS2(FMUModelCS2):
         self.variables = self.get_model_variables(include_alias=False)
         self.negated_aliases = negated_aliases
 
-        self.values = {}
+        self.values = _ValuesDict()
         for var in self.variables:
             try:
                 start = self.get_variable_start(var)
@@ -210,7 +220,7 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
 
     # -- Test options --
     
-    # If true, makes use of the real __ForTesting implementation for nominal_continuous_states,
+    # If true, makes use of the real _ForTesting implementation for nominal_continuous_states,
     # else just returns 1.0 for each.
     override_nominal_continuous_states = True
 
@@ -235,7 +245,7 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
         self.reset()
 
     def reset(self, *args, **kwargs):
-        self.values = {}
+        self.values = _ValuesDict()
         for var in self.variables:
             try:
                 start = self.get_variable_start(var)
