@@ -119,7 +119,7 @@ class Test_Master:
             u1 = model_sub1.values[model_sub1.get_variable_valueref("u1")]
             
             model_sub1.continuous_states = 1.0/a1*(np.exp(a1*step_size)-1.0)*b1*u1+np.exp(a1*step_size)*model_sub1.continuous_states
-            model_sub1.values[model_sub1.get_variable_valueref("y1")] = c1*model_sub1.continuous_states+d1*u1
+            model_sub1.set_real([model_sub1.get_variable_valueref("y1")], c1*model_sub1.continuous_states+d1*u1)
             model_sub1.completed_integrator_step()
             return 0
         
@@ -127,7 +127,7 @@ class Test_Master:
             u2 = model_sub2.values[model_sub2.get_variable_valueref("u2")]
             
             model_sub2.continuous_states = 1.0/a2*(np.exp(a2*step_size)-1.0)*b2*u2+np.exp(a2*step_size)*model_sub2.continuous_states
-            model_sub2.values[model_sub2.get_variable_valueref("y2")] = c2*model_sub2.continuous_states+d2*u2
+            model_sub2.set_real([model_sub2.get_variable_valueref("y2")], c2*model_sub2.continuous_states+d2*u2)
             model_sub2.completed_integrator_step()
             return 0
             
@@ -285,13 +285,13 @@ class Test_Master:
         
         model_sub1.set("y", 1)
         def do_step1(current_t, step_size, new_step=True):
-            model_sub1.values[model_sub1.get_variable_valueref("y")] = 1 if current_t+step_size < 0.5 else 3
+            model_sub1.set_integer([model_sub1.get_variable_valueref("y")], [1] if current_t+step_size < 0.5 else [3])
             model_sub1.completed_integrator_step()
             return 0
         
         def do_step2(current_t, step_size, new_step=True):
-            u = model_sub2.values[model_sub2.get_variable_valueref("u")]
-            model_sub2.values[model_sub2.get_variable_valueref("y")] = 10*u
+            u = model_sub2.get_integer([model_sub2.get_variable_valueref("u")])
+            model_sub2.set_integer([model_sub2.get_variable_valueref("y")], 10*u)
             model_sub2.completed_integrator_step()
             return 0
             
@@ -299,14 +299,14 @@ class Test_Master:
         model_sub2.do_step = do_step2
         
         models = [model_sub1, model_sub2]
-        connections=[(model_sub1,'y',model_sub2,'u')]
+        connections = [(model_sub1, 'y', model_sub2, 'u')]
 
         master = Master(models,connections)
 
         opts = master.simulate_options()
         opts["block_initialization"] = True
 
-        res = master.simulate(start_time=0.0,final_time=2.0, options=opts)
+        res = master.simulate(start_time=0.0, final_time=2.0, options=opts)
         
         assert res[model_sub2]["u"][0] == 1
         assert res[model_sub2]["u"][-1] == 3
@@ -318,13 +318,13 @@ class Test_Master:
         
         model_sub1.set("y", 1)
         def do_step1(current_t, step_size, new_step=True):
-            model_sub1.values[model_sub1.get_variable_valueref("y")] = 1 if current_t+step_size < 0.5 else 3
+            model_sub1.set_integer([model_sub1.get_variable_valueref("y")], [1] if current_t+step_size < 0.5 else [3])
             model_sub1.completed_integrator_step()
             return 0
         
         def do_step2(current_t, step_size, new_step=True):
-            u = model_sub2.values[model_sub2.get_variable_valueref("u")]
-            model_sub2.values[model_sub2.get_variable_valueref("y")] = 10*u
+            u = model_sub2.get_real([model_sub2.get_variable_valueref("u")])
+            model_sub2.set_real([model_sub2.get_variable_valueref("y")], 10*u)
             model_sub2.completed_integrator_step()
             return 0
             
@@ -332,9 +332,9 @@ class Test_Master:
         model_sub2.do_step = do_step2
         
         models = [model_sub1, model_sub2]
-        connections=[(model_sub1,'y',model_sub2,'u')]
+        connections= [(model_sub1, 'y', model_sub2, 'u')]
 
-        master = Master(models,connections)
+        master = Master(models, connections)
 
         opts = master.simulate_options()
         opts["block_initialization"] = True
@@ -365,7 +365,7 @@ class Test_Master:
             u1 = model_sub1.values[model_sub1.get_variable_valueref("u1")]
             
             model_sub1.continuous_states = 1.0/a1*(np.exp(a1*step_size)-1.0)*b1*u1+np.exp(a1*step_size)*model_sub1.continuous_states
-            model_sub1.values[model_sub1.get_variable_valueref("y1")] = c1*model_sub1.continuous_states+d1*u1
+            model_sub1.set_real([model_sub1.get_variable_valueref("y1")], c1*model_sub1.continuous_states+d1*u1)
             model_sub1.completed_integrator_step()
             return 0
         
@@ -373,7 +373,7 @@ class Test_Master:
             u2 = model_sub2.values[model_sub2.get_variable_valueref("u2")]
             
             model_sub2.continuous_states = 1.0/a2*(np.exp(a2*step_size)-1.0)*b2*u2+np.exp(a2*step_size)*model_sub2.continuous_states
-            model_sub2.values[model_sub2.get_variable_valueref("y2")] = c2*model_sub2.continuous_states+d2*u2
+            model_sub2.set_real([model_sub2.get_variable_valueref("y2")], c2*model_sub2.continuous_states+d2*u2)
             model_sub2.completed_integrator_step()
             return 0
             

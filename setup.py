@@ -33,13 +33,13 @@ try:
     from Cython.Distutils import build_ext
     from Cython.Build import cythonize
 except ImportError:
-    raise Exception("Please upgrade to a newer Cython version, >= 0.15.")
+    raise Exception("Please upgrade to a newer Cython version, >= 3.")
 
 
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "3.0-dev"
+VERSION = "2.12.0"
 LICENSE = "LGPL"
 URL = "https://github.com/modelon-community/PyFMI"
 DOWNLOAD_URL = "https://github.com/modelon-community/PyFMI/releases"
@@ -73,7 +73,7 @@ Requirements:
 -------------
 - `FMI Library (at least 2.0.1) <https://github.com/modelon-community/fmi-library>`_
 - `Python-headers (usually included on Windows, python-dev on Ubuntu)`_
-- `Python 3.7 or newer`_
+- `Python 3.11 or newer`_
 - Python package dependencies are listed in file setup.cfg.
 
 Optional
@@ -90,9 +90,10 @@ python setup.py install --fmil-home=/path/to/FMI_Library/
 
 copy_args = sys.argv[1:]
 
-if os.getenv("FMIL_HOME"): #Check for if there exists and environment variable that specifies FMIL
-    incdirs = os.path.join(os.getenv("FMIL_HOME"), 'include')
-    libdirs = os.path.join(os.getenv("FMIL_HOME"), 'lib')
+fmil_home = os.getenv("FMIL_HOME")
+if fmil_home: #Check for environment variable that specifies FMIL
+    incdirs = os.path.join(fmil_home, 'include')
+    libdirs = os.path.join(fmil_home, 'lib')
 else:
     incdirs = ""
     libdirs = ""
@@ -153,7 +154,6 @@ for x in sys.argv[1:]:
             debug_flag = False
         copy_args.remove(x)
     
-
 if not incdirs:
     raise Exception("FMI Library cannot be found. Please specify its location, either using the flag to the setup script '--fmil-home' or specify it using the environment variable FMIL_HOME.")
 
@@ -214,29 +214,35 @@ def check_extensions():
     incl_path = [".", "src", os.path.join("src", "pyfmi")]
     #FMI PYX
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi.pyx")], 
-                    include_path = incl_path)
+                    include_path = incl_path,
+                    compiler_directives={'language_level' : "3str"})
     
     #FMI UTIL
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_util.pyx")], 
-                    include_path = incl_path)
+                    include_path = incl_path,
+                    compiler_directives={'language_level' : "3str"})
     
     #FMI Extended PYX
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_extended.pyx")], 
-                    include_path = incl_path)
+                    include_path = incl_path,
+                    compiler_directives={'language_level' : "3str"})
                     
     #FMI Coupled PYX
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_coupled.pyx")], 
-                    include_path = incl_path)
+                    include_path = incl_path,
+                    compiler_directives={'language_level' : "3str"})
     
     #Simulation interface PYX
     ext_list += cythonize([os.path.join("src", "pyfmi", "simulation", "assimulo_interface.pyx")], 
-                    include_path = incl_path)
+                    include_path = incl_path,
+                    compiler_directives={'language_level' : "3str"})
                     
     #MASTER PYX
     compile_time_env = {'WITH_OPENMP': with_openmp}
     ext_list += cythonize([os.path.join("src", "pyfmi", "master.pyx")], 
                     include_path = incl_path, 
-                    compile_time_env=compile_time_env)
+                    compile_time_env=compile_time_env,
+                    compiler_directives={'language_level' : "3str"})
     
     for i in range(len(ext_list)):
         

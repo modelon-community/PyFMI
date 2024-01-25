@@ -15,18 +15,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import nose
 import os
 import numpy as np
 
-from pyfmi.fmi import FMUException, FMUModelME1, __ForTestingFMUModelME1, FMUModelCS1, load_fmu, \
-                      FMUModelCS2, FMUModelME2, __ForTestingFMUModelME2
+from pyfmi.fmi import (FMUException, FMUModelME1, _ForTestingFMUModelME1, FMUModelCS1, 
+                      FMUModelCS2, FMUModelME2, _ForTestingFMUModelME2)
 
 def get_examples_folder():
     return os.path.join(os.path.dirname(__file__), '..', 'examples')
 
-class Dummy_FMUModelME1(__ForTestingFMUModelME1):
-    # If true, makes use of the real __ForTesting implementation for nominal_continuous_states,
+class Dummy_FMUModelME1(_ForTestingFMUModelME1):
+    # If true, makes use of the real _ForTesting implementation for nominal_continuous_states,
     # else just returns 1.0 for each.
     override_nominal_continuous_states = True
 
@@ -136,7 +135,6 @@ class Dummy_FMUModelCS2(FMUModelCS2):
     def __init__(self, negated_aliases, *args,**kwargs):
         FMUModelCS2.__init__(self, *args, **kwargs)
 
-
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
         self.variables = self.get_model_variables(include_alias=False)
         self.negated_aliases = negated_aliases
@@ -208,11 +206,11 @@ class Dummy_FMUModelCS2(FMUModelCS2):
         for i,v in enumerate(vref):
             self.values[v] = values[i]
 
-class Dummy_FMUModelME2(__ForTestingFMUModelME2):
+class Dummy_FMUModelME2(_ForTestingFMUModelME2):
 
     # -- Test options --
     
-    # If true, makes use of the real __ForTesting implementation for nominal_continuous_states,
+    # If true, makes use of the real _ForTesting implementation for nominal_continuous_states,
     # else just returns 1.0 for each.
     override_nominal_continuous_states = True
 
@@ -286,8 +284,9 @@ class Dummy_FMUModelME2(__ForTestingFMUModelME2):
     def get_derivatives(self):
         return -self.continuous_states
 
-    def get_real(self, vref):
-        self.get_derivatives()
+    def get_real(self, vref, evaluate = True):
+        if evaluate:
+            self.get_derivatives()
         vals = []
         if type(vref) == int:
             vref = [vref]
