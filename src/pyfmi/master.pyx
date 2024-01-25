@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
 import pyfmi.fmi as fmi
 from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
 from pyfmi.common.io import get_result_handler
@@ -37,10 +39,10 @@ import scipy.sparse.linalg as splin
 import scipy.optimize as sopt
 import scipy.version
 
-from fmi cimport FMUModelCS2
+from pyfmi.fmi cimport FMUModelCS2
 from cpython cimport bool
 cimport fmil_import as FMIL
-from fmi_util import Graph
+from pyfmi.fmi_util import Graph
 from cython.parallel import prange, parallel
 
 IF WITH_OPENMP:
@@ -384,7 +386,7 @@ cdef class Master:
     cdef public dict statistics, models_id_mapping
     cdef public object opts
     cdef public object models_dict, L, L_discrete
-    cdef public object I
+    cdef public object _ident_matrix
     cdef public object y_prev, yd_prev, input_traj
     cdef public object DL_prev
     cdef public int algebraic_loops, storing_fmu_state
@@ -480,7 +482,7 @@ cdef class Master:
         
         self.y_prev = None
         self.input_traj = None
-        self.I = sp.eye(self._len_inputs, self._len_outputs, format="csr") #y = Cx + Du , u = Ly -> DLy   DL[inputsXoutputs]
+        self._ident_matrix = sp.eye(self._len_inputs, self._len_outputs, format="csr") #y = Cx + Du , u = Ly -> DLy   DL[inputsXoutputs]
         
         self._error_data = {"time":[], "error":[], "step-size":[], "rejected":[]}
     
@@ -774,34 +776,31 @@ cdef class Master:
         return self.storing_fmu_state
         
     cpdef np.ndarray get_connection_outputs(self):
-        cdef int i = 0, inext = 0
+        cdef int i, index, index_start, index_end
         cdef np.ndarray y = np.empty((self._len_outputs))
 
         for model in self.models:
-            #y.extend(model.get(self.models_dict[model]["local_output"]))
-            #y.extend(model.get_real(self.models_dict[model]["local_output_vref"]))
-            i = self.models_dict[model]["global_index_outputs"]
-            inext = i + self.models_dict[model]["local_output_len"]
-            y[i:inext] = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
-            i = inext
-            
-        #return np.array(y)
+            index_start = self.models_dict[model]["global_index_outputs"]
+            index_end = index_start + self.models_dict[model]["local_output_len"]
+            local_output_vref_array = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
+            for i, index in enumerate(range(index_start, index_end)):
+                y[index] = local_output_vref_array[i]
         return y.reshape(-1,1)
     
     cpdef np.ndarray get_connection_outputs_discrete(self):
-        cdef int i = 0, inext = 0
+        cdef int i, index, index_start, index_end
         cdef np.ndarray y = np.empty((self._len_outputs_discrete))
 
         for model in self.models:
-            i = self.models_dict[model]["global_index_outputs_discrete"]
-            inext = i + self.models_dict[model]["local_output_discrete_len"]
-            y[i:inext] = model.get(self.models_dict[model]["local_output_discrete"])
-            i = inext
-            
+            index_start = self.models_dict[model]["global_index_outputs_discrete"]
+            index_end = index_start + self.models_dict[model]["local_output_discrete_len"]
+            local_output_discrete = model.get(self.models_dict[model]["local_output_discrete"])
+            for i, index in enumerate(range(index_start, index_end)):
+                y[index] = local_output_discrete[i]
         return y.reshape(-1,1)
         
     cpdef np.ndarray _get_derivatives(self):
-        cdef int i = 0, inext = 0
+        cdef int i, index, index_start, index_end
         cdef np.ndarray xd = np.empty((self._len_derivatives))
         
         for model in self.models_dict.keys():
@@ -809,10 +808,11 @@ cdef class Master:
                 return None
 
         for model in self.models:
-            i = self.models_dict[model]["global_index_derivatives"]
-            inext = i + self.models_dict[model]["local_derivative_len"]
-            xd[i:inext] = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_derivative_vref_array"])
-            i = inext
+            index_start = self.models_dict[model]["global_index_derivatives"]
+            index_end = index_start + self.models_dict[model]["local_derivative_len"]
+            local_derivative_vref_array = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_derivative_vref_array"])
+            for i, index in enumerate(range(index_start, index_end)):
+                xd[index] = local_derivative_vref_array[i]
 
         return xd.reshape(-1,1)
     
@@ -871,7 +871,7 @@ cdef class Master:
                             else:
                                 return C.dot(xd)+D.dot(ud)
                         else: #First step
-                            return splin.spsolve((self.I-D.dot(self.L)),C.dot(xd)).reshape((-1,1))
+                            return splin.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(xd)).reshape((-1,1))
 
                 y_last = self.get_last_y()
                 if y_last is not None:
@@ -916,7 +916,7 @@ cdef class Master:
                         if ud is not None and udd is not None:
                             return C.dot(A.dot(xd))+C.dot(B.dot(ud+self.get_current_step_size()*udd))+D.dot(udd)
                         else: #First step
-                            return splin.spsolve((self.I-D.dot(self.L)),C.dot(A.dot(xd)+B.dot(self.L.dot(yd_cur)))).reshape((-1,1))
+                            return splin.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(A.dot(xd)+B.dot(self.L.dot(yd_cur)))).reshape((-1,1))
                 
                 yd_last = self.get_last_yd()
                 if yd_last is not None:
@@ -983,7 +983,7 @@ cdef class Master:
                 
                 z = yd - D.dot(uhat)
             
-            yd = splin.spsolve((self.I-DL),z).reshape((-1,1))
+            yd = splin.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
             """
         return ydd
 
@@ -998,7 +998,7 @@ cdef class Master:
                 
                 z = yd - D.dot(uhat)
             
-            yd = splin.spsolve((self.I-DL),z).reshape((-1,1))
+            yd = splin.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
 
         return yd
     
@@ -1034,7 +1034,7 @@ cdef class Master:
                 z = y - DL.dot(y_prev)
                 #z = y - matvec(DL, y_prev.ravel())
             
-            y = splin.spsolve((self.I-DL),z).reshape((-1,1))
+            y = splin.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
             #y = splin.lsqr((sp.eye(*DL.shape)-DL),z)[0].reshape((-1,1))
 
         elif self.algebraic_loops and self.support_directional_derivatives:
@@ -1364,15 +1364,15 @@ cdef class Master:
                     C = self.compute_global_C()
                     if C is not None:
                         C = C.todense()
-                        I = np.eye(*DL.shape)
-                        LIDLC = self.L.dot(lin.solve(I-DL,C))
+                        _ident_matrix = np.eye(*DL.shape)
+                        LIDLC = self.L.dot(lin.solve(_ident_matrix-DL,C))
                         print("           , rho(L(I-DL)^(-1)C)=%s"%(str(numpy.linalg.eig(LIDLC)[0])))
                     A = self.compute_global_A()
                     B = self.compute_global_B()
                     if C is not None and A is not None and B is not None:
                         A = A.todense(); B = B.todense()
                         eAH = slin.expm(A*step_size)
-                        K1  = lin.solve(I-DL,C)
+                        K1  = lin.solve(_ident_matrix-DL,C)
                         K2  = lin.solve(A,(eAH-np.eye(*eAH.shape)).dot(B.dot(self.L.todense())))
                         R1  = np.hstack((eAH, K1))
                         R2  = np.hstack((K2.dot(eAH), K2.dot(K1)))
@@ -1416,11 +1416,13 @@ cdef class Master:
         cdef double alpha = 0.9
         cdef double fac1 = 6.0
         cdef double fac2 = 0.2
+        cdef double _tmp
         
         if error == 0.0:
             return step_size*fac1
         else:
-            return step_size*min(fac1,max(fac2,alpha*(1.0/error)**one_over_p))
+            _tmp = alpha*(1.0/error)**one_over_p
+            return step_size*min(fac1, max(fac2, _tmp))
             
     cdef reset_statistics(self):
         for key in self.elapsed_time: 

@@ -25,7 +25,7 @@ import logging
 from io import StringIO
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
+from pyfmi.fmi import FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
 import pyfmi.fmi as fmi
 from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg, AssimuloFMIAlgOptions, \
                                         PYFMI_JACOBIAN_LIMIT, PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT
@@ -538,7 +538,7 @@ class Test_FMUModelBase:
             logging.basicConfig(stream=log_stream, level=logging.WARNING)
 
         model.states_vref = [114, 115, 116, 117, 118, 119, 120, 121]
-        # NOTE: Property 'nominal_continuous_states' is already overriden in Dummy_FMUModelME1, so just
+        # NOTE: Property 'nominal_continuous_states' is already overridden in Dummy_FMUModelME1, so just
         # call the underlying function immediately.
         xn = model._get_nominal_continuous_states()
 
@@ -1274,16 +1274,19 @@ class Test_FMUModelME2:
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "OutputTest2.fmu"), _connect_dll=False)
 
         def f(*args, **kwargs):
-            x1 = model.values[model.variables["x1"].value_reference]
-            x2 = model.values[model.variables["x2"].value_reference]
-            u1 = model.values[model.variables["u1"].value_reference]
+            x1 = model.get_real([model.variables["x1"].value_reference], evaluate = False)
+            x2 = model.get_real([model.variables["x2"].value_reference], evaluate = False)
+            u1 = model.get_real([model.variables["u1"].value_reference], evaluate = False)
 
-            model.values[model.variables["y1"].value_reference] = x1*x2 - u1
-            model.values[model.variables["y2"].value_reference] = x2
-            model.values[model.variables["y3"].value_reference] = u1 + x1
+            model.set_real([model.variables["y1"].value_reference], x1*x2 - u1)
+            model.set_real([model.variables["y2"].value_reference], x2)
+            model.set_real([model.variables["y3"].value_reference], u1 + x1)
 
-            model.values[model.variables["der(x1)"].value_reference] = -1.0
-            model.values[model.variables["der(x2)"].value_reference] = -1.0
+            dx1 = -1.0
+            dx2 = -1.0
+            model.set_real([model.variables["der(x1)"].value_reference], [dx1])
+            model.set_real([model.variables["der(x2)"].value_reference], [dx2])
+            return np.array([dx1, dx2])
         model.get_derivatives = f
 
         model.initialize()
@@ -1310,17 +1313,17 @@ class Test_FMUModelME2:
         C = model._get_C(use_structure_info=True)
         D = model._get_D(use_structure_info=True)
 
-        assert np.allclose(B.toarray(), np.array([[0.0],[0.0]]))
-        assert np.allclose(C.toarray(), np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
-        assert np.allclose(D.toarray(), np.array([[-1.0],[0.0], [1.0]]))
+        assert np.allclose(B.toarray(), np.array([[0.0], [0.0]])), str(B.toarray())
+        assert np.allclose(C.toarray(), np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0]])), str(C.toarray())
+        assert np.allclose(D.toarray(), np.array([[-1.0], [0.0], [1.0]])), str(D.toarray())
 
         B = model._get_B(use_structure_info=False)
         C = model._get_C(use_structure_info=False)
         D = model._get_D(use_structure_info=False)
 
-        assert np.allclose(B, np.array([[0.0],[0.0]]))
-        assert np.allclose(C, np.array([[0.0, 0.0],[0.0, 1.0], [1.0, 0.0]]))
-        assert np.allclose(D, np.array([[-1.0],[0.0], [1.0]]))
+        assert np.allclose(B, np.array([[0.0], [0.0]])), str(B.toarray())
+        assert np.allclose(C, np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0]])), str(C.toarray())
+        assert np.allclose(D, np.array([[-1.0], [0.0], [1.0]])), str(D.toarray())
 
     @testattr(stddist = True)
     def test_output_dependencies(self):
@@ -1504,7 +1507,7 @@ class Test_FMUModelBase2:
             log_stream = StringIO()
             logging.basicConfig(stream=log_stream, level=logging.WARNING)
 
-        # NOTE: Property 'nominal_continuous_states' is already overriden in Dummy_FMUModelME2, so just
+        # NOTE: Property 'nominal_continuous_states' is already overridden in Dummy_FMUModelME2, so just
         # call the underlying function immediately.
         xn = model._get_nominal_continuous_states()
 

@@ -17,6 +17,10 @@
 
 from libc.stdio cimport FILE
 
+import numpy as np
+cimport numpy as np
+from pyfmi.fmi cimport FMUModelME2
+
 cpdef decode(x)
 cpdef encode(x)
 
@@ -46,3 +50,14 @@ ELSE:
         return fseeko(stream, offset, whence)
     cdef inline long long os_specific_ftell(FILE *stream):
         return ftello(stream)
+
+cdef class DumpData:
+    cdef np.ndarray real_var_ref, int_var_ref, bool_var_ref
+    cdef np.ndarray real_var_tmp, int_var_tmp, bool_var_tmp
+    cdef np.ndarray time_tmp
+    cdef public FMUModelME2 model_me2
+    cdef public int model_me2_instance
+    cdef public object _file, model
+    cdef size_t real_size, int_size, bool_size
+    cdef int _with_diagnostics
+    cdef dump_data(self, np.ndarray data)
