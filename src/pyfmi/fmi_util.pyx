@@ -1105,11 +1105,12 @@ cdef class DumpData:
             self.dump_data(np.array(float(self.model.time)))
         self.dump_data(diag_data)
 
-from libc.stdio cimport *
-
 cdef extern from "stdio.h":
     FILE *fdopen(int, const char *)
-
+    FILE *fopen(const char *, const char *)
+    size_t fread(void*, size_t, size_t, FILE *)
+    int fseek(FILE *, long, int)
+    int fclose(FILE *)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
