@@ -14,6 +14,9 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
 """
 Module containing the FMI interface Python wrappers.
 """
@@ -30,9 +33,9 @@ cimport numpy as N
 N.import_array()
 
 cimport fmil_import as FMIL
-from fmi cimport FMUModelME1
-from fmi import FMUException
-from fmi import FMI_OK, FMI_DEFAULT_LOG_LEVEL, FMI_ME
+from pyfmi.fmi cimport FMUModelME1
+from pyfmi.fmi import FMUException
+from pyfmi.fmi import FMI_OK, FMI_DEFAULT_LOG_LEVEL, FMI_ME
 
 
 cdef class FMUModelME1Extended(FMUModelME1):

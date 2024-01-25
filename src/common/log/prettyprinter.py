@@ -19,7 +19,7 @@ Prettyprinter for in memory log trees (as parsed by parser.py)
 """
 
 from numpy import ndarray
-from .tree import *
+from pyfmi.common.log.tree import *
 
 def prettyprint(write, node):
     """Prettyprint a log node to the write callback write."""
