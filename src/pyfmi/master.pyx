@@ -87,8 +87,9 @@ cdef perform_do_step_parallel(list models, FMIL.fmi2_import_t** model_addresses,
     Perform a do step on all the models.
     """
     cdef int i, status = 0
-    cdef int num_threads, id
-    cdef double time
+    # cdef int num_threads
+    # cdef int id
+    # cdef double time
     
     for i in prange(n, nogil=True, schedule="dynamic", chunksize=1): 
     #for i in prange(n, nogil=True, schedule="dynamic"): 

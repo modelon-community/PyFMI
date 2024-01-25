@@ -130,7 +130,7 @@ FMI2_KIND_DISCRETE  = FMIL.fmi2_dependency_factor_kind_discrete
 FMI_ME                 = FMIL.fmi1_fmu_kind_enu_me
 FMI_CS_STANDALONE      = FMIL.fmi1_fmu_kind_enu_cs_standalone
 FMI_CS_TOOL            = FMIL.fmi1_fmu_kind_enu_cs_tool
-FMI_MIME_CS_STANDALONE = encode("application/x-fmu-sharedlibrary")
+cdef FMI_MIME_CS_STANDALONE = encode("application/x-fmu-sharedlibrary")
 
 FMI_REGISTER_GLOBALLY = 1
 FMI_DEFAULT_LOG_LEVEL = FMIL.jm_log_level_error
@@ -1501,7 +1501,7 @@ cdef class FMUModelBase(ModelBase):
 
             model.get_version()
         """
-        version = FMIL.fmi1_import_get_version(self._fmu)
+        cdef FMIL.fmi1_string_t version = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_version(self._fmu)
         return decode(version)
 
     def get_ode_sizes(self):
@@ -1941,7 +1941,7 @@ cdef class FMUModelBase(ModelBase):
             The description of the variable.
         """
         cdef FMIL.fmi1_import_variable_t* variable
-        cdef char* desc
+        cdef FMIL.fmi1_string_t desc
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -1950,11 +1950,12 @@ cdef class FMUModelBase(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        desc = FMIL.fmi1_import_get_variable_description(variable)
+        desc = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_variable_description(variable)
 
         return decode(desc) if desc != NULL else ""
 
     cdef _add_scalar_variable(self, FMIL.fmi1_import_variable_t* variable):
+        cdef FMIL.fmi1_string_t desc
 
         if variable == NULL:
             raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
@@ -1966,7 +1967,7 @@ cdef class FMUModelBase(ModelBase):
         has_start  = FMIL.fmi1_import_get_variable_has_start(variable)
         data_variability = FMIL.fmi1_import_get_variability(variable)
         data_causality   = FMIL.fmi1_import_get_causality(variable)
-        desc       = FMIL.fmi1_import_get_variable_description(variable)
+        desc       = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_variable_description(variable)
 
         return ScalarVariable(name,value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                             data_variability, data_causality, alias_kind)
@@ -2334,7 +2335,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_variability_enu_t data_variability,target_variability = FMIL.fmi1_variability_enu_constant
         cdef FMIL.fmi1_causality_enu_t data_causality,target_causality = FMIL.fmi1_causality_enu_input
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
-        cdef char* desc
+        cdef FMIL.fmi1_string_t desc
         cdef dict variable_dict = {}
         cdef list filter_list = [], variable_return_list = []
         cdef int  selected_type = 0 #If a type has been selected
@@ -2371,7 +2372,7 @@ cdef class FMUModelBase(ModelBase):
             has_start  = FMIL.fmi1_import_get_variable_has_start(variable)
             data_variability = FMIL.fmi1_import_get_variability(variable)
             data_causality   = FMIL.fmi1_import_get_causality(variable)
-            desc       = FMIL.fmi1_import_get_variable_description(variable)
+            desc       = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_variable_description(variable)
 
             #If only variables with start are wanted, check if the variable has start
             if only_start and has_start != 1:
@@ -2698,8 +2699,8 @@ cdef class FMUModelBase(ModelBase):
         """
         Return the name and organization of the model author.
         """
-        cdef char* author
-        author = FMIL.fmi1_import_get_author(self._fmu)
+        cdef FMIL.fmi1_string_t author
+        author = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_author(self._fmu)
         return author if author != NULL else ""
 
     def get_default_experiment_start_time(self):
@@ -2727,16 +2728,16 @@ cdef class FMUModelBase(ModelBase):
         """
         Return the model description.
         """
-        cdef char* desc
-        desc = FMIL.fmi1_import_get_description(self._fmu)
+        cdef FMIL.fmi1_string_t desc
+        desc = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_description(self._fmu)
         return decode(desc) if desc != NULL else ""
 
     def get_generation_tool(self):
         """
         Return the model generation tool.
         """
-        cdef char* gen
-        gen = FMIL.fmi1_import_get_generation_tool(self._fmu)
+        cdef FMIL.fmi1_string_t gen
+        gen = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_generation_tool(self._fmu)
         return decode(gen) if gen != NULL else ""
 
     def get_guid(self):
@@ -2936,7 +2937,7 @@ cdef class FMUModelCS1(FMUModelBase):
 
             model.types_platform
         """
-        types_platform = FMIL.fmi1_import_get_types_platform(self._fmu)
+        cdef FMIL.fmi1_string_t types_platform = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_types_platform(self._fmu)
         return decode(types_platform)
 
     types_platform = property(fget=_get_types_platform)
@@ -3309,7 +3310,7 @@ cdef class FMUModelME1(FMUModelBase):
 
             model.model_types_platform
         """
-        model_types_platform = FMIL.fmi1_import_get_model_types_platform(self._fmu)
+        cdef FMIL.fmi1_string_t model_types_platform = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_model_types_platform(self._fmu)
         return decode(model_types_platform)
 
     model_types_platform = property(fget=_get_model_types_platform)
@@ -5199,14 +5200,14 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_causality_enu_t           data_causality,   target_causality = FMIL.fmi2_causality_enu_parameter
         cdef FMIL.fmi2_variable_alias_kind_enu_t alias_kind
         cdef FMIL.fmi2_initial_enu_t             initial
-        cdef char* desc
-        cdef int   selected_type = 0        #If a type has been selected
-        cdef int   selected_variability = 0 #If a variability has been selected
-        cdef int   selected_causality = 0   #If a causality has been selected
-        cdef int   has_start, is_fixed
-        cdef int   i, j
-        cdef int  selected_filter = 1 if filter else 0
-        cdef int  length_filter = 0
+        cdef FMIL.fmi2_string_t desc
+        cdef int selected_type = 0        #If a type has been selected
+        cdef int selected_variability = 0 #If a variability has been selected
+        cdef int selected_causality = 0   #If a causality has been selected
+        cdef int has_start, is_fixed
+        cdef int i, j
+        cdef int selected_filter = 1 if filter else 0
+        cdef int length_filter = 0
         cdef list filter_list, variable_return_list = []
         variable_dict = OrderedDict()
 
@@ -5237,7 +5238,7 @@ cdef class FMUModelBase2(ModelBase):
             has_start        = FMIL.fmi2_import_get_variable_has_start(variable)  #fmi2_import_get_initial, may be of interest
             data_variability = FMIL.fmi2_import_get_variability(variable)
             data_causality   = FMIL.fmi2_import_get_causality(variable)
-            desc             = FMIL.fmi2_import_get_variable_description(variable)
+            desc             = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_variable_description(variable)
             initial          = FMIL.fmi2_import_get_initial(variable)
 
             #If only variables with start are wanted, check if the variable has start
@@ -5384,16 +5385,16 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_real_typedef_t * real_type
         cdef FMIL.fmi2_import_unit_t * type_unit
         cdef FMIL.fmi2_import_display_unit_t * type_display_unit
-        cdef char * type_name
-        cdef char * type_desc
+        cdef FMIL.fmi2_string_t type_name
+        cdef FMIL.fmi2_string_t type_desc
         cdef object ret_type, min_val, max_val, unbounded, nominal_val
-        cdef char * type_quantity
+        cdef FMIL.fmi2_string_t type_quantity
         cdef unsigned int enum_size
         cdef int item_value
-        cdef char * item_desc
-        cdef char * item_name
-        cdef char * type_unit_name
-        cdef char * type_display_unit_name
+        cdef FMIL.fmi2_string_t item_desc
+        cdef FMIL.fmi2_string_t item_name
+        cdef FMIL.fmi2_string_t type_unit_name
+        cdef FMIL.fmi2_string_t type_display_unit_name
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5406,9 +5407,9 @@ cdef class FMUModelBase2(ModelBase):
         if variable_type == NULL:
             raise FMUException("The variable %s does not have a declared type."%variablename)
 
-        type_name = FMIL.fmi2_import_get_type_name(variable_type)
-        type_desc = FMIL.fmi2_import_get_type_description(variable_type)
-        type_quantity = FMIL.fmi2_import_get_type_quantity(variable_type)
+        type_name = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_type_name(variable_type)
+        type_desc = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_type_description(variable_type)
+        type_quantity = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_type_quantity(variable_type)
 
         basetype = FMIL.fmi2_import_get_variable_base_type(variable)
 
@@ -5419,8 +5420,8 @@ cdef class FMUModelBase2(ModelBase):
 
             for i in range(1,enum_size+1):
                 item_value = FMIL.fmi2_import_get_enum_type_item_value(enumeration_type, i)
-                item_name  = FMIL.fmi2_import_get_enum_type_item_name(enumeration_type, i)
-                item_desc  = FMIL.fmi2_import_get_enum_type_item_description(enumeration_type, i)
+                item_name  = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_enum_type_item_name(enumeration_type, i)
+                item_desc  = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_enum_type_item_description(enumeration_type, i)
 
                 items[item_value] = (decode(item_name) if item_name != NULL else "",
                                      decode(item_desc) if item_desc != NULL else "")
@@ -5452,8 +5453,8 @@ cdef class FMUModelBase2(ModelBase):
             type_display_unit = FMIL.fmi2_import_get_type_display_unit(real_type)
             type_unit = FMIL.fmi2_import_get_real_type_unit(real_type)
 
-            type_unit_name = FMIL.fmi2_import_get_unit_name(type_unit)
-            type_display_unit_name = FMIL.fmi2_import_get_display_unit_name(type_display_unit)
+            type_unit_name = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_unit_name(type_unit)
+            type_display_unit_name = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_display_unit_name(type_display_unit)
 
             ret_type = RealType2(decode(type_name) if type_name != NULL else "",
                                  decode(type_desc) if type_desc != NULL else "",
@@ -5530,7 +5531,7 @@ cdef class FMUModelBase2(ModelBase):
             The description of the variable.
         """
         cdef FMIL.fmi2_import_variable_t* variable
-        cdef char* desc
+        cdef FMIL.fmi2_string_t desc
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5539,7 +5540,7 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        desc = FMIL.fmi2_import_get_variable_description(variable)
+        desc = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_variable_description(variable)
 
         return decode(desc) if desc != NULL else ""
 
@@ -5614,7 +5615,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_real_variable_t* real_variable
         cdef FMIL.fmi2_import_unit_t* unit
         cdef FMIL.fmi2_base_type_enu_t basetype
-        cdef char* unit_description
+        cdef FMIL.fmi2_string_t unit_description
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5633,7 +5634,7 @@ cdef class FMUModelBase2(ModelBase):
         if unit == NULL:
             raise FMUException("No unit was found for the variable %s."%variablename)
 
-        unit_description = FMIL.fmi2_import_get_unit_name(unit)
+        unit_description = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_unit_name(unit)
 
         return decode(unit_description) if unit_description != NULL else ""
 
@@ -5722,7 +5723,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_real_variable_t* real_variable
         cdef FMIL.fmi2_import_display_unit_t* display_unit
         cdef FMIL.fmi2_base_type_enu_t basetype
-        cdef char* display_unit_description
+        cdef FMIL.fmi2_string_t display_unit_description
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5741,7 +5742,7 @@ cdef class FMUModelBase2(ModelBase):
         if display_unit == NULL:
             raise FMUException("No display unit was found for the variable %s."%variablename)
 
-        display_unit_description = FMIL.fmi2_import_get_display_unit_name(display_unit)
+        display_unit_description = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_display_unit_name(display_unit)
 
         return decode(display_unit_description) if display_unit_description != NULL else ""
 
@@ -6271,6 +6272,7 @@ cdef class FMUModelBase2(ModelBase):
         return variable_dict
 
     cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable):
+        cdef FMIL.fmi2_string_t desc
 
         if variable == NULL:
             raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
@@ -6281,7 +6283,7 @@ cdef class FMUModelBase2(ModelBase):
         data_type        = FMIL.fmi2_import_get_variable_base_type(variable)
         data_variability = FMIL.fmi2_import_get_variability(variable)
         data_causality   = FMIL.fmi2_import_get_causality(variable)
-        desc             = FMIL.fmi2_import_get_variable_description(variable)
+        desc             = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_variable_description(variable)
         initial          = FMIL.fmi2_import_get_initial(variable)
 
         return ScalarVariable2(name, value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
@@ -6900,15 +6902,15 @@ cdef class FMUModelBase2(ModelBase):
 
             model.get_version()
         """
-        cdef char* version = FMIL.fmi2_import_get_version(self._fmu)
+        cdef FMIL.fmi2_string_t version = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_version(self._fmu)
         return decode(version)
 
     def get_model_version(self):
         """
         Returns the version of the FMU.
         """
-        cdef char* version
-        version = FMIL.fmi2_import_get_model_version(self._fmu)
+        cdef FMIL.fmi2_string_t version
+        version = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_model_version(self._fmu)
         return decode(version) if version != NULL else ""
 
     def get_name(self):
@@ -6921,48 +6923,48 @@ cdef class FMUModelBase2(ModelBase):
         """
         Return the name and organization of the model author.
         """
-        cdef char* author
-        author = FMIL.fmi2_import_get_author(self._fmu)
+        cdef FMIL.fmi2_string_t author
+        author = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_author(self._fmu)
         return decode(author) if author != NULL else ""
 
     def get_description(self):
         """
         Return the model description.
         """
-        cdef char* desc
-        desc = FMIL.fmi2_import_get_description(self._fmu)
+        cdef FMIL.fmi2_string_t desc
+        desc = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_description(self._fmu)
         return decode(desc) if desc != NULL else ""
 
     def get_copyright(self):
         """
         Return the model copyright.
         """
-        cdef char* copyright
-        copyright = FMIL.fmi2_import_get_copyright(self._fmu)
+        cdef FMIL.fmi2_string_t copyright
+        copyright = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_copyright(self._fmu)
         return decode(copyright) if copyright != NULL else ""
 
     def get_license(self):
         """
         Return the model license.
         """
-        cdef char* license
-        license = FMIL.fmi2_import_get_license(self._fmu)
+        cdef FMIL.fmi2_string_t license
+        license = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_license(self._fmu)
         return decode(license) if license != NULL else ""
 
     def get_generation_tool(self):
         """
         Return the model generation tool.
         """
-        cdef char* gen
-        gen = FMIL.fmi2_import_get_generation_tool(self._fmu)
+        cdef FMIL.fmi2_string_t gen
+        gen = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_generation_tool(self._fmu)
         return decode(gen) if gen != NULL else ""
 
     def get_generation_date_and_time(self):
         """
         Return the model generation date and time.
         """
-        cdef char* gen
-        gen = FMIL.fmi2_import_get_generation_date_and_time(self._fmu)
+        cdef FMIL.fmi2_string_t gen
+        gen = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_generation_date_and_time(self._fmu)
         return decode(gen) if gen != NULL else ""
 
     def get_guid(self):
@@ -7195,7 +7197,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            val = N.array(values, dtype=float, ndmin=1).ravel()
-        cdef FMIL.size_t  nref = N.size(val)
+        cdef FMIL.size_t nref = N.size(val)
         orders = N.array([0]*nref, dtype=N.int32)
 
         can_interpolate_inputs = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canInterpolateInputs)
@@ -7258,11 +7260,10 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         cdef int status
         cdef unsigned int max_output_derivative
-        cdef FMIL.size_t  nref
+        cdef FMIL.size_t nref
         cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            values
         cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
         cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
-
 
         max_output_derivative = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_maxOutputDerivativeOrder)
 
