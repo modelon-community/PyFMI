@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
 """
 This file contains code for mapping FMUs to the Problem specifications
 required by Assimulo.
@@ -54,7 +56,7 @@ if assimulo_present:
     from assimulo.problem import Implicit_Problem
     from assimulo.problem import Explicit_Problem
     from assimulo.problem cimport cExplicit_Problem
-    from assimulo.exception import *
+    from assimulo.exception import AssimuloRecoverableError, TerminateSimulation
 else:
     class Implicit_Problem:
         pass
@@ -727,7 +729,7 @@ cdef class FMIODE2(cExplicit_Problem):
             self.model_me2._set_time(t)
             #Check if there are any states
             if self._f_nbr != 0:
-                self.model_me2.__set_continuous_states(y)
+                self.model_me2._set_continuous_states_fmil(y)
         else:
             #Moving data to the model
             self._model.time = t
@@ -748,7 +750,7 @@ cdef class FMIODE2(cExplicit_Problem):
             if self._f_nbr == 0:
                 return 0
 
-            self.model_me2.__get_continuous_states(self._state_temp_1)
+            self.model_me2._get_continuous_states_fmil(self._state_temp_1)
             res = FMIL.memcmp(self._state_temp_1.data, y.data, self._f_nbr*sizeof(double))
 
             if res == 0:

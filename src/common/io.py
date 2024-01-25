@@ -371,20 +371,20 @@ class ResultWriter():
     Base class for writing results to file.
     """
 
-    def write_header():
+    def write_header(self):
         """
         The header is intended to be used for writing general information about
         the model. This is intended to be called once.
         """
         pass
 
-    def write_point():
+    def write_point(self):
         """
         This method does the writing of the actual result.
         """
         pass
 
-    def write_finalize():
+    def write_finalize(self):
         """
         The finalize method can be used to for instance close the file.
         """

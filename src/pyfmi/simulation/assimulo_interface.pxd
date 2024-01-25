@@ -18,6 +18,7 @@
 
 import numpy as N
 cimport numpy as N
+import logging
 
 from pyfmi.fmi cimport FMUModelME2
 
@@ -33,7 +34,6 @@ if assimulo_present:
     from assimulo.problem import Implicit_Problem
     from assimulo.problem import Explicit_Problem
     from assimulo.problem cimport cExplicit_Problem
-    from assimulo.exception import *
 else:
     class Implicit_Problem:
         pass

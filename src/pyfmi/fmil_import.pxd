@@ -292,7 +292,7 @@ cdef extern from 'fmilib.h':
     ctypedef void(*fmi2_callback_logger_ft)(fmi2_component_environment_t c,fmi2_string_t instanceName, fmi2_status_t status, fmi2_string_t category,fmi2_string_t message,...)
     ctypedef void(*fmi1_step_finished_ft)(fmi1_component_t c, fmi1_status_t status)
     ctypedef void(*fmi2_step_finished_ft)(fmi2_component_environment_t env, fmi2_status_t status)
-    ctypedef void (*jm_logger_f)(jm_callbacks* c, jm_string module, jm_log_level_enu_t log_level, jm_string message)
+    ctypedef void (*jm_logger_f)(jm_callbacks* c, jm_string module, jm_log_level_enu_t log_level, jm_string message) except *
     ctypedef void *(*fmi2_callback_allocate_memory_ft)(size_t, size_t)
     ctypedef void(*fmi2_callback_free_memory_ft)(void *)
     ctypedef int(*fmi2_xml_element_start_handle_ft)(void *, char *, void *, char *, char * *)
