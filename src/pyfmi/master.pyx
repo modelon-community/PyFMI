@@ -51,12 +51,6 @@ IF WITH_OPENMP:
 DEF SERIAL   = 0
 DEF PARALLEL = 1
 
-try:
-    from numpy.lib import NumpyVersion
-    USE_ROOT = NumpyVersion(scipy.version.version) >= "0.11.0"
-except ImportError: #Numpy version is < 1.9.0 so assume scipy version is the same
-    USE_ROOT = False
-
 cdef reset_models(list models):
     for model in models:
         model.reset()
@@ -993,10 +987,7 @@ cdef class Master:
                     JM_FMUS = False
                     break
             if JM_FMUS:
-                if USE_ROOT:
-                    res = sopt.root(init_f, y, args=(self))
-                else:
-                    res = sopt.fsolve(init_f, y, args=(self))
+                res = sopt.root(init_f, y, args=(self))
                 if not res["success"]:
                     print(res)
                     raise fmi.FMUException("Failed to converge the output system.")
@@ -1125,10 +1116,7 @@ cdef class Master:
                     for model in block["outputs"].keys():
                         self.get_specific_connection_outputs(model, block["outputs_mask"][model], y)
                     
-                    if USE_ROOT:
-                        res = sopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
-                    else:
-                        res = sopt.fsolve(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
+                    res = sopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
                     if not res["success"]:
                         print(res)
                         raise fmi.FMUException("Failed to converge the initialization system.")
@@ -1150,15 +1138,9 @@ cdef class Master:
             
             if self.algebraic_loops: #If there is an algebraic loop, solve the resulting system
                 if self.support_directional_derivatives:
-                    if USE_ROOT:
-                        res = sopt.root(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
-                    else:
-                        res = sopt.fsolve(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
+                    res = sopt.root(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
                 else:
-                    if USE_ROOT:
-                        res = sopt.root(init_f, self.get_connection_outputs(), args=(self))
-                    else:
-                        res = sopt.fsolve(init_f, self.get_connection_outputs(), args=(self))
+                    res = sopt.root(init_f, self.get_connection_outputs(), args=(self))
                 if not res["success"]:
                     print(res)
                     raise fmi.FMUException("Failed to converge the initialization system.")
