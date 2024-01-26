@@ -20,7 +20,7 @@ Module containing base classes and functionality.
 
 import zipfile
 import tempfile
-import platform as PL
+import platform as plat
 import os
 import sys
 import shutil
@@ -261,7 +261,7 @@ def get_platform_dir():
     else:
         platform = 'linux'
     
-    if PL.architecture()[0].startswith('32'):
+    if plat.architecture()[0].startswith('32'):
         platform += '32'
     else:
         platform += '64'

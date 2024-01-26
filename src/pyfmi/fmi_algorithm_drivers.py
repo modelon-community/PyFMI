@@ -19,7 +19,6 @@ Module for simulation algorithms to be used together with
 pyfmi.fmi.FMUModel*.simulate.
 """
 
-#from abc import ABCMeta, abstractmethod
 import logging as logging_module
 import time
 import numpy as N
@@ -1302,7 +1301,6 @@ class SciEstAlg(AlgorithmBase):
         """
         Runs the estimation.
         """
-        import scipy as sci
         import scipy.optimize as sciopt
         from pyfmi.fmi_util import parameter_estimation_f
 

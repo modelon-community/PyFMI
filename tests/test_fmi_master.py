@@ -19,12 +19,9 @@ import nose
 import os
 import numpy as np
 
-from pyfmi import testattr
-from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
-import pyfmi.fmi_util as fmi_util
-import pyfmi.fmi as fmi
-from pyfmi import Master
-from pyfmi.tests.test_util import Dummy_FMUModelME2, Dummy_FMUModelCS2
+from pyfmi import testattr, Master
+from pyfmi.fmi import FMUException, FMUModelCS2, FMUModelME2
+from pyfmi.tests.test_util import Dummy_FMUModelCS2
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 

@@ -25,6 +25,7 @@ from matplotlib.figure import Figure
 from matplotlib import rcParams
 import fnmatch
 import re
+import oss
 
 #GUI modules
 try:
@@ -49,8 +50,6 @@ except ImportError:
     except ImportError:
         print("JModelica Python package was not found.")
 
-#Import general modules
-import os as O
 
 ID_GRID    = 15001
 ID_LICENSE = 15002
@@ -290,7 +289,7 @@ class MainGUI(wx.Frame):
         #If OK load the results
         if dlg.ShowModal() == wx.ID_OK:
             for n in dlg.GetFilenames():
-                self._OpenFile(O.path.join(dlg.GetDirectory(),n))
+                self._OpenFile(os.path.join(dlg.GetDirectory(),n))
         
         dlg.Destroy() #Destroy the popup window
     

@@ -21,24 +21,17 @@
 Module containing the FMI interface Python wrappers.
 """
 import collections
-from collections import OrderedDict
 import itertools
-from operator import attrgetter
+
 import numpy as np
-from numpy.compat import asbytes
-
-from pyfmi.common import encode
-
 cimport numpy as np
-cimport fmil_import as FMIL
 
-from cpython cimport array
-from pyfmi.fmi cimport FMUModelME2, FMUModelBase
+cimport fmil_import as FMIL
+from pyfmi.fmi cimport FMUModelME2
 
 import functools
 import marshal
 import pyfmi.fmi as fmi
-import sys
 
 cpdef decode(x):
     if isinstance(x, bytes):
@@ -647,7 +640,7 @@ class Graph:
             if self.graph_info[node]["type"] == GRAPH_OUTPUT:
                 model = self.graph_info[node]["model"]
                 if not (model in trees):
-                    trees[model] = OrderedDict()
+                    trees[model] = collections.OrderedDict()
                     trees[model][node] = self.dfs(node)
                     joined_nodes[node] = [node]
                 else:

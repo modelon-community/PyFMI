@@ -17,17 +17,8 @@
 """
 Module containing the FMI interface Python wrappers.
 """
-import os
-import sys
-import logging
-import fnmatch
-import re
-from collections import OrderedDict
-
 import numpy as N
 cimport numpy as N
-
-N.import_array()
 
 cimport pyfmi.fmil_import as FMIL
 

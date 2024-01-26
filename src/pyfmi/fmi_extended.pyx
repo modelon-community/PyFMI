@@ -20,22 +20,15 @@
 """
 Module containing the FMI interface Python wrappers.
 """
-import os
-import sys
-import logging
-import fnmatch
-import re
-from collections import OrderedDict
 
+import logging
 import numpy as N
 cimport numpy as N
-
-N.import_array()
 
 cimport fmil_import as FMIL
 from pyfmi.fmi cimport FMUModelME1
 from pyfmi.fmi import FMUException
-from pyfmi.fmi import FMI_OK, FMI_DEFAULT_LOG_LEVEL, FMI_ME
+from pyfmi.fmi import FMI_OK, FMI_DEFAULT_LOG_LEVEL
 
 
 cdef class FMUModelME1Extended(FMUModelME1):

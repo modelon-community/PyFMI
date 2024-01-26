@@ -14,16 +14,16 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-import os as O
 
+import os
 import pylab as P
 import numpy as N
 
 from pyfmi import load_fmu
 
-curr_dir = O.path.dirname(O.path.abspath(__file__));
-path_to_fmus = O.path.join(curr_dir, 'files', 'FMUs','ME1.0')
-path_to_fmus2 = O.path.join(curr_dir, 'files', 'FMUs','ME2.0')
+curr_dir = os.path.dirname(os.path.abspath(__file__));
+path_to_fmus = os.path.join(curr_dir, 'files', 'FMUs','ME1.0')
+path_to_fmus2 = os.path.join(curr_dir, 'files', 'FMUs','ME2.0')
 
 def run_demo(with_plots=True, version="2.0"):
     """
@@ -31,9 +31,9 @@ def run_demo(with_plots=True, version="2.0"):
     ME FMUs version 1.0 and 2.0.
     """
     if version == '1.0':
-        fmu_name = O.path.join(path_to_fmus,'bouncingBall.fmu')
+        fmu_name = os.path.join(path_to_fmus,'bouncingBall.fmu')
     else:
-        fmu_name = O.path.join(path_to_fmus2,'bouncingBall.fmu')
+        fmu_name = os.path.join(path_to_fmus2,'bouncingBall.fmu')
         
     model = load_fmu(fmu_name)
     
@@ -49,7 +49,7 @@ def run_demo(with_plots=True, version="2.0"):
     # Plot the solution
     if with_plots:
         # Plot the height
-        fig = P.figure()
+        P.figure()
         P.clf()
         P.subplot(2,1,1)
         P.plot(t, h_res)

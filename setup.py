@@ -18,7 +18,7 @@
 import distutils
 import os
 import shutil
-import numpy as N
+import numpy as np
 import ctypes.util
 import sys
 
@@ -251,7 +251,7 @@ def check_extensions():
     
     for i in range(len(ext_list)):
         
-        ext_list[i].include_dirs = [N.get_include(), "src", os.path.join("src", "pyfmi"), incdirs]
+        ext_list[i].include_dirs = [np.get_include(), "src", os.path.join("src", "pyfmi"), incdirs]
         ext_list[i].library_dirs = [libdirs]
         ext_list[i].language = "c"
         ext_list[i].libraries = ["fmilib_shared"] if sys.platform.startswith("win") else ["fmilib"] #If windows shared, else static

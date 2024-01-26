@@ -20,7 +20,7 @@ This file contains methods for helping with debugging a simulation.
 """
 
 import numpy as N
-import scipy as S
+import pylab as P
 
 class DebugInformation:
     
@@ -61,7 +61,6 @@ class DebugInformation:
                     break
     
     def plot_time_distribution(self, normalized=False):
-        import pylab as P
         
         if normalized:
             total_time = N.sum(self.real_time)
@@ -79,8 +78,6 @@ class DebugInformation:
         P.show()
         
     def plot_cumulative_time_elapsed(self, log_scale=False):
-        import pylab as P
-        
         cumulative_sum = N.cumsum(self.real_time)
         
         if log_scale:
@@ -97,8 +94,6 @@ class DebugInformation:
         P.show()
     
     def plot_step_size(self):
-        import pylab as P
-        
         P.semilogy(self.simulated_time,N.diff([0.0]+self.simulated_time),drawstyle="steps-pre")
         P.ylabel("Step-size")
         P.xlabel("Time [s]")
@@ -107,14 +102,10 @@ class DebugInformation:
         P.show()
         
     def _plot_events(self):
-        import pylab as P
-        
         for ev in self.events:
             P.axvline(x=ev,color='r')
             
     def plot_event_indicators(self, mask=None, region=None):
-        import pylab as P
-        
         ev_ind = N.array(self.event_indicators)
         time = N.array(self.simulated_time)
         ev_ind_name = N.array(["event_ind_%d"%i for i in range(len(ev_ind[0,:]))])
@@ -183,8 +174,6 @@ class CVodeDebugInformation(DebugInformation):
     
     
     def plot_order(self):
-        import pylab as P
-        
         P.plot(self.simulated_time, self.order,drawstyle="steps-pre")
         P.grid()
         P.xlabel("Time [s]")
@@ -198,8 +187,6 @@ class CVodeDebugInformation(DebugInformation):
         P.show()
 
     def plot_error(self, threshold=None, region=None, legend=True):
-        import pylab as P
-        
         err = N.array(self.weighted_error)
         time = N.array(self.simulated_time)
         if region:

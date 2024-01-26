@@ -27,8 +27,6 @@ from functools import reduce
 import numpy as N
 import numpy as np
 import scipy
-import scipy.io
-from scipy import interpolate
 scipy_minmaj = tuple(map(int, scipy.__version__.split('.')[:2]))
 if scipy_minmaj >= (1, 8):
     # due to a DeprecationWarning, we do below, this will likely need another change in a future update of scipy.
@@ -1405,7 +1403,7 @@ class ResultDymolaBinary(ResultDymola):
         time_vector      = self._read_trajectory_data(0, False)
         data             = self._read_trajectory_data(data_index, False)
         
-        f = interpolate.interp1d(time_vector, data, fill_value="extrapolate")
+        f = scipy.interpolate.interp1d(time_vector, data, fill_value="extrapolate")
         
         self._data_2[data_index] = f(diag_time_vector)
         

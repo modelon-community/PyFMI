@@ -21,15 +21,13 @@ import pyfmi.fmi as fmi
 from pyfmi.fmi cimport FMUModelME2
 cimport fmil_import as FMIL
 
-from pyfmi.fmi_util import cpr_seed, enable_caching, Graph
+from pyfmi.fmi_util import enable_caching, Graph
 
 from collections import OrderedDict
 import time
-import warnings
 import numpy as np
 cimport numpy as np
 import scipy.optimize as sopt
-import scipy
 
 def init_f_block(u, coupled, block):
     

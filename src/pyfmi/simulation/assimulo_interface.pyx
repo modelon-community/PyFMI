@@ -25,22 +25,17 @@ import logging as logging_module
 from operator import index
 
 import numpy as N
-from numpy.core.einsumfunc import einsum
-
-from pyfmi.fmi import FMUException
 
 cimport numpy as N
-import numpy.linalg as LIN
 import scipy.sparse as sp
 import time
 
-from pyfmi.common.io import ResultWriterDymola, ResultHandlerBinaryFile
+from pyfmi.common.io import ResultWriterDymola
 import pyfmi.fmi as fmi
+from pyfmi.fmi import FMUException
 from pyfmi.fmi cimport FMUModelME2
-from pyfmi.common.core import TrajectoryLinearInterpolation
 
 from timeit import default_timer as timer
-import time
 cimport fmil_import as FMIL
 
 try:

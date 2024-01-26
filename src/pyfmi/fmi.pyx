@@ -27,7 +27,6 @@ For profiling:
 # distutils: define_macros=CYTHON_TRACE_NOGIL=1
 """
 import os
-import sys
 import logging
 import fnmatch
 import re
@@ -42,8 +41,7 @@ from numpy cimport PyArray_DATA
 
 cimport pyfmi.fmil_import as FMIL
 
-from pyfmi.common.core import create_temp_dir, delete_temp_dir
-from pyfmi.common.core import create_temp_file, delete_temp_file
+from pyfmi.common.core import create_temp_dir
 
 from pyfmi.fmi_util import cpr_seed, enable_caching
 from pyfmi.fmi_util cimport encode, decode

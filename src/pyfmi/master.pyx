@@ -19,7 +19,7 @@
 
 import pyfmi.fmi as fmi
 from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
-from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerDummy, ResultHandlerBinaryFile, ResultDymolaBinary
+from pyfmi.common.io import ResultHandlerFile, ResultHandlerDummy, ResultHandlerBinaryFile
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
@@ -27,17 +27,14 @@ from timeit import default_timer as timer
 
 import fnmatch
 import sys
-import re
 from collections import OrderedDict
 import time
 import numpy as np
 import warnings
 cimport numpy as np
 import scipy.sparse as sp
-import scipy.linalg as lin
 import scipy.sparse.linalg as splin
 import scipy.optimize as sopt
-import scipy.version
 
 from pyfmi.fmi cimport FMUModelCS2
 from cpython cimport bool
@@ -1323,15 +1320,15 @@ cdef class Master:
                     if C is not None:
                         C = C.todense()
                         _ident_matrix = np.eye(*DL.shape)
-                        LIDLC = self.L.dot(lin.solve(_ident_matrix-DL,C))
+                        LIDLC = self.L.dot(np.linalg.solve(_ident_matrix-DL,C))
                         print("           , rho(L(I-DL)^(-1)C)=%s"%(str(numpy.linalg.eig(LIDLC)[0])))
                     A = self.compute_global_A()
                     B = self.compute_global_B()
                     if C is not None and A is not None and B is not None:
                         A = A.todense(); B = B.todense()
                         eAH = slin.expm(A*step_size)
-                        K1  = lin.solve(_ident_matrix-DL,C)
-                        K2  = lin.solve(A,(eAH-np.eye(*eAH.shape)).dot(B.dot(self.L.todense())))
+                        K1  = np.linalg.solve(_ident_matrix-DL,C)
+                        K2  = np.linalg.solve(A,(eAH-np.eye(*eAH.shape)).dot(B.dot(self.L.todense())))
                         R1  = np.hstack((eAH, K1))
                         R2  = np.hstack((K2.dot(eAH), K2.dot(K1)))
                         G   = np.vstack((R1,R2))
