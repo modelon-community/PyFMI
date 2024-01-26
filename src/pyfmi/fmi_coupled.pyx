@@ -17,6 +17,10 @@
 
 # distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
 
+import time
+import numpy as np
+cimport numpy as np
+
 import pyfmi.fmi as fmi
 from pyfmi.fmi cimport FMUModelME2
 cimport fmil_import as FMIL
@@ -24,10 +28,7 @@ cimport fmil_import as FMIL
 from pyfmi.fmi_util import enable_caching, Graph
 
 from collections import OrderedDict
-import time
-import numpy as np
-cimport numpy as np
-import scipy.optimize as sopt
+import scipy.optimize as spopt
 
 def init_f_block(u, coupled, block):
     
@@ -1978,7 +1979,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 u = np.array(u).ravel()
                 
                 success = False
-                res = sopt.root(init_f_block, u, args=(self,block))
+                res = spopt.root(init_f_block, u, args=(self,block))
                 success = res["success"]
                 
                 if not success:
@@ -1988,7 +1989,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 for model in block["outputs"].keys():
                     self.get_specific_connection_outputs(model, block["outputs_mask"][model], y)
                 
-                res = sopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
+                res = spopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
                 if not res["success"]:
                     print res
                     raise Exception("Failed to converge the initialization system.")

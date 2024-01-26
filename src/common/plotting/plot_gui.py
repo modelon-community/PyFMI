@@ -25,7 +25,7 @@ from matplotlib.figure import Figure
 from matplotlib import rcParams
 import fnmatch
 import re
-import oss
+import os
 
 #GUI modules
 try:

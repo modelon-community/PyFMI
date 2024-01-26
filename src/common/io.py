@@ -24,7 +24,6 @@ import sys
 import os
 from functools import reduce
 
-import numpy as N
 import numpy as np
 import scipy
 scipy_minmaj = tuple(map(int, scipy.__version__.split('.')[:2]))
@@ -200,7 +199,7 @@ class ResultDymola:
         state = self._find_underlying_state(name)
         index = self.get_variable_index(state)
 
-        alias_index = N.where(self.dataInfo[:,1]==self.dataInfo[index,1])[0]
+        alias_index = np.where(self.dataInfo[:,1]==self.dataInfo[index,1])[0]
 
         #Loop through all alias
         for ind in alias_index:
@@ -326,7 +325,7 @@ class ResultCSVTextual:
 
             data.append([float(d) for d in row])
 
-        self.data = N.array(data)
+        self.data = np.array(data)
 
     def get_variable_data(self,name):
         """
@@ -604,9 +603,9 @@ class ResultWriterDymola(ResultWriter):
         f.write('int dataInfo(%d,%d)\n' % (num_vars+len(names_sens) + 1, 4))
         f.write('0 1 0 -1 # time\n')
 
-        list_of_continuous_states = N.append(self.model._save_real_variables_val,
+        list_of_continuous_states = np.append(self.model._save_real_variables_val,
             self.model._save_int_variables_val)
-        list_of_continuous_states = N.append(list_of_continuous_states,
+        list_of_continuous_states = np.append(list_of_continuous_states,
             self.model._save_bool_variables_val).tolist()
         list_of_continuous_states = dict(zip(list_of_continuous_states,
             range(len(list_of_continuous_states))))
@@ -712,7 +711,7 @@ class ResultWriterDymola(ResultWriter):
         if data is None:
             #Retrieves the time-point
             [r,i,b] = self.model.save_time_point()
-            data = N.append(N.append(N.append(self.model.time,r),i),b)
+            data = np.append(np.append(np.append(self.model.time,r),i),b)
 
         #Write the point
         str_text = (" %.14E" % data[0])
@@ -806,7 +805,7 @@ class ResultStorageMemory(ResultDymola):
             factor = -1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1
 
             if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
-                return Trajectory([self.time[0],self.time[-1]],N.array([self.model.get(name),self.model.get(name)]).ravel())
+                return Trajectory([self.time[0],self.time[-1]],np.array([self.model.get(name),self.model.get(name)]).ravel())
             else:
                 return Trajectory(self.time,factor*self.data[var.value_reference])
 
@@ -928,7 +927,7 @@ class ResultDymolaTextual(ResultDymola):
         nLines = int(nLines[0])
         nCols = int(nCols[0])
 
-        self.dataInfo = N.array([list(map(int,fid.readline().split()[0:nCols])) for i in range(nLines)])
+        self.dataInfo = np.array([list(map(int,fid.readline().split()[0:nCols])) for i in range(nLines)])
 
         # Find out how many data matrices there are
         if len(self._name) == 1: #Only time
@@ -963,7 +962,7 @@ class ResultDymolaTextual(ResultDymola):
                 if len(info) == 0 and i < nLines-1:
                     raise JIOError("Inconsistent number of lines in the result data.")
                 del(info)
-            self.data.append(N.array(data))
+            self.data.append(np.array(data))
 
         if len(self.data) == 0:
             raise JIOError('Could not find any variable data in the result file.')
@@ -1109,7 +1108,7 @@ class ResultDymolaTextual(ResultDymola):
                 The time shift offset.
         """
         for i in range(len(self.data)):
-            for j in range(N.shape(self.data[i])[0]):
+            for j in range(np.shape(self.data[i])[0]):
                 self.data[i][j,0] = self.data[i][j,0] + time_shift
 
     def append(self, res):
@@ -1122,9 +1121,9 @@ class ResultDymolaTextual(ResultDymola):
             res --
                 A simulation result object of type DymolaResultTextual.
         """
-        n_points = N.size(res.data[1],0)
+        n_points = np.size(res.data[1],0)
         time_shift = self.data[1][-1,0]
-        self.data[1] = N.vstack((self.data[1],res.data[1]))
+        self.data[1] = np.vstack((self.data[1],res.data[1]))
         self.data[1][n_points:,0] = self.data[1][n_points:,0] + time_shift
 
 #Overriding SCIPYs default reader for MATLAB v4 format
@@ -1449,7 +1448,7 @@ class ResultDymolaBinary(ResultDymola):
         elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
              return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_nbr_state_limits_step(name))
         elif name == f'{DIAGNOSTICS_PREFIX}cpu_time':
-            return Trajectory(self._get_diagnostics_trajectory(0), N.cumsum(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x))
+            return Trajectory(self._get_diagnostics_trajectory(0), np.cumsum(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x))
         else:
             varInd  = self.get_variable_index(name)
 
@@ -1488,12 +1487,12 @@ class ResultDymolaBinary(ResultDymola):
             event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type')
         except Exception:
             if name == steps_name:
-                self._data_3[steps_name] = N.array(range(len(self._get_diagnostics_trajectory(0))))
+                self._data_3[steps_name] = np.array(range(len(self._get_diagnostics_trajectory(0))))
                 return self._data_3[name]
-        self._data_3[all_events_name] = N.zeros(len(event_type_data.x))
-        self._data_3[time_events_name] = N.zeros(len(event_type_data.x))
-        self._data_3[state_events_name] = N.zeros(len(event_type_data.x))
-        self._data_3[steps_name] = N.zeros(len(event_type_data.x))
+        self._data_3[all_events_name] = np.zeros(len(event_type_data.x))
+        self._data_3[time_events_name] = np.zeros(len(event_type_data.x))
+        self._data_3[state_events_name] = np.zeros(len(event_type_data.x))
+        self._data_3[steps_name] = np.zeros(len(event_type_data.x))
         nof_events = 0
         nof_time_events = 0
         nof_state_events = 0
@@ -1520,7 +1519,7 @@ class ResultDymolaBinary(ResultDymola):
         state_name = name.replace(step_limitation_name, '')
         state_error_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}state_errors.'+state_name)
         event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type')
-        self._data_3[name] = N.zeros(len(event_type_data.x))
+        self._data_3[name] = np.zeros(len(event_type_data.x))
         nof_times_state_limits_step = 0
         for ind, state_error in enumerate(state_error_data.x):
             if event_type_data.x[ind] == -1 and state_error >= 1.0:
@@ -1670,7 +1669,7 @@ class ResultHandlerMemory(ResultHandler):
 
         #Sets the parameters, if any
         if solver and self.options["sensitivities"]:
-            self.param_sol += [N.array(solver.interpolate_sensitivity(model.time, 0)).flatten()]
+            self.param_sol += [np.array(solver.interpolate_sensitivity(model.time, 0)).flatten()]
 
     def simulation_end(self):
         """
@@ -1685,16 +1684,16 @@ class ResultHandlerMemory(ResultHandler):
         result of an instance of ResultBase or of an instance of a
         subclass of ResultBase.
         """
-        t = N.array(self.time_sol)
-        r = N.array(self.real_sol)
-        data = N.c_[t,r]
+        t = np.array(self.time_sol)
+        r = np.array(self.real_sol)
+        data = np.c_[t,r]
 
         if len(self.int_sol) > 0 and len(self.int_sol[0]) > 0:
-            i = N.array(self.int_sol)
-            data = N.c_[data,i]
+            i = np.array(self.int_sol)
+            data = np.c_[data,i]
         if len(self.bool_sol) > 0 and len(self.bool_sol[0]) > 0:
-            b = N.array(self.bool_sol)
-            data = N.c_[data,b]
+            b = np.array(self.bool_sol)
+            data = np.c_[data,b]
 
         return ResultStorageMemory(self.model, data, [self.real_var_ref,self.int_var_ref,self.bool_var_ref], self.vars)
 
@@ -1822,18 +1821,18 @@ class ResultHandlerCSV(ResultHandler):
         for i,val in enumerate(const_val_bool):
             const_str += "%.14E"%(const_alias_bool[i]*val)+delimiter
 
-        #for val in N.append(const_val_real,N.append(const_val_int,const_val_boolean)):
+        #for val in np.append(const_val_real,np.append(const_val_int,const_val_boolean)):
         #    const_str += "%.14E"%val+delimiter
         self.const_str = const_str
 
         self._file = f
 
         self.cont_valref_real = cont_valref_real
-        self.cont_alias_real  = N.array(cont_alias_real)
+        self.cont_alias_real  = np.array(cont_alias_real)
         self.cont_valref_int  = cont_valref_int
-        self.cont_alias_int  = N.array(cont_alias_int)
+        self.cont_alias_int  = np.array(cont_alias_int)
         self.cont_valref_bool = cont_valref_bool
-        self.cont_alias_bool  = N.array(cont_alias_bool)
+        self.cont_alias_bool  = np.array(cont_alias_bool)
 
     def integration_point(self, solver = None):
         """
@@ -1859,7 +1858,7 @@ class ResultHandlerCSV(ResultHandler):
         i = model.get_integer(self.cont_valref_int)*self.cont_alias_int
         b = model.get_boolean(self.cont_valref_bool)*self.cont_alias_bool
 
-        data = N.append(N.append(r,i),b)
+        data = np.append(np.append(r,i),b)
 
         cont_str = ""
         for val in data:
@@ -2259,10 +2258,10 @@ class ResultHandlerFile(ResultHandler):
         #f.write('%s,%d)\n' % (' '*14, self._nvariables))
 
         self._file = f
-        self._data_order  = N.array(valueref_of_continuous_states)
-        self.real_var_ref = N.array(self.real_var_ref)
-        self.int_var_ref  = N.array(self.int_var_ref)
-        self.bool_var_ref = N.array(self.bool_var_ref)
+        self._data_order  = np.array(valueref_of_continuous_states)
+        self.real_var_ref = np.array(self.real_var_ref)
+        self.int_var_ref  = np.array(self.int_var_ref)
+        self.bool_var_ref = np.array(self.bool_var_ref)
 
     def integration_point(self, solver = None):#parameter_data=[]):
         """
@@ -2287,14 +2286,14 @@ class ResultHandlerFile(ResultHandler):
         i = model.get_integer(self.int_var_ref)
         b = model.get_boolean(self.bool_var_ref)
 
-        data = N.append(N.append(r,i),b)
+        data = np.append(np.append(r,i),b)
 
         #Write the point
         str_text = (" %.14E" % self.model.time) + ''.join([" %.14E" % (data[data_order[j]]) for j in range(self._nvariables-1)])
 
         #Sets the parameters, if any
         if solver and self.options["sensitivities"]:
-            parameter_data = N.array(solver.interpolate_sensitivity(model.time, 0)).flatten()
+            parameter_data = np.array(solver.interpolate_sensitivity(model.time, 0)).flatten()
             for j in range(len(parameter_data)):
                 str_text = str_text + (" %.14E" % (parameter_data[j]))
 
@@ -2397,11 +2396,11 @@ def robust_float(value):
         return float(value)
     except ValueError:
         if value.startswith("1.#INF"):
-            return float(N.inf)
+            return float(np.inf)
         elif value.startswith("-1.#INF"):
-            return float(-N.inf)
+            return float(-np.inf)
         elif value.startswith("1.#QNAN") or value.startswith("-1.#IND"):
-            return float(N.nan)
+            return float(np.nan)
         else:
             raise ValueError
 
@@ -2609,7 +2608,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref, self._with_diagnostics)
 
         if self._with_diagnostics:
-            diag_data = N.array([val[0] for val in diagnostics_vars.values()], dtype=float)
+            diag_data = np.array([val[0] for val in diagnostics_vars.values()], dtype=float)
             self.diagnostics_point(diag_data)
 
     def integration_point(self, solver = None):

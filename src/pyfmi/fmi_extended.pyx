@@ -22,8 +22,8 @@ Module containing the FMI interface Python wrappers.
 """
 
 import logging
-import numpy as N
-cimport numpy as N
+import numpy as np
+cimport numpy as np
 
 cimport fmil_import as FMIL
 from pyfmi.fmi cimport FMUModelME1
@@ -38,7 +38,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
     cdef public list _input_value_refs, _input_alias_type, _input_factorials
     cdef public int _input_active, _input_order
     cdef public dict _input_derivatives, _options
-    cdef public N.ndarray _input_tmp
+    cdef public np.ndarray _input_tmp
 
     def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _connect_dll=True):
         #Instantiate the FMU
@@ -52,7 +52,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
         for name in vars.keys():
             input_value_refs.append(self.get_variable_valueref(name))
             input_alias_type.append(-1.0 if self.get_variable_alias(name)[name] == -1 else 1.0)
-        assert not N.any(input_alias_type == -1)
+        assert not np.any(input_alias_type == -1)
         
         self._input_derivatives = {}
         for val_ref in input_value_refs:
@@ -97,7 +97,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
         
     cdef void _eval_input(self, double time):
         cdef int i,j
-        cdef N.ndarray input_tmp = self._input_tmp.copy()
+        cdef np.ndarray input_tmp = self._input_tmp.copy()
         
         for i,ref in enumerate(self._input_value_refs):
             for j in range(self._input_order):
@@ -126,7 +126,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
         Calls the low-level FMI function: fmiGetDerivatives
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nContinuousStates,dtype=N.double)
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = np.empty(self._nContinuousStates,dtype=np.double)
         
         if self._input_active:
             self._eval_input(self.time)
@@ -281,12 +281,12 @@ cdef class FMUModelME1Extended(FMUModelME1):
         """
         cdef int status
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = N.array(orders, dtype=N.int32, ndmin=1).flatten()
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=float, ndmin=1).flatten()
+        cdef np.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = np.array(orders, dtype=np.int32, ndmin=1).flatten()
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = np.array(values, dtype=float, ndmin=1).flatten()
 
         nref = len(val)
-        orders = N.array([0]*nref, dtype=N.int32)
+        orders = np.array([0]*nref, dtype=np.int32)
 
         if nref != len(np_orders):
             raise FMUException("The number of variables must be the same as the number of orders.")
@@ -298,10 +298,10 @@ cdef class FMUModelME1Extended(FMUModelME1):
                 self._input_order = np_orders[i]
 
         if isinstance(variables,str):
-            value_refs = N.array([0], dtype=N.uint32,ndmin=1).flatten()
+            value_refs = np.array([0], dtype=np.uint32,ndmin=1).flatten()
             value_refs[0] = self.get_variable_valueref(variables)
         elif isinstance(variables,list) and isinstance(variables[-1],str):
-            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).flatten()
+            value_refs = np.array([0]*nref, dtype=np.uint32,ndmin=1).flatten()
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
         else:

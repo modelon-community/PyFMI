@@ -16,8 +16,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os
 
-import pylab as P
-import numpy as N
+import pylab as pl
+import numpy as np
 
 from pyfmi import load_fmu
 
@@ -144,18 +144,18 @@ def run_demo(with_plots=True):
     #Plot the solution
     if with_plots:
         #Plot the height
-        P.figure(1)
-        P.plot(t_sol,N.array(sol)[:,0])
-        P.title(bouncing_fmu.get_name())
-        P.ylabel('Height (m)')
-        P.xlabel('Time (s)')
+        pl.figure(1)
+        pl.plot(t_sol,np.array(sol)[:,0])
+        pl.title(bouncing_fmu.get_name())
+        pl.ylabel('Height (m)')
+        pl.xlabel('Time (s)')
         #Plot the velocity
-        P.figure(2)
-        P.plot(t_sol,N.array(sol)[:,1])
-        P.title(bouncing_fmu.get_name())
-        P.ylabel('Velocity (m/s)')
-        P.xlabel('Time (s)')
-        P.show()
+        pl.figure(2)
+        pl.plot(t_sol,np.array(sol)[:,1])
+        pl.title(bouncing_fmu.get_name())
+        pl.ylabel('Velocity (m/s)')
+        pl.xlabel('Time (s)')
+        pl.show()
         
 if __name__ == "__main__":
     run_demo()

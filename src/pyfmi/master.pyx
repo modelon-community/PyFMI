@@ -32,9 +32,8 @@ import time
 import numpy as np
 import warnings
 cimport numpy as np
-import scipy.sparse as sp
-import scipy.sparse.linalg as splin
-import scipy.optimize as sopt
+import scipy.sparse as sps
+import scipy.optimize as spopt
 
 from pyfmi.fmi cimport FMUModelCS2
 from cpython cimport bool
@@ -460,7 +459,7 @@ cdef class Master:
         
         self.y_prev = None
         self.input_traj = None
-        self._ident_matrix = sp.eye(self._len_inputs, self._len_outputs, format="csr") #y = Cx + Du , u = Ly -> DLy   DL[inputsXoutputs]
+        self._ident_matrix = sps.eye(self._len_inputs, self._len_outputs, format="csr") #y = Cx + Du , u = Ly -> DLy   DL[inputsXoutputs]
         
         self._error_data = {"time":[], "error":[], "step-size":[], "rejected":[]}
     
@@ -559,8 +558,8 @@ cdef class Master:
                 col_discrete.append(self.models_dict[src]["global_index_outputs_discrete"]+self.models_dict[src]["local_output_discrete"].index(src_var))
                 len_connections_discrete = len_connections_discrete + 1
             
-        self.L = sp.csr_matrix((data, (row, col)), (len_connections,len_connections), dtype=np.float64)
-        self.L_discrete = sp.csr_matrix((data_discrete, (row_discrete, col_discrete)), (len_connections_discrete,len_connections_discrete), dtype=np.float64)
+        self.L = sps.csr_matrix((data, (row, col)), (len_connections,len_connections), dtype=np.float64)
+        self.L_discrete = sps.csr_matrix((data_discrete, (row_discrete, col_discrete)), (len_connections_discrete,len_connections_discrete), dtype=np.float64)
         
     cpdef compute_global_D(self):
         cdef list data = []
@@ -601,7 +600,7 @@ cdef class Master:
             col = self._storedDcol
         
         if self._D is None:
-            self._D = sp.csr_matrix((data, (row, col)))#, (len(col),len(row)))
+            self._D = sps.csr_matrix((data, (row, col)))#, (len(col),len(row)))
         else:
             self._D.data = np.array(data, dtype=np.float64)
             
@@ -622,7 +621,7 @@ cdef class Master:
                 data.extend(local_C)
                 col.extend([self.models_dict[model]["global_index_states"]+i]*len(local_C))
                 row.extend(np.array([self.models_dict[model]["global_index_outputs"]]*len(self.models_dict[model]["local_output_vref"]))+np.array(range(len(self.models_dict[model]["local_output_vref"]))))
-        return sp.csr_matrix((data, (row, col)))
+        return sps.csr_matrix((data, (row, col)))
         
     def compute_global_A(self):
         cdef list data = []
@@ -638,7 +637,7 @@ cdef class Master:
                 data.extend(local_A)
                 col.extend([self.models_dict[model]["global_index_states"]+i]*len(local_A))
                 row.extend(np.array([self.models_dict[model]["global_index_derivatives"]]*len(self.models_dict[model]["local_derivative_vref"]))+np.array(range(len(self.models_dict[model]["local_derivative_vref"]))))
-        return sp.csr_matrix((data, (row, col)))
+        return sps.csr_matrix((data, (row, col)))
         
     def compute_global_B(self):
         cdef list data = []
@@ -654,7 +653,7 @@ cdef class Master:
                 data.extend(local_B)
                 col.extend([self.models_dict[model]["global_index_inputs"]+i]*len(local_B))
                 row.extend(np.array([self.models_dict[model]["global_index_derivatives"]]*len(self.models_dict[model]["local_derivative_vref"]))+np.array(range(len(self.models_dict[model]["local_derivative_vref"]))))
-        return sp.csr_matrix((data, (row, col)))
+        return sps.csr_matrix((data, (row, col)))
         
     def connection_setup(self, connections):
         for connection in connections:
@@ -845,7 +844,7 @@ cdef class Master:
                             else:
                                 return C.dot(xd)+D.dot(ud)
                         else: #First step
-                            return splin.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(xd)).reshape((-1,1))
+                            return sps.linalg.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(xd)).reshape((-1,1))
 
                 y_last = self.get_last_y()
                 if y_last is not None:
@@ -890,7 +889,7 @@ cdef class Master:
                         if ud is not None and udd is not None:
                             return C.dot(A.dot(xd))+C.dot(B.dot(ud+self.get_current_step_size()*udd))+D.dot(udd)
                         else: #First step
-                            return splin.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(A.dot(xd)+B.dot(self.L.dot(yd_cur)))).reshape((-1,1))
+                            return sps.linalg.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(A.dot(xd)+B.dot(self.L.dot(yd_cur)))).reshape((-1,1))
                 
                 yd_last = self.get_last_yd()
                 if yd_last is not None:
@@ -957,7 +956,7 @@ cdef class Master:
                 
                 z = yd - D.dot(uhat)
             
-            yd = splin.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
+            yd = sps.linalg.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
             """
         return ydd
 
@@ -972,7 +971,7 @@ cdef class Master:
                 
                 z = yd - D.dot(uhat)
             
-            yd = splin.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
+            yd = sps.linalg.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
 
         return yd
     
@@ -984,7 +983,7 @@ cdef class Master:
                     JM_FMUS = False
                     break
             if JM_FMUS:
-                res = sopt.root(init_f, y, args=(self))
+                res = spopt.root(init_f, y, args=(self))
                 if not res["success"]:
                     print(res)
                     raise fmi.FMUException("Failed to converge the output system.")
@@ -1005,8 +1004,8 @@ cdef class Master:
                 z = y - DL.dot(y_prev)
                 #z = y - matvec(DL, y_prev.ravel())
             
-            y = splin.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
-            #y = splin.lsqr((sp.eye(*DL.shape)-DL),z)[0].reshape((-1,1))
+            y = sps.linalg.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
+            #y = sps.linalg.lsqr((sps.eye(*DL.shape)-DL),z)[0].reshape((-1,1))
 
         elif self.algebraic_loops and self.support_directional_derivatives:
             pass
@@ -1113,7 +1112,7 @@ cdef class Master:
                     for model in block["outputs"].keys():
                         self.get_specific_connection_outputs(model, block["outputs_mask"][model], y)
                     
-                    res = sopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
+                    res = spopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
                     if not res["success"]:
                         print(res)
                         raise fmi.FMUException("Failed to converge the initialization system.")
@@ -1135,9 +1134,9 @@ cdef class Master:
             
             if self.algebraic_loops: #If there is an algebraic loop, solve the resulting system
                 if self.support_directional_derivatives:
-                    res = sopt.root(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
+                    res = spopt.root(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
                 else:
-                    res = sopt.root(init_f, self.get_connection_outputs(), args=(self))
+                    res = spopt.root(init_f, self.get_connection_outputs(), args=(self))
                 if not res["success"]:
                     print(res)
                     raise fmi.FMUException("Failed to converge the initialization system.")
@@ -1314,7 +1313,7 @@ cdef class Master:
                     D = self.compute_global_D()
                     DL = D.dot(self.L)
                     import numpy.linalg
-                    import scipy.linalg as slin
+                    from scipy.linalg import expm
                     print("At time: %E , rho(DL)=%s"%(tcur + step_size, str(numpy.linalg.eig(DL.todense())[0])))
                     C = self.compute_global_C()
                     if C is not None:
@@ -1326,7 +1325,7 @@ cdef class Master:
                     B = self.compute_global_B()
                     if C is not None and A is not None and B is not None:
                         A = A.todense(); B = B.todense()
-                        eAH = slin.expm(A*step_size)
+                        eAH = expm(A*step_size)
                         K1  = np.linalg.solve(_ident_matrix-DL,C)
                         K2  = np.linalg.solve(A,(eAH-np.eye(*eAH.shape)).dot(B.dot(self.L.todense())))
                         R1  = np.hstack((eAH, K1))

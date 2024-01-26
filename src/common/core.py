@@ -25,7 +25,7 @@ import os
 import sys
 import shutil
 
-import numpy as N
+import numpy as np
 
 # location for temporary JModelica files
 def get_temp_location():
@@ -490,20 +490,20 @@ class Trajectory:
         """
         self._abscissa = abscissa.astype('float')
         self._ordinate = ordinate
-        self._n = N.size(abscissa)
-        self._n_ordinate = N.size(self.ordinate,1)
+        self._n = np.size(abscissa)
+        self._n_ordinate = np.size(self.ordinate,1)
         self._x0 = abscissa[0]
         self._xf = abscissa[-1]
         
-        if not N.all(N.diff(self.abscissa) >= 0):
+        if not np.all(np.diff(self.abscissa) >= 0):
             raise Exception("The abscissae must be increasing.")
         
-        [double_point_indices] = N.nonzero(N.abs(N.diff(self.abscissa)) <= tol)
+        [double_point_indices] = np.nonzero(np.abs(np.diff(self.abscissa)) <= tol)
         while (len(double_point_indices) > 0):
             for i in double_point_indices:
                  self.abscissa[i+1] = self.abscissa[i+1] + tol
-            [double_point_indices] = N.nonzero(
-                    N.abs(N.diff(self.abscissa)) <= tol)
+            [double_point_indices] = np.nonzero(
+                    np.abs(np.diff(self.abscissa)) <= tol)
     
     def eval(self,x):
         """
@@ -561,9 +561,9 @@ class TrajectoryLinearInterpolation(Trajectory):
             Two dimensional n x m matrix containing the ordinate values 
             corresponding to the argument x.
         """        
-        y = N.zeros([N.size(x),self._n_ordinate])
+        y = np.zeros([np.size(x),self._n_ordinate])
         for i in range(self._n_ordinate):
-            y[:,i] = N.interp(x,self.abscissa,self.ordinate[:,i])
+            y[:,i] = np.interp(x,self.abscissa,self.ordinate[:,i])
         return y
 
 class TrajectoryLinearInterpolationExtrapolation(Trajectory):
@@ -590,11 +590,11 @@ class TrajectoryLinearInterpolationExtrapolation(Trajectory):
             See http://stackoverflow.com/questions/2745329/how-to-make-scipy-interpolate-give-a-an-extrapolated-result-beyond-the-input-ran
             
         """
-        y = N.zeros([N.size(x),N.size(self.ordinate,1)])
-        for i in range(N.size(y,1)):
-            y[:,i] = N.interp(x,self.abscissa,self.ordinate[:,i])
-            y[:,i] = N.where(x < self.abscissa[0], self.ordinate[0,i]+(x-self.abscissa[0])*(self.ordinate[0,i]-self.ordinate[1,i])/(self.abscissa[0]-self.abscissa[1]), y[:,i])
-            y[:,i] = N.where(x > self.abscissa[-1], self.ordinate[-1,i]+(x-self.abscissa[-1])*(self.ordinate[-1,i]-self.ordinate[-2,i])/(self.abscissa[-1]-self.abscissa[-2]), y[:,i])
+        y = np.zeros([np.size(x),np.size(self.ordinate,1)])
+        for i in range(np.size(y,1)):
+            y[:,i] = np.interp(x,self.abscissa,self.ordinate[:,i])
+            y[:,i] = np.where(x < self.abscissa[0], self.ordinate[0,i]+(x-self.abscissa[0])*(self.ordinate[0,i]-self.ordinate[1,i])/(self.abscissa[0]-self.abscissa[1]), y[:,i])
+            y[:,i] = np.where(x > self.abscissa[-1], self.ordinate[-1,i]+(x-self.abscissa[-1])*(self.ordinate[-1,i]-self.ordinate[-2,i])/(self.abscissa[-1]-self.abscissa[-2]), y[:,i])
         return y
 
 class TrajectoryConstantInterpolationExtrapolation(Trajectory):
@@ -634,27 +634,27 @@ class TrajectoryConstantInterpolationExtrapolation(Trajectory):
             See http://stackoverflow.com/questions/2745329/how-to-make-scipy-interpolate-give-a-an-extrapolated-result-beyond-the-input-ran
             
         """
-        y = N.zeros([N.size(x),N.size(self.ordinate,1)])
-        x = N.array([x]).flatten()
+        y = np.zeros([np.size(x),np.size(self.ordinate,1)])
+        x = np.array([x]).flatten()
         
         if self._mode == 1:
-            for i in range(N.size(y,1)):
-                for j in range(N.size(x)):
+            for i in range(np.size(y,1)):
+                for j in range(np.size(x)):
                     try:
                         y[j,i] = self.ordinate[self.abscissa<=x[j],i][-1]
                     except IndexError:
                         pass
-                y[:,i] = N.where(x < self.abscissa[0], self.ordinate[0,i], y[:,i])
-                y[:,i] = N.where(x > self.abscissa[-1], self.ordinate[-1,i], y[:,i])
+                y[:,i] = np.where(x < self.abscissa[0], self.ordinate[0,i], y[:,i])
+                y[:,i] = np.where(x > self.abscissa[-1], self.ordinate[-1,i], y[:,i])
         else:
-            for i in range(N.size(y,1)):
-                for j in range(N.size(x)):
+            for i in range(np.size(y,1)):
+                for j in range(np.size(x)):
                     try:
                         y[j,i] = self.ordinate[self.abscissa>=x[j],i][0]
                     except IndexError:
                         pass
-                y[:,i] = N.where(x < self.abscissa[0], self.ordinate[0,i], y[:,i])
-                y[:,i] = N.where(x > self.abscissa[-1], self.ordinate[-1,i], y[:,i])
+                y[:,i] = np.where(x < self.abscissa[0], self.ordinate[0,i], y[:,i])
+                y[:,i] = np.where(x > self.abscissa[-1], self.ordinate[-1,i], y[:,i])
         return y
 
 class TrajectoryUserFunction(Trajectory):
@@ -686,9 +686,9 @@ class TrajectoryUserFunction(Trajectory):
             corresponding to the argument x.
         """
         try:
-            y = N.array(N.matrix(self.traj(float(x))))
+            y = np.array(np.matrix(self.traj(float(x))))
         except TypeError:
-            y = N.array(N.matrix(self.traj(x)).transpose())
+            y = np.array(np.matrix(self.traj(x)).transpose())
                                        #In order to guarantee that the
                                        #return values are on the correct
                                        #form. May need to be evaluated

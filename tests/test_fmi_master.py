@@ -424,10 +424,10 @@ class Test_Master_Simulation:
         assert abs(res[model_sub1].final("x1")) > 100
         assert abs(res[model_sub2].final("x2")) > 100
        
-        #import pylab as plt
-        #plt.plot(res[model_sub1]["time"], res[model_sub1]["x1"])
-        #plt.plot(res_full["time"], res_full["p1.x1"])
-        #plt.show()
+        #import pylab as pl
+        #pl.plot(res[model_sub1]["time"], res[model_sub1]["x1"])
+        #pl.plot(res_full["time"], res_full["p1.x1"])
+        #pl.show()
 
     @testattr(stddist = True)
     def test_initialize(self):

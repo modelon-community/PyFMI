@@ -17,8 +17,8 @@
 """
 Module containing the FMI interface Python wrappers.
 """
-import numpy as N
-cimport numpy as N
+import numpy as np
+cimport numpy as np
 
 cimport pyfmi.fmil_import as FMIL
 
@@ -219,9 +219,9 @@ cdef class FMUModelBase2(ModelBase):
     cpdef serialized_fmu_state_size(self, state)
     cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list)
     cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable)
-    cdef int _get_directional_derivative(self, N.ndarray v_ref, N.ndarray z_ref, N.ndarray dv, N.ndarray dz) except -1
+    cdef int _get_directional_derivative(self, np.ndarray v_ref, np.ndarray z_ref, np.ndarray dv, np.ndarray dz) except -1
     cpdef set_real(self, valueref, values)
-    cpdef N.ndarray get_real(self, valueref)
+    cpdef np.ndarray get_real(self, valueref)
     cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size)
     cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values)
     cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values)
@@ -233,8 +233,8 @@ cdef class FMUModelCS2(FMUModelBase2):
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi2_real_t t)
     cpdef int do_step(self, FMIL.fmi2_real_t current_t, FMIL.fmi2_real_t step_size, new_step=*)
-    cdef int _set_input_derivatives(self, N.ndarray value_refs, N.ndarray values, N.ndarray orders)
-    cdef int _get_output_derivatives(self, N.ndarray value_refs, N.ndarray values, N.ndarray orders)
+    cdef int _set_input_derivatives(self, np.ndarray value_refs, np.ndarray values, np.ndarray orders)
+    cdef int _get_output_derivatives(self, np.ndarray value_refs, np.ndarray values, np.ndarray orders)
 
 cdef class FMUModelME2(FMUModelBase2):
 
@@ -253,11 +253,11 @@ cdef class FMUModelME2(FMUModelBase2):
 cdef class WorkerClass2:
     cdef int _dim
 
-    cdef N.ndarray _tmp1_val, _tmp2_val, _tmp3_val, _tmp4_val
-    cdef N.ndarray _tmp1_ref, _tmp2_ref, _tmp3_ref, _tmp4_ref
+    cdef np.ndarray _tmp1_val, _tmp2_val, _tmp3_val, _tmp4_val
+    cdef np.ndarray _tmp1_ref, _tmp2_ref, _tmp3_ref, _tmp4_ref
 
     cdef FMIL.fmi2_real_t* get_real_vector(self, int index)
     cdef FMIL.fmi2_value_reference_t* get_value_reference_vector(self, int index)
-    cdef N.ndarray get_value_reference_numpy_vector(self, int index)
-    cdef N.ndarray get_real_numpy_vector(self, int index)
+    cdef np.ndarray get_value_reference_numpy_vector(self, int index)
+    cdef np.ndarray get_real_numpy_vector(self, int index)
     cpdef verify_dimensions(self, int dim)

@@ -16,8 +16,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import numpy as N
-import pylab as p
+import numpy as np
+import pylab as pl
 
 from pyfmi import load_fmu
 
@@ -35,9 +35,9 @@ def run_demo(with_plots=True):
     fmu_name = os.path.join(path_to_fmus_me1,'SecondOrder.fmu')
 
     # Generate input
-    t = N.linspace(0.,10.,100) 
-    u = N.cos(t)
-    u_traj = N.transpose(N.vstack((t,u)))
+    t = np.linspace(0.,10.,100) 
+    u = np.cos(t)
+    u_traj = np.transpose(np.vstack((t,u)))
     
     # Create input object
     input_object = ('u', u_traj)
@@ -56,17 +56,17 @@ def run_demo(with_plots=True):
     u_sim = res['u']
     time_sim = res['time']
         
-    assert N.abs(res.final('x1')*1.e1 - (-8.3999640)) < 1e-3
-    assert N.abs(res.final('x2')*1.e1 - (-5.0691179)) < 1e-3  
-    assert N.abs(res.final('u')*1.e1 - (-8.3907153)) < 1e-3 
+    assert np.abs(res.final('x1')*1.e1 - (-8.3999640)) < 1e-3
+    assert np.abs(res.final('x2')*1.e1 - (-5.0691179)) < 1e-3  
+    assert np.abs(res.final('u')*1.e1 - (-8.3907153)) < 1e-3 
 
     if with_plots:
-        p.figure()
-        p.subplot(2,1,1)
-        p.plot(time_sim, x1_sim, time_sim, x2_sim)
-        p.subplot(2,1,2)
-        p.plot(time_sim, u_sim,'x-',t, u[:],'x-')
-        p.show()
+        pl.figure()
+        pl.subplot(2,1,1)
+        pl.plot(time_sim, x1_sim, time_sim, x2_sim)
+        pl.subplot(2,1,2)
+        pl.plot(time_sim, u_sim,'x-',t, u[:],'x-')
+        pl.show()
 
 if __name__=="__main__":
     run_demo()
