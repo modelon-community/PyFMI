@@ -752,7 +752,6 @@ class ResultWriterDymola(ResultWriter):
             self._file_open = False
 
 
-
 class ResultStorageMemory(ResultDymola):
     """
     Class representing a simulation result that is kept in MEMORY.

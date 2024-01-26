@@ -244,6 +244,11 @@ def check_extensions():
                     compile_time_env=compile_time_env,
                     compiler_directives={'language_level' : "3str"})
     
+    # Test utilities
+    ext_list += cythonize([os.path.join("src", "pyfmi", "tests", "test_util.pyx")], 
+                    include_path = incl_path, 
+                    compiler_directives={'language_level' : "3str"})
+    
     for i in range(len(ext_list)):
         
         ext_list[i].include_dirs = [N.get_include(), "src", os.path.join("src", "pyfmi"), incdirs]

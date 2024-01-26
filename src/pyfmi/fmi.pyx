@@ -3945,27 +3945,6 @@ cdef class FMUModelME1(FMUModelBase):
             self._instantiated_fmu = 0
 
 
-cdef class _ForTestingFMUModelME1(FMUModelME1):
-
-    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx):
-        for i in range(nx):
-            if self._allocated_fmu == 1:  # If initialized
-                # Set new values to test that atol gets auto-corrected.
-                xnominal[i] = 3.0
-            else:
-                # Set some illegal values in order to test the fallback/auto-correction.
-                xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
-        return FMIL.fmi1_status_ok
-
-    cpdef set_allocated_fmu(self, int value):
-        self._allocated_fmu = value
-
-    def __dealloc__(self):
-        # Avoid segfaults in dealloc. The FMU binaries should never be loaded for this
-        # test class, so we should never try to terminate or deallocate the FMU instance.
-        self._allocated_fmu = 0
-
-
 cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
@@ -8473,80 +8452,6 @@ cdef class FMUModelME2(FMUModelBase2):
 
             return A
 
-cdef class _ForTestingFMUModelME2(FMUModelME2):
-    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values):
-        vr = N.zeros(_size)
-        for i in range(_size):
-            vr[i] = vrefs[i]
-
-        try:
-            vv = self.get_real(vr)
-        except Exception:
-            return FMIL.fmi2_status_error
-
-        for i in range(_size):
-            values[i] = vv[i]
-
-        return FMIL.fmi2_status_ok
-
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size):
-        vr = N.zeros(_size)
-        vv = N.zeros(_size)
-        for i in range(_size):
-            vr[i] = vrefs[i]
-            vv[i] = values[i]
-
-        try:
-            self.set_real(vr, vv)
-        except Exception:
-            return FMIL.fmi2_status_error
-
-        return FMIL.fmi2_status_ok
-
-    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
-        try:
-            tmp = self.get_real(valueref)
-            for i in range(_size):
-                values[i] = tmp[i]
-        except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
-
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values):
-        try:
-            tmp = self.get_integer(valueref)
-            for i in range(_size):
-                values[i] = tmp[i]
-        except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
-
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
-        try:
-            tmp = self.get_boolean(valueref)
-            for i in range(_size):
-                values[i] = tmp[i]
-        except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
-
-    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx):
-        for i in range(nx):
-            if self._initialized_fmu == 1:
-                # Set new values to test that atol gets auto-corrected.
-                xnominal[i] = 3.0
-            else:
-                # Set some illegal values in order to test the fallback/auto-correction.
-                xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
-        return FMIL.fmi2_status_ok
-
-    cpdef set_initialized_fmu(self, int value):
-        self._initialized_fmu = value
-
-    def __dealloc__(self):
-        # Avoid segfaults in dealloc. The FMU binaries should never be loaded for this
-        # test class, so we should never try to terminate or deallocate the FMU instance.
-        self._initialized_fmu = 0
 
 def _handle_load_fmu_exception(fmu, log_data):
     for log in log_data:

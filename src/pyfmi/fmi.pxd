@@ -161,10 +161,6 @@ cdef class FMUModelME1(FMUModelBase):
     cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx)
     cdef public object _preinit_nominal_continuous_states
 
-cdef class _ForTestingFMUModelME1(FMUModelME1):
-    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx)
-    cpdef set_allocated_fmu(self, int value)
-
 cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
@@ -274,12 +270,3 @@ cdef class WorkerClass2:
     cdef N.ndarray get_value_reference_numpy_vector(self, int index)
     cdef N.ndarray get_real_numpy_vector(self, int index)
     cpdef verify_dimensions(self, int dim)
-
-cdef class _ForTestingFMUModelME2(FMUModelME2):
-    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values)
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size)
-    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values)
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values)
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values)
-    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx)
-    cpdef set_initialized_fmu(self, int value)
