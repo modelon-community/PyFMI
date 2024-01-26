@@ -1440,7 +1440,7 @@ class ResultDymolaBinary(ResultDymola):
     def _get_description(self):
         if not self._description:
             description = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["description"])["description"]
-            self._description = ["".join(description[:,i]).rstrip() for i in range(description[0,:].size)]
+            self._description = ["".join(description[:,i]).rstrip() for i in range(np.size(description[0,:]))]
 
         return self._description
 

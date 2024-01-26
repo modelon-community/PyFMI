@@ -1029,14 +1029,14 @@ class Graph:
 
 cdef class DumpData:
     def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref, with_diagnostics):
-        if type(model) != FMUModelME2:
-            self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
-            self.int_var_ref  = np.array(int_var_ref, ndmin=1).ravel()
-            self.bool_var_ref = np.array(bool_var_ref, ndmin=1).ravel()
-        else:
+        if type(model) == FMUModelME2:
             self.real_var_ref = np.array(real_var_ref, dtype=np.uint32, ndmin=1).ravel()
             self.int_var_ref  = np.array(int_var_ref,  dtype=np.uint32, ndmin=1).ravel()
             self.bool_var_ref = np.array(bool_var_ref, dtype=np.uint32, ndmin=1).ravel()
+        else:
+            self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
+            self.int_var_ref  = np.array(int_var_ref, ndmin=1).ravel()
+            self.bool_var_ref = np.array(bool_var_ref, ndmin=1).ravel()
 
         self.real_size = np.size(self.real_var_ref)
         self.int_size  = np.size(self.int_var_ref)
@@ -1065,7 +1065,7 @@ cdef class DumpData:
         if self._with_diagnostics:
             self.dump_data(np.array(float(1.0)))
         if self.model_me2_instance:
-            self.time_tmp[0] = self.model_me2._get_time()
+            self.time_tmp[0] = self.model_me2.time
             self.dump_data(self.time_tmp)
 
             if self.real_size > 0:
@@ -1099,7 +1099,7 @@ cdef class DumpData:
         """ Saves a point of diagnostics data to the result. """
         self.dump_data(np.array(float(2.0)))
         if self.model_me2_instance:
-            self.time_tmp[0] = self.model_me2._get_time()
+            self.time_tmp[0] = self.model_me2.time
             self.dump_data(self.time_tmp)
         else:
             self.dump_data(np.array(float(self.model.time)))

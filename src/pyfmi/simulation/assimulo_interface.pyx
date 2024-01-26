@@ -594,7 +594,7 @@ cdef class FMIODE2(cExplicit_Problem):
         self.input_names = []
         self.timings = {"handle_result": 0.0}
 
-        if type(model) == FMUModelME2: #isinstance(model, FMUModelME2):
+        if type(model)==FMUModelME2: #if isinstance(model, FMUModelME2):
             self.model_me2 = model
             self.model_me2_instance = 1
         else:

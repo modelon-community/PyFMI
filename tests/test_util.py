@@ -288,7 +288,7 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
         if evaluate:
             self.get_derivatives()
         vals = []
-        if type(vref) == int:
+        if isinstance(vref, int):
             vref = [vref]
         for v in vref:
             vals.append(self.values[v])

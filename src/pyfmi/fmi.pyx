@@ -4255,17 +4255,17 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to set the Real values. See the log for possibly more information.')
 
-    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
-        return FMIL.fmi2_import_get_real(self._fmu, &valueref[0], size, &values[0])
+    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
+        return FMIL.fmi2_import_get_real(self._fmu, &valueref[0], _size, &values[0])
 
-    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
-        return FMIL.fmi2_import_get_real(self._fmu, vrefs, size, values)
+    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values):
+        return FMIL.fmi2_import_get_real(self._fmu, vrefs, _size, values)
 
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
-        return FMIL.fmi2_import_set_real(self._fmu, vrefs, size, values)
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size):
+        return FMIL.fmi2_import_set_real(self._fmu, vrefs, _size, values)
 
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values):
-        return FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], size, &values[0])
+    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values):
+        return FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], _size, &values[0])
 
     def get_integer(self, valueref):
         """
@@ -4333,13 +4333,13 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to set the Integer values. See the log for possibly more information.')
 
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
+    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
         cdef int status
-        cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*size)
+        cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*_size)
 
-        status = FMIL.fmi2_import_get_boolean(self._fmu, &valueref[0], size, <FMIL.fmi2_boolean_t*> output_value)
+        status = FMIL.fmi2_import_get_boolean(self._fmu, &valueref[0], _size, <FMIL.fmi2_boolean_t*> output_value)
 
-        for i in range(size):
+        for i in range(_size):
             values[i] = (<FMIL.fmi2_boolean_t*>output_value)[i]==1
 
         FMIL.free(output_value)
@@ -8498,9 +8498,9 @@ cdef class FMUModelME2(FMUModelBase2):
             return A
 
 cdef class _ForTestingFMUModelME2(FMUModelME2):
-    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
-        vr = N.zeros(size)
-        for i in range(size):
+    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values):
+        vr = N.zeros(_size)
+        for i in range(_size):
             vr[i] = vrefs[i]
 
         try:
@@ -8508,15 +8508,15 @@ cdef class _ForTestingFMUModelME2(FMUModelME2):
         except Exception:
             return FMIL.fmi2_status_error
 
-        for i in range(size):
+        for i in range(_size):
             values[i] = vv[i]
 
         return FMIL.fmi2_status_ok
 
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
-        vr = N.zeros(size)
-        vv = N.zeros(size)
-        for i in range(size):
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size):
+        vr = N.zeros(_size)
+        vv = N.zeros(_size)
+        for i in range(_size):
             vr[i] = vrefs[i]
             vv[i] = values[i]
 
@@ -8527,28 +8527,28 @@ cdef class _ForTestingFMUModelME2(FMUModelME2):
 
         return FMIL.fmi2_status_ok
 
-    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
+    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
         try:
             tmp = self.get_real(valueref)
-            for i in range(size):
+            for i in range(_size):
                 values[i] = tmp[i]
         except Exception:
             return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
 
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values):
+    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values):
         try:
             tmp = self.get_integer(valueref)
-            for i in range(size):
+            for i in range(_size):
                 values[i] = tmp[i]
         except Exception:
             return FMIL.fmi2_status_error
         return FMIL.fmi2_status_ok
 
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
+    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
         try:
             tmp = self.get_boolean(valueref)
-            for i in range(size):
+            for i in range(_size):
                 values[i] = tmp[i]
         except Exception:
             return FMIL.fmi2_status_error

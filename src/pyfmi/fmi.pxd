@@ -235,11 +235,11 @@ cdef class FMUModelBase2(ModelBase):
     cdef int _get_directional_derivative(self, N.ndarray v_ref, N.ndarray z_ref, N.ndarray dv, N.ndarray dz) except -1
     cpdef set_real(self, valueref, values)
     cpdef N.ndarray get_real(self, valueref)
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size)
-    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values)
-    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values)
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size)
+    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values)
+    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values)
+    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values)
+    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values)
 
 cdef class FMUModelCS2(FMUModelBase2):
 
@@ -276,10 +276,10 @@ cdef class WorkerClass2:
     cpdef verify_dimensions(self, int dim)
 
 cdef class _ForTestingFMUModelME2(FMUModelME2):
-    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values)
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size)
-    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values)
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
+    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values)
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size)
+    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values)
+    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values)
+    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values)
     cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx)
     cpdef set_initialized_fmu(self, int value)
