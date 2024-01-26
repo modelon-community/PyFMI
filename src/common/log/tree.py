@@ -19,7 +19,6 @@ Tree representation for an FMU XML log format
 
 Each node is represented as a Node, Comment, or leaf (other types)
 """
-from pyfmi.fmi_util import python3_flag
 
 class Comment(object):
     """Log comment node.
@@ -89,7 +88,7 @@ class Node(object):
 
         types may be a string or list of strings.
         """
-        if isinstance(types, str if python3_flag else basestring):
+        if isinstance(types, str):
             types = [types]
         
         nodes = []        

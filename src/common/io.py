@@ -38,7 +38,7 @@ else:
 
 import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
-from pyfmi.common import python3_flag, encode, decode
+from pyfmi.common import encode, decode
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, DiagnosticsBase
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
@@ -160,7 +160,7 @@ class ResultDymola:
         name = name.replace(" ", "")
 
         try:
-            if python3_flag and isinstance(self, ResultDymolaBinary):
+            if isinstance(self, ResultDymolaBinary):
                 return self.name_lookup[encode(name)]
             else:
                 return self.name_lookup[name]
@@ -171,7 +171,7 @@ class ResultDymola:
             if self._check_if_derivative_variable(name):
                 try:
                     #First do a simple search for the other naming convention
-                    if python3_flag and isinstance(self, ResultDymolaBinary):
+                    if isinstance(self, ResultDymolaBinary):
                         return self.name_lookup[encode(self._convert_dx_name(name))]
                     else:
                         return self.name_lookup[self._convert_dx_name(name)]
@@ -210,19 +210,19 @@ class ResultDymola:
             trial_name = list(self.name_lookup.keys())[ind]
 
             #Create the derivative name
-            if python3_flag and isinstance(self, ResultDymolaBinary):
+            if isinstance(self, ResultDymolaBinary):
                 der_trial_name = self._create_derivative_from_state(decode(trial_name))
             else:
                 der_trial_name = self._create_derivative_from_state(trial_name)
 
             try:
-                if python3_flag and isinstance(self, ResultDymolaBinary):
+                if isinstance(self, ResultDymolaBinary):
                     return self.name_lookup[encode(der_trial_name)]
                 else:
                     return self.name_lookup[der_trial_name]
             except KeyError:
                 try:
-                    if python3_flag and isinstance(self, ResultDymolaBinary):
+                    if isinstance(self, ResultDymolaBinary):
                         return self.name_lookup[encode(self._convert_dx_name(der_trial_name))]
                     else:
                         return self.name_lookup[self._convert_dx_name(der_trial_name)]
@@ -905,38 +905,24 @@ class ResultDymolaTextual(ResultDymola):
             fid = fname
             fid.seek(0,0) # Needs to start from beginning of file
 
-        result  = []
-
         # Read Aclass section
         nLines = self._find_phrase(fid, 'char Aclass')
 
         nLines = int(nLines[0])
-        Aclass = [fid.readline().strip() for i in range(nLines)]
-        #Aclass = []
-        #for i in range(0,nLines):
-        #    Aclass.append(fid.readline().strip())
-        self.Aclass = Aclass
+        self.Aclass = [fid.readline().strip() for i in range(nLines)]
 
         # Read name section
         nLines = self._find_phrase(fid, 'char name')
 
         nLines = int(nLines[0])
-        name = [fid.readline().strip().replace(" ","") for i in range(nLines)]
-        #name = []
-        #for i in range(0,nLines):
-        #    name.append(fid.readline().strip().replace(" ",""))
-        self._name = name
+        self._name = [fid.readline().strip().replace(" ","") for i in range(nLines)]
         self.name_lookup = {key:ind for ind,key in enumerate(self._name)}
 
         # Read description section
         nLines = self._find_phrase(fid, 'char description')
 
         nLines = int(nLines[0])
-        description = [fid.readline().strip() for i in range(nLines)]
-        #description = []
-        #for i in range(0,nLines):
-        #    description.append(fid.readline().strip())
-        self.description = description
+        self.description = [fid.readline().strip() for i in range(nLines)]
 
         # Read dataInfo section
         nLines = self._find_phrase(fid, 'int dataInfo')
@@ -945,26 +931,22 @@ class ResultDymolaTextual(ResultDymola):
         nLines = int(nLines[0])
         nCols = int(nCols[0])
 
-        if python3_flag:
-            dataInfo = [list(map(int,fid.readline().split()[0:nCols])) for i in range(nLines)]
-        else:
-            dataInfo = [map(int,fid.readline().split()[0:nCols]) for i in range(nLines)]
-        self.dataInfo = N.array(dataInfo)
+        self.dataInfo = N.array([list(map(int,fid.readline().split()[0:nCols])) for i in range(nLines)])
 
         # Find out how many data matrices there are
-        if len(name) == 1: #Only time
+        if len(self._name) == 1: #Only time
             nData = 2
         else:
             nData = max(self.dataInfo[:,0])
 
         self.data = []
         for i in range(0,nData):
-            l = fid.readline()
-            tmp = l.partition(' ')
-            while tmp[0]!='float' and tmp[0]!='double' and l!='':
-                l = fid.readline()
-                tmp = l. partition(' ')
-            if l=='':
+            line = fid.readline()
+            tmp = line.partition(' ')
+            while tmp[0]!='float' and tmp[0]!='double' and line!='':
+                line = fid.readline()
+                tmp = line.partition(' ')
+            if line=='':
                 raise JIOError('The result does not seem to be of a supported format.')
             tmp = tmp[2].partition('(')
             nLines = tmp[2].partition(',')
@@ -974,19 +956,13 @@ class ResultDymolaTextual(ResultDymola):
             data = []
             for i in range(0,nLines):
                 info = []
-                while len(info) < nCols and l != '':
-                    l = fid.readline()
-                    info.extend(l.split())
+                while len(info) < nCols and line != '':
+                    line = fid.readline()
+                    info.extend(line.split())
                 try:
-                    if python3_flag:
-                        data.append(list(map(float,info[0:nCols])))
-                    else:
-                        data.append(map(float,info[0:nCols]))
+                    data.append(list(map(float,info[0:nCols])))
                 except ValueError: #Handle 1.#INF's and such
-                    if python3_flag:
-                        data.append(list(map(robust_float,info[0:nCols])))
-                    else:
-                        data.append(map(robust_float,info[0:nCols]))
+                    data.append(list(map(robust_float,info[0:nCols])))
                 if len(info) == 0 and i < nLines-1:
                     raise JIOError("Inconsistent number of lines in the result data.")
                 del(info)
@@ -996,12 +972,12 @@ class ResultDymolaTextual(ResultDymola):
             raise JIOError('Could not find any variable data in the result file.')
 
     def _find_phrase(self,fid, phrase):
-        l = fid.readline()
-        tmp = l.partition('(')
-        while tmp[0]!=phrase and l!='':
-            l = fid.readline()
-            tmp = l. partition('(')
-        if l=='':
+        line = fid.readline()
+        tmp = line.partition('(')
+        while tmp[0]!=phrase and line!='':
+            line = fid.readline()
+            tmp = line.partition('(')
+        if line=='':
             raise JIOError("The result does not seem to be of a supported format.")
         return tmp[2].partition(',')
 
@@ -1349,7 +1325,7 @@ class ResultDymolaBinary(ResultDymola):
             dict_names = list(name_dict.keys())
             name_dict[DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']] = None
             for name in dict_names:
-                if python3_flag and isinstance(name, bytes):
+                if isinstance(name, bytes):
                     name = decode(name)
                 if name == f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type':
                     name_dict[DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name']] = None
@@ -1463,7 +1439,7 @@ class ResultDymolaBinary(ResultDymola):
             A Trajectory object containing the time vector and the data vector
             of the variable.
         """
-        if python3_flag and isinstance(name, bytes):
+        if isinstance(name, bytes):
             name = decode(name)
 
         if name == 'time' or name== 'Time':
@@ -2078,10 +2054,7 @@ class ResultHandlerFile(ResultHandler):
 
             if isinstance(self.model, fmi.FMUModelME2):
                 vars = self.model.get_model_variables(type=fmi.FMI2_REAL,include_alias=False,variability=fmi.FMI2_CONTINUOUS,filter=self.options["filter"])
-                if python3_flag:
-                    state_vars = [v.value_reference for i,v in self.model.get_states_list().items()]
-                else:
-                    state_vars = [v.value_reference for i,v in self.model.get_states_list().iteritems()]
+                state_vars = [v.value_reference for i,v in self.model.get_states_list().items()]
             else:
                 vars = self.model.get_model_variables(type=fmi.FMI_REAL,include_alias=False,variability=fmi.FMI_CONTINUOUS,filter=self.options["filter"])
                 state_vars = self.model.get_state_value_references()

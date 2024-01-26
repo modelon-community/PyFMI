@@ -21,25 +21,17 @@ and functions.
 
 __all__ = ['algorithm_drivers', 'core', 'diagnostics', 'io', 'plotting']
 
-import sys
-python3_flag = True if sys.hexversion > 0x03000000 else False
 ## for backwards compatibility, to not break 'from pyfmi.common import diagnostics_prefix'
 ## TODO: Future: remove this
 from .diagnostics import DIAGNOSTICS_PREFIX as diagnostics_prefix
 
-if python3_flag:
-    def encode(x):
-        if isinstance(x, str):
-            return x.encode()
-        else:
-            return x
-    def decode(x):
-        if isinstance(x, bytes):
-            return x.decode()
-        else:
-            return x
-else:
-    def encode(x):
+def encode(x):
+    if isinstance(x, str):
+        return x.encode()
+    else:
         return x
-    def decode(x):
+def decode(x):
+    if isinstance(x, bytes):
+        return x.decode()
+    else:
         return x

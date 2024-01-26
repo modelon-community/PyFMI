@@ -23,7 +23,6 @@ import re
 import numpy as np
 from distutils.util import strtobool
 from pyfmi.common.log.tree import Node, Comment
-from pyfmi.fmi_util import python3_flag
 from pyfmi.fmi import FMUException
 
 ## Leaf parser ##
@@ -58,8 +57,7 @@ def parse_value(text):
             text = text[1:-1].replace('""','"')
         else:
             assert '"' not in text
-        # for python 2 we need to avoid printing all strings as u'...'
-        return text if python3_flag else text.encode('ascii', 'xmlcharrefreplace')
+        return text
 
 def parse_vector(text):
 
