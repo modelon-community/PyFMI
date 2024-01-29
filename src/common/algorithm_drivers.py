@@ -18,11 +18,11 @@
 Module containing optimization, simulation and initialization algorithms.
 """
 
-import numpy as N
+import numpy as np
 
 default_int = int
-int = N.int32
-N.int = N.int32
+int = np.int32
+np.int = np.int32
 
 class AlgorithmBase(object):
     """ 
@@ -33,16 +33,20 @@ class AlgorithmBase(object):
 #    __metaclass__=ABCMeta
     
 #    @abstractmethod
-    def __init__(self, model, alg_args): pass
+    def __init__(self, model, alg_args): 
+        pass
     
 #    @abstractmethod
-    def solve(self): pass
+    def solve(self): 
+        pass
     
 #   @abstractmethod
-    def get_result(self): pass
+    def get_result(self): 
+        pass
     
     @classmethod
-    def get_default_options(self): pass
+    def get_default_options(self): 
+        pass
     
 class ResultBase(object):
     """ 
