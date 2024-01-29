@@ -19,15 +19,11 @@
 Module containing the tests for the FMI interface.
 """
 
-import nose
-import os
 import numpy as np
 from collections import OrderedDict
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
 import pyfmi.fmi_util as fmi_util
-import pyfmi.fmi as fmi
 
 class Test_FMIUtil:
     

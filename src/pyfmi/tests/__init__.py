@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2010 Modelon AB
+# Copyright (C) 2024 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -14,24 +14,3 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-The JModelica.org <http:/www.jmodelica.org/> Python package for common classes
-and functions.
-"""
-
-__all__ = ['algorithm_drivers', 'core', 'diagnostics', 'io', 'plotting']
-
-## for backwards compatibility, to not break 'from pyfmi.common import diagnostics_prefix'
-## TODO: Future: remove this
-from .diagnostics import DIAGNOSTICS_PREFIX as diagnostics_prefix
-
-def encode(x):
-    if isinstance(x, str):
-        return x.encode()
-    else:
-        return x
-def decode(x):
-    if isinstance(x, bytes):
-        return x.decode()
-    else:
-        return x

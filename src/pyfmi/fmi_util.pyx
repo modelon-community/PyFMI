@@ -21,44 +21,29 @@
 Module containing the FMI interface Python wrappers.
 """
 import collections
-from collections import OrderedDict
 import itertools
-from operator import attrgetter
+
 import numpy as np
-from numpy.compat import asbytes
-
-from pyfmi.common import encode
-
 cimport numpy as np
-cimport fmil_import as FMIL
 
-from cpython cimport array
-from pyfmi.fmi cimport FMUModelME2, FMUModelBase
+cimport fmil_import as FMIL
+from pyfmi.fmi cimport FMUModelME2
 
 import functools
 import marshal
 import pyfmi.fmi as fmi
-import sys
-
-python3_flag = True if sys.hexversion > 0x03000000 else False
 
 cpdef decode(x):
-    if python3_flag:
-        if isinstance(x, bytes):
-            return x.decode(errors="replace")
-        else:
-            return x
+    if isinstance(x, bytes):
+        return x.decode(errors="replace")
     else:
         return x
 
 cpdef encode(x):
-    if python3_flag:
-        if isinstance(x, str):
-            return x.encode()
-        else:
-            return x
+    if isinstance(x, str):
+        return x.encode()
     else:
-        return x.encode("utf-8")
+        return x
 
 def enable_caching(obj):
     @functools.wraps(obj, ('__name__', '__doc__'))
@@ -97,10 +82,7 @@ cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
     data_index = {}
     data_index_with_diag = {}
     for i in range(n_col):
-        if python3_flag:
-            data_index[i] = list(range(k, k + len(column_dict[i])))
-        else:
-            data_index[i] = range(k, k + len(column_dict[i]))
+        data_index[i] = list(range(k, k + len(column_dict[i])))
         k = k + len(column_dict[i])
 
         data_index_with_diag[i] = []
@@ -224,16 +206,10 @@ cpdef list convert_array_names_list_names(np.ndarray names):
 cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = names.shape[1]
-    cdef int i, py3, j = 0, ch
+    cdef int i, j = 0, ch
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str
-
-    # This if-statement is contributes to a performance gain within the for-loop that follows
-    if python3_flag:
-        py3 = 1
-    else:
-        py3 = 0
 
     for i in range(nbr_items):
         for j in range(max_length):
@@ -245,10 +221,7 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
 
         py_str = tmp[:j]
         if j == max_length - 1:
-            if py3:
-                py_str = py_str.replace(b" ", b"")
-            else:
-                py_str = py_str.replace(" ", "")
+            py_str = py_str.replace(b" ", b"")
         output.append(py_str)
 
     FMIL.free(tmp)
@@ -667,7 +640,7 @@ class Graph:
             if self.graph_info[node]["type"] == GRAPH_OUTPUT:
                 model = self.graph_info[node]["model"]
                 if not (model in trees):
-                    trees[model] = OrderedDict()
+                    trees[model] = collections.OrderedDict()
                     trees[model][node] = self.dfs(node)
                     joined_nodes[node] = [node]
                 else:
@@ -1029,14 +1002,14 @@ class Graph:
 
 cdef class DumpData:
     def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref, with_diagnostics):
-        if type(model) != FMUModelME2:
-            self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
-            self.int_var_ref  = np.array(int_var_ref, ndmin=1).ravel()
-            self.bool_var_ref = np.array(bool_var_ref, ndmin=1).ravel()
-        else:
+        if type(model) == FMUModelME2:
             self.real_var_ref = np.array(real_var_ref, dtype=np.uint32, ndmin=1).ravel()
             self.int_var_ref  = np.array(int_var_ref,  dtype=np.uint32, ndmin=1).ravel()
             self.bool_var_ref = np.array(bool_var_ref, dtype=np.uint32, ndmin=1).ravel()
+        else:
+            self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
+            self.int_var_ref  = np.array(int_var_ref, ndmin=1).ravel()
+            self.bool_var_ref = np.array(bool_var_ref, ndmin=1).ravel()
 
         self.real_size = np.size(self.real_var_ref)
         self.int_size  = np.size(self.int_var_ref)
@@ -1065,7 +1038,7 @@ cdef class DumpData:
         if self._with_diagnostics:
             self.dump_data(np.array(float(1.0)))
         if self.model_me2_instance:
-            self.time_tmp[0] = self.model_me2._get_time()
+            self.time_tmp[0] = self.model_me2.time
             self.dump_data(self.time_tmp)
 
             if self.real_size > 0:
@@ -1099,7 +1072,7 @@ cdef class DumpData:
         """ Saves a point of diagnostics data to the result. """
         self.dump_data(np.array(float(2.0)))
         if self.model_me2_instance:
-            self.time_tmp[0] = self.model_me2._get_time()
+            self.time_tmp[0] = self.model_me2.time
             self.dump_data(self.time_tmp)
         else:
             self.dump_data(np.array(float(self.model.time)))
@@ -1330,17 +1303,12 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
 
         A dict with the names as key and an index as value
     """
-    cdef int i = 0, j = 0, py3, need_replace = 0
+    cdef int i = 0, j = 0, need_replace = 0
     cdef FILE* cfile
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef bytes py_str
     cdef dict data = {}
 
-    # This if-statement contributes to a performance gain within the for-loop that follows
-    if python3_flag:
-        py3 = 1
-    else:
-        py3 = 0
     if tmp == NULL:
         raise fmi.IOException("Couldn't allocate memory to read name list.")
 
@@ -1355,10 +1323,7 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
                 need_replace = 1
 
         if need_replace:
-            if py3:
-                py_str = py_str.replace(b" ", b"")
-            else:
-                py_str = py_str.replace(" ", "")
+            py_str = py_str.replace(b" ", b"")
         data[py_str] = i
 
     fclose(cfile)
