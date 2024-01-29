@@ -17,29 +17,28 @@
 
 # distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
 
-import pyfmi.fmi as fmi
-from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
-from pyfmi.common.io import ResultHandlerFile, ResultHandlerDummy, ResultHandlerBinaryFile
-from pyfmi.common.core import TrajectoryLinearInterpolation
-from pyfmi.common.core import TrajectoryUserFunction
-
-from timeit import default_timer as timer
-
 import fnmatch
 import sys
-from collections import OrderedDict
 import time
-import numpy as np
 import warnings
+from collections import OrderedDict
+from timeit import default_timer as timer
+from cpython cimport bool
+from cython.parallel import prange, parallel
+
+import numpy as np
 cimport numpy as np
+import scipy as sp
 import scipy.sparse as sps
 import scipy.optimize as spopt
 
+import pyfmi.fmi as fmi
+from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
+from pyfmi.common.io import ResultHandlerFile, ResultHandlerDummy, ResultHandlerBinaryFile
+from pyfmi.common.core import TrajectoryLinearInterpolation, TrajectoryUserFunction
 from pyfmi.fmi cimport FMUModelCS2
-from cpython cimport bool
 cimport fmil_import as FMIL
 from pyfmi.fmi_util import Graph
-from cython.parallel import prange, parallel
 
 IF WITH_OPENMP:
     cimport openmp
@@ -996,16 +995,11 @@ cdef class Master:
             if self.opts["extrapolation_order"] > 0:
                 uold, udold, uddold = self.get_last_us()
                 uhat = uold + (self.get_current_step_size()*udold if udold is not None else 0.0)
-                
                 z = y - D.dot(uhat)
-                #z = y - matvec(D,uhat.ravel())
             else:
-                
                 z = y - DL.dot(y_prev)
-                #z = y - matvec(DL, y_prev.ravel())
             
             y = sps.linalg.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
-            #y = sps.linalg.lsqr((sps.eye(*DL.shape)-DL),z)[0].reshape((-1,1))
 
         elif self.algebraic_loops and self.support_directional_derivatives:
             pass
@@ -1312,27 +1306,25 @@ cdef class Master:
                 if opts["logging"]:
                     D = self.compute_global_D()
                     DL = D.dot(self.L)
-                    import numpy.linalg
-                    from scipy.linalg import expm
-                    print("At time: %E , rho(DL)=%s"%(tcur + step_size, str(numpy.linalg.eig(DL.todense())[0])))
+                    print("At time: %E , rho(DL)=%s"%(tcur + step_size, str(np.linalg.eig(DL.todense())[0])))
                     C = self.compute_global_C()
                     if C is not None:
                         C = C.todense()
                         _ident_matrix = np.eye(*DL.shape)
                         LIDLC = self.L.dot(np.linalg.solve(_ident_matrix-DL,C))
-                        print("           , rho(L(I-DL)^(-1)C)=%s"%(str(numpy.linalg.eig(LIDLC)[0])))
+                        print("           , rho(L(I-DL)^(-1)C)=%s"%(str(np.linalg.eig(LIDLC)[0])))
                     A = self.compute_global_A()
                     B = self.compute_global_B()
                     if C is not None and A is not None and B is not None:
                         A = A.todense(); B = B.todense()
-                        eAH = expm(A*step_size)
+                        eAH = sp.linalg.expm(A*step_size)
                         K1  = np.linalg.solve(_ident_matrix-DL,C)
                         K2  = np.linalg.solve(A,(eAH-np.eye(*eAH.shape)).dot(B.dot(self.L.todense())))
                         R1  = np.hstack((eAH, K1))
                         R2  = np.hstack((K2.dot(eAH), K2.dot(K1)))
                         G   = np.vstack((R1,R2))
                         G1  = K2.dot(K1)
-                        print("           , rho(G)=%s"%(str(numpy.linalg.eig(G1)[0])))
+                        print("           , rho(G)=%s"%(str(np.linalg.eig(G1)[0])))
                     
     
     def specify_external_input(self, input):
