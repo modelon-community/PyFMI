@@ -17,25 +17,18 @@
 
 # distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
 
+import time
+import numpy as np
+cimport numpy as np
+
 import pyfmi.fmi as fmi
 from pyfmi.fmi cimport FMUModelME2
 cimport fmil_import as FMIL
 
-from pyfmi.fmi_util import cpr_seed, enable_caching, Graph
+from pyfmi.fmi_util import enable_caching, Graph
 
 from collections import OrderedDict
-import time
-import warnings
-import numpy as np
-cimport numpy as np
-import scipy.optimize as sopt
-import scipy
-
-try:
-    from numpy.lib import NumpyVersion
-    USE_ROOT = NumpyVersion(scipy.version.version) >= "0.11.0"
-except ImportError: #Numpy version is < 1.9.0 so assume scipy version is the same
-    USE_ROOT = False
+import scipy.optimize as spopt
 
 def init_f_block(u, coupled, block):
     
@@ -1986,12 +1979,8 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 u = np.array(u).ravel()
                 
                 success = False
-                if USE_ROOT:
-                    res = sopt.root(init_f_block, u, args=(self,block))
-                    success = res["success"]
-                else:
-                    [res, info, ier, msg] = sopt.fsolve(init_f_block, u, args=(self,block), full_output=True)
-                    success = True if ier == 1 else False
+                res = spopt.root(init_f_block, u, args=(self,block))
+                success = res["success"]
                 
                 if not success:
                     raise fmi.FMUException("Failed to converge the block.")
@@ -2000,10 +1989,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 for model in block["outputs"].keys():
                     self.get_specific_connection_outputs(model, block["outputs_mask"][model], y)
                 
-                if USE_ROOT:
-                    res = sopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
-                else:
-                    res = sopt.fsolve(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
+                res = spopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
                 if not res["success"]:
                     print res
                     raise Exception("Failed to converge the initialization system.")

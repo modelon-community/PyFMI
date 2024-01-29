@@ -15,19 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import nose
 import os
 import numpy as np
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
-from pyfmi.fmi_coupled import CoupledFMUModelME2
 from pyfmi.fmi_extended import FMUModelME1Extended
-import pyfmi.fmi_util as fmi_util
-import pyfmi.fmi as fmi
-import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
-from pyfmi.tests.test_util import Dummy_FMUModelME2
-from pyfmi.common.io import ResultHandler
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 

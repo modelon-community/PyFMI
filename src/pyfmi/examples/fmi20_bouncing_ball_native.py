@@ -14,16 +14,16 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-import os as O
 
-import pylab as P
-import numpy as N
+import os
+import pylab as pl
+import numpy as np
 
 from pyfmi import load_fmu
 
-curr_dir = O.path.dirname(O.path.abspath(__file__));
-path_to_fmus = O.path.join(curr_dir, 'files', 'FMUs')
-path_to_fmus_me2 = O.path.join(path_to_fmus,"ME2.0")
+curr_dir = os.path.dirname(os.path.abspath(__file__))
+path_to_fmus = os.path.join(curr_dir, 'files', 'FMUs')
+path_to_fmus_me2 = os.path.join(path_to_fmus,"ME2.0")
 
 def run_demo(with_plots=True):
     """
@@ -39,7 +39,7 @@ def run_demo(with_plots=True):
     """
     
     #Load the FMU by specifying the fmu and the directory
-    bouncing_fmu = load_fmu(O.path.join(path_to_fmus_me2, 'bouncingBall.fmu'))
+    bouncing_fmu = load_fmu(os.path.join(path_to_fmus_me2, 'bouncingBall.fmu'))
 
     Tstart = 0.5 #The start time.
     Tend   = 3.0 #The final simulation time.
@@ -155,18 +155,18 @@ def run_demo(with_plots=True):
     #Plot the solution
     if with_plots:
         #Plot the height
-        P.figure(1)
-        P.plot(t_sol,N.array(sol)[:,0])
-        P.title(bouncing_fmu.get_name())
-        P.ylabel('Height (m)')
-        P.xlabel('Time (s)')
+        pl.figure(1)
+        pl.plot(t_sol,np.array(sol)[:,0])
+        pl.title(bouncing_fmu.get_name())
+        pl.ylabel('Height (m)')
+        pl.xlabel('Time (s)')
         #Plot the velocity
-        P.figure(2)
-        P.plot(t_sol,N.array(sol)[:,1])
-        P.title(bouncing_fmu.get_name())
-        P.ylabel('Velocity (m/s)')
-        P.xlabel('Time (s)')
-        P.show()
+        pl.figure(2)
+        pl.plot(t_sol,np.array(sol)[:,1])
+        pl.title(bouncing_fmu.get_name())
+        pl.ylabel('Velocity (m/s)')
+        pl.xlabel('Time (s)')
+        pl.show()
         
 if __name__ == "__main__":
     run_demo()

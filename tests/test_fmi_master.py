@@ -19,13 +19,10 @@ import nose
 import os
 import numpy as np
 
-from pyfmi import testattr
-from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
-import pyfmi.fmi_util as fmi_util
-import pyfmi.fmi as fmi
-from pyfmi import Master
-from pyfmi.tests.test_util import Dummy_FMUModelME2, Dummy_FMUModelCS2
-from pyfmi.common.io import ResultHandler
+from pyfmi import testattr, Master
+from pyfmi.fmi import FMUException, FMUModelCS2, FMUModelME2
+from pyfmi.tests.test_util import Dummy_FMUModelCS2
+from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -175,8 +172,6 @@ class Test_Master:
     
     @testattr(stddist = True)
     def test_basic_simulation_mat_file_naming(self):
-        from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
-        
         opts = {"result_handling":"binary", "result_file_name": "Should fail..."}
         
         try:
@@ -393,151 +388,3 @@ class Test_Master:
        
         assert abs(res[model_sub1].final("x1")) > 100
         assert abs(res[model_sub2].final("x2")) > 100
-
-
-"""
-To be migrated:
-
-       
-class Test_Master_Simulation:
-    @classmethod
-    def setUpClass(cls):
-        file_name = os.path.join(get_files_path(), 'Modelica', 'LinearCoSimulation.mo')
-       
-        cls.linear_full = compile_fmu("LinearCoSimulation.LinearFullSystem", file_name, target="cs", version="2.0")
-        cls.linear_sub1 = compile_fmu("LinearCoSimulation.LinearSubSystem1", file_name, target="cs", version="2.0")
-        cls.linear_sub2 = compile_fmu("LinearCoSimulation.LinearSubSystem2", file_name, target="cs", version="2.0")
-       
-        compiler_options={"generate_ode_jacobian": True}
-       
-        cls.linear_sub1_dir = compile_fmu("LinearCoSimulation.LinearSubSystem1", file_name, target="cs", version="2.0",
-                                    compiler_options={"generate_ode_jacobian": True}, compile_to="LinearSub1Dir.fmu")
-        cls.linear_sub2_dir = compile_fmu("LinearCoSimulation.LinearSubSystem2", file_name, target="cs", version="2.0",
-                                    compiler_options={"generate_ode_jacobian": True}, compile_to="LinearSub2Dir.fmu")
-
-    @testattr(stddist = True)
-    def test_linear_correction_simulation(self):
-        model = load_fmu(self.linear_full)
-       
-        model_sub1 = load_fmu(self.linear_sub1_dir)
-        model_sub2 = load_fmu(self.linear_sub2_dir)
-       
-        models = [model_sub1, model_sub2]
-        connections = [(model_sub1,"y1",model_sub2,"u2"),
-                   (model_sub2,"y2",model_sub1,"u1")]
-                   
-        master = Master(models, connections)
-       
-        opts = master.simulate_options()
-        opts["step_size"] = 0.0005
-        opts["extrapolation_order"] = 1
-        opts["linear_correction"] = True
-       
-        res = master.simulate(options=opts)
-       
-        res_full = model.simulate()
-       
-        nose.tools.assert_almost_equal(res[model_sub1].final("x1"), res_full.final("p1.x1"), 2)
-        nose.tools.assert_almost_equal(res[model_sub2].final("x2"), res_full.final("p2.x2"), 2)
-       
-    @testattr(stddist = True)
-    def test_basic_simulation_extrapolation(self):
-        model = load_fmu(self.linear_full)
-       
-        model.set("p1.d1", 0.1)
-       
-        model_sub1 = load_fmu(self.linear_sub1)
-        model_sub2 = load_fmu(self.linear_sub2)
-       
-        model_sub1.set("d1", 0.1)
-       
-        models = [model_sub1, model_sub2]
-        connections = [(model_sub1,"y1",model_sub2,"u2"),
-                   (model_sub2,"y2",model_sub1,"u1")]
-                   
-        master = Master(models, connections)
-       
-        opts = master.simulate_options()
-        opts["step_size"] = 0.0005
-        opts["extrapolation_order"] = 1
-       
-        res = master.simulate(options=opts)
-       
-        res_full = model.simulate()
-       
-        nose.tools.assert_almost_equal(res[model_sub1].final("x1"), res_full.final("p1.x1"), 2)
-        nose.tools.assert_almost_equal(res[model_sub2].final("x2"), res_full.final("p2.x2"), 2)
-       
-    @testattr(stddist = True)
-    def test_unstable_simulation_extrapolation(self):
-        model = load_fmu(self.linear_full)
-       
-        model_sub1 = load_fmu(self.linear_sub1)
-        model_sub2 = load_fmu(self.linear_sub2)
-       
-        models = [model_sub1, model_sub2]
-        connections = [(model_sub1,"y1",model_sub2,"u2"),
-                   (model_sub2,"y2",model_sub1,"u1")]
-                   
-        master = Master(models, connections)
-       
-        opts = master.simulate_options()
-        opts["step_size"] = 0.0005
-        opts["extrapolation_order"] = 1
-       
-        res = master.simulate(final_time=0.2, options=opts)
-       
-        res_full = model.simulate()
-       
-        #The coupled system is unstable with extrapolation 1
-        assert abs(res[model_sub1].final("x1")) > 100
-        assert abs(res[model_sub2].final("x2")) > 100
-       
-        #import pylab as plt
-        #plt.plot(res[model_sub1]["time"], res[model_sub1]["x1"])
-        #plt.plot(res_full["time"], res_full["p1.x1"])
-        #plt.show()
-
-    @testattr(stddist = True)
-    def test_initialize(self):
-        model = load_fmu(self.linear_full)
-        model.setup_experiment()
-        model.initialize()
-       
-        model_sub1 = load_fmu(self.linear_sub1)
-        model_sub2 = load_fmu(self.linear_sub2)
-       
-        models = [model_sub1, model_sub2]
-        connections = [(model_sub1,"y1",model_sub2,"u2"),
-                   (model_sub2,"y2",model_sub1,"u1")]
-                   
-        master = Master(models, connections)
-       
-        opts = master.simulate_options()
-        opts["step_size"] = 0.0005
-        opts["extrapolation_order"] = 1
-       
-        master.initialize(0, 1, opts)
-       
-        nose.tools.assert_almost_equal(model_sub1.get("y1"), model.get("p1.y1"), 2)
-        nose.tools.assert_almost_equal(model_sub2.get("y2"), model.get("p2.y2"), 2)
-       
-        model_sub1 = load_fmu(self.linear_sub1)
-        model_sub2 = load_fmu(self.linear_sub2)
-       
-        models = [model_sub1, model_sub2]
-        connections = [(model_sub1,"y1",model_sub2,"u2"),
-                   (model_sub2,"y2",model_sub1,"u1")]
-                   
-        master = Master(models, connections)
-       
-        opts = master.simulate_options()
-        opts["step_size"] = 0.0005
-        opts["extrapolation_order"] = 1
-        opts["block_initialization"] = True
-       
-        master.initialize(0, 1, opts)
-       
-        nose.tools.assert_almost_equal(model_sub1.get("y1"), model.get("p1.y1"), 2)
-        nose.tools.assert_almost_equal(model_sub2.get("y2"), model.get("p2.y2"), 2)
-"""
