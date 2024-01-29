@@ -19,10 +19,10 @@ Module for simulation algorithms to be used together with
 pyfmi.fmi.FMUModel*.simulate.
 """
 
-#from abc import ABCMeta, abstractmethod
 import logging as logging_module
 import time
-import numpy as N
+import numpy as np
+import scipy.optimize as spopt
 
 import pyfmi.fmi as fmi
 import pyfmi.fmi_coupled as fmi_coupled
@@ -41,7 +41,7 @@ PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT  = 0.15 #In percentage
 
 class FMIResult(JMResultBase):
     def __init__(self, model=None, result_file_name=None, solver=None,
-             result_data=None, options=None, status=0, detailed_timings=None):
+                 result_data=None, options=None, status=0, detailed_timings=None):
         JMResultBase.__init__(self,
                 model, result_file_name, solver, result_data, options)
         self.status = status
@@ -550,10 +550,10 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.solver_options['rtol'] = rtol
 
             #rtol was provided as a vector
-            if isinstance(self.solver_options["rtol"], N.ndarray) or isinstance(self.solver_options["rtol"], list):
+            if isinstance(self.solver_options["rtol"], np.ndarray) or isinstance(self.solver_options["rtol"], list):
 
                 #rtol all are all equal -> set it as scalar and use that
-                if N.all(N.isclose(self.solver_options["rtol"], self.solver_options["rtol"][0])):
+                if np.all(np.isclose(self.solver_options["rtol"], self.solver_options["rtol"][0])):
                     self.solver_options["rtol"] = self.solver_options["rtol"][0]
                     self.rtol = self.solver_options["rtol"]
 
@@ -606,7 +606,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                         except KeyError:
                             #Need to calculate the nnz.
                             [derv_state_dep, derv_input_dep] = self.model.get_derivatives_dependencies()
-                            nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+fnbr
+                            nnz = np.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+fnbr
                             if nnz/float(fnbr*fnbr) <= PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT:
                                 self.solver_options["linear_solver"] = "SPARSE"
                 else:
@@ -632,7 +632,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                     self.solver_options["atol"] = 0.01*self.rtol
                 else:
                     self.solver_options["atol"] = 0.01*self.rtol*self.model.nominal_continuous_states
-            elif isinstance(preinit_nominals, N.ndarray) and (N.size(preinit_nominals) > 0):
+            elif isinstance(preinit_nominals, np.ndarray) and (np.size(preinit_nominals) > 0):
                 # Heuristic:
                 # Try to find if atol was specified as "atol = factor * model.nominal_continuous_states",
                 # and if that's the case, recompute atol with nominals from after initialization.
@@ -679,7 +679,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                 solver_options["maxh"] = float(self.final_time - self.start_time) / float(self.options["ncp"])
 
         if "rtol" in solver_options:
-            rtol_is_vector      = (isinstance(self.solver_options["rtol"], N.ndarray) or isinstance(self.solver_options["rtol"], list))
+            rtol_is_vector      = (isinstance(self.solver_options["rtol"], np.ndarray) or isinstance(self.solver_options["rtol"], list))
             rtol_vector_support = self.simulator.supports.get("rtol_as_vector", False)
 
             if rtol_is_vector and not rtol_vector_support and self._rtol_as_scalar_fallback:
@@ -1054,7 +1054,7 @@ class FMICSAlg(AlgorithmBase):
         """
         result_handler = self.result_handler
         h = (self.final_time-self.start_time)/self.ncp
-        grid = N.linspace(self.start_time,self.final_time,self.ncp+1)[:-1]
+        grid = np.linspace(self.start_time,self.final_time,self.ncp+1)[:-1]
 
         status = 0
         final_time = self.start_time
@@ -1239,7 +1239,7 @@ class SciEstAlg(AlgorithmBase):
             scale = []
             for parameter in self.parameters:
                 scale.append(self.model.get_variable_nominal(parameter))
-            self.options["scaling"] = N.array(scale)
+            self.options["scaling"] = np.array(scale)
 
         if self.options["simulate_options"] == "Default":
             self.options["simulate_options"] = self.model.simulate_options()
@@ -1264,8 +1264,6 @@ class SciEstAlg(AlgorithmBase):
         """
         Runs the estimation.
         """
-        import scipy as sci
-        import scipy.optimize as sciopt
         from pyfmi.fmi_util import parameter_estimation_f
 
         #Define callback
@@ -1285,13 +1283,13 @@ class SciEstAlg(AlgorithmBase):
         p0 = []
         for i,parameter in enumerate(self.parameters):
             p0.append(self.model.get(parameter)/self.options["scaling"][i])
-        p0 = N.array(p0).flatten()
+        p0 = np.array(p0).flatten()
 
         print('\nRunning solver: ' + self.options["method"])
         print(' Initial parameters (scaled): ' + str(p0))
         print(' ')
 
-        res = sciopt.minimize(parameter_estimation_f, p0,
+        res = spopt.minimize(parameter_estimation_f, p0,
                                 args=(self.parameters, self.measurements, self.model, self.input, self.options),
                                 method=self.options["method"],
                                 bounds=None,

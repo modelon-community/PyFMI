@@ -24,24 +24,17 @@ required by Assimulo.
 import logging as logging_module
 from operator import index
 
-import numpy as N
-from numpy.core.einsumfunc import einsum
-
-from pyfmi.fmi import FMUException
-
-cimport numpy as N
-import numpy.linalg as LIN
-import scipy.sparse as sp
+import numpy as np
+cimport numpy as np
+import scipy.sparse as sps
 import time
 
-from pyfmi.common.io import ResultWriterDymola, ResultHandlerBinaryFile
+from pyfmi.common.io import ResultWriterDymola
 import pyfmi.fmi as fmi
+from pyfmi.fmi import FMUException
 from pyfmi.fmi cimport FMUModelME2
-from pyfmi.common import python3_flag
-from pyfmi.common.core import TrajectoryLinearInterpolation
 
 from timeit import default_timer as timer
-import time
 cimport fmil_import as FMIL
 
 try:
@@ -79,17 +72,17 @@ def write_data(simulator,write_scaled_result=False, result_file_name=''):
 
     model = simulator.problem._model
 
-    t = N.array(simulator.problem._sol_time)
-    r = N.array(simulator.problem._sol_real)
-    data = N.c_[t,r]
+    t = np.array(simulator.problem._sol_time)
+    r = np.array(simulator.problem._sol_real)
+    data = np.c_[t,r]
     if len(simulator.problem._sol_int) > 0 and len(simulator.problem._sol_int[0]) > 0:
-        i = N.array(simulator.problem._sol_int)
-        data = N.c_[data,i]
+        i = np.array(simulator.problem._sol_int)
+        data = np.c_[data,i]
     if len(simulator.problem._sol_bool) > 0 and len(simulator.problem._sol_bool[0]) > 0:
-        #b = N.array(simulator.problem._sol_bool).reshape(
+        #b = np.array(simulator.problem._sol_bool).reshape(
         #    -1,len(model._save_bool_variables_val))
-        b = N.array(simulator.problem._sol_bool)
-        data = N.c_[data,b]
+        b = np.array(simulator.problem._sol_bool)
+        data = np.c_[data,b]
 
     export = ResultWriterDymola(model)
     export.write_header(file_name=result_file_name)
@@ -151,7 +144,7 @@ class FMIODE(Explicit_Problem):
         #If there is no state in the model, add a dummy
         #state der(y)=0
         if f_nbr == 0:
-            self.y0 = N.array([0.0])
+            self.y0 = np.array([0.0])
 
         #Determine the result file name
         if result_file_name == '':
@@ -201,7 +194,7 @@ class FMIODE(Explicit_Problem):
                     input_value_refs.append(self._model.get_variable_valueref(name))
                     input_alias_type.append(-1.0 if self._model.get_variable_alias(name)[name] == -1 else 1.0)
             self.input_value_refs = input_value_refs
-            self.input_alias_type = input_alias_type if N.any(input_alias_type==-1) else 1.0
+            self.input_alias_type = input_alias_type if np.any(input_alias_type==-1) else 1.0
         self.input = input
 
     def rhs(self, t, y, sw=None):
@@ -226,7 +219,7 @@ class FMIODE(Explicit_Problem):
 
         #If there is no state, use the dummy
         if self._f_nbr == 0:
-            rhs = N.array([0.0])
+            rhs = np.array([0.0])
 
         return rhs
 
@@ -300,7 +293,7 @@ class FMIODE(Explicit_Problem):
 
             #Sets the inputs, if any
             if self.input is not None:
-                self._model.set_real(self.input_value_refs, self.input[1].eval(N.array([solver.t]))[0,:]*self.input_alias_type)
+                self._model.set_real(self.input_value_refs, self.input[1].eval(np.array([solver.t]))[0,:]*self.input_alias_type)
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
@@ -391,8 +384,8 @@ class FMIODE(Explicit_Problem):
 
             #Sets the inputs, if any
             if self.input is not None:
-                self._model.set_real(self.input_value_refs, self.input[1].eval(N.array([solver.t]))[0,:]*self.input_alias_type)
-                #self._model.set(self.input[0],self.input[1].eval(N.array([solver.t]))[0,:])
+                self._model.set_real(self.input_value_refs, self.input[1].eval(np.array([solver.t]))[0,:]*self.input_alias_type)
+                #self._model.set(self.input[0],self.input[1].eval(np.array([solver.t]))[0,:])
 
             #Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
@@ -526,8 +519,8 @@ class FMIODESENS(FMIODE):
         if parameters is not None:
             if not isinstance(parameters,list):
                 raise FMIModel_Exception("Parameters must be a list of names.")
-            self.p0 = N.array(model.get(parameters)).flatten()
-            self.pbar = N.array([N.abs(x) if N.abs(x) > 0 else 1.0 for x in self.p0])
+            self.p0 = np.array(model.get(parameters)).flatten()
+            self.pbar = np.array([np.abs(x) if np.abs(x) > 0 else 1.0 for x in self.p0])
         self.parameters = parameters
 
 
@@ -570,7 +563,7 @@ class FMIODESENS(FMIODE):
 
         #Sets the parameters, if any
         if self.parameters is not None:
-            p_data = N.array(solver.interpolate_sensitivity(t, 0)).flatten()
+            p_data = np.array(solver.interpolate_sensitivity(t, 0)).flatten()
 
         self.export.integration_point(solver)#parameter_data=p_data)
 
@@ -594,7 +587,7 @@ cdef class FMIODE2(cExplicit_Problem):
         self.input_names = []
         self.timings = {"handle_result": 0.0}
 
-        if type(model) == FMUModelME2: #isinstance(model, FMUModelME2):
+        if type(model)==FMUModelME2: #if isinstance(model, FMUModelME2):
             self.model_me2 = model
             self.model_me2_instance = 1
         else:
@@ -620,7 +613,7 @@ cdef class FMIODE2(cExplicit_Problem):
 
         #If there is no state in the model, add a dummy state der(y)=0
         if f_nbr == 0:
-            self.y0 = N.array([0.0])
+            self.y0 = np.array([0.0])
 
         #Determine the result file name
         if result_file_name == '':
@@ -650,12 +643,12 @@ cdef class FMIODE2(cExplicit_Problem):
 
             #Need to calculate the nnz.
             [derv_state_dep, derv_input_dep] = model.get_derivatives_dependencies()
-            self.jac_nnz = N.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+f_nbr
+            self.jac_nnz = np.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+f_nbr
 
         if extra_equations:
             self._extra_f_nbr = extra_equations.get_size()
             self._extra_y0    = extra_equations.y0
-            self.y0 = N.append(self.y0, self._extra_y0)
+            self.y0 = np.append(self.y0, self._extra_y0)
             self._extra_equations = extra_equations
 
             if hasattr(self._extra_equations, "jac"):
@@ -679,8 +672,8 @@ cdef class FMIODE2(cExplicit_Problem):
         else:
             self._synchronize_factor = 0.0
 
-        self._state_temp_1 = N.empty(f_nbr, dtype = N.double)
-        self._event_temp_1 = N.empty(g_nbr, dtype = N.double)
+        self._state_temp_1 = np.empty(f_nbr, dtype = np.double)
+        self._event_temp_1 = np.empty(g_nbr, dtype = np.double)
 
     def _adapt_input(self, input):
         if input is not None:
@@ -705,8 +698,8 @@ cdef class FMIODE2(cExplicit_Problem):
                     self.input_other.append(name)
                     input_other_mask.append(i)
 
-            self.input_real_mask  = N.array(input_real_mask)
-            self.input_other_mask = N.array(input_other_mask)
+            self.input_real_mask  = np.array(input_real_mask)
+            self.input_other_mask = np.array(input_other_mask)
 
             self._input_activated = 1
         else:
@@ -723,7 +716,7 @@ cdef class FMIODE2(cExplicit_Problem):
             if self.input_other:
                 self._model.set(self.input_other, values[self.input_other_mask])
 
-    cdef _update_model(self, double t, N.ndarray[double, ndim=1, mode="c"] y):
+    cdef _update_model(self, double t, np.ndarray[double, ndim=1, mode="c"] y):
         if self.model_me2_instance:
             #Moving data to the model
             self.model_me2._set_time(t)
@@ -740,7 +733,7 @@ cdef class FMIODE2(cExplicit_Problem):
         #Sets the inputs, if any
         self._set_input_values(t)
 
-    cdef int _compare(self, double t, N.ndarray[double, ndim=1, mode="c"] y):
+    cdef int _compare(self, double t, np.ndarray[double, ndim=1, mode="c"] y):
         cdef int res
 
         if self.model_me2_instance:
@@ -760,7 +753,7 @@ cdef class FMIODE2(cExplicit_Problem):
         else:
             return t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all())
 
-    def rhs(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw=None):
+    def rhs(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """
         The rhs (right-hand-side) for an ODE problem.
         """
@@ -790,14 +783,14 @@ cdef class FMIODE2(cExplicit_Problem):
 
         #If there is no state, use the dummy
         if self._f_nbr == 0:
-            der = N.array([0.0])
+            der = np.array([0.0])
 
         if self._extra_f_nbr > 0:
-            der = N.append(der, self._extra_equations.rhs(y_extra))
+            der = np.append(der, self._extra_equations.rhs(y_extra))
 
         return der
 
-    def jac(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw=None):
+    def jac(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """
         The jacobian function for an ODE problem.
         """
@@ -822,7 +815,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 msg = preface + '</%s>'%(solver_info_tag)
                 self._model.append_log_message("Model", 6, msg)
             
-            return N.array([[0.0]])
+            return np.array([[0.0]])
 
         A = self._model._get_A(add_diag=True, output_matrix=self._A)
         if self._A is None:
@@ -835,16 +828,16 @@ cdef class FMIODE2(cExplicit_Problem):
                     Jac = A.tocoo() #Convert to COOrdinate
                     A2 = self._extra_equations.jac(y_extra).tocoo()
 
-                    data = N.append(Jac.data, A2.data)
-                    row  = N.append(Jac.row, A2.row+self._f_nbr)
-                    col  = N.append(Jac.col, A2.col+self._f_nbr)
+                    data = np.append(Jac.data, A2.data)
+                    row  = np.append(Jac.row, A2.row+self._f_nbr)
+                    col  = np.append(Jac.col, A2.col+self._f_nbr)
 
                     #Convert to compresssed sparse column
-                    Jac = sp.coo_matrix((data, (row, col)))
+                    Jac = sps.coo_matrix((data, (row, col)))
                     Jac = Jac.tocsc()
                 else:
-                    Jac = N.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
-                    Jac[:self._f_nbr,:self._f_nbr] = A if isinstance(A, N.ndarray) else A.toarray()
+                    Jac = np.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
+                    Jac[:self._f_nbr,:self._f_nbr] = A if isinstance(A, np.ndarray) else A.toarray()
                     Jac[self._f_nbr:,self._f_nbr:] = self._extra_equations.jac(y_extra)
             else:
                 raise fmi.FMUException("No Jacobian provided for the extra equations")
@@ -857,7 +850,7 @@ cdef class FMIODE2(cExplicit_Problem):
 
         return Jac
 
-    def state_events(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw=None):
+    def state_events(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """
         The event indicator function for a ODE problem.
         """
@@ -880,7 +873,7 @@ cdef class FMIODE2(cExplicit_Problem):
         else:
             return self._model.get_event_indicators()
 
-    def time_events(self, double t, N.ndarray[double, ndim=1, mode="c"] y, sw=None):
+    def time_events(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """
         Time event function.
         """
@@ -981,7 +974,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 msg = preface + '</%s>'%(event_info_tag)
                 self._model.append_log_message("Model", 6, msg)
             else:
-                diag_data = N.ndarray(self._number_of_diagnostics_variables, dtype=float)
+                diag_data = np.ndarray(self._number_of_diagnostics_variables, dtype=float)
                 index = 0
                 diag_data[index] = solver.t
                 index +=1
@@ -1156,7 +1149,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 msg = preface + '</%s>'%(solver_info_tag)
                 self._model.append_log_message("Model", 6, msg)
             else:
-                diag_data = N.ndarray(self._number_of_diagnostics_variables, dtype=float)
+                diag_data = np.ndarray(self._number_of_diagnostics_variables, dtype=float)
                 index = 0
                 diag_data[index] = solver.t
                 index +=1
@@ -1336,8 +1329,8 @@ class FMIODESENS2(FMIODE2):
         if parameters is not None:
             if not isinstance(parameters,list):
                 raise FMIModel_Exception("Parameters must be a list of names.")
-            self.p0 = N.array(model.get(parameters)).flatten()
-            self.pbar = N.array([N.abs(x) if N.abs(x) > 0 else 1.0 for x in self.p0])
+            self.p0 = np.array(model.get(parameters)).flatten()
+            self.pbar = np.array([np.abs(x) if np.abs(x) > 0 else 1.0 for x in self.p0])
             self.param_valref = [model.get_variable_valueref(x) for x in parameters]
 
             for param in parameters:
@@ -1346,10 +1339,7 @@ class FMIODESENS2(FMIODE2):
                     raise FMIModel_Exception("The sensitivity parameters must be specified as inputs!")
 
         self.parameters = parameters
-        if python3_flag:
-            self.derivatives = [v.value_reference for i,v in model.get_derivatives_list().items()]
-        else:
-            self.derivatives = [v.value_reference for i,v in model.get_derivatives_list().iteritems()]
+        self.derivatives = [v.value_reference for i,v in model.get_derivatives_list().items()]
 
         if self._model.get_capability_flags()['providesDirectionalDerivatives']:
             use_rhs_sens = True

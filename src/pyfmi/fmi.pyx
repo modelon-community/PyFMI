@@ -27,7 +27,6 @@ For profiling:
 # distutils: define_macros=CYTHON_TRACE_NOGIL=1
 """
 import os
-import sys
 import logging
 import fnmatch
 import re
@@ -35,21 +34,20 @@ from collections import OrderedDict
 cimport cython
 from io import UnsupportedOperation
 
-import scipy.sparse as sp
-import numpy as N
-cimport numpy as N
+import scipy.sparse as sps
+import numpy as np
+cimport numpy as np
 from numpy cimport PyArray_DATA
 
 cimport pyfmi.fmil_import as FMIL
 
-from pyfmi.common.core import create_temp_dir, delete_temp_dir
-from pyfmi.common.core import create_temp_file, delete_temp_file
+from pyfmi.common.core import create_temp_dir
 
-from pyfmi.fmi_util import cpr_seed, enable_caching, python3_flag
+from pyfmi.fmi_util import cpr_seed, enable_caching
 from pyfmi.fmi_util cimport encode, decode
 
-int   = N.int32
-N.int = N.int32
+int   = np.int32
+np.int = np.int32
 
 """Basic flags related to FMI"""
 
@@ -143,8 +141,8 @@ FMI2_INITIAL_UNKNOWN    = 3
 
 DEF FORWARD_DIFFERENCE = 1
 DEF CENTRAL_DIFFERENCE = 2
-FORWARD_DIFFERENCE_EPS = (N.finfo(float).eps)**0.5
-CENTRAL_DIFFERENCE_EPS = (N.finfo(float).eps)**(1/3.0)
+FORWARD_DIFFERENCE_EPS = (np.finfo(float).eps)**0.5
+CENTRAL_DIFFERENCE_EPS = (np.finfo(float).eps)**(1/3.0)
 
 """Flags for evaluation of FMI Jacobians"""
 """Evaluate Jacobian w.r.t. states."""
@@ -1158,7 +1156,7 @@ cdef class IntegerType2(DeclaredType2):
     """
     Class defining data structure based on the XML element Enumeration.
     """
-    def __init__(self, name, description = "", quantity = "", min = -N.inf, max = N.inf):
+    def __init__(self, name, description = "", quantity = "", min = -np.inf, max = np.inf):
         DeclaredType2.__init__(self, name, description, quantity)
 
         self._min = min
@@ -1190,7 +1188,7 @@ cdef class RealType2(DeclaredType2):
     """
     Class defining data structure based on the XML element Enumeration.
     """
-    def __init__(self, name, description = "", quantity = "", min = -N.inf, max = N.inf, nominal = 1.0, unbounded = False,
+    def __init__(self, name, description = "", quantity = "", min = -np.inf, max = np.inf, nominal = 1.0, unbounded = False,
                 relative_quantity = False, display_unit = "", unit = ""):
         DeclaredType2.__init__(self, name, description, quantity)
 
@@ -1544,9 +1542,9 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiGetReal
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        cdef FMIL.size_t nref = N.size(val_ref)
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref, dtype=float, ndmin=1)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = np.array([0.0]*nref, dtype=float, ndmin=1)
 
         if nref == 0: ## get_real([])
             return val
@@ -1577,11 +1575,11 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiSetReal
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, copy=False, dtype=float).ravel()
-        cdef FMIL.size_t nref = N.size(val_ref)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = np.array(values, copy=False, dtype=float).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
 
-        if nref != N.size(val):
+        if nref != np.size(val):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
@@ -1611,9 +1609,9 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiGetInteger
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef FMIL.size_t nref = N.size(val_ref)
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = N.array([0]*nref, dtype=int,ndmin=1)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
+        cdef np.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = np.array([0]*nref, dtype=int,ndmin=1)
 
         if nref == 0: ## get_integer([])
             return val
@@ -1644,11 +1642,11 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiSetInteger
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = N.array(values, dtype=int,ndmin=1).ravel()
-        cdef FMIL.size_t nref = N.size(val_ref)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef np.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = np.array(values, dtype=int,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
 
-        if nref != N.size(val):
+        if nref != np.size(val):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
@@ -1679,11 +1677,11 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiGetBoolean
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef FMIL.size_t nref = N.size(val_ref)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
 
         if nref == 0: ## get_boolean([])
-            return N.array([])
+            return np.array([])
 
         cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
 
@@ -1699,7 +1697,7 @@ cdef class FMUModelBase(ModelBase):
         if status != 0:
             raise FMUException('Failed to get the Boolean values.')
 
-        return N.array(return_values)
+        return np.array(return_values)
 
     def set_boolean(self, valueref, values):
         """
@@ -1720,19 +1718,19 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiSetBoolean
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef FMIL.size_t nref = N.size(val_ref)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
 
         cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
 
-        values = N.array(values,ndmin=1).ravel()
+        values = np.array(values,ndmin=1).ravel()
         for i in range(nref):
             if values[i]:
                 (<FMIL.fmi1_boolean_t*>val)[i] = 1
             else:
                 (<FMIL.fmi1_boolean_t*>val)[i] = 0
 
-        if nref != N.size(values):
+        if nref != np.size(values):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
@@ -1764,8 +1762,8 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiGetString
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1, mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
-        cdef FMIL.size_t nref = N.size(input_valueref)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1, mode='c'] input_valueref = np.array(valueref, dtype=np.uint32, ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
 
         if nref == 0: ## get_string([])
             return []
@@ -1803,21 +1801,21 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiSetString
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef FMIL.fmi1_string_t* val = <FMIL.fmi1_string_t*>FMIL.malloc(sizeof(FMIL.fmi1_string_t)*N.size(val_ref))
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.fmi1_string_t* val = <FMIL.fmi1_string_t*>FMIL.malloc(sizeof(FMIL.fmi1_string_t)*np.size(val_ref))
 
         if not isinstance(values, list):
             raise FMUException(
                 'The values needs to be a list of values.')
-        if len(values) != N.size(val_ref):
+        if len(values) != np.size(val_ref):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
         values = [encode(item) for item in values]
-        for i in range(N.size(val_ref)):
+        for i in range(np.size(val_ref)):
             val[i] = values[i]
 
-        status = FMIL.fmi1_import_set_string(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, N.size(val_ref), val)
+        status = FMIL.fmi1_import_set_string(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, np.size(val_ref), val)
 
         FMIL.free(val)
 
@@ -2888,9 +2886,9 @@ cdef class FMUModelCS1(FMUModelBase):
         cdef int status
         cdef unsigned int max_output_derivative
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] orders
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
+        cdef np.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] orders
         cdef FMIL.fmi1_import_capabilities_t *fmu_capabilities
 
         fmu_capabilities = FMIL.fmi1_import_get_capabilities(self._fmu)
@@ -2901,20 +2899,20 @@ cdef class FMUModelCS1(FMUModelBase):
 
         if isinstance(variables,str):
             nref = 1
-            value_refs = N.array([0], dtype=N.uint32,ndmin=1).ravel()
-            orders = N.array(order, dtype=N.int32)
+            value_refs = np.array([0], dtype=np.uint32,ndmin=1).ravel()
+            orders = np.array(order, dtype=np.int32)
             value_refs[0] = self.get_variable_valueref(variables)
         elif isinstance(variables,list) and isinstance(variables[-1],str):
             nref = len(variables)
-            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).ravel()
-            orders = N.array([0]*nref, dtype=N.int32)
+            value_refs = np.array([0]*nref, dtype=np.uint32,ndmin=1).ravel()
+            orders = np.array([0]*nref, dtype=np.int32)
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
                 orders[i] = order
         else:
             raise FMUException("The variables must either be a string or a list of strings")
 
-        values = N.array([0.0]*nref,dtype=float, ndmin=1)
+        values = np.array([0.0]*nref,dtype=float, ndmin=1)
 
         status = FMIL.fmi1_import_get_real_output_derivatives(self._fmu, <FMIL.fmi1_value_reference_t*>value_refs.data, nref, <FMIL.fmi1_integer_t*>orders.data, <FMIL.fmi1_real_t*>values.data)
 
@@ -2976,30 +2974,30 @@ cdef class FMUModelCS1(FMUModelBase):
         cdef int status
         cdef int can_interpolate_inputs
         cdef FMIL.fmi1_import_capabilities_t *fmu_capabilities
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = N.array(orders, dtype=N.int32, ndmin=1).ravel()
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=float, ndmin=1).ravel()
-        cdef FMIL.size_t nref = N.size(val)
-        orders = N.array([0]*nref, dtype=N.int32)
+        cdef np.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = np.array(orders, dtype=np.int32, ndmin=1).ravel()
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = np.array(values, dtype=float, ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val)
+        orders = np.array([0]*nref, dtype=np.int32)
 
-        if nref != N.size(np_orders):
+        if nref != np.size(np_orders):
             raise FMUException("The number of variables must be the same as the number of orders.")
 
         fmu_capabilities = FMIL.fmi1_import_get_capabilities(self._fmu)
         can_interpolate_inputs = FMIL.fmi1_import_get_canInterpolateInputs(fmu_capabilities)
         #NOTE IS THIS THE HIGHEST ORDER OF INTERPOLATION OR SIMPLY IF IT CAN OR NOT?
 
-        for i in range(N.size(np_orders)):
+        for i in range(np.size(np_orders)):
             if np_orders[i] < 1:
                 raise FMUException("The order must be greater than zero.")
         if not can_interpolate_inputs:
             raise FMUException("The FMU does not support input derivatives.")
 
         if isinstance(variables,str):
-            value_refs = N.array([0], dtype=N.uint32,ndmin=1).ravel()
+            value_refs = np.array([0], dtype=np.uint32,ndmin=1).ravel()
             value_refs[0] = self.get_variable_valueref(variables)
         elif isinstance(variables,list) and isinstance(variables[-1],str):
-            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).ravel()
+            value_refs = np.array([0]*nref, dtype=np.uint32,ndmin=1).ravel()
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
         else:
@@ -3404,7 +3402,7 @@ cdef class FMUModelME1(FMUModelBase):
 
     def _get_continuous_states(self):
         cdef int status
-        cdef N.ndarray[double, ndim=1,mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
+        cdef np.ndarray[double, ndim=1,mode='c'] ndx = np.zeros(self._nContinuousStates, dtype=np.double)
         status = FMIL.fmi1_import_get_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data ,self._nContinuousStates)
 
         if status != 0:
@@ -3412,11 +3410,11 @@ cdef class FMUModelME1(FMUModelBase):
 
         return ndx
 
-    def _set_continuous_states(self, N.ndarray[FMIL.fmi1_real_t] values):
+    def _set_continuous_states(self, np.ndarray[FMIL.fmi1_real_t] values):
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = values
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = values
 
-        if N.size(ndx) != self._nContinuousStates:
+        if np.size(ndx) != self._nContinuousStates:
             raise FMUException(
                 'Failed to set the new continuous states. ' \
                 'The number of values are not consistent with the number of '\
@@ -3446,7 +3444,7 @@ cdef class FMUModelME1(FMUModelBase):
             The nominal values.
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1, mode='c'] xn = N.zeros(self._nContinuousStates, dtype=N.double)
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1, mode='c'] xn = np.zeros(self._nContinuousStates, dtype=np.double)
 
         status = self._get_nominal_continuous_states_fmil(<FMIL.fmi1_real_t*> xn.data, self._nContinuousStates)
         if status != 0:
@@ -3496,7 +3494,7 @@ cdef class FMUModelME1(FMUModelBase):
         Calls the low-level FMI function: fmiGetDerivatives
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nContinuousStates,dtype=N.double)
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = np.empty(self._nContinuousStates,dtype=np.double)
 
         if self._nContinuousStates > 0:
             status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
@@ -3524,7 +3522,7 @@ cdef class FMUModelME1(FMUModelBase):
         Calls the low-level FMI function: fmiGetEventIndicators
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nEventIndicators,dtype=N.double)
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = np.empty(self._nEventIndicators,dtype=np.double)
 
         status = FMIL.fmi1_import_get_event_indicators(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nEventIndicators)
 
@@ -3681,7 +3679,7 @@ cdef class FMUModelME1(FMUModelBase):
         Calls the low-level FMI function: fmiGetStateValueReferences
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] values = N.zeros(self._nContinuousStates,dtype=N.uint32)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] values = np.zeros(self._nContinuousStates,dtype=np.uint32)
 
         status = FMIL.fmi1_import_get_state_value_references(
             self._fmu, <FMIL.fmi1_value_reference_t*>values.data, self._nContinuousStates)
@@ -3945,27 +3943,6 @@ cdef class FMUModelME1(FMUModelBase):
             self._instantiated_fmu = 0
 
 
-cdef class _ForTestingFMUModelME1(FMUModelME1):
-
-    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx):
-        for i in range(nx):
-            if self._allocated_fmu == 1:  # If initialized
-                # Set new values to test that atol gets auto-corrected.
-                xnominal[i] = 3.0
-            else:
-                # Set some illegal values in order to test the fallback/auto-correction.
-                xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
-        return FMIL.fmi1_status_ok
-
-    cpdef set_allocated_fmu(self, int value):
-        self._allocated_fmu = value
-
-    def __dealloc__(self):
-        # Avoid segfaults in dealloc. The FMU binaries should never be loaded for this
-        # test class, so we should never try to terminate or deallocate the FMU instance.
-        self._allocated_fmu = 0
-
-
 cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
@@ -4189,7 +4166,7 @@ cdef class FMUModelBase2(ModelBase):
 
         self._log = []
 
-    cpdef N.ndarray get_real(self, valueref):
+    cpdef np.ndarray get_real(self, valueref):
         """
         Returns the real-values from the valuereference(s).
 
@@ -4210,9 +4187,9 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2GetReal
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        cdef FMIL.size_t nref = N.size(input_valueref)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            output_value   = N.zeros(nref)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            output_value   = np.zeros(nref)
 
         if nref == 0: ## get_real([])
             return output_value
@@ -4244,28 +4221,28 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int status
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = N.array(values, copy=False, dtype=float).ravel()
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = np.array(values, copy=False, dtype=float).ravel()
 
-        if N.size(input_valueref) != N.size(set_value):
+        if np.size(input_valueref) != np.size(set_value):
             raise FMUException('The length of valueref and values are inconsistent.')
 
-        status = FMIL.fmi2_import_set_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, N.size(input_valueref), <FMIL.fmi2_real_t*> set_value.data)
+        status = FMIL.fmi2_import_set_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, np.size(input_valueref), <FMIL.fmi2_real_t*> set_value.data)
 
         if status != 0:
             raise FMUException('Failed to set the Real values. See the log for possibly more information.')
 
-    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
-        return FMIL.fmi2_import_get_real(self._fmu, &valueref[0], size, &values[0])
+    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
+        return FMIL.fmi2_import_get_real(self._fmu, &valueref[0], _size, &values[0])
 
-    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
-        return FMIL.fmi2_import_get_real(self._fmu, vrefs, size, values)
+    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values):
+        return FMIL.fmi2_import_get_real(self._fmu, vrefs, _size, values)
 
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
-        return FMIL.fmi2_import_set_real(self._fmu, vrefs, size, values)
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size):
+        return FMIL.fmi2_import_set_real(self._fmu, vrefs, _size, values)
 
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values):
-        return FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], size, &values[0])
+    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values):
+        return FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], _size, &values[0])
 
     def get_integer(self, valueref):
         """
@@ -4288,9 +4265,9 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2GetInteger
         """
         cdef int         status
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef FMIL.size_t nref = N.size(input_valueref)
-        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         output_value   = N.zeros(nref, dtype=int)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         output_value   = np.zeros(nref, dtype=int)
 
         if nref == 0: ## get_integer([])
             return output_value
@@ -4321,11 +4298,11 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2SetInteger
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         set_value      = N.array(values, dtype=int,ndmin=1).ravel()
-        cdef FMIL.size_t nref = N.size(input_valueref)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef np.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         set_value      = np.array(values, dtype=int,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
 
-        if nref != N.size(set_value):
+        if nref != np.size(set_value):
             raise FMUException('The length of valueref and values are inconsistent.')
 
         status = FMIL.fmi2_import_set_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> set_value.data)
@@ -4333,13 +4310,13 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to set the Integer values. See the log for possibly more information.')
 
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
+    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
         cdef int status
-        cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*size)
+        cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*_size)
 
-        status = FMIL.fmi2_import_get_boolean(self._fmu, &valueref[0], size, <FMIL.fmi2_boolean_t*> output_value)
+        status = FMIL.fmi2_import_get_boolean(self._fmu, &valueref[0], _size, <FMIL.fmi2_boolean_t*> output_value)
 
-        for i in range(size):
+        for i in range(_size):
             values[i] = (<FMIL.fmi2_boolean_t*>output_value)[i]==1
 
         FMIL.free(output_value)
@@ -4367,11 +4344,11 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2GetBoolean
         """
         cdef int         status
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
-        cdef FMIL.size_t nref = N.size(input_valueref)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, dtype=np.uint32, ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
 
         if nref == 0: ## get_boolean([])
-            return N.array([])
+            return np.array([])
 
         cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
 
@@ -4387,7 +4364,7 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to get the Boolean values.')
 
-        return N.array(return_values)
+        return np.array(return_values)
 
     def set_boolean(self, valueref, values):
         """
@@ -4409,12 +4386,12 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int         status
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        cdef FMIL.size_t nref = N.size(input_valueref)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, dtype=np.uint32,ndmin=1).flatten()
+        cdef FMIL.size_t nref = np.size(input_valueref)
 
         cdef void* set_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
 
-        values = N.array(values,ndmin=1).ravel()
+        values = np.array(values,ndmin=1).ravel()
         for i in range(nref):
             if values[i]:
                 (<FMIL.fmi2_boolean_t*> set_value)[i] = 1
@@ -4452,8 +4429,8 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2GetString
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
-        cdef FMIL.size_t nref = N.size(input_valueref)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] input_valueref = np.array(valueref, dtype=np.uint32, ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
 
         if nref == 0: ## get_string([])
             return []
@@ -4492,21 +4469,21 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2SetString
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef FMIL.fmi2_string_t* val = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*N.size(val_ref))
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.fmi2_string_t* val = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*np.size(val_ref))
 
         if not isinstance(values, list):
             raise FMUException(
                 'The values needs to be a list of values.')
-        if len(values) != N.size(val_ref):
+        if len(values) != np.size(val_ref):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
         values = [encode(item) for item in values]
-        for i in range(N.size(val_ref)):
+        for i in range(np.size(val_ref)):
             val[i] = values[i]
 
-        status = FMIL.fmi2_import_set_string(self._fmu, <FMIL.fmi2_value_reference_t*>val_ref.data, N.size(val_ref), val)
+        status = FMIL.fmi2_import_set_string(self._fmu, <FMIL.fmi2_value_reference_t*>val_ref.data, np.size(val_ref), val)
 
         FMIL.free(val)
 
@@ -6119,7 +6096,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMUState2 internal_state = state
 
         cdef FMIL.size_t n_bytes
-        cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] serialized_fmu
+        cdef np.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] serialized_fmu
 
         cap1 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canSerializeFMUstate)
         cap2 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSerializeFMUstate)
@@ -6127,7 +6104,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('This FMU dos not support serialisation of FMU-state')
 
         n_bytes = self.serialized_fmu_state_size(state)
-        serialized_fmu = N.empty(n_bytes, dtype=N.byte)
+        serialized_fmu = np.empty(n_bytes, dtype=np.byte)
 
         status = FMIL.fmi2_import_serialize_fmu_state(self._fmu, internal_state.fmu_state, <FMIL.fmi2_byte_t*> serialized_fmu.data, n_bytes)
 
@@ -6159,7 +6136,7 @@ cdef class FMUModelBase2(ModelBase):
         """
 
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu[0]
+        cdef np.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu[0]
         cdef FMUState2 state = FMUState2()
         cdef FMIL.size_t n_byte = len(ser_fmu)
 
@@ -6327,18 +6304,11 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t *variable
         cdef FMIL.fmi2_import_variable_list_t *variable_list
 
-        if python3_flag:
-            outputs = list(self.get_output_list().keys())
-            states_dict = self.get_states_list()
-            states_list = list(states_dict.keys())
-            inputs_dict = self.get_input_list()
-            inputs_list = list(inputs_dict.keys())
-        else:
-            outputs = self.get_output_list().keys()
-            states_dict = self.get_states_list()
-            states_list = states_dict.keys()
-            inputs_dict = self.get_input_list()
-            inputs_list = inputs_dict.keys()
+        outputs = list(self.get_output_list().keys())
+        states_dict = self.get_states_list()
+        states_list = list(states_dict.keys())
+        inputs_dict = self.get_input_list()
+        inputs_list = list(inputs_dict.keys())
 
         states = OrderedDict()
         states_kind = OrderedDict()
@@ -6435,14 +6405,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t *variable
         cdef FMIL.fmi2_import_variable_list_t *variable_list
 
-        if python3_flag:
-            derivatives = list(self.get_derivatives_list().keys())
-            states_list = list(self.get_states_list().keys())
-            inputs_list = list(self.get_input_list().keys())
-        else:
-            derivatives = self.get_derivatives_list().keys()
-            states_list = self.get_states_list().keys()
-            inputs_list = self.get_input_list().keys()
+        derivatives = list(self.get_derivatives_list().keys())
+        states_list = list(self.get_states_list().keys())
+        inputs_list = list(self.get_input_list().keys())
 
         states = OrderedDict()
         states_kind = OrderedDict()
@@ -6520,8 +6485,8 @@ cdef class FMUModelBase2(ModelBase):
         cdef list data = [], row = [], col = []
         cdef list local_group
         cdef int nbr_var_ref  = len(var_ref), nbr_func_ref = len(func_ref)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v = N.zeros(nbr_var_ref, dtype = N.double)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] data_local
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v = np.zeros(nbr_var_ref, dtype = np.double)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] data_local
         cdef int ind_local = 5 if add_diag else 4
 
         if not self._has_entered_init_mode:
@@ -6530,7 +6495,7 @@ cdef class FMUModelBase2(ModelBase):
 
         if group is not None:
             if output_matrix is not None:
-                if not isinstance(output_matrix, sp.csc_matrix):
+                if not isinstance(output_matrix, sps.csc_matrix):
                     output_matrix = None
                 else:
                     data_local = output_matrix.data
@@ -6561,16 +6526,16 @@ cdef class FMUModelBase2(ModelBase):
                 A = output_matrix
             else:
                 if len(data) == 0:
-                    A = sp.csc_matrix((nbr_func_ref,nbr_var_ref))
+                    A = sps.csc_matrix((nbr_func_ref,nbr_var_ref))
                 else:
-                    A = sp.csc_matrix((data, (row, col)), (nbr_func_ref,nbr_var_ref))
+                    A = sps.csc_matrix((data, (row, col)), (nbr_func_ref,nbr_var_ref))
 
             return A
         else:
             if output_matrix is None or \
-                (not isinstance(output_matrix, N.ndarray)) or \
-                (isinstance(output_matrix, N.ndarray) and (output_matrix.shape[0] != nbr_func_ref or output_matrix.shape[1] != nbr_var_ref)):
-                    A = N.zeros((nbr_func_ref,nbr_var_ref))
+                (not isinstance(output_matrix, np.ndarray)) or \
+                (isinstance(output_matrix, np.ndarray) and (output_matrix.shape[0] != nbr_func_ref or output_matrix.shape[1] != nbr_var_ref)):
+                    A = np.zeros((nbr_func_ref,nbr_var_ref))
             else:
                 A = output_matrix
 
@@ -6583,10 +6548,7 @@ cdef class FMUModelBase2(ModelBase):
     def _get_A(self, use_structure_info=True, add_diag=True, output_matrix=None):
         if self._group_A is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
-            if python3_flag:
-                self._group_A = cpr_seed(derv_state_dep, list(self.get_states_list().keys()))
-            else:
-                self._group_A = cpr_seed(derv_state_dep, self.get_states_list().keys())
+            self._group_A = cpr_seed(derv_state_dep, list(self.get_states_list().keys()))
         if self._states_references is None:
             states                       = self.get_states_list()
             self._states_references      = [s.value_reference for s in states.values()]
@@ -6604,10 +6566,7 @@ cdef class FMUModelBase2(ModelBase):
     def _get_B(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_B is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
-            if python3_flag:
-                self._group_B = cpr_seed(derv_input_dep, list(self.get_input_list().keys()))
-            else:
-                self._group_B = cpr_seed(derv_input_dep, self.get_input_list().keys())
+            self._group_B = cpr_seed(derv_input_dep, list(self.get_input_list().keys()))
         if self._inputs_references is None:
             inputs                       = self.get_input_list()
             self._inputs_references      = [s.value_reference for s in inputs.values()]
@@ -6625,10 +6584,7 @@ cdef class FMUModelBase2(ModelBase):
     def _get_C(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_C is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
-            if python3_flag:
-                self._group_C = cpr_seed(out_state_dep, list(self.get_states_list().keys()))
-            else:
-                self._group_C = cpr_seed(out_state_dep, self.get_states_list().keys())
+            self._group_C = cpr_seed(out_state_dep, list(self.get_states_list().keys()))
         if self._states_references is None:
             states                       = self.get_states_list()
             self._states_references      = [s.value_reference for s in states.values()]
@@ -6646,10 +6602,7 @@ cdef class FMUModelBase2(ModelBase):
     def _get_D(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_D is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
-            if python3_flag:
-                self._group_D = cpr_seed(out_input_dep, list(self.get_input_list().keys()))
-            else:
-                self._group_D = cpr_seed(out_input_dep, self.get_input_list().keys())
+            self._group_D = cpr_seed(out_input_dep, list(self.get_input_list().keys()))
         if self._inputs_references is None:
             inputs                       = self.get_input_list()
             self._inputs_references      = [s.value_reference for s in inputs.values()]
@@ -6841,11 +6794,11 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.size_t nv, nz
 
         #input arrays
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.zeros(len(var_ref),  dtype = N.uint32)
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.zeros(len(func_ref), dtype = N.uint32)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dv    = N.zeros(len(v),        dtype = N.double)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = np.zeros(len(var_ref),  dtype = np.uint32)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = np.zeros(len(func_ref), dtype = np.uint32)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dv    = np.zeros(len(v),        dtype = np.double)
         #output array
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dz    = N.zeros(len(func_ref), dtype = N.double)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dz    = np.zeros(len(func_ref), dtype = np.double)
 
         if not self._provides_directional_derivatives():
             raise FMUException('This FMU does not provide directional derivatives')
@@ -6870,20 +6823,20 @@ cdef class FMUModelBase2(ModelBase):
 
         return dz
 
-    cdef int _get_directional_derivative(self, N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] v_ref,
-                                               N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] z_ref,
-                                               N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dv,
-                                               N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dz) except -1:
+    cdef int _get_directional_derivative(self, np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] v_ref,
+                                               np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] z_ref,
+                                               np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dv,
+                                               np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dz) except -1:
         cdef int status
 
-        assert N.size(dv) >= N.size(v_ref) and N.size(dz) >= N.size(z_ref)
+        assert np.size(dv) >= np.size(v_ref) and np.size(dz) >= np.size(z_ref)
 
         if not self._provides_directional_derivatives():
             raise FMUException('This FMU does not provide directional derivatives')
 
         status = FMIL.fmi2_import_get_directional_derivative(self._fmu,
-                  <FMIL.fmi2_value_reference_t*> v_ref.data, N.size(v_ref),
-                  <FMIL.fmi2_value_reference_t*> z_ref.data, N.size(z_ref),
+                  <FMIL.fmi2_value_reference_t*> v_ref.data, np.size(v_ref),
+                  <FMIL.fmi2_value_reference_t*> z_ref.data, np.size(z_ref),
                   <FMIL.fmi2_real_t*> dv.data,
                   <FMIL.fmi2_real_t*> dz.data)
 
@@ -7194,11 +7147,11 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         cdef int          status
         cdef unsigned int can_interpolate_inputs
-        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            val = N.array(values, dtype=float, ndmin=1).ravel()
-        cdef FMIL.size_t nref = N.size(val)
-        orders = N.array([0]*nref, dtype=N.int32)
+        cdef np.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            val = np.array(values, dtype=float, ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val)
+        orders = np.array([0]*nref, dtype=np.int32)
 
         can_interpolate_inputs = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canInterpolateInputs)
         #NOTE IS THIS THE HIGHEST ORDER OF INTERPOLATION OR SIMPLY IF IT CAN OR NOT?
@@ -7209,10 +7162,10 @@ cdef class FMUModelCS2(FMUModelBase2):
             raise FMUException("The FMU does not support input derivatives.")
 
         if isinstance(variables,str):
-            value_refs = N.array([0], dtype=N.uint32, ndmin=1).ravel()
+            value_refs = np.array([0], dtype=np.uint32, ndmin=1).ravel()
             value_refs[0] = self.get_variable_valueref(variables)
-        elif isinstance(variables,list) and N.prod([int(isinstance(v,str)) for v in variables]): #prod equals 0 or 1
-            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).ravel()
+        elif isinstance(variables,list) and np.prod([int(isinstance(v,str)) for v in variables]): #prod equals 0 or 1
+            value_refs = np.array([0]*nref, dtype=np.uint32,ndmin=1).ravel()
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
                 orders[i] = order
@@ -7226,16 +7179,16 @@ cdef class FMUModelCS2(FMUModelBase2):
         if status != 0:
             raise FMUException('Failed to set the Real input derivatives.')
 
-    cdef int _set_input_derivatives(self, N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] value_refs,
-                                          N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values,
-                                          N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
+    cdef int _set_input_derivatives(self, np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] value_refs,
+                                          np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values,
+                                          np.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
         cdef int status
 
-        assert N.size(values) >= N.size(value_refs) and N.size(orders) >= N.size(value_refs)
+        assert np.size(values) >= np.size(value_refs) and np.size(orders) >= np.size(value_refs)
 
         status = FMIL.fmi2_import_set_real_input_derivatives(self._fmu,
                         <FMIL.fmi2_value_reference_t*> value_refs.data,
-                        N.size(value_refs), <FMIL.fmi2_integer_t*> orders.data,
+                        np.size(value_refs), <FMIL.fmi2_integer_t*> orders.data,
                         <FMIL.fmi2_real_t*> values.data)
 
         return status
@@ -7261,9 +7214,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         cdef int status
         cdef unsigned int max_output_derivative
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            values
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            values
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
+        cdef np.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
 
         max_output_derivative = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_maxOutputDerivativeOrder)
 
@@ -7272,20 +7225,20 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         if isinstance(variables,str):
             nref = 1
-            value_refs = N.array([0], dtype=N.uint32, ndmin=1).ravel()
-            orders = N.array([order], dtype=N.int32)
+            value_refs = np.array([0], dtype=np.uint32, ndmin=1).ravel()
+            orders = np.array([order], dtype=np.int32)
             value_refs[0] = self.get_variable_valueref(variables)
-        elif isinstance(variables,list) and N.prod([int(isinstance(v,str)) for v in variables]): #prod equals 0 or 1
+        elif isinstance(variables,list) and np.prod([int(isinstance(v,str)) for v in variables]): #prod equals 0 or 1
             nref = len(variables)
-            value_refs = N.array([0]*nref, dtype=N.uint32, ndmin=1).ravel()
-            orders = N.array([0]*nref, dtype=N.int32)
+            value_refs = np.array([0]*nref, dtype=np.uint32, ndmin=1).ravel()
+            orders = np.array([0]*nref, dtype=np.int32)
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
                 orders[i] = order
         else:
             raise FMUException("The variables must either be a string or a list of strings")
 
-        values = N.array([0.0]*nref, dtype=float, ndmin=1)
+        values = np.array([0.0]*nref, dtype=float, ndmin=1)
 
         #status = FMIL.fmi2_import_get_real_output_derivatives(self._fmu, <FMIL.fmi2_value_reference_t*> value_refs.data, nref,
         #                                                    <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> values.data)
@@ -7296,15 +7249,15 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         return values
 
-    cdef int _get_output_derivatives(self, N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] value_refs,
-                                           N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values,
-                                           N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
+    cdef int _get_output_derivatives(self, np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] value_refs,
+                                           np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values,
+                                           np.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
         cdef int status
 
-        assert N.size(values) >= N.size(value_refs) and N.size(orders) >= N.size(value_refs)
+        assert np.size(values) >= np.size(value_refs) and np.size(orders) >= np.size(value_refs)
 
         status = FMIL.fmi2_import_get_real_output_derivatives(self._fmu,
-                    <FMIL.fmi2_value_reference_t*> value_refs.data, N.size(value_refs),
+                    <FMIL.fmi2_value_reference_t*> value_refs.data, np.size(value_refs),
                     <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> values.data)
 
         return status
@@ -7813,7 +7766,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
     cdef int _get_event_indicators(self, FMIL.fmi2_real_t[:] values):
         #if not values.flags['C_CONTIGUOUS']:
-        #    values = N.ascontiguousarray(values)
+        #    values = np.ascontiguousarray(values)
         if self._nEventIndicators > 0:
             return FMIL.fmi2_import_get_event_indicators(self._fmu, &values[0], self._nEventIndicators)
         else:
@@ -7835,7 +7788,7 @@ cdef class FMUModelME2(FMUModelBase2):
         Calls the low-level FMI function: fmiGetEventIndicators
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] values = N.empty(self._nEventIndicators, dtype=N.double)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] values = np.empty(self._nEventIndicators, dtype=np.double)
 
         status = self._get_event_indicators(values)
 
@@ -8009,7 +7962,7 @@ cdef class FMUModelME2(FMUModelBase2):
             The continuous states.
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] ndx = np.zeros(self._nContinuousStates, dtype=np.double)
         status = self._get_continuous_states_fmil(ndx)
 
         if status != 0:
@@ -8023,7 +7976,7 @@ cdef class FMUModelME2(FMUModelBase2):
         else:
             return FMIL.fmi2_status_ok
 
-    def _set_continuous_states(self, N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values):
+    def _set_continuous_states(self, np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values):
         """
         Set the values of the continuous states.
 
@@ -8033,9 +7986,9 @@ cdef class FMUModelME2(FMUModelBase2):
                 The new values of the continuous states.
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c'] ndx = values
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c'] ndx = values
 
-        if N.size(ndx) != self._nContinuousStates:
+        if np.size(ndx) != self._nContinuousStates:
             raise FMUException(
                 'Failed to set the new continuous states. ' \
                 'The number of values are not consistent with the number of '\
@@ -8064,7 +8017,7 @@ cdef class FMUModelME2(FMUModelBase2):
             The nominal values.
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] xn = N.zeros(self._nContinuousStates, dtype=N.double)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] xn = np.zeros(self._nContinuousStates, dtype=np.double)
 
         status = self._get_nominal_continuous_states_fmil(<FMIL.fmi2_real_t*> xn.data, self._nContinuousStates)
         if status != 0:
@@ -8118,7 +8071,7 @@ cdef class FMUModelME2(FMUModelBase2):
         Calls the low-level FMI function: fmi2GetDerivatives
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] values = N.empty(self._nContinuousStates, dtype = N.double)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] values = np.empty(self._nContinuousStates, dtype = np.double)
 
         status = self._get_derivatives(values)
 
@@ -8283,9 +8236,9 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef double tmp_nominal, fac, tmp
         cdef int method = FORWARD_DIFFERENCE if self.force_finite_differences is True or self.force_finite_differences == 0 else CENTRAL_DIFFERENCE
         cdef double RUROUND = FORWARD_DIFFERENCE_EPS if method == FORWARD_DIFFERENCE else CENTRAL_DIFFERENCE_EPS
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert, df, eps, nominals
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.array(var_ref, copy=False, dtype = N.uint32)
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.array(func_ref, copy=False, dtype = N.uint32)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert, df, eps, nominals
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = np.array(var_ref, copy=False, dtype = np.uint32)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = np.array(func_ref, copy=False, dtype = np.uint32)
         cdef int ind_local = 5 if add_diag else 4
         cdef list local_group
 
@@ -8330,11 +8283,11 @@ cdef class FMUModelME2(FMUModelBase2):
             else: # First time extraction of nominals
                 #If we are using the states, then the nominals should instead be picked up from the C callback function for nominals
                 if self._states_references and len_v == len(self._states_references) and (self._states_references[i] == var_ref[i] for i in range(len_v)):
-                    group["nominals"] = N.array(self.nominal_continuous_states, dtype=float)
+                    group["nominals"] = np.array(self.nominal_continuous_states, dtype=float)
                     nominals = group["nominals"]
                     nominals_pt = <FMIL.fmi2_real_t*>PyArray_DATA(nominals)
                 else:
-                    group["nominals"] = N.empty(len_v, dtype=float)
+                    group["nominals"] = np.empty(len_v, dtype=float)
                     nominals = group["nominals"]
                     nominals_pt = <FMIL.fmi2_real_t*>PyArray_DATA(nominals)
                     for i in range(len_v):
@@ -8349,7 +8302,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         if group is not None:
             if output_matrix is not None:
-                if not isinstance(output_matrix, sp.csc_matrix):
+                if not isinstance(output_matrix, sps.csc_matrix):
                     output_matrix = None
                 else:
                     output_matrix_data_pt = <FMIL.fmi2_real_t*>PyArray_DATA(output_matrix.data)
@@ -8442,23 +8395,23 @@ cdef class FMUModelME2(FMUModelBase2):
                 A = output_matrix
             else:
                 if len(data) == 0:
-                    A = sp.csc_matrix((len_f,len_v))
+                    A = sps.csc_matrix((len_f,len_v))
                 else:
-                    A = sp.csc_matrix((data, (row, col)), (len_f,len_v))
+                    A = sps.csc_matrix((data, (row, col)), (len_f,len_v))
 
             return A
         else:
             if output_matrix is None or \
-                (not isinstance(output_matrix, N.ndarray)) or \
-                (isinstance(output_matrix, N.ndarray) and (output_matrix.shape[0] != len_f or output_matrix.shape[1] != len_v)):
-                    A = N.zeros((len_f,len_v))
+                (not isinstance(output_matrix, np.ndarray)) or \
+                (isinstance(output_matrix, np.ndarray) and (output_matrix.shape[0] != len_f or output_matrix.shape[1] != len_v)):
+                    A = np.zeros((len_f,len_v))
             else:
                 A = output_matrix
 
             if len_v == 0 or len_f == 0:
                 return A
 
-            dfpert = N.zeros(len_f, dtype = N.double)
+            dfpert = np.zeros(len_f, dtype = np.double)
             df = df[:len_f] #Should be removed in the future
             for i in range(len_v):
                 tmp = v_pt[i]
@@ -8497,80 +8450,6 @@ cdef class FMUModelME2(FMUModelBase2):
 
             return A
 
-cdef class _ForTestingFMUModelME2(FMUModelME2):
-    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
-        vr = N.zeros(size)
-        for i in range(size):
-            vr[i] = vrefs[i]
-
-        try:
-            vv = self.get_real(vr)
-        except Exception:
-            return FMIL.fmi2_status_error
-
-        for i in range(size):
-            values[i] = vv[i]
-
-        return FMIL.fmi2_status_ok
-
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
-        vr = N.zeros(size)
-        vv = N.zeros(size)
-        for i in range(size):
-            vr[i] = vrefs[i]
-            vv[i] = values[i]
-
-        try:
-            self.set_real(vr, vv)
-        except Exception:
-            return FMIL.fmi2_status_error
-
-        return FMIL.fmi2_status_ok
-
-    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
-        try:
-            tmp = self.get_real(valueref)
-            for i in range(size):
-                values[i] = tmp[i]
-        except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
-
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values):
-        try:
-            tmp = self.get_integer(valueref)
-            for i in range(size):
-                values[i] = tmp[i]
-        except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
-
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
-        try:
-            tmp = self.get_boolean(valueref)
-            for i in range(size):
-                values[i] = tmp[i]
-        except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
-
-    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx):
-        for i in range(nx):
-            if self._initialized_fmu == 1:
-                # Set new values to test that atol gets auto-corrected.
-                xnominal[i] = 3.0
-            else:
-                # Set some illegal values in order to test the fallback/auto-correction.
-                xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
-        return FMIL.fmi2_status_ok
-
-    cpdef set_initialized_fmu(self, int value):
-        self._initialized_fmu = value
-
-    def __dealloc__(self):
-        # Avoid segfaults in dealloc. The FMU binaries should never be loaded for this
-        # test class, so we should never try to terminate or deallocate the FMU instance.
-        self._initialized_fmu = 0
 
 def _handle_load_fmu_exception(fmu, log_data):
     for log in log_data:
@@ -8856,22 +8735,22 @@ cdef class WorkerClass2:
         self._dim = 0
 
     def _update_work_vectors(self, dim):
-        self._tmp1_val = N.zeros(dim, dtype = N.double)
-        self._tmp2_val = N.zeros(dim, dtype = N.double)
-        self._tmp3_val = N.zeros(dim, dtype = N.double)
-        self._tmp4_val = N.zeros(dim, dtype = N.double)
+        self._tmp1_val = np.zeros(dim, dtype = np.double)
+        self._tmp2_val = np.zeros(dim, dtype = np.double)
+        self._tmp3_val = np.zeros(dim, dtype = np.double)
+        self._tmp4_val = np.zeros(dim, dtype = np.double)
 
-        self._tmp1_ref = N.zeros(dim, dtype = N.uint32)
-        self._tmp2_ref = N.zeros(dim, dtype = N.uint32)
-        self._tmp3_ref = N.zeros(dim, dtype = N.uint32)
-        self._tmp4_ref = N.zeros(dim, dtype = N.uint32)
+        self._tmp1_ref = np.zeros(dim, dtype = np.uint32)
+        self._tmp2_ref = np.zeros(dim, dtype = np.uint32)
+        self._tmp3_ref = np.zeros(dim, dtype = np.uint32)
+        self._tmp4_ref = np.zeros(dim, dtype = np.uint32)
 
     cpdef verify_dimensions(self, int dim):
         if dim > self._dim:
             self._update_work_vectors(dim)
 
-    cdef N.ndarray get_real_numpy_vector(self, int index):
-        cdef N.ndarray ret = None
+    cdef np.ndarray get_real_numpy_vector(self, int index):
+        cdef np.ndarray ret = None
 
         if index == 0:
             ret = self._tmp1_val
@@ -8897,8 +8776,8 @@ cdef class WorkerClass2:
 
         return ret
 
-    cdef N.ndarray get_value_reference_numpy_vector(self, int index):
-        cdef N.ndarray ret = None
+    cdef np.ndarray get_value_reference_numpy_vector(self, int index):
+        cdef np.ndarray ret = None
 
         if index == 0:
             ret = self._tmp1_ref
