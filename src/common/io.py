@@ -2229,10 +2229,10 @@ class ResultHandlerFile(ResultHandler):
             vref = dtype[0]
             if dtype[1] == fmi.FMI_REAL:
                 str_text = str_text + (
-                    " %.14E" % (self.model.get_real([vref])))
+                    " %.14E" % (self.model.get_real([vref])[0]))
             elif dtype[1] == fmi.FMI_INTEGER or dtype[1] == fmi.FMI_ENUMERATION:
                 str_text = str_text + (
-                    " %.14E" % (self.model.get_integer([vref])))
+                    " %.14E" % (self.model.get_integer([vref])[0]))
             elif dtype[1] == fmi.FMI_BOOLEAN:
                 str_text = str_text + (
                     " %.14E" % (float(
