@@ -1,7 +1,7 @@
 #!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2010-2022 Modelon AB
+# Copyright (C) 2010-2024 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -149,7 +149,7 @@ class ModelBase(object):
             Exception if algorithm is not a subclass of 
             common.algorithm_drivers.AlgorithmBase.
         """
-        from pyfmi.algorithm_drivers import AlgorithmBase
+        from pyfmi.common.algorithm_drivers import AlgorithmBase
         
         if isinstance(algorithm, str):
             module = __import__(module, globals(), locals(), [algorithm], 0)
@@ -182,7 +182,7 @@ class ModelBase(object):
             Exception if algorithm is not a subclass of 
             common.algorithm_drivers.AlgorithmBase.
         """
-        from pyfmi.algorithm_drivers import AlgorithmBase
+        from pyfmi.common.algorithm_drivers import AlgorithmBase
         
         if isinstance(algorithm, str):
             module = __import__(module, globals(), locals(), [algorithm], 0)
