@@ -23,6 +23,7 @@ import warnings
 from pyfmi import testattr, Master
 from pyfmi.fmi import FMUException, FMUModelCS2, FMUModelME2
 from pyfmi.tests.test_util import Dummy_FMUModelCS2
+from pyfmi.common.io import ResultHandler
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 
 file_path = os.path.dirname(os.path.abspath(__file__))
@@ -266,8 +267,8 @@ class Test_Master:
        
         res = master.simulate(options=opts)
         
-        assert res[models[0]]._result_data == None, "Result is not none"
-        assert res[models[1]]._result_data == None, "Result is not none"
+        assert res[models[0]]._result_data is None, "Result is not none"
+        assert res[models[1]]._result_data is None, "Result is not none"
         
     @testattr(stddist = True)
     def test_basic_simulation_with_block_initialization(self):
