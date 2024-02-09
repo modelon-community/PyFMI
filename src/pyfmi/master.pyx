@@ -34,7 +34,7 @@ import scipy.optimize as spopt
 
 import pyfmi.fmi as fmi
 from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
-from pyfmi.common.io import ResultHandlerFile, ResultHandlerDummy, ResultHandlerBinaryFile
+from pyfmi.common.io import get_result_handler
 from pyfmi.common.core import TrajectoryLinearInterpolation, TrajectoryUserFunction
 from pyfmi.fmi cimport FMUModelCS2
 cimport fmil_import as FMIL
