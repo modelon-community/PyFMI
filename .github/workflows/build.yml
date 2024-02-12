@@ -15,7 +15,7 @@ jobs:
         python-version: '3.11.x'
     - name: Setup Python
       run: |
-        python3 -m pip install Cython numpy scipy matplotlib nose-py3 setuptools==69.1.0
+        python3 -m pip install Cython numpy scipy matplotlib pytest setuptools==69.1.0
     - name: Install system
       run: |
         sudo apt-get -y install cmake liblapack-dev libsuitesparse-dev libhypre-dev
@@ -60,4 +60,4 @@ jobs:
       run: |
         rm src/pyfmi/__init__.py
         cp -rv src/pyfmi/tests/files tests
-        python3 -m nose --verbose tests/*.py
+        pytest --verbose tests/
