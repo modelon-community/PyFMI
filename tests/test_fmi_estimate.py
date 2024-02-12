@@ -18,7 +18,6 @@
 import os
 import numpy as np
 
-from pyfmi import testattr
 from pyfmi.tests.test_util import Dummy_FMUModelME2
 from scipy.io.matlab.mio import loadmat
 
@@ -32,8 +31,6 @@ file_path = os.path.dirname(os.path.abspath(__file__))
 
 if assimulo_installed:
     class Test_FMUModelME2_Estimate:
-        
-        @testattr(stddist = True)
         def test_quadtank_estimate(self):
             model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "QuadTankPack_Sim_QuadTank.fmu"), _connect_dll=False)
 
