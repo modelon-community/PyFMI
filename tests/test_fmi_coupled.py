@@ -15,10 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import nose
+import pytest
 import os
 
-from pyfmi import testattr
 from pyfmi.fmi import FMUModelME2
 from pyfmi.fmi_coupled import CoupledFMUModelME2
 import pyfmi.fmi as fmi
@@ -36,7 +35,6 @@ me2_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0")
 
 if assimulo_installed:
     class Test_CoupledFMUModelME2_Simulation:
-        @testattr(stddist = True)
         def test_linear_example(self):
             model_sub_1 = Dummy_FMUModelME2([], os.path.join(me2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
             model_sub_2 = Dummy_FMUModelME2([], os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
@@ -76,20 +74,18 @@ if assimulo_installed:
 
             res = coupled.simulate(options=opts)
 
-            nose.tools.assert_almost_equal(res.final("First.x1"),0.08597302307099872)
-            nose.tools.assert_almost_equal(res.final("Second.x2"),0.0083923348082567)
-            nose.tools.assert_almost_equal(res.initial("First.x1"),1.0)
-            nose.tools.assert_almost_equal(res.initial("Second.x2"),1.0)
+            assert res.final("First.x1") == pytest.approx(0.08597302307099872)
+            assert res.final("Second.x2") == pytest.approx(0.0083923348082567)
+            assert res.initial("First.x1") == pytest.approx(1.0)
+            assert res.initial("Second.x2") == pytest.approx(1.0)
             
-            nose.tools.assert_almost_equal(res.final("First.u1"),-0.25909975860402856)
-            nose.tools.assert_almost_equal(res.final("Second.u2"),-0.0011806893910324295)
-            nose.tools.assert_almost_equal(res.initial("First.u1"),-17.736842105263158)
-            nose.tools.assert_almost_equal(res.initial("Second.u2"),-14.73684210526316)
+            assert res.final("First.u1") == pytest.approx(-0.25909975860402856)
+            assert res.final("Second.u2") == pytest.approx(-0.0011806893910324295)
+            assert res.initial("First.u1") == pytest.approx(-17.736842105263158)
+            assert res.initial("Second.u2") == pytest.approx(-14.73684210526316)
         
 
 class Test_CoupledFMUModelME2:
-    
-    @testattr(stddist = True)
     def test_reversed_connections(self):
         model_sub_1 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
         model_sub_2 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
@@ -99,16 +95,16 @@ class Test_CoupledFMUModelME2:
         connections = [(model_sub_2,"y1",model_sub_1,"u2"),
                        (model_sub_1,"y2",model_sub_2,"u1")]
         
-        nose.tools.assert_raises(fmi.FMUException,  CoupledFMUModelME2, models, connections)
+        with pytest.raises(fmi.FMUException):
+            CoupledFMUModelME2(models, connections)
         
         connections = [(model_sub_2,"u2",model_sub_1,"y1"),
                        (model_sub_1,"u1",model_sub_2,"y2")]
                        
-        nose.tools.assert_raises(fmi.FMUException,  CoupledFMUModelME2, models, connections)
+        with pytest.raises(fmi.FMUException):
+            CoupledFMUModelME2(models, connections)
     
-    @testattr(stddist = True)
     def test_inputs_list(self):
-        
         model_sub_1 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
         model_sub_2 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
         model_full  = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.FullSystem.fmu"), _connect_dll=False)
@@ -128,7 +124,6 @@ class Test_CoupledFMUModelME2:
         assert "First.u1" in vars
         assert "Second.u2" in vars
     
-    @testattr(stddist = True)
     def test_alias(self):
         model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
@@ -142,7 +137,6 @@ class Test_CoupledFMUModelME2:
         assert "First.J4.phi" in aliases.keys()
         assert coupled.get_variable_alias_base("First.J4.phi") == "First.J4.flange_a.phi"
     
-    @testattr(stddist = True)
     def test_loading(self):
         model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
@@ -150,24 +144,28 @@ class Test_CoupledFMUModelME2:
         models = [model_cc_1, model_cc_2]
         connections = []
         
-        nose.tools.assert_raises(fmi.FMUException, CoupledFMUModelME2, models, connections)
+        with pytest.raises(fmi.FMUException):
+            CoupledFMUModelME2(models, connections)
         
         models = [("First", model_cc_1), model_cc_2]
-        nose.tools.assert_raises(fmi.FMUException, CoupledFMUModelME2, models, connections)
+        with pytest.raises(fmi.FMUException):
+            CoupledFMUModelME2(models, connections)
         
         models = [("First", model_cc_1), ("First", model_cc_2)]
-        nose.tools.assert_raises(fmi.FMUException, CoupledFMUModelME2, models, connections)
+        with pytest.raises(fmi.FMUException):
+            CoupledFMUModelME2(models, connections)
         
         models = [("First", model_cc_1), ("Second", model_cc_2)]
         coupled = CoupledFMUModelME2(models, connections)
         
         connections = [("k")]
-        nose.tools.assert_raises(fmi.FMUException, CoupledFMUModelME2, models, connections)
+        with pytest.raises(fmi.FMUException):
+            CoupledFMUModelME2(models, connections)
         
         connections = [(model_cc_1, "J1.phi", model_cc_2, "J2.phi")]
-        nose.tools.assert_raises(fmi.FMUException, CoupledFMUModelME2, models, connections)
+        with pytest.raises(fmi.FMUException):
+            CoupledFMUModelME2(models, connections)
     
-    @testattr(stddist = True)
     def test_get_variable_valueref(self):
         model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
@@ -177,7 +175,8 @@ class Test_CoupledFMUModelME2:
         
         coupled = CoupledFMUModelME2(models, connections)
         
-        nose.tools.assert_raises(fmi.FMUException,  coupled.get_variable_valueref, "J1.w")
+        with pytest.raises(fmi.FMUException):
+            coupled.get_variable_valueref("J1.w")
         
         vr_1 = coupled.get_variable_valueref("First.J1.w")
         vr_2 = coupled.get_variable_valueref("Second.J1.w")
@@ -190,7 +189,6 @@ class Test_CoupledFMUModelME2:
         assert var_name_1 == "First.J1.w"
         assert var_name_2 == "Second.J1.w"
     
-    @testattr(stddist = True)
     def test_ode_sizes(self):
         model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
@@ -205,7 +203,6 @@ class Test_CoupledFMUModelME2:
         assert nbr_states == 16
         assert nbr_event_ind == 66
     
-    @testattr(stddist = True)
     def test_variable_variability(self):
         model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
@@ -215,13 +212,13 @@ class Test_CoupledFMUModelME2:
         
         coupled = CoupledFMUModelME2(models, connections)
         
-        nose.tools.assert_raises(fmi.FMUException,  coupled.get_variable_variability, "J1.w")
+        with pytest.raises(fmi.FMUException):
+            coupled.get_variable_variability("J1.w")
         
         variability = coupled.get_variable_variability("First.J1.w")
         
         assert variability == model_cc_1.get_variable_variability("J1.w")
     
-    @testattr(stddist = True)
     def test_variable_causality(self):
         model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
@@ -231,13 +228,13 @@ class Test_CoupledFMUModelME2:
         
         coupled = CoupledFMUModelME2(models, connections)
         
-        nose.tools.assert_raises(fmi.FMUException,  coupled.get_variable_causality, "J1.w")
+        with pytest.raises(fmi.FMUException):
+            coupled.get_variable_causality("J1.w")
         
         causality = coupled.get_variable_causality("First.J1.w")
         
         assert causality == model_cc_1.get_variable_causality("J1.w")
     
-    @testattr(stddist = True)
     def test_derivatives_list(self):
         model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
@@ -255,7 +252,6 @@ class Test_CoupledFMUModelME2:
             alias_vars = coupled.get_variable_alias(var).keys()
             assert state in alias_vars
     
-    @testattr(stddist = True)
     def test_states_list(self):
         model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
@@ -273,7 +269,6 @@ class Test_CoupledFMUModelME2:
             alias_vars = coupled.get_variable_alias(var).keys()
             assert state in alias_vars
     
-    @testattr(stddist = True)
     def test_model_variables(self):
         model_cc_1 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
         model_cc_2 = FMUModelME2(os.path.join(me2_xml_path, "CoupledClutches.fmu"), _connect_dll=False)

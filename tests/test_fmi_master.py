@@ -15,11 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import nose
+import pytest
 import os
 import numpy as np
 
-from pyfmi import testattr, Master
+from pyfmi import Master
 from pyfmi.fmi import FMUException, FMUModelCS2, FMUModelME2
 from pyfmi.tests.test_util import Dummy_FMUModelCS2
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
@@ -33,8 +33,6 @@ import warnings
 warnings.filterwarnings("ignore")
 
 class Test_Master:
-    
-    @testattr(stddist = True)
     def test_loading_models(self):
         model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
         model_sub2 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
@@ -46,7 +44,6 @@ class Test_Master:
         #Assert that loading is successful
         sim = Master(models, connections)
     
-    @testattr(stddist = True)
     def test_loading_wrong_model(self):
         model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
         model_sub2 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
@@ -55,9 +52,9 @@ class Test_Master:
         connections = [(model_sub1,"y1",model_sub2,"u2"),
                    (model_sub2,"y2",model_sub1,"u1")]
         
-        nose.tools.assert_raises(FMUException, Master, models, connections)
+        with pytest.raises(FMUException):
+            Master(models, connections)
     
-    @testattr(stddist = True)
     def test_connection_variables(self):
         model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
         model_sub2 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
@@ -68,15 +65,16 @@ class Test_Master:
         connections = [(model_sub1,"y1",model_sub2,"x2"),
                    (model_sub2,"y2",model_sub1,"u1")]
                    
-        nose.tools.assert_raises(FMUException, Master, models, connections)
+        with pytest.raises(FMUException):
+            Master(models, connections)
        
         #Test wrong input / output order
         connections = [(model_sub2,"u2", model_sub1,"y1"),
                    (model_sub2,"y2",model_sub1,"u1")]
                    
-        nose.tools.assert_raises(FMUException, Master, models, connections)
+        with pytest.raises(FMUException):
+            Master(models, connections)
     
-    @testattr(stddist = True)
     def test_basic_algebraic_loop(self):
         model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
         model_sub2 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
@@ -145,8 +143,8 @@ class Test_Master:
         opts.update(opts_update)
         res = master.simulate(options=opts)
         
-        nose.tools.assert_almost_equal(res[models[0]].final("x1"), 0.0859764038708439, 3)
-        nose.tools.assert_almost_equal(res[models[1]].final("x2"), 0.008392664839635064, 4)
+        assert res[models[0]].final("x1") == pytest.approx(0.0859764038708439, abs = 1e-3)
+        assert res[models[1]].final("x2") == pytest.approx(0.008392664839635064, abs = 1e-4)
         
         return res
     
@@ -155,17 +153,14 @@ class Test_Master:
         self._sim_basic_simulation(models, connections, opts_update)
         
     
-    @testattr(stddist = True)
     def test_basic_simulation_txt_file(self):
         opts = {"result_handling":"file"}
         self._basic_simulation(opts)
     
-    @testattr(stddist = True)
     def test_basic_simulation_mat_file(self):
         opts = {"result_handling":"binary"}
         self._basic_simulation(opts)
     
-    @testattr(stddist = True)
     def test_basic_simulation_mat_file_naming(self):
         opts = {"result_handling":"binary", "result_file_name": "Should fail..."}
         
@@ -181,7 +176,6 @@ class Test_Master:
         except UnrecognizedOptionError:
             pass
     
-    @testattr(stddist = True)
     def test_basic_simulation_mat_file_naming_exists(self):
         models, connections = self._load_basic_simulation()
         
@@ -192,7 +186,6 @@ class Test_Master:
         assert os.path.isfile("Test1.mat"), "Test1.mat does not exists"
         assert os.path.isfile("Test2.mat"), "Test2.mat does not exists"
     
-    @testattr(stddist = True)
     def test_basic_simulation_txt_file_naming_exists(self):
         models, connections = self._load_basic_simulation()
         
@@ -203,12 +196,10 @@ class Test_Master:
         assert os.path.isfile("Test1.txt"), "Test1.txt does not exists"
         assert os.path.isfile("Test2.txt"), "Test2.txt does not exists"
         
-    @testattr(stddist = True)
     def test_basic_simulation_with_block_initialization(self):
         opts = {"block_initialization": True}
         self._basic_simulation(opts)
     
-    @testattr(stddist = True)
     def test_integer_connections(self):
         model_sub1 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "IntegerStep.fmu"), _connect_dll=False)
         model_sub2 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "GainTestInteger.fmu"), _connect_dll=False)
@@ -241,7 +232,6 @@ class Test_Master:
         assert res[model_sub2]["u"][0] == 1
         assert res[model_sub2]["u"][-1] == 3
     
-    @testattr(stddist = True)
     def test_integer_to_real_connections(self):
         model_sub1 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "IntegerStep.fmu"), _connect_dll=False)
         model_sub2 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "GainTestReal.fmu"), _connect_dll=False)
@@ -274,7 +264,6 @@ class Test_Master:
         assert res[model_sub2]["u"][0] == 1.0
         assert res[model_sub2]["u"][-1] == 3.0
     
-    @testattr(stddist = True)
     def test_unstable_simulation(self):
         model_sub1 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "LinearCoSimulation_LinearSubSystem1.fmu"), _connect_dll=False)
         model_sub2 = Dummy_FMUModelCS2([], os.path.join(cs2_xml_path, "LinearCoSimulation_LinearSubSystem2.fmu"), _connect_dll=False)

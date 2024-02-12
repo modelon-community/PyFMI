@@ -18,7 +18,6 @@
 import os
 import numpy as np
 
-from pyfmi import testattr
 from pyfmi.fmi_extended import FMUModelME1Extended
 
 file_path = os.path.dirname(os.path.abspath(__file__))
@@ -27,14 +26,12 @@ me1_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0")
 
 class Test_FMUModelME1Extended:
     
-    @testattr(stddist = True)
     def test_log_file_name(self):
         model = FMUModelME1Extended(os.path.join(me1_xml_path, "bouncingBall.fmu"), _connect_dll=False)
         assert os.path.exists("bouncingBall_log.txt")
         model = FMUModelME1Extended(os.path.join(me1_xml_path, "bouncingBall.fmu"), log_file_name="Test_log.txt", _connect_dll=False)
         assert os.path.exists("Test_log.txt")
     
-    @testattr(stddist = True)
     def test_default_experiment(self):
         model = FMUModelME1Extended(os.path.join(me1_xml_path, "CoupledClutches.fmu"), _connect_dll=False)
 
