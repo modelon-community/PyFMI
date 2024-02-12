@@ -19,7 +19,7 @@ import os
 import numpy as np
 
 from pyfmi.tests.test_util import Dummy_FMUModelME2
-from scipy.io.matlab.mio import loadmat
+from scipy.io.matlab import loadmat
 
 assimulo_installed = True
 try:
