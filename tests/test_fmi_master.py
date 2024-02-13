@@ -222,7 +222,7 @@ class Test_Master:
         models = [model_sub1, model_sub2]
         connections = [(model_sub1, 'y', model_sub2, 'u')]
 
-        master = Master(models,connections)
+        master = Master(models, connections)
 
         opts = master.simulate_options()
         opts["block_initialization"] = True
