@@ -1476,7 +1476,7 @@ class Test_FMUModelBase2:
         res = model.simulate(final_time=0.1, options=opts)
         tsyn = res.detailed_timings["computing_solution"]
         
-        assert tsyn > t, "synchronization does not work: %d, %d"%(t, tsyn)
+        assert tsyn > t, f"synchronization does not work: Expected {tsyn} > {t}"
         
     
     def test_simulation_with_synchronization_CS(self):
@@ -1497,7 +1497,7 @@ class Test_FMUModelBase2:
         res = model.simulate(final_time=0.1, options=opts)
         tsyn = res.detailed_timings["computing_solution"]
         
-        assert tsyn > t, "synchronization does not work: %d, %d"%(t, tsyn)
+        assert tsyn > t, f"synchronization does not work: Expected {tsyn} > {t}"
 
     def test_caching(self):
         negated_alias = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
