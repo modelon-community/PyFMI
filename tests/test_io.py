@@ -123,6 +123,7 @@ if assimulo_installed:
             derx = res["der(x)"]
             dery = res["der(y)"]
 
+            assert len(derx) > 0
             for i in range(len(derx)):
                 assert derx[i] == dery[i]
 
@@ -468,6 +469,7 @@ if assimulo_installed:
             derx = res["der(x)"]
             dery = res["der(y)"]
 
+            assert len(derx) > 0
             for i in range(len(derx)):
                 assert derx[i] == dery[i]
 
