@@ -243,7 +243,6 @@ class Test_FMUModelME1:
         bounce = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         assert bounce.get_variable_nominal("v") == bounce.get_variable_nominal(valueref=2)
 
-    #@testattr(windows_full = True)
     def test_default_experiment(self):
         model = FMUModelME1(FMU_PATHS.ME1.coupled_clutches, _connect_dll=False)
 
