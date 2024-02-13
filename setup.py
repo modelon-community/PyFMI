@@ -347,7 +347,8 @@ setup(name=NAME,
         'version.txt',
         'LICENSE',
         'CHANGELOG',
-        'util/*'] + extra_package_data},
+        'util/*'] + extra_package_data,
+        'pyfmi.tests': ['pytest.ini']},
       script_args=copy_args
       )
 
