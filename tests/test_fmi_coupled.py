@@ -18,10 +18,10 @@
 import pytest
 import os
 
+import pyfmi.fmi as fmi
 from pyfmi.fmi import FMUModelME2
 from pyfmi.fmi_coupled import CoupledFMUModelME2
-import pyfmi.fmi as fmi
-from pyfmi.tests.test_util import Dummy_FMUModelME2
+from pyfmi.test_util import Dummy_FMUModelME2
 
 assimulo_installed = True
 try:

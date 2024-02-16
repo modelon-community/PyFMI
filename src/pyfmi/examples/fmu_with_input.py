@@ -32,7 +32,7 @@ def run_demo(with_plots=True):
     
     See also simulation_with_input.py
     """
-    fmu_name = os.path.join(path_to_fmus_me1,'SecondOrder.fmu')
+    fmu_name = os.path.join(path_to_fmus_me1, 'SecondOrder.fmu')
 
     # Generate input
     t = np.linspace(0.,10.,100) 
@@ -70,4 +70,3 @@ def run_demo(with_plots=True):
 
 if __name__=="__main__":
     run_demo()
-

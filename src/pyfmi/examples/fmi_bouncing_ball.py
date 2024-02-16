@@ -21,7 +21,7 @@ import numpy as np
 
 from pyfmi import load_fmu
 
-curr_dir = os.path.dirname(os.path.abspath(__file__));
+curr_dir = os.path.dirname(os.path.abspath(__file__))
 path_to_fmus = os.path.join(curr_dir, 'files', 'FMUs','ME1.0')
 path_to_fmus2 = os.path.join(curr_dir, 'files', 'FMUs','ME2.0')
 
@@ -31,9 +31,9 @@ def run_demo(with_plots=True, version="2.0"):
     ME FMUs version 1.0 and 2.0.
     """
     if version == '1.0':
-        fmu_name = os.path.join(path_to_fmus,'bouncingBall.fmu')
+        fmu_name = os.path.join(path_to_fmus, 'bouncingBall.fmu')
     else:
-        fmu_name = os.path.join(path_to_fmus2,'bouncingBall.fmu')
+        fmu_name = os.path.join(path_to_fmus2, 'bouncingBall.fmu')
         
     model = load_fmu(fmu_name)
     

@@ -21,7 +21,7 @@ import numpy as np
 
 from pyfmi import load_fmu
 
-curr_dir = os.path.dirname(os.path.abspath(__file__));
+curr_dir = os.path.dirname(os.path.abspath(__file__))
 path_to_fmus = os.path.join(curr_dir, 'files', 'FMUs', 'CS1.0')
 path_to_fmus2 = os.path.join(curr_dir, 'files', 'FMUs', 'CS2.0')
 

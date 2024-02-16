@@ -3,6 +3,8 @@
     * Removed utilities related to the obsolete FMUX model interface.
     * Removed no longer required dependency on lxml.
     * Upgraded to Cython3.
+    * Switched testing framework from nose to pytest
+    * Removed submodule pyfmi.tests, tests are no longer part of the PyFMI package.
 
 --- PyFMI-2.11.0 ---
     * Refactored result handling for dynamic_diagnostics. It is now possible use dynamic_diagnostics with a custom result handler.

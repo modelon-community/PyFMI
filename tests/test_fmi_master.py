@@ -21,7 +21,7 @@ import numpy as np
 
 from pyfmi import Master
 from pyfmi.fmi import FMUException, FMUModelCS2, FMUModelME2
-from pyfmi.tests.test_util import Dummy_FMUModelCS2
+from pyfmi.test_util import Dummy_FMUModelCS2
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 
 file_path = os.path.dirname(os.path.abspath(__file__))
