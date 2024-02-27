@@ -169,6 +169,11 @@ class Test_Master:
         self._basic_simulation(opts)
     
     @testattr(stddist = True)
+    def test_basic_simulation_memory(self):
+        opts = {"result_handling":"memory"}
+        self._basic_simulation(opts)
+    
+    @testattr(stddist = True)
     def test_basic_simulation_mat_file_naming(self):
         from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
         
@@ -234,15 +239,11 @@ class Test_Master:
         assert res[models[1]]._result_data == None, "Result is not none"
     
     @testattr(stddist = True)
-    def test_custom_result_handler(self):
+    def test_custom_result_handler_invalid(self):
         models, connections = self._load_basic_simulation()
-        
         
         class A:
             pass
-        class B(ResultHandler):
-            def get_result(self):
-                return None
                 
         opts = {}
         opts["result_handling"] = "hejhej"
@@ -251,11 +252,22 @@ class Test_Master:
         nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
         opts["result_handler"] = A()
         nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
+        
+    @testattr(stddist = True)
+    def test_custom_result_handler_valid(self):
+        models, connections = self._load_basic_simulation()
+        
+        class B(ResultHandler):
+            def get_result(self):
+                return None
+                
+        opts = {}
+        opts["result_handling"] = "custom"
         opts["result_handler"] = B()
+        opts["step_size"] = 0.0005
         
         master = Master(models, connections)
        
-        opts["step_size"] = 0.0005
         res = master.simulate(options=opts)
         
         assert res[models[0]]._result_data == None, "Result is not none"

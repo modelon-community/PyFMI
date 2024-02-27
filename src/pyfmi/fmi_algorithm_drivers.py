@@ -297,7 +297,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         else:
             raise InvalidAlgorithmOptionException(options)
         
-        self._set_result_handler() # sets self.results_handler
+        self.result_handler = get_result_handler(self.model, self.options)
         self._set_options() # set options
 
         #time_start = timer()
@@ -481,12 +481,6 @@ class AssimuloFMIAlg(AlgorithmBase):
         # instantiate solver and set options
         self.simulator = self.solver(self.probl)
         self._set_solver_options()
-
-    def _set_result_handler(self):
-        """
-        Helper functions that sets result_handler.
-        """
-        self.result_handler = get_result_handler(self.model, self.options)
 
     def _set_options(self):
         """
@@ -963,8 +957,7 @@ class FMICSAlg(AlgorithmBase):
 
         #time_start = timer()
 
-        self._set_result_handler() ## set self.results_handler
-
+        self.result_handler = get_result_handler(self.model, self.options)
         self.result_handler.set_options(self.options)
 
         time_end = timer()
@@ -1003,12 +996,6 @@ class FMICSAlg(AlgorithmBase):
         self.result_handler.simulation_start()
 
         self.timings["initializing_result"] = timer() - time_start - time_res_init
-
-    def _set_result_handler(self):
-        """
-        Helper functions that sets result_handler.
-        """
-        self.result_handler = get_result_handler(self.model, self.options)
 
     def _set_options(self):
         """
