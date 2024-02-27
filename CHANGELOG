@@ -2,6 +2,7 @@
 --- PyFMI-NEXT_VERSION ---
     * Removed utilities related to the obsolete FMUX model interface.
     * Removed no longer required dependency on lxml.
+    * Unified result handling and allowed the master algorithm to use all available result handlers
 
 --- PyFMI-2.11.0 ---
     * Refactored result handling for dynamic_diagnostics. It is now possible use dynamic_diagnostics with a custom result handler.
