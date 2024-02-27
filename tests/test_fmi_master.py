@@ -25,6 +25,7 @@ import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
 from pyfmi import Master
 from pyfmi.tests.test_util import Dummy_FMUModelME2, Dummy_FMUModelCS2
+from pyfmi.common.io import ResultHandler
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -168,6 +169,11 @@ class Test_Master:
         self._basic_simulation(opts)
     
     @testattr(stddist = True)
+    def test_basic_simulation_memory(self):
+        opts = {"result_handling":"memory"}
+        self._basic_simulation(opts)
+    
+    @testattr(stddist = True)
     def test_basic_simulation_mat_file_naming(self):
         from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
         
@@ -206,6 +212,66 @@ class Test_Master:
         
         assert os.path.isfile("Test1.txt"), "Test1.txt does not exists"
         assert os.path.isfile("Test2.txt"), "Test2.txt does not exists"
+    
+    @testattr(stddist = True)
+    def test_basic_simulation_csv_file_naming_exists(self):
+        models, connections = self._load_basic_simulation()
+        
+        opts = {"result_handling":"csv", "result_file_name": {models[0]: "Test1.csv", models[1]: "Test2.csv"}}
+        
+        res = self._sim_basic_simulation(models, connections, opts)
+        
+        assert os.path.isfile("Test1.csv"), "Test1.csv does not exists"
+        assert os.path.isfile("Test2.csv"), "Test2.csv does not exists"
+    
+    @testattr(stddist = True)
+    def test_basic_simulation_none_result(self):
+        models, connections = self._load_basic_simulation()
+        
+        opts = {"result_handling":None}
+        
+        master = Master(models, connections)
+       
+        opts["step_size"] = 0.0005
+        res = master.simulate(options=opts)
+        
+        assert res[models[0]]._result_data == None, "Result is not none"
+        assert res[models[1]]._result_data == None, "Result is not none"
+    
+    @testattr(stddist = True)
+    def test_custom_result_handler_invalid(self):
+        models, connections = self._load_basic_simulation()
+        
+        class A:
+            pass
+                
+        opts = {}
+        opts["result_handling"] = "hejhej"
+        nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
+        opts["result_handling"] = "custom"
+        nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
+        opts["result_handler"] = A()
+        nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
+        
+    @testattr(stddist = True)
+    def test_custom_result_handler_valid(self):
+        models, connections = self._load_basic_simulation()
+        
+        class B(ResultHandler):
+            def get_result(self):
+                return None
+                
+        opts = {}
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = B()
+        opts["step_size"] = 0.0005
+        
+        master = Master(models, connections)
+       
+        res = master.simulate(options=opts)
+        
+        assert res[models[0]]._result_data == None, "Result is not none"
+        assert res[models[1]]._result_data == None, "Result is not none"
         
     @testattr(stddist = True)
     def test_basic_simulation_with_block_initialization(self):

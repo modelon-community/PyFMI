@@ -22,6 +22,7 @@ import codecs
 import re
 import sys
 import os
+import logging as logging_module
 from functools import reduce
 
 import numpy as N
@@ -2723,3 +2724,34 @@ class ResultHandlerBinaryFile(ResultHandler):
         method.
         """
         self.options = options
+
+
+def get_result_handler(model, opts):
+    result_handler = None
+    
+    if opts["result_handling"] == "file":
+        result_handler = ResultHandlerFile(model)
+    elif opts["result_handling"] == "binary":
+        if "sensitivities" in opts and opts["sensitivities"]:
+            logging_module.warning('The binary result file do not currently support storing of sensitivity results. Switching to textual result format.')
+            result_handler = ResultHandlerFile(model)
+        else:
+            result_handler = ResultHandlerBinaryFile(model)
+    elif opts["result_handling"] == "memory":
+        result_handler = ResultHandlerMemory(model)
+    elif opts["result_handling"] == "csv":
+        result_handler = ResultHandlerCSV(model, delimiter=",")
+    elif opts["result_handling"] == "custom":
+        result_handler = opts["result_handler"]
+        if result_handler is None:
+            raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
+        if not isinstance(result_handler, ResultHandler):
+            raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
+    elif (opts["result_handling"] is None) or (opts["result_handling"] == 'none'): #No result handling (for performance)
+        if opts["result_handling"] == 'none': ## TODO: Future; remove this
+            logging_module.warning("result_handling = 'none' is deprecated. Please use None instead.")
+        result_handler = ResultHandlerDummy(model)
+    else:
+        raise fmi.FMUException("Unknown option to result_handling.")
+    
+    return result_handler

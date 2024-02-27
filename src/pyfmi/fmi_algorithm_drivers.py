@@ -29,7 +29,7 @@ import pyfmi.fmi_coupled as fmi_coupled
 import pyfmi.fmi_extended as fmi_extended
 from pyfmi.common.diagnostics import setup_diagnostics_variables 
 from pyfmi.common.algorithm_drivers import AlgorithmBase, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
-from pyfmi.common.io import ResultHandlerFile, ResultHandlerBinaryFile, ResultHandlerMemory, ResultHandler, ResultHandlerDummy, ResultHandlerCSV
+from pyfmi.common.io import get_result_handler
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
@@ -297,7 +297,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         else:
             raise InvalidAlgorithmOptionException(options)
         
-        self._set_result_handler() # sets self.results_handler
+        self.result_handler = get_result_handler(self.model, self.options)
         self._set_options() # set options
 
         #time_start = timer()
@@ -481,36 +481,6 @@ class AssimuloFMIAlg(AlgorithmBase):
         # instantiate solver and set options
         self.simulator = self.solver(self.probl)
         self._set_solver_options()
-
-    def _set_result_handler(self):
-        """
-        Helper functions that sets result_handler.
-        """
-        if self.options["result_handling"] == "file":
-            self.result_handler = ResultHandlerFile(self.model)
-        elif self.options["result_handling"] == "binary":
-            if self.options["sensitivities"]:
-                logging_module.warning('The binary result file do not currently support storing of sensitivity results. Switching to textual result format.')
-                self.result_handler = ResultHandlerFile(self.model)
-            else:
-                self.result_handler = ResultHandlerBinaryFile(self.model)
-        elif self.options["result_handling"] == "memory":
-            self.result_handler = ResultHandlerMemory(self.model)
-        elif self.options["result_handling"] == "csv":
-            self.result_handler = ResultHandlerCSV(self.model, delimiter=",")
-        elif self.options["result_handling"] == "custom":
-            self.result_handler = self.options["result_handler"]
-            if self.result_handler is None:
-                raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
-            if not isinstance(self.result_handler, ResultHandler):
-                raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
-        elif (self.options["result_handling"] is None) or (self.options["result_handling"] == 'none'): #No result handling (for performance)
-            if self.options["result_handling"] == 'none': ## TODO: Future; remove this
-                logging_module.warning("result_handling = 'none' is deprecated. Please use None instead.")
-            self.result_handler = ResultHandlerDummy(self.model)
-        else:
-            raise fmi.FMUException("Unknown option to result_handling.")
-
 
     def _set_options(self):
         """
@@ -987,8 +957,7 @@ class FMICSAlg(AlgorithmBase):
 
         #time_start = timer()
 
-        self._set_result_handler() ## set self.results_handler
-
+        self.result_handler = get_result_handler(self.model, self.options)
         self.result_handler.set_options(self.options)
 
         time_end = timer()
@@ -1027,31 +996,6 @@ class FMICSAlg(AlgorithmBase):
         self.result_handler.simulation_start()
 
         self.timings["initializing_result"] = timer() - time_start - time_res_init
-
-    def _set_result_handler(self):
-        """
-        Helper functions that sets result_handler.
-        """
-        if self.options["result_handling"] == "file":
-            self.result_handler = ResultHandlerFile(self.model)
-        elif self.options["result_handling"] == "binary":
-            self.result_handler = ResultHandlerBinaryFile(self.model)
-        elif self.options["result_handling"] == "memory":
-            self.result_handler = ResultHandlerMemory(self.model)
-        elif self.options["result_handling"] == "csv":
-            self.result_handler = ResultHandlerCSV(self.model, delimiter=",")
-        elif self.options["result_handling"] == "custom":
-            self.result_handler = self.options["result_handler"]
-            if self.result_handler is None:
-                raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
-            if not isinstance(self.result_handler, ResultHandler):
-                raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
-        elif (self.options["result_handling"] is None) or (self.options["result_handling"] == 'none'): #No result handling (for performance)
-            if self.options["result_handling"] == 'none':
-                logging_module.warning("result_handling = 'none' is deprecated. Please use None instead.")
-            self.result_handler = ResultHandlerDummy(self.model)
-        else:
-            raise fmi.FMUException("Unknown option to result_handling.")
 
     def _set_options(self):
         """
@@ -1263,7 +1207,7 @@ class SciEstAlg(AlgorithmBase):
         # set options
         self._set_options()
 
-        self.result_handler = ResultHandlerCSV(self.model)
+        self.result_handler = get_result_handler(self.model, self.options)
         self.result_handler.set_options(self.options)
         self.result_handler.initialize_complete()
 
@@ -1419,11 +1363,27 @@ class SciEstAlgOptions(OptionBase):
             result_file_name can also be set to a stream that supports 'write',
             'tell' and 'seek'.
             Default: Empty string
+        
+        result_handling --
+            Specifies how the result should be handled. Either stored to
+            file (txt or binary) or stored in memory. One can also use a
+            custom handler.
+            Available options: "file", "binary", "memory", "csv", "custom", None
+            Default: "csv"
+
+        result_handler --
+            The handler for the result. Depending on the option in
+            result_handling this either defaults to ResultHandlerFile
+            or ResultHandlerMemory. If result_handling custom is chosen
+            This MUST be provided.
+            Default: None
 
     """
     def __init__(self, *args, **kw):
         _defaults= {"tolerance": 1e-6,
                     'result_file_name':'',
+                    'result_handling':'csv',
+                    'result_handler':None,
                     'filter':None,
                     'method': 'Nelder-Mead',
                     'scaling': 'Default',

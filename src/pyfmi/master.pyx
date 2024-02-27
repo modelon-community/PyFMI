@@ -17,7 +17,7 @@
 
 import pyfmi.fmi as fmi
 from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
-from pyfmi.common.io import ResultDymolaTextual, ResultHandlerFile, ResultHandlerDummy, ResultHandlerBinaryFile, ResultDymolaBinary
+from pyfmi.common.io import get_result_handler
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
@@ -1186,19 +1186,21 @@ cdef class Master:
     def initialize_result_objects(self, opts):
         i = 0
         for model in self.models_dict.keys():
-            if opts["result_handling"] == "binary":
-                result_object = ResultHandlerBinaryFile(model)
-            elif opts["result_handling"] == "file":
-                result_object = ResultHandlerFile(model)
-            elif opts["result_handling"] == "none":
-                result_object = ResultHandlerDummy(model)
-            else:
-                raise fmi.FMUException("Currently only writing result to file (txt and binary) and none is supported.")
+            result_object = get_result_handler(model, opts)
+            
             if not isinstance(opts["result_file_name"], dict):
                 raise fmi.FMUException("The result file names needs to be stored in a dict with the individual models as key.")
+                
             from pyfmi.fmi_algorithm_drivers import FMICSAlgOptions
             local_opts = FMICSAlgOptions()
-            prefix = "txt" if opts["result_handling"] == "file" else "mat"
+            
+            if opts["result_handling"] == "file":
+                prefix = "txt"
+            elif opts["result_handling"] == "csv":
+                prefix = "csv"
+            else:
+                prefix = "mat"
+            
             try:
                 if opts["result_file_name"][model] is None:
                     local_opts["result_file_name"] = model.get_identifier()+'_'+str(i)+'_result.'+prefix
@@ -1206,6 +1208,7 @@ cdef class Master:
                     local_opts["result_file_name"] = opts["result_file_name"][model]
             except KeyError:
                 raise fmi.FMUException("Incorrect definition of the result file name option. No result file name found for model %s"%model.get_identifier())
+                
             local_opts["filter"] = opts["filter"][model]
             
             result_object.set_options(local_opts)
@@ -1519,15 +1522,14 @@ cdef class Master:
         res = {}
         #Load data
         for i,model in enumerate(self.models):
-            if opts["result_handling"] == "file" or opts["result_handling"] == "binary":
-                stored_res = self.models_dict[model]["result"].get_result()
-                res[i] = AssimuloSimResult(model, self.models_dict[model]["result"].file_name, None, stored_res, None)
-                res[model] = res[i]
-            elif opts["result_handling"] == "none":
-                res[model] = None
-            else:
-                raise fmi.FMUException("Currently only writing result to file/binary or none is supported.")
-        
+            stored_res = self.models_dict[model]["result"].get_result()
+            try:
+                file_name = self.models_dict[model]["result"].file_name
+            except AttributeError:
+                file_name = ""
+            res[i] = AssimuloSimResult(model, file_name, None, stored_res, None)
+            res[model] = res[i]
+
         return res
     
     def print_statistics(self, opts):
