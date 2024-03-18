@@ -667,9 +667,17 @@ class TrajectoryUserFunction(Trajectory):
         
             func -- 
                 A function which calculates the ordinate values.
+                Assumed to return either simple numbers or iterables.
         """
         self.traj = func
         
+    def _single_eval(self, x):
+        res = self.traj(x)
+        if hasattr(res, "__iter__"): # iterable
+            return np.reshape(np.array(res), (1, -1))
+        else: # assume simple number
+            return np.array([[res]])
+
     def eval(self, x):
         """
         Evaluate the trajectory at a specifed abscissa.
@@ -685,12 +693,7 @@ class TrajectoryUserFunction(Trajectory):
             Two dimensional n x m matrix containing the ordinate values 
             corresponding to the argument x.
         """
-        try:
-            y = np.array(np.matrix(self.traj(float(x))))
-        except TypeError:
-            y = np.array(np.matrix(self.traj(x)).transpose())
-                                       #In order to guarantee that the
-                                       #return values are on the correct
-                                       #form. May need to be evaluated
-                                       #for speed improvements.
-        return y
+        if hasattr(x, "__iter__"):
+            return np.vstack([self._single_eval(i) for i in x])
+        else:
+            return self._single_eval(x)
