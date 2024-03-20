@@ -22,12 +22,9 @@ Module containing the tests for the FMI interface.
 import numpy as np
 from collections import OrderedDict
 
-from pyfmi import testattr
 import pyfmi.fmi_util as fmi_util
 
 class Test_FMIUtil:
-    
-    @testattr(stddist = True)
     def test_cpr_seed(self):
         structure = OrderedDict([('der(inertia3.phi)', ['inertia3.w']),
              ('der(inertia3.w)', ['damper.phi_rel', 'inertia3.phi']),
@@ -46,7 +43,6 @@ class Test_FMIUtil:
         assert np.array(groups[1][4] == [3,4]).all()
         assert np.array(groups[2][4] == [5,6]).all()
     
-    @testattr(stddist = True)
     def test_cpr_seed_interested_columns(self):
         structure = OrderedDict([('der(inertia3.phi)', ['inertia3.w']),
              ('der(inertia3.w)', ['damper.phi_rel', 'inertia3.phi']),

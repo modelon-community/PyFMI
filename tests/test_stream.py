@@ -15,14 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import nose
+import pytest
 import os
 from io import StringIO
 import tempfile
 from shutil import rmtree
 from filecmp import cmp as compare_files
 
-from pyfmi import testattr
 from pyfmi.fmi import FMUException, load_fmu, FMUModelCS2, FMUModelME2
 from pyfmi.tests.test_util import get_examples_folder
 
@@ -74,31 +73,29 @@ def simulate_and_verify_stream_contents(compiled_fmu, fmu_loader, stream, open_t
     ]
     for i, line in enumerate(expected):
         err_msg = "Unable to find substring {} in list {}".format(line, "".join(contents))
-        nose.tools.assert_in(line, contents[i], err_msg)
+        assert line in contents[i], err_msg
 
 class Test_FMUModelME2:
     """ Test stream functionality for FMI class FMUModelME2. """
+    @pytest.fixture(autouse=True)
     @classmethod
     def setup_class(cls):
         cls.example_fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')
         cls.test_class = FMUModelME2
 
         # Verify the installation is not corrupt while setting up the class.
-        nose.tools.assert_true(os.path.isfile(cls.example_fmu))
+        assert os.path.isfile(cls.example_fmu)
 
-    @testattr(stddist = True)
     def test_testio(self):
         """ FMUModelME2 and custom IO class. """
         stream = TestIO("")
         simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream)
 
-    @testattr(stddist = True)
     def test_stringio(self):
         """ FMUModelME2 and StringIO. """
         stream = StringIO()
         simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream)
 
-    @testattr(stddist = True)
     def test_textiowrapper(self):
         """ FMUModelME2 and TextIOWrapper. """
         p = tempfile.mkdtemp()
@@ -111,27 +108,25 @@ class Test_FMUModelME2:
 
 class Test_FMUModelCS2:
     """ Test stream functionality for FMI class FMUModelCS2. """
+    @pytest.fixture(autouse=True)
     @classmethod
     def setup_class(cls):
         cls.example_fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')
         cls.test_class = FMUModelCS2
 
         # Verify the installation is not corrupt while setting up the class.
-        nose.tools.assert_true(os.path.isfile(cls.example_fmu))
+        assert os.path.isfile(cls.example_fmu)
 
-    @testattr(stddist = True)
     def test_testio(self):
         """ FMUModelCS2 and custom IO class. """
         stream = TestIO("")
         simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream)
 
-    @testattr(stddist = True)
     def test_stringio(self):
         """ FMUModelCS2 and StringIO. """
         stream = StringIO()
         simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream)
 
-    @testattr(stddist = True)
     def test_textiowrapper(self):
         """ FMUModelCS2 and TextIOWrapper. """
         p = tempfile.mkdtemp()
@@ -144,27 +139,25 @@ class Test_FMUModelCS2:
 
 class Test_LoadFMU:
     """ Test stream functionality with load_fmu. """
+    @pytest.fixture(autouse=True)
     @classmethod
     def setup_class(cls):
         cls.example_fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')
         cls.test_class = load_fmu
 
         # Verify the installation is not corrupt while setting up the class.
-        nose.tools.assert_true(os.path.isfile(cls.example_fmu))
+        assert os.path.isfile(cls.example_fmu)
 
-    @testattr(stddist = True)
     def test_testio(self):
         """ load_fmu and custom IO class. """
         stream = TestIO("")
         simulate_and_verify_stream_contents(Test_LoadFMU.example_fmu, Test_LoadFMU.test_class, stream)
 
-    @testattr(stddist = True)
     def test_stringio(self):
         """ load_fmu and StringIO. """
         stream = StringIO()
         simulate_and_verify_stream_contents(Test_LoadFMU.example_fmu, Test_LoadFMU.test_class, stream)
 
-    @testattr(stddist = True)
     def test_textiowrapper(self):
         """ load_fmu and TextIOWrapper. """
         p = tempfile.mkdtemp()
@@ -177,14 +170,14 @@ class Test_LoadFMU:
 
 class TestXML:
     """ Test other log related functions together with streams. """
+    @pytest.fixture(autouse=True)
     @classmethod
     def setup_class(cls):
         cls.example_fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')
 
         # Verify the installation is not corrupt while setting up the class.
-        nose.tools.assert_true(os.path.isfile(cls.example_fmu))
+        assert os.path.isfile(cls.example_fmu)
 
-    @testattr(stddist = True)
     def test_extract_xml_log(self):
         """ Compare contents of XML log when using stream and normal logfile. """
         stream = TestIO("")
@@ -206,9 +199,8 @@ class TestXML:
         xml_log = fmu.extract_xml_log()
 
         err_msg = "Unequal xml files, please compare the contents of:\n{}\nand\n{}".format(xml_log_s, xml_log)
-        nose.tools.assert_true(compare_files(xml_log_s, xml_log), err_msg)
+        assert compare_files(xml_log_s, xml_log), err_msg
 
-    @testattr(stddist = True)
     def test_get_log(self):
         """ Test get_log throws exception if stream doesnt support getvalue. """
         stream = StringIO("")
@@ -221,10 +213,9 @@ class TestXML:
             'FMIL: module = FMI2XML, log level = 3: fmi2_xml_get_default_experiment_tolerance'
         ]
         for i, line in enumerate(expected_substr):
-            nose.tools.assert_in(line, log[i])
+            assert line in log[i]
 
 
-    @testattr(stddist = True)
     def test_get_log_exception1(self):
         """ Test get_log throws exception if stream doesnt allow reading (it is set for writing). """
         try:
@@ -234,7 +225,7 @@ class TestXML:
             fmu_s = load_fmu(self.example_fmu, log_file_name = stream, log_level = 3)
             res_s = fmu_s.simulate()
             err_msg = "Unable to read from given stream, make sure the stream is readable."
-            with nose.tools.assert_raises_regex(FMUException, err_msg):
+            with pytest.raises(FMUException, match = err_msg):
                 log = fmu_s.get_log()
         finally:
             if not stream.closed:
@@ -242,16 +233,14 @@ class TestXML:
             rmtree(p)
 
 
-    @testattr(stddist = True)
     def test_get_nbr_of_lines_in_log(self):
         """ Test get_number_of_lines_log when using a stream. """
         stream = StringIO("")
         fmu = load_fmu(self.example_fmu, log_file_name = stream, log_level = 3)
-        nose.tools.assert_equal(fmu.get_number_of_lines_log(), 0)
+        assert fmu.get_number_of_lines_log() == 0
         res = fmu.simulate()
-        nose.tools.assert_equal(fmu.get_number_of_lines_log(), 0)
+        assert fmu.get_number_of_lines_log() == 0
 
-    @testattr(stddist = True)
     def test_extract_xml_log_into_stream(self):
         """ Compare contents of XML log when extract XML into a stream. """
         stream = TestIO("")
@@ -277,4 +266,4 @@ class TestXML:
         xml_log = fmu.extract_xml_log()
 
         err_msg = "Unequal xml files, please compare the contents of:\n{}\nand\n{}".format(xml_file1, xml_log)
-        nose.tools.assert_true(compare_files(xml_file1, xml_log), err_msg)
+        assert compare_files(xml_file1, xml_log), err_msg
