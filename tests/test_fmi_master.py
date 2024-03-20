@@ -200,7 +200,6 @@ class Test_Master:
         assert os.path.isfile("Test1.txt"), "Test1.txt does not exists"
         assert os.path.isfile("Test2.txt"), "Test2.txt does not exists"
     
-    @testattr(stddist = True)
     def test_basic_simulation_csv_file_naming_exists(self):
         models, connections = self._load_basic_simulation()
         
@@ -211,7 +210,6 @@ class Test_Master:
         assert os.path.isfile("Test1.csv"), "Test1.csv does not exists"
         assert os.path.isfile("Test2.csv"), "Test2.csv does not exists"
     
-    @testattr(stddist = True)
     def test_basic_simulation_none_result(self):
         models, connections = self._load_basic_simulation()
         
@@ -225,7 +223,6 @@ class Test_Master:
         assert res[models[0]]._result_data == None, "Result is not none"
         assert res[models[1]]._result_data == None, "Result is not none"
     
-    @testattr(stddist = True)
     def test_custom_result_handler_invalid(self):
         models, connections = self._load_basic_simulation()
         
@@ -240,7 +237,6 @@ class Test_Master:
         opts["result_handler"] = A()
         nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
         
-    @testattr(stddist = True)
     def test_custom_result_handler_valid(self):
         models, connections = self._load_basic_simulation()
         
