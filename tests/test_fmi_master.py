@@ -220,8 +220,8 @@ class Test_Master:
         opts["step_size"] = 0.0005
         res = master.simulate(options=opts)
         
-        assert res[models[0]]._result_data == None, "Result is not none"
-        assert res[models[1]]._result_data == None, "Result is not none"
+        assert res[models[0]]._result_data is None
+        assert res[models[1]]._result_data is None
     
     def test_custom_result_handler_invalid(self):
         models, connections = self._load_basic_simulation()
@@ -231,11 +231,14 @@ class Test_Master:
                 
         opts = {}
         opts["result_handling"] = "hejhej"
-        nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
+        with pytest.raises(Exception):
+            self._sim_basic_simulation(models, connections, opts)
         opts["result_handling"] = "custom"
-        nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
+        with pytest.raises(Exception):
+            self._sim_basic_simulation(models, connections, opts)
         opts["result_handler"] = A()
-        nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
+        with pytest.raises(Exception):
+            self._sim_basic_simulation(models, connections, opts)
         
     def test_custom_result_handler_valid(self):
         models, connections = self._load_basic_simulation()
