@@ -470,7 +470,7 @@ class Trajectory:
     
     def __init__(self, abscissa, ordinate, tol=1e-8):
         """
-        Default constructor for creating a tracjectory object.
+        Default constructor for creating a trajectory object.
 
         Parameters::
         
@@ -479,7 +479,7 @@ class Trajectory:
                 (independent) values.
             
             ordinate -- 
-                Two dimensional n x m numpy matrix containing the ordiate 
+                Two dimensional n x m numpy matrix containing the ordinate 
                 values. The matrix has the same number of rows as the abscissa 
                 has elements. The number of columns is equal to the number of
                 output variables.
@@ -507,7 +507,7 @@ class Trajectory:
     
     def eval(self,x):
         """
-        Evaluate the trajectory at a specifed abscissa.
+        Evaluate the trajectory at a specified abscissa.
 
         Parameters::
         
@@ -671,7 +671,9 @@ class TrajectoryUserFunction(Trajectory):
         """
         self.traj = func
         
-    def _single_eval(self, x):
+    def _eval_traj_with_float_abscissa(self, x):
+        """ Evaluate user trajectory function with a single float abscissa and 
+        convert output to the format & shape specified by Trajectory.eval(...). """
         res = self.traj(x)
         if hasattr(res, "__iter__"): # iterable
             return np.reshape(np.array(res), (1, -1))
@@ -680,7 +682,7 @@ class TrajectoryUserFunction(Trajectory):
 
     def eval(self, x):
         """
-        Evaluate the trajectory at a specifed abscissa.
+        Evaluate the trajectory at a specified abscissa.
 
         Parameters::
         
@@ -694,6 +696,6 @@ class TrajectoryUserFunction(Trajectory):
             corresponding to the argument x.
         """
         if hasattr(x, "__iter__"):
-            return np.vstack([self._single_eval(i) for i in x])
+            return np.vstack([self._eval_traj_with_float_abscissa(i) for i in x])
         else:
-            return self._single_eval(x)
+            return self._eval_traj_with_float_abscissa(x)
