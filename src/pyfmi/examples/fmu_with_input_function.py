@@ -62,4 +62,3 @@ def run_demo(with_plots=True):
 
 if __name__=="__main__":
     run_demo()
-

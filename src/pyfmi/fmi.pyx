@@ -5767,7 +5767,7 @@ cdef class FMUModelBase2(ModelBase):
         relative_quantity = 1 if relative_quantity_bool == FMI2_TRUE else 0
 
         vr = FMIL.fmi2_import_get_variable_vr(variable)
-        value = self.get_real(vr)
+        value = self.get_real(vr)[0]
 
         display_value = FMIL.fmi2_import_convert_to_display_unit(value, display_unit, relative_quantity)
 
