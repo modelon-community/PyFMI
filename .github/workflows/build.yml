@@ -15,7 +15,7 @@ jobs:
         python-version: '3.11.x'
     - name: Setup Python
       run: |
-        python3 -m pip install Cython numpy scipy matplotlib nose-py3
+        python3 -m pip install Cython numpy scipy==1.12.0 matplotlib nose-py3
     - name: Install system
       run: |
         sudo apt-get -y install cmake liblapack-dev libsuitesparse-dev libhypre-dev
