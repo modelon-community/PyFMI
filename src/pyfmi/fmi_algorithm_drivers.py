@@ -1013,7 +1013,10 @@ class FMICSAlg(AlgorithmBase):
             raise fmi.FMUException(f"Setting {self.options['ncp']} as 'ncp' is not allowed for a CS FMU. Must be greater than 0.")
         self.ncp = self.options['ncp']
 
-        if not isinstance(self.options['result_downsampling_factor'], int):
+        # Since isinstance(<any boolean>, int) evaluates to True
+        is_invalid_type = isinstance(self.options['result_downsampling_factor'], bool) or \
+                          not isinstance(self.options['result_downsampling_factor'], int)
+        if is_invalid_type:
             raise fmi.FMUException("Option 'result_downsampling_factor' must be an integer, " + \
                                   f"was {type(self.options['result_downsampling_factor'])}")
         elif self.options['result_downsampling_factor'] < 1:
