@@ -35,10 +35,6 @@ from pyfmi.common.core import TrajectoryUserFunction
 
 from timeit import default_timer as timer
 
-default_int = int
-int = N.int32
-N.int = N.int32
-
 PYFMI_JACOBIAN_LIMIT = 10
 PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT = 100
 PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT  = 0.15 #In percentage
@@ -1017,7 +1013,12 @@ class FMICSAlg(AlgorithmBase):
             raise fmi.FMUException(f"Setting {self.options['ncp']} as 'ncp' is not allowed for a CS FMU. Must be greater than 0.")
         self.ncp = self.options['ncp']
 
-        # TODO add error check for result_downsampling_factor
+        if not isinstance(self.options['result_downsampling_factor'], int):
+            raise fmi.FMUException("Option 'result_downsampling_factor' must be an integer, " + \
+                                  f"was {type(self.options['result_downsampling_factor'])}")
+        elif self.options['result_downsampling_factor'] < 1:
+            raise fmi.FMUException("Valid values for option 'result_downsampling_factor' are only positive integers, " + \
+                                  f"was {self.options['result_downsampling_factor']}")
 
         self.write_scaled_result = self.options['write_scaled_result']
 
