@@ -930,8 +930,6 @@ class FMICSAlg(AlgorithmBase):
         self.input = input
 
         self.status = 0
-        # used for keeping track of when to write data when downsampling the simulation results
-        self.downsampling_counter = 0
 
         # handle options argument
         if isinstance(options, dict) and not \
@@ -1048,12 +1046,6 @@ class FMICSAlg(AlgorithmBase):
         """
         pass #No solver options
 
-    def integration_point_with_downsampling(self):
-        """ Invokes the integration_point method on the result handler but accounts for the downsampling option. """
-        if self.downsampling_counter % self.options['result_downsampling_factor'] == 0:
-            self.result_handler.integration_point()
-        self.downsampling_counter += 1
-
     def solve(self):
         """
         Runs the simulation.
@@ -1069,13 +1061,12 @@ class FMICSAlg(AlgorithmBase):
         start_time_point = timer()
         # Always log the start even if we are downsampling
         result_handler.integration_point()
-        self.downsampling_counter += 1
         self.timings["storing_result"] = timer() - start_time_point
 
         #Start of simulation, start the clock
         time_start = timer()
 
-        for t in grid:
+        for step, t in enumerate(grid):
             if self._synchronize_factor > 0:
                 under_run = t/self._synchronize_factor - (timer()-time_start)
                 if under_run > 0:
@@ -1103,7 +1094,7 @@ class FMICSAlg(AlgorithmBase):
                             final_time = last_time
 
                             start_time_point = timer()
-                            self.integration_point_with_downsampling()
+                            result_handler.integration_point()
                             self.timings["storing_result"] += timer() - start_time_point
                     except fmi.FMUException:
                         pass
@@ -1114,7 +1105,9 @@ class FMICSAlg(AlgorithmBase):
             final_time = t+h
 
             start_time_point = timer()
-            self.integration_point_with_downsampling()
+            # down-sampling of result; step starts at 0
+            if ((step + 1) % self.options['result_downsampling_factor'] == 0) or ((step + 1) == self.ncp):
+                self.result_handler.integration_point()
             self.timings["storing_result"] += timer() - start_time_point
 
             if self.options["time_limit"] and (timer() - time_start) > self.options["time_limit"]:
