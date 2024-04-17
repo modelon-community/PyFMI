@@ -856,12 +856,10 @@ class FMICSAlgOptions(OptionBase):
             Default: False
 
         result_downsampling_factor --
-            Limits the number simulation results that are stored.
-            The start point and end point will still always be written, but all data stored
-            in-between is limited by this
-            Example: If set to 2: Write only half of the simulation data.
-                     If set to 10: Write only a tenth of the simulation data.
-            Default: 1 (no downsampling, i.e. the simulation data will be of length ncp + 1)
+            int > 0, save solution to result every <result_downsampling_factor>-th communication point.
+            Start & end point are always be included.
+            Example: If set to 2: Result contains only every other communication point.
+            Default: 1 (no downsampling)
 
     """
     def __init__(self, *args, **kw):
