@@ -645,7 +645,7 @@ class Test_FMUModelCS2:
         # all steps, except last one are checked = (ncp - 1) steps
         # ncp = 0 is illegal
         exptected_result_size = (ncp - 1)//factor + 2
-        assert len(test_traj) == exptected_result_size, "expected result size wrong"
+        assert len(test_traj) == exptected_result_size, f"expected result size: {exptected_result_size}, actual : {len(test_traj)}"
 
         # selection mask for reference result
         downsample_indices = np.array([i%factor == 0 for i in range(ncp + 1)])

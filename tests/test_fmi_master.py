@@ -18,6 +18,7 @@
 import nose
 import os
 import numpy as np
+import warnings
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
@@ -394,6 +395,137 @@ class Test_Master:
         assert abs(res[model_sub1].final("x1")) > 100
         assert abs(res[model_sub2].final("x2")) > 100
 
+    def _verify_downsample_result(self, ref_trajs, test_trajs, steps, factor):
+        """Auxiliary function for result_downsampling_factor testing. 
+        Verify correct length and values of downsampled trajectories."""
+        # all steps, except last one are checked
+        exptected_result_size = (steps - 1)//factor + 2
+        assert len(test_trajs[0]) == exptected_result_size, f"expected result size: {exptected_result_size}, actual : {len(ref_trajs[0])}"
+        assert len(test_trajs[1]) == exptected_result_size, f"expected result size: {exptected_result_size}, actual : {len(ref_trajs[1])}"
+
+        # selection mask for reference result
+        downsample_indices = np.array([i%factor == 0 for i in range(steps+1)])
+        downsample_indices[0] = True
+        downsample_indices[-1] = True
+
+        np.testing.assert_equal(ref_trajs[0][downsample_indices], test_trajs[0])
+        np.testing.assert_equal(ref_trajs[1][downsample_indices], test_trajs[1])
+
+    def test_downsample_result(self):
+        """ Test multiple result_downsampling_factor value and verify the result. """
+        opts_update = {'result_downsampling_factor': 1}
+        models, connections = self._load_basic_simulation()
+        ref_res = self._sim_basic_simulation(models, connections, opts_update)
+
+        ref_traj_length = 2001
+        assert len(ref_res[models[0]]['time']) == ref_traj_length
+        assert len(ref_res[models[1]]['time']) == ref_traj_length
+
+        ref_res_trajs = (ref_res[models[0]]['x1'].copy(), ref_res[models[1]]['x2'].copy())
+
+        for f in [2, 3, 4, 5, 10, 100, 250, 600, 3000]:
+            opts_update = {'result_downsampling_factor': f}
+            models, connections = self._load_basic_simulation()
+            test_res = self._sim_basic_simulation(models, connections, opts_update)
+
+            test_res_trajs = (test_res[models[0]]['x1'], test_res[models[1]]['x2'])
+            self._verify_downsample_result(ref_res_trajs, test_res_trajs, 2000, f)
+
+    def test_downsample_error_check_invalid_value(self):
+        """ Verify we get an exception if the option is set to anything less than 1. """
+        models, connections = self._load_basic_simulation()
+        test_values = [-10, -20, -1, 0]
+
+        # TODO: tidy up with pytest
+        expected_substr = "Valid values for option 'result_downsampling_factor' are only positive integers"
+        for value in test_values:
+            try:
+                self._sim_basic_simulation(models, connections, {'result_downsampling_factor': value})
+                error_raised = False
+            except FMUException as e:
+                error_raised = True
+                assert expected_substr in str(e), f"Error was {str(e)}, expected substring {expected_substr}"
+            assert error_raised
+
+    def test_error_check_invalid_value(self):
+        """ Verify we get an exception if the option is set to anything that is not an integer. """
+        models, connections = self._load_basic_simulation()
+        test_values = [1/2, 1/3, "0.5", False]
+
+        # TODO: tidy up with pytest
+        expected_substr = "Option 'result_downsampling_factor' must be an integer,"
+        for value in test_values:
+            try:
+                self._sim_basic_simulation(models, connections, {'result_downsampling_factor': value})
+                error_raised = False
+            except FMUException as e:
+                error_raised = True
+                assert expected_substr in str(e), f"Error was {str(e)}, expected substring {expected_substr}"
+            assert error_raised
+        
+    # TODO: Test case that supports storing FMU states required
+    @nose.tools.nottest
+    def test_error_controlled_with_downsampling(self):
+        models, connections = self._load_basic_simulation()
+        uptate_options = {'result_downsampling_factor': 2,
+                          'error_controlled': True}
+        # TODO: Tidy up with pytest
+        msg = "Result downsampling not supported for error controlled simulation, no downsampling will be performed."
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("default")
+            self._sim_basic_simulation(models, connections, uptate_options)
+            # there will be some other warnings from FMU loading
+            assert f"UserWarning('{msg}')" in [i.message for i in w]
+
+    def test_downsample_result_with_store_step_before_update(self):
+        """ Test result_downsampling_factor with store_step_before_update. """
+        opts_update = {'result_downsampling_factor': 1,
+                       'store_step_before_update': True}
+        models, connections = self._load_basic_simulation()
+        ref_res = self._sim_basic_simulation(models, connections, opts_update)
+        # default setting = 2000 steps
+
+        assert len(ref_res[models[0]]['time']) == 4001
+        assert len(ref_res[models[1]]['time']) == 4001
+
+        ref_res_traj_1 = ref_res[models[0]]['x1'].copy()[1:]
+        ref_res_traj_2 = ref_res[models[1]]['x2'].copy()[1:]
+
+        # store_step_before_update points
+        ref_res_traj_1_update = ref_res_traj_1[::2]
+        ref_res_traj_2_update = ref_res_traj_2[::2]
+
+        # ordinary solution points (minus start point)
+        ref_res_traj_1_base = ref_res_traj_1[1::2]
+        ref_res_traj_2_base = ref_res_traj_2[1::2]
+
+        # down-sampled variant
+        opts_update = {'result_downsampling_factor': 2,
+                       'store_step_before_update': True}
+        models, connections = self._load_basic_simulation()
+        test_res = self._sim_basic_simulation(models, connections, opts_update)
+
+        assert len(test_res[models[0]]['time']) == 2001
+        assert len(test_res[models[1]]['time']) == 2001
+
+        test_res_traj_1 = test_res[models[0]]['x1'].copy()[1:]
+        test_res_traj_2 = test_res[models[1]]['x2'].copy()[1:]
+
+        # store_step_before_update points
+        test_res_traj_1_update = test_res_traj_1[::2]
+        test_res_traj_2_update = test_res_traj_2[::2]
+
+        # ordinary solution points (minus start point)
+        test_res_traj_1_base = test_res_traj_1[1::2]
+        test_res_traj_2_base = test_res_traj_2[1::2]
+
+        # compare; [1::2] is the downsampling mask, since start-point is not included
+        # and lengths align on final point
+        np.testing.assert_equal(ref_res_traj_1_update[1::2], test_res_traj_1_update)
+        np.testing.assert_equal(ref_res_traj_2_update[1::2], test_res_traj_2_update)
+
+        np.testing.assert_equal(ref_res_traj_1_base[1::2], test_res_traj_1_base)
+        np.testing.assert_equal(ref_res_traj_2_base[1::2], test_res_traj_2_base)
 
 """
 To be migrated:

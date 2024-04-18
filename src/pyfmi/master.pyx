@@ -337,6 +337,15 @@ class MasterAlgOptions(OptionBase):
             outputs, finite differences between communication points 
             will be used.
             Default: False
+
+        result_downsampling_factor --
+            int > 0, only save solution to result every
+            <result_downsampling_factor>-th communication point.
+            Start & end point are always be included.
+            Affects results storing from the 'store_step_before_update' option.
+            Useage with 'error_controlled' = True is not supported.
+            Example: If set to 2: Result contains only every other communication point.
+            Default: 1 (no downsampling)
     """
     def __init__(self, master, *args, **kw):
         _defaults= {
@@ -364,7 +373,9 @@ class MasterAlgOptions(OptionBase):
         "experimental_finite_difference_D": False,
         "experimental_output_solve":False,
         "force_finite_difference_outputs": False,
-        "num_threads":None}
+        "num_threads":None,
+        'result_downsampling_factor': 1
+        }
         super(MasterAlgOptions,self).__init__(_defaults)
         self._update_keep_dict_defaults(*args, **kw)
 
@@ -393,6 +404,9 @@ cdef class Master:
     cdef public int _display_counter
     cdef public object _display_progress
     cdef public double _time_integration_start
+    cdef public int result_downsampling_factor
+    cdef public int _step_number
+    cdef public bool _last_step
     
     def __init__(self, models, connections):
         """
@@ -493,8 +507,12 @@ cdef class Master:
         return self.current_step_size
         
     def report_solution(self, double cur_time):
-        
-        store_communication_point(self.models_dict)
+        if self.error_controlled:
+            store_communication_point(self.models_dict)
+        else:
+            # _step_number starts at 0
+            if ((self._step_number + 1) % self.result_downsampling_factor == 0) or self._last_step:
+                store_communication_point(self.models_dict)
         
         if self._display_progress:
             if ( timer() - self._time_integration_start) > self._display_counter*10:
@@ -1226,6 +1244,7 @@ cdef class Master:
         cdef double error
         cdef dict states = None
         cdef np.ndarray ycur, ucur
+        self._last_step = False # used in downsampling
         
         if self.error_controlled:
             tcur = start_time
@@ -1283,7 +1302,6 @@ cdef class Master:
                     tcur += step_size_old
                     #Store data
                     time_start = timer()
-                    #store_communication_point(self.models_dict)
                     self.report_solution(tcur)
                     self.elapsed_time["result_handling"] += timer() - time_start
                 
@@ -1306,16 +1324,21 @@ cdef class Master:
                 free_fmu_states(states)
         else:
             self.set_current_step_size(step_size)
-            for tcur in np.arange(start_time, final_time, step_size):
+
+            time_grid = np.arange(start_time, final_time, step_size)
+            for step, tcur in enumerate(time_grid):
+                self._step_number = step # downsampling
+                if (step + 1) == len(time_grid):
+                    self._last_step = True
                 if tcur + step_size > final_time:
                     step_size = final_time - tcur
                     self.set_current_step_size(step_size)
+                    self._last_step = True
                     
                 perform_do_step(self.models, self.elapsed_time, self.fmu_adresses, tcur, step_size, True, calling_setting)
                 
                 if self.opts["store_step_before_update"]:
                     time_start = timer()
-                    #store_communication_point(self.models_dict)
                     self.report_solution(tcur)
                     self.elapsed_time["result_handling"] += timer() - time_start
                     
@@ -1326,7 +1349,6 @@ cdef class Master:
                 self.set_last_yd(ydcur)
                 
                 time_start = timer()
-                #store_communication_point(self.models_dict)
                 self.report_solution(tcur)
                 self.elapsed_time["result_handling"] += timer() - time_start
                 
@@ -1447,6 +1469,7 @@ cdef class Master:
                 self.linear_correction = 1
         else:
             self.linear_correction = 0
+
         if options["error_controlled"]:
             if self.support_storing_fmu_states != 1:
                 warnings.warn("Error controlled simulation only supported if storing FMU states are available.")
@@ -1455,8 +1478,22 @@ cdef class Master:
                 self.error_controlled = 1
                 self.atol = options["atol"]
                 self.rtol = options["rtol"]
+            if (self.error_controlled == 1) and (options["result_downsampling_factor"] != 1): # result_downsampling_factor = 1 is default
+                warnings.warn("Result downsampling not supported for error controlled simulation, no downsampling will be performed.")
         else:
             self.error_controlled = 0
+        
+        # Since isinstance(<any boolean>, int) evaluates to True
+        is_invalid_type = isinstance(options['result_downsampling_factor'], bool) or \
+                          not isinstance(options['result_downsampling_factor'], int)
+        if is_invalid_type:
+            raise fmi.FMUException("Option 'result_downsampling_factor' must be an integer, " + \
+                                  f"was {type(options['result_downsampling_factor'])}")
+        elif options['result_downsampling_factor'] < 1:
+            raise fmi.FMUException("Valid values for option 'result_downsampling_factor' are only positive integers, " + \
+                                  f"was {options['result_downsampling_factor']}")
+        self.result_downsampling_factor = options["result_downsampling_factor"]
+
         if options["extrapolation_order"] > 0:
             if self.support_interpolate_inputs != 1:
                 warnings.warn("Extrapolation of inputs only supported if the individual FMUs support interpolation of inputs.")

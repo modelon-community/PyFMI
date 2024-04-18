@@ -856,7 +856,8 @@ class FMICSAlgOptions(OptionBase):
             Default: False
 
         result_downsampling_factor --
-            int > 0, save solution to result every <result_downsampling_factor>-th communication point.
+            int > 0, only save solution to result every
+            <result_downsampling_factor>-th communication point.
             Start & end point are always be included.
             Example: If set to 2: Result contains only every other communication point.
             Default: 1 (no downsampling)
@@ -1018,6 +1019,7 @@ class FMICSAlg(AlgorithmBase):
         elif self.options['result_downsampling_factor'] < 1:
             raise fmi.FMUException("Valid values for option 'result_downsampling_factor' are only positive integers, " + \
                                   f"was {self.options['result_downsampling_factor']}")
+        self.result_downsampling_factor = self.options['result_downsampling_factor']
 
         self.write_scaled_result = self.options['write_scaled_result']
 
@@ -1106,7 +1108,7 @@ class FMICSAlg(AlgorithmBase):
 
             start_time_point = timer()
             # down-sampling of result; step starts at 0
-            if ((step + 1) % self.options['result_downsampling_factor'] == 0) or ((step + 1) == self.ncp):
+            if ((step + 1) % self.result_downsampling_factor == 0) or ((step + 1) == self.ncp):
                 self.result_handler.integration_point()
             self.timings["storing_result"] += timer() - start_time_point
 
