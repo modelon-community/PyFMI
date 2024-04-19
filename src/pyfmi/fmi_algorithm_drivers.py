@@ -27,17 +27,13 @@ import numpy as N
 import pyfmi.fmi as fmi
 import pyfmi.fmi_coupled as fmi_coupled
 import pyfmi.fmi_extended as fmi_extended
-from pyfmi.common.diagnostics import setup_diagnostics_variables 
+from pyfmi.common.diagnostics import setup_diagnostics_variables
 from pyfmi.common.algorithm_drivers import AlgorithmBase, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
 from pyfmi.common.io import get_result_handler
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
 
 from timeit import default_timer as timer
-
-default_int = int
-int = N.int32
-N.int = N.int32
 
 PYFMI_JACOBIAN_LIMIT = 10
 PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT = 100
@@ -100,7 +96,7 @@ class AssimuloFMIAlgOptions(OptionBase):
 
         dynamic_diagnostics --
             If True, enables logging of diagnostics data to a result file. This requires that
-            the option 'result_handler' supports 'dynamic_diagnostics', otherwise an 
+            the option 'result_handler' supports 'dynamic_diagnostics', otherwise an
             InvalidOptionException is raised.
             The default 'result_handler' ResultHandlerBinaryFile supports 'dynamic_diagnostics'.
             The diagnostics data will be available via the simulation results and/or the
@@ -155,15 +151,15 @@ class AssimuloFMIAlgOptions(OptionBase):
             example is filter = "*der" , stor all variables ending with
             'der'. Can also be a list.
             Default: None
-            
+
         synchronize_simulation --
             If set, the simulation will be synchronized to real-time or a
             scaled real-time, if possible. The available options are:
                 True: Simulation is synchronized to real-time
                 False: No synchronization
-                >0 (float): Simulation is synchronized to the factored 
+                >0 (float): Simulation is synchronized to the factored
                             real-time. I.e. factor*real-time
-                
+
                 Example: If, set to 10: 10 simulated seconds is synchronized
                          to one real-time second.
             Default: False
@@ -296,7 +292,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             self.options = options
         else:
             raise InvalidAlgorithmOptionException(options)
-        
+
         self.result_handler = get_result_handler(self.model, self.options)
         self._set_options() # set options
 
@@ -355,7 +351,7 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         number_of_diagnostics_variables = 0
         if self.result_handler.supports.get('dynamic_diagnostics'):
-            _diagnostics_params, _diagnostics_vars = setup_diagnostics_variables(model = self.model, 
+            _diagnostics_params, _diagnostics_vars = setup_diagnostics_variables(model = self.model,
                                                                                  start_time = self.start_time,
                                                                                  options = self.options,
                                                                                  solver_options = self.solver_options)
@@ -508,7 +504,7 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         if self.options["dynamic_diagnostics"]:
             ## Result handler must have supports['dynamic_diagnostics'] = True
-            ## e.g., result_handling = 'binary' = ResultHandlerBinaryFile 
+            ## e.g., result_handling = 'binary' = ResultHandlerBinaryFile
             if not self.result_handler.supports.get('dynamic_diagnostics'):
                 err_msg = ("The chosen result_handler does not support dynamic_diagnostics."
                            " Try using e.g., ResultHandlerBinaryFile.")
@@ -552,15 +548,15 @@ class AssimuloFMIAlg(AlgorithmBase):
             if isinstance(self.solver_options["rtol"], str) and self.solver_options["rtol"] == "Default":
                 rtol = self.model.get_relative_tolerance()
                 self.solver_options['rtol'] = rtol
-            
+
             #rtol was provided as a vector
             if isinstance(self.solver_options["rtol"], N.ndarray) or isinstance(self.solver_options["rtol"], list):
-                
+
                 #rtol all are all equal -> set it as scalar and use that
                 if N.all(N.isclose(self.solver_options["rtol"], self.solver_options["rtol"][0])):
                     self.solver_options["rtol"] = self.solver_options["rtol"][0]
                     self.rtol = self.solver_options["rtol"]
-                    
+
                 else: #rtol is a vector where not all elements are equal (make sure that all are equal except zeros) (and store the rtol value)
                     fnbr, gnbr = self.model.get_ode_sizes()
                     if len(self.solver_options["rtol"]) != fnbr:
@@ -573,10 +569,10 @@ class AssimuloFMIAlg(AlgorithmBase):
                         if rtol_scalar != 0.0 and tol != 0.0 and rtol_scalar != tol:
                             raise fmi.InvalidOptionException("If the relative tolerance is provided as a vector, the values need to be equal except for zeros.")
                     self.rtol = rtol_scalar
-            
+
             else: #rtol was not provided as a vector -> modify if there are unbounded states
                 self.rtol = self.solver_options["rtol"]
-                
+
                 if not isinstance(self.model, fmi.FMUModelME1):
                     unbounded_attribute = False
                     rtol_vector = []
@@ -586,11 +582,11 @@ class AssimuloFMIAlg(AlgorithmBase):
                             rtol_vector.append(0.0)
                         else:
                             rtol_vector.append(self.rtol)
-                    
+
                     if unbounded_attribute:
                         self._rtol_as_scalar_fallback = True
                         self.solver_options['rtol'] = rtol_vector
-            
+
         except KeyError:
             self.rtol = self.model.get_relative_tolerance() #No support for relative tolerance in the used solver
 
@@ -681,11 +677,11 @@ class AssimuloFMIAlg(AlgorithmBase):
                 solver_options["maxh"] = 0.0
             else:
                 solver_options["maxh"] = float(self.final_time - self.start_time) / float(self.options["ncp"])
-        
+
         if "rtol" in solver_options:
             rtol_is_vector      = (isinstance(self.solver_options["rtol"], N.ndarray) or isinstance(self.solver_options["rtol"], list))
             rtol_vector_support = self.simulator.supports.get("rtol_as_vector", False)
-            
+
             if rtol_is_vector and not rtol_vector_support and self._rtol_as_scalar_fallback:
                 logging_module.warning("The chosen solver does not support providing the relative tolerance as a vector, fallback to using a scalar instead. rtol = %g"%self.rtol)
                 solver_options["rtol"] = self.rtol
@@ -846,18 +842,25 @@ class FMICSAlgOptions(OptionBase):
         silent_mode --
             Disables printouts to the console.
             Default: False
-        
+
         synchronize_simulation --
             If set, the simulation will be synchronized to real-time or a
             scaled real-time, if possible. The available options are:
                 True: Simulation is synchronized to real-time
                 False: No synchronization
-                >0 (float): Simulation is synchronized to the factored 
+                >0 (float): Simulation is synchronized to the factored
                             real-time. I.e. factor*real-time
-                
-                Example: If, set to 10: 10 simulated seconds is synchronized
-                         to one real-time second.
+
+            Example: If, set to 10: 10 simulated seconds is synchronized
+                        to one real-time second.
             Default: False
+
+        result_downsampling_factor --
+            int > 0, only save solution to result every
+            <result_downsampling_factor>-th communication point.
+            Start & end point are always included.
+            Example: If set to 2: Result contains only every other communication point.
+            Default: 1 (no downsampling)
 
     """
     def __init__(self, *args, **kw):
@@ -874,7 +877,8 @@ class FMICSAlgOptions(OptionBase):
             'time_limit': None,
             'filter':None,
             'silent_mode':False,
-            'synchronize_simulation':False
+            'synchronize_simulation':False,
+            'result_downsampling_factor': 1
             }
         super(FMICSAlgOptions,self).__init__(_defaults)
         # for those key-value-sets where the value is a dict, don't
@@ -1006,6 +1010,17 @@ class FMICSAlg(AlgorithmBase):
             raise fmi.FMUException(f"Setting {self.options['ncp']} as 'ncp' is not allowed for a CS FMU. Must be greater than 0.")
         self.ncp = self.options['ncp']
 
+        # Since isinstance(<any boolean>, int) evaluates to True
+        is_invalid_type = isinstance(self.options['result_downsampling_factor'], bool) or \
+                          not isinstance(self.options['result_downsampling_factor'], int)
+        if is_invalid_type:
+            raise fmi.FMUException("Option 'result_downsampling_factor' must be an integer, " + \
+                                  f"was {type(self.options['result_downsampling_factor'])}")
+        elif self.options['result_downsampling_factor'] < 1:
+            raise fmi.FMUException("Valid values for option 'result_downsampling_factor' are only positive integers, " + \
+                                  f"was {self.options['result_downsampling_factor']}")
+        self.result_downsampling_factor = self.options['result_downsampling_factor']
+
         self.write_scaled_result = self.options['write_scaled_result']
 
         # result file name
@@ -1013,7 +1028,7 @@ class FMICSAlg(AlgorithmBase):
             self.result_file_name = self.model.get_identifier()+'_result.txt'
         else:
             self.result_file_name = self.options['result_file_name']
-            
+
         if self.options["synchronize_simulation"]:
             try:
                 if self.options["synchronize_simulation"] is True:
@@ -1026,7 +1041,7 @@ class FMICSAlg(AlgorithmBase):
                 raise fmi.InvalidOptionException(f"Setting {self.options['synchronize_simulation']} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
         else:
             self._synchronize_factor = 0.0
-        
+
     def _set_solver_options(self):
         """
         Helper function that sets options for the solver.
@@ -1046,18 +1061,19 @@ class FMICSAlg(AlgorithmBase):
 
         #For result writing
         start_time_point = timer()
+        # Always log the start even if we are downsampling
         result_handler.integration_point()
         self.timings["storing_result"] = timer() - start_time_point
 
         #Start of simulation, start the clock
         time_start = timer()
 
-        for t in grid:
+        for step, t in enumerate(grid):
             if self._synchronize_factor > 0:
                 under_run = t/self._synchronize_factor - (timer()-time_start)
                 if under_run > 0:
                     time.sleep(under_run)
-            
+
             status = self.model.do_step(t,h)
             self.status = status
 
@@ -1091,7 +1107,9 @@ class FMICSAlg(AlgorithmBase):
             final_time = t+h
 
             start_time_point = timer()
-            result_handler.integration_point()
+            # down-sampling of result; step starts at 0
+            if ((step + 1) % self.result_downsampling_factor == 0) or ((step + 1) == self.ncp):
+                self.result_handler.integration_point()
             self.timings["storing_result"] += timer() - start_time_point
 
             if self.options["time_limit"] and (timer() - time_start) > self.options["time_limit"]:
@@ -1363,7 +1381,7 @@ class SciEstAlgOptions(OptionBase):
             result_file_name can also be set to a stream that supports 'write',
             'tell' and 'seek'.
             Default: Empty string
-        
+
         result_handling --
             Specifies how the result should be handled. Either stored to
             file (txt or binary) or stored in memory. One can also use a

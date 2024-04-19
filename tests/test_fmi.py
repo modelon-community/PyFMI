@@ -630,7 +630,7 @@ class Test_FMUModelCS2:
             model = FMUModelCS2(os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "LinearStability.SubSystem1.fmu"), _connect_dll=False, allow_unzipped_fmu=True)
 
     @testattr(stddist = True)
-    def test_erreneous_ncp(self):
+    def test_erroneous_ncp(self):
         model = FMUModelCS2(os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         opts = model.simulate_options()
@@ -638,6 +638,89 @@ class Test_FMUModelCS2:
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
         opts["ncp"] = -1
         nose.tools.assert_raises(FMUException, model.simulate, options=opts)
+
+    def _verify_downsample_result(self, ref_traj, test_traj, ncp, factor):
+        """Auxiliary function for result_downsampling_factor testing. 
+        Verify correct length and values of downsampled trajectory."""
+        # all steps, except last one are checked = (ncp - 1) steps
+        # ncp = 0 is illegal
+        exptected_result_size = (ncp - 1)//factor + 2
+        assert len(test_traj) == exptected_result_size, f"expected result size: {exptected_result_size}, actual : {len(test_traj)}"
+
+        # selection mask for reference result
+        downsample_indices = np.array([i%factor == 0 for i in range(ncp + 1)])
+        downsample_indices[0] = True
+        downsample_indices[-1] = True
+
+        np.testing.assert_equal(ref_traj[downsample_indices], test_traj)
+
+    def test_downsample_default(self):
+        """ Test the default setup for result_downsampling_factor. """
+        fmu = FMUModelCS2(os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu'))
+        opts = fmu.simulate_options()
+        opts['ncp'] = 500
+
+        assert opts['result_downsampling_factor'] == 1
+
+        results = fmu.simulate(options = opts)
+
+        assert len(results['time']) == 501
+
+    def test_downsample_result(self):
+        """ Test multiple result_downsampling_factor value and verify the result. """
+        fmu = FMUModelCS2(os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu'))
+        opts = fmu.simulate_options()
+        opts['ncp'] = 500
+        test_var = "h" # height of bouncing ball
+
+        # create reference result without down-sampling
+        opts['result_downsampling_factor'] = 1
+        ref_res = fmu.simulate(options = opts)
+        assert len(ref_res['time']) == 501
+        ref_res_traj = ref_res[test_var].copy()
+
+
+        for f in [2, 3, 4, 5, 10, 100, 250, 499, 500, 600]:
+            fmu.reset()
+            opts['result_downsampling_factor'] = f
+            res = fmu.simulate(options = opts)
+            self._verify_downsample_result(ref_res_traj, res[test_var], opts['ncp'], f)
+
+    def test_downsample_error_check_invalid_value(self):
+        """ Verify we get an exception if the option is set to anything less than 1. """
+        fmu = FMUModelCS2(os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu'))
+        opts = fmu.simulate_options()
+        test_values = [-10, -20, -1, 0]
+
+        # TODO: tidy up with pytest
+        expected_substr = "Valid values for option 'result_downsampling_factor' are only positive integers"
+        for value in test_values:
+            opts['result_downsampling_factor'] = value
+            try:
+                fmu.simulate(options = opts)
+                error_raised = False
+            except FMUException as e:
+                error_raised = True
+                assert expected_substr in str(e), f"Error was {str(e)}, expected substring {expected_substr}"
+            assert error_raised
+
+    def test_error_check_invalid_value(self):
+        """ Verify we get an exception if the option is set to anything that is not an integer. """
+        fmu = FMUModelCS2(os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu'))
+        opts = fmu.simulate_options()
+        test_values = [1/2, 1/3, "0.5", False]
+
+        # TODO: tidy up with pytest
+        expected_substr = "Option 'result_downsampling_factor' must be an integer,"
+        for value in test_values:
+            opts['result_downsampling_factor'] = value
+            try:
+                fmu.simulate(options = opts)
+                error_raised = False
+            except FMUException as e:
+                error_raised = True
+                assert expected_substr in str(e), f"Error was {str(e)}, expected substring {expected_substr}"
+            assert error_raised
 
 if assimulo_installed:
     class Test_FMUModelME2_Simulation:
@@ -1618,7 +1701,6 @@ class Test_FMUModelBase2:
     def test_get_variable_description(self):
         model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
         assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
-
 
 class Test_load_fmu_only_XML:
 
