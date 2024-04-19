@@ -858,7 +858,7 @@ class FMICSAlgOptions(OptionBase):
         result_downsampling_factor --
             int > 0, only save solution to result every
             <result_downsampling_factor>-th communication point.
-            Start & end point are always be included.
+            Start & end point are always included.
             Example: If set to 2: Result contains only every other communication point.
             Default: 1 (no downsampling)
 
