@@ -341,7 +341,7 @@ class MasterAlgOptions(OptionBase):
         result_downsampling_factor --
             int > 0, only save solution to result every
             <result_downsampling_factor>-th communication point.
-            Start & end point are always be included.
+            Start & end point are always included.
             Affects results storing from the 'store_step_before_update' option.
             Useage with 'error_controlled' = True is not supported.
             Example: If set to 2: Result contains only every other communication point.
@@ -1480,19 +1480,20 @@ cdef class Master:
                 self.rtol = options["rtol"]
             if (self.error_controlled == 1) and (options["result_downsampling_factor"] != 1): # result_downsampling_factor = 1 is default
                 warnings.warn("Result downsampling not supported for error controlled simulation, no downsampling will be performed.")
+            self.result_downsampling_factor = 1
         else:
             self.error_controlled = 0
         
-        # Since isinstance(<any boolean>, int) evaluates to True
-        is_invalid_type = isinstance(options['result_downsampling_factor'], bool) or \
-                          not isinstance(options['result_downsampling_factor'], int)
-        if is_invalid_type:
-            raise fmi.FMUException("Option 'result_downsampling_factor' must be an integer, " + \
-                                  f"was {type(options['result_downsampling_factor'])}")
-        elif options['result_downsampling_factor'] < 1:
-            raise fmi.FMUException("Valid values for option 'result_downsampling_factor' are only positive integers, " + \
-                                  f"was {options['result_downsampling_factor']}")
-        self.result_downsampling_factor = options["result_downsampling_factor"]
+            # Since isinstance(<any boolean>, int) evaluates to True
+            is_invalid_type = isinstance(options['result_downsampling_factor'], bool) or \
+                                not isinstance(options['result_downsampling_factor'], int)
+            if is_invalid_type:
+                raise fmi.FMUException("Option 'result_downsampling_factor' must be an integer, " + \
+                                        f"was {type(options['result_downsampling_factor'])}")
+            elif options['result_downsampling_factor'] < 1:
+                raise fmi.FMUException("Valid values for option 'result_downsampling_factor' are only positive integers, " + \
+                                        f"was {options['result_downsampling_factor']}")
+            self.result_downsampling_factor = options["result_downsampling_factor"]
 
         if options["extrapolation_order"] > 0:
             if self.support_interpolate_inputs != 1:
