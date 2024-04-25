@@ -2,10 +2,17 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.12.0 ---
+    * Removed utilities related to the obsolete FMUX model interface.
+    * Removed no longer required dependency on lxml.
+    * Unified result handling and allowed the master algorithm to use all available result handlers
+    * Added new option "result_downsampling_factor" for simulation of CS-FMUs, including the Master algorithm.
+      Solution will only be stored every "result_downsampling_factor"-nth communication point.
+
 --- PyFMI-2.11.0 ---
     * Refactored result handling for dynamic_diagnostics. It is now possible use dynamic_diagnostics with a custom result handler.
     * Migrated some diagnostics functionality into a new file: src/common/diagnostics.py. This should be seamless.
-    * pyfmi.common.diagnostics_prefix has been moved to pyfmi.common.diagnostics as DIAGNOSTICS_PREFIX. 
+    * pyfmi.common.diagnostics_prefix has been moved to pyfmi.common.diagnostics as DIAGNOSTICS_PREFIX.
 
 --- PyFMI-2.10.4 ---
     * Added 'result_handling' = None as option, deprecated 'none'.
@@ -48,11 +55,11 @@ Changelog
 --- PyFMI-2.9.8 ---
     * Resolved a bug in the example fmi20_bouncing_ball_native where a step-event is triggered in every timestep.
     * Changed some imports to remove DeprecationWarnings.
-    
+
 --- PyFMI-2.9.7 ---
     * Added an argument to ResultDymolaBinary to allow for reading updated
       data from the loaded file.
-    * Added option "synchronize_simulation" to allow for synchronizing 
+    * Added option "synchronize_simulation" to allow for synchronizing
       simulation with (scaled) real-time.
 
 --- PyFMI-2.9.6 ---
