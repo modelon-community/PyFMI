@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2014-2022 Modelon AB
@@ -25,7 +25,7 @@ import sys
 #If prefix is set, we want to allow installation in a directory that is not on PYTHONPATH
 #and this is only possible with distutils, not setuptools
 if str(sys.argv[1:]).find("--prefix") == -1:
-    from setuptools import setup  
+    from setuptools import setup
 else:
     from distutils.core import setup
 
@@ -39,7 +39,7 @@ except ImportError:
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "3.0-dev"
+VERSION = "2.12"
 LICENSE = "LGPL"
 URL = "https://github.com/modelon-community/PyFMI"
 DOWNLOAD_URL = "https://github.com/modelon-community/PyFMI/releases"
@@ -51,22 +51,22 @@ CLASSIFIERS = [ 'Programming Language :: Python',
                 'Operating System :: Unix']
 
 LONG_DESCRIPTION = """
-PyFMI is a package for loading and interacting with Functional Mock-Up 
-Units (FMUs), which are compiled dynamic models compliant with the 
-Functional Mock-Up Interface (FMI), see 
+PyFMI is a package for loading and interacting with Functional Mock-Up
+Units (FMUs), which are compiled dynamic models compliant with the
+Functional Mock-Up Interface (FMI), see
 https://www.fmi-standard.org/ for more information. PyFMI
 is based on FMI Library, see https://github.com/modelon-community/fmi-library .
 
-FMI is a standard that enables tool independent exchange of dynamic 
-models on binary format. Several industrial simulation platforms 
-supports export of FMUs, including, Impact, Dymola, OpenModelica 
-and SimulationX, see https://www.fmi-standard.org/tools 
-for a complete list. PyFMI offers a Python interface for interacting 
-with FMUs and enables for example loading of FMU models, setting of 
+FMI is a standard that enables tool independent exchange of dynamic
+models on binary format. Several industrial simulation platforms
+supports export of FMUs, including, Impact, Dymola, OpenModelica
+and SimulationX, see https://www.fmi-standard.org/tools
+for a complete list. PyFMI offers a Python interface for interacting
+with FMUs and enables for example loading of FMU models, setting of
 model parameters and evaluation of model equations.
 
-Using PyFMI together with the Python 
-simulation package `Assimulo <http://pypi.python.org/pypi/Assimulo>`_ 
+Using PyFMI together with the Python
+simulation package `Assimulo <http://pypi.python.org/pypi/Assimulo>`_
 adds industrial grade simulation capabilities of FMUs to Python.
 
 Requirements:
@@ -96,7 +96,7 @@ if os.getenv("FMIL_HOME"): #Check for if there exists and environment variable t
 else:
     incdirs = ""
     libdirs = ""
-    
+
 static = False
 debug_flag = False
 fmilib_shared = ""
@@ -152,7 +152,7 @@ for x in sys.argv[1:]:
         else:
             debug_flag = False
         copy_args.remove(x)
-    
+
 
 if not incdirs:
     raise Exception("FMI Library cannot be found. Please specify its location, either using the flag to the setup script '--fmil-home' or specify it using the environment variable FMIL_HOME.")
@@ -171,7 +171,7 @@ if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
                 break
         else:
             raise Exception("Could not find FMILibrary at: %s"%libdirs)
-            
+
         if copy_gcc_lib:
             path_gcc_lib = ctypes.util.find_library("libgcc_s_dw2-1.dll")
             if path_gcc_lib is not None:
@@ -180,16 +180,16 @@ if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
 
 if no_msvcr:
     # prevent the MSVCR* being added to the DLLs passed to the linker
-    def msvc_runtime_library_mod(): 
+    def msvc_runtime_library_mod():
         return None
-    
+
     import numpy.distutils
     numpy.distutils.misc_util.msvc_runtime_library = msvc_runtime_library_mod
 
 def check_extensions():
     ext_list = []
     extra_link_flags = []
-    
+
     if static:
         extra_link_flags.append(static_link_gcc)
 
@@ -198,12 +198,12 @@ def check_extensions():
 
     #COMMON PYX
     """
-    ext_list = cythonize([os.path.join("src", "common", "core.pyx")], 
+    ext_list = cythonize([os.path.join("src", "common", "core.pyx")],
                     include_path=[".","src",os.path.join("src", "common")],
                     include_dirs=[N.get_include()],pyrex_gdb=debug)
-    
+
     ext_list[-1].include_dirs = [N.get_include(), "src",os.path.join("src", "common"), incdirs]
-        
+
     if debug:
         ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
         ext_list[-1].extra_link_args = extra_link_flags
@@ -213,57 +213,57 @@ def check_extensions():
     """
     incl_path = [".", "src", os.path.join("src", "pyfmi")]
     #FMI PYX
-    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi.pyx")], 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi.pyx")],
                     include_path = incl_path)
-    
+
     #FMI UTIL
-    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_util.pyx")], 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_util.pyx")],
                     include_path = incl_path)
-    
+
     #FMI Extended PYX
-    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_extended.pyx")], 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_extended.pyx")],
                     include_path = incl_path)
-                    
+
     #FMI Coupled PYX
-    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_coupled.pyx")], 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_coupled.pyx")],
                     include_path = incl_path)
-    
+
     #Simulation interface PYX
-    ext_list += cythonize([os.path.join("src", "pyfmi", "simulation", "assimulo_interface.pyx")], 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "simulation", "assimulo_interface.pyx")],
                     include_path = incl_path)
-                    
+
     #MASTER PYX
     compile_time_env = {'WITH_OPENMP': with_openmp}
-    ext_list += cythonize([os.path.join("src", "pyfmi", "master.pyx")], 
-                    include_path = incl_path, 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "master.pyx")],
+                    include_path = incl_path,
                     compile_time_env=compile_time_env)
-    
+
     for i in range(len(ext_list)):
-        
+
         ext_list[i].include_dirs = [N.get_include(), "src", os.path.join("src", "pyfmi"), incdirs]
         ext_list[i].library_dirs = [libdirs]
         ext_list[i].language = "c"
         ext_list[i].libraries = ["fmilib_shared"] if sys.platform.startswith("win") else ["fmilib"] #If windows shared, else static
-        
+
         if debug_flag:
             ext_list[i].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
         else:
             ext_list[i].extra_compile_args = ["-O2", "-fno-strict-aliasing"]
-        
+
         if force_32bit:
             ext_list[i].extra_compile_args.append(flag_32bit)
-            
+
         if extra_c_flags:
             flags = extra_c_flags.split(' ')
             for f in flags:
                 ext_list[i].extra_compile_args.append(f)
-        
+
         ext_list[i].extra_link_args = extra_link_flags
-        
+
         if with_openmp:
             ext_list[i].extra_link_args.append("-fopenmp")
             ext_list[i].extra_compile_args.append("-fopenmp")
-        
+
         ext_list[i].cython_directives = {"language_level": 3}
 
     return ext_list
@@ -288,7 +288,7 @@ else:# If it does not, check if the file exists and if not, create the file!
         with open(version_txt, 'w') as f:
             f.write(VERSION+'\n')
             f.write("unknown")
-            
+
 try:
     shutil.copy2('LICENSE', os.path.join('src', 'pyfmi', 'LICENSE'))
     shutil.copy2('CHANGELOG', os.path.join('src', 'pyfmi', 'CHANGELOG'))
