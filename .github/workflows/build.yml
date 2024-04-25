@@ -12,10 +12,10 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v4
       with:
-        python-version: '3.11.x'
+        python-version: '3.9.x'
     - name: Setup Python
       run: |
-        python3 -m pip install Cython numpy scipy==1.12.0 matplotlib nose-py3
+        python3 -m pip install Cython numpy scipy==1.12.0 matplotlib nose-py3 setuptools
     - name: Install system
       run: |
         sudo apt-get -y install cmake liblapack-dev libsuitesparse-dev libhypre-dev
@@ -40,7 +40,7 @@ jobs:
         sudo make install
     - name: Install assimulo
       run: |
-        git clone --depth 1 -b dev-pm-python_upgrade https://github.com/modelon-community/Assimulo /tmp/Assimulo
+        git clone --depth 1 -b dev-pm-cy3_only https://github.com/modelon-community/Assimulo /tmp/Assimulo
         cd /tmp/Assimulo
         python3 setup.py install --user --sundials-home=/usr --blas-home=/usr/lib/x86_64-linux-gnu/ --lapack-home=/usr/lib/x86_64-linux-gnu/ --superlu-home=/usr --extra-fortran-compile-flags="-fallow-argument-mismatch"
     - name: Install fmilib
