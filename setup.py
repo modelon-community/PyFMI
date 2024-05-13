@@ -39,7 +39,7 @@ except ImportError:
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "2.12.0"
+VERSION = "3.0-dev"
 LICENSE = "LGPL"
 URL = "https://github.com/modelon-community/PyFMI"
 DOWNLOAD_URL = "https://github.com/modelon-community/PyFMI/releases"
@@ -73,7 +73,7 @@ Requirements:
 -------------
 - `FMI Library (at least 2.0.1) <https://github.com/modelon-community/fmi-library>`_
 - `Python-headers (usually included on Windows, python-dev on Ubuntu)`_
-- `Python 3.11 or newer`_
+- `Python 3.9 or newer`_
 - Python package dependencies are listed in file setup.cfg.
 
 Optional

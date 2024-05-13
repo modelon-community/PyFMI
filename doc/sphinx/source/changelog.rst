@@ -2,6 +2,9 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.13.0 ---
+    * Upgraded to Cython3.
+
 --- PyFMI-2.12.0 ---
     * Removed utilities related to the obsolete FMUX model interface.
     * Removed no longer required dependency on lxml.

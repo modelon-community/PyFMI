@@ -18,12 +18,6 @@
 Module containing optimization, simulation and initialization algorithms.
 """
 
-import numpy as np
-
-default_int = int
-int = np.int32
-np.int = np.int32
-
 class AlgorithmBase(object):
     """ 
     Abstract class which all algorithms that are to be used in

@@ -26,13 +26,9 @@ from pyfmi.fmi import FMUModelCS1, FMUModelCS2
 from pyfmi.fmi_coupled import CoupledFMUModelME2
 from pyfmi.master import Master
 from pyfmi.fmi_extended import FMUModelME1Extended
-import numpy as np
 import os.path
 import sys
 import time
-
-int = np.int32
-np.int = np.int32
 
 def testattr(**kwargs):
     """Add attributes to a test function/method/class.
