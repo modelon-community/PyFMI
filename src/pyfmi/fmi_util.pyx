@@ -14,48 +14,36 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
 """
 Module containing the FMI interface Python wrappers.
 """
 import collections
-from collections import OrderedDict
 import itertools
-from operator import attrgetter
+
 import numpy as np
-from numpy.compat import asbytes
-
-from pyfmi.common import encode
-
 cimport numpy as np
-cimport fmil_import as FMIL
 
-from cpython cimport array
-from pyfmi.fmi cimport FMUModelME2, FMUModelBase
+cimport fmil_import as FMIL
+from pyfmi.fmi cimport FMUModelME2
 
 import functools
 import marshal
-import fmi
-import sys
-
-python3_flag = True if sys.hexversion > 0x03000000 else False
+import pyfmi.fmi as fmi
 
 cpdef decode(x):
-    if python3_flag:
-        if isinstance(x, bytes):
-            return x.decode(errors="replace")
-        else:
-            return x
+    if isinstance(x, bytes):
+        return x.decode(errors="replace")
     else:
         return x
 
 cpdef encode(x):
-    if python3_flag:
-        if isinstance(x, str):
-            return x.encode()
-        else:
-            return x
+    if isinstance(x, str):
+        return x.encode()
     else:
-        return x.encode("utf-8")
+        return x
 
 def enable_caching(obj):
     @functools.wraps(obj, ('__name__', '__doc__'))
@@ -94,10 +82,7 @@ cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
     data_index = {}
     data_index_with_diag = {}
     for i in range(n_col):
-        if python3_flag:
-            data_index[i] = list(range(k, k + len(column_dict[i])))
-        else:
-            data_index[i] = range(k, k + len(column_dict[i]))
+        data_index[i] = list(range(k, k + len(column_dict[i])))
         k = k + len(column_dict[i])
 
         data_index_with_diag[i] = []
@@ -221,16 +206,10 @@ cpdef list convert_array_names_list_names(np.ndarray names):
 cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
     cdef int max_length = names.shape[0]
     cdef int nbr_items  = names.shape[1]
-    cdef int i, py3, j = 0, ch
+    cdef int i, j = 0, ch
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef list output = []
     cdef bytes py_str
-
-    # This if-statement is contributes to a performance gain within the for-loop that follows
-    if python3_flag:
-        py3 = 1
-    else:
-        py3 = 0
 
     for i in range(nbr_items):
         for j in range(max_length):
@@ -242,10 +221,7 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
 
         py_str = tmp[:j]
         if j == max_length - 1:
-            if py3:
-                py_str = py_str.replace(b" ", b"")
-            else:
-                py_str = py_str.replace(" ", "")
+            py_str = py_str.replace(b" ", b"")
         output.append(py_str)
 
     FMIL.free(tmp)
@@ -274,7 +250,10 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         data_info[2,i] = 0
         data_info[3,i] = -1
 
-        alias = -1 if var.alias == FMI_NEGATED_ALIAS else 1
+        if var.alias == FMI_NEGATED_ALIAS:
+            alias = -1
+        else:
+            alias = 1
 
         if last_vref == var.value_reference:
             data_info[0,i] = last_data_matrix
@@ -314,7 +293,10 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
             data_info[1,i] = alias*last_index
             data_info[0,i] = last_data_matrix
 
-    data_info[0,0] = 0; data_info[1, 0] = 1; data_info[2, 0] = 0; data_info[3, 0] = -1
+    data_info[0, 0] = 0
+    data_info[1, 0] = 1
+    data_info[2, 0] = 0
+    data_info[3, 0] = -1
 
     for i in range(nof_sorted_vars+1, nof_sorted_vars+1+nof_diag_params):
         data_info[0,i] = 1
@@ -336,7 +318,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
                                     model.get_integer(param_int).astype(float),
                                     model.get_boolean(param_bool).astype(float),
                                     np.array(diagnostics_param_values).astype(float)),
-                                    axis = 0,
+                                    axis = 0
                                 )
                     )
 
@@ -658,7 +640,7 @@ class Graph:
             if self.graph_info[node]["type"] == GRAPH_OUTPUT:
                 model = self.graph_info[node]["model"]
                 if not (model in trees):
-                    trees[model] = OrderedDict()
+                    trees[model] = collections.OrderedDict()
                     trees[model][node] = self.dfs(node)
                     joined_nodes[node] = [node]
                 else:
@@ -1019,34 +1001,24 @@ class Graph:
             f.write('}')
 
 cdef class DumpData:
-    cdef np.ndarray real_var_ref, int_var_ref, bool_var_ref
-    cdef np.ndarray real_var_tmp, int_var_tmp, bool_var_tmp
-    cdef np.ndarray time_tmp
-    cdef public FMUModelME2 model_me2
-    cdef public int model_me2_instance
-    cdef public object _file, model
-    cdef size_t real_size, int_size, bool_size
-    cdef int _with_diagnostics
-
     def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref, with_diagnostics):
-
-        if type(model) != FMUModelME2:
-            self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
-            self.int_var_ref  = np.array(int_var_ref, ndmin=1).ravel()
-            self.bool_var_ref = np.array(bool_var_ref, ndmin=1).ravel()
-        else:
+        if type(model) == FMUModelME2:
             self.real_var_ref = np.array(real_var_ref, dtype=np.uint32, ndmin=1).ravel()
             self.int_var_ref  = np.array(int_var_ref,  dtype=np.uint32, ndmin=1).ravel()
             self.bool_var_ref = np.array(bool_var_ref, dtype=np.uint32, ndmin=1).ravel()
+        else:
+            self.real_var_ref = np.array(real_var_ref, ndmin=1).ravel()
+            self.int_var_ref  = np.array(int_var_ref, ndmin=1).ravel()
+            self.bool_var_ref = np.array(bool_var_ref, ndmin=1).ravel()
 
-        self.real_var_tmp = np.zeros(self.real_var_ref.size)
-        self.int_var_tmp  = np.zeros(self.int_var_ref.size, dtype=np.int32)
-        self.bool_var_tmp = np.zeros(self.bool_var_ref.size)
+        self.real_size = np.size(self.real_var_ref)
+        self.int_size  = np.size(self.int_var_ref)
+        self.bool_size = np.size(bool_var_ref)
+
+        self.real_var_tmp = np.zeros(self.real_size)
+        self.int_var_tmp  = np.zeros(self.int_size, dtype=np.int32)
+        self.bool_var_tmp = np.zeros(self.bool_size)
         self.time_tmp     = np.zeros(1)
-
-        self.real_size = self.real_var_ref.size
-        self.int_size  = self.int_var_ref.size
-        self.bool_size = self.bool_var_ref.size
 
         self._file = filep
 
@@ -1066,11 +1038,11 @@ cdef class DumpData:
         if self._with_diagnostics:
             self.dump_data(np.array(float(1.0)))
         if self.model_me2_instance:
-            self.time_tmp[0] = self.model_me2._get_time()
+            self.time_tmp[0] = self.model_me2.time
             self.dump_data(self.time_tmp)
 
             if self.real_size > 0:
-                self.model_me2._get_real(self.real_var_ref, self.real_size, self.real_var_tmp)
+                self.model_me2._get_real_by_list(self.real_var_ref, self.real_size, self.real_var_tmp)
                 self.dump_data(self.real_var_tmp)
 
             if self.int_size > 0:
@@ -1100,17 +1072,18 @@ cdef class DumpData:
         """ Saves a point of diagnostics data to the result. """
         self.dump_data(np.array(float(2.0)))
         if self.model_me2_instance:
-            self.time_tmp[0] = self.model_me2._get_time()
+            self.time_tmp[0] = self.model_me2.time
             self.dump_data(self.time_tmp)
         else:
             self.dump_data(np.array(float(self.model.time)))
         self.dump_data(diag_data)
 
-from libc.stdio cimport *
-
 cdef extern from "stdio.h":
     FILE *fdopen(int, const char *)
-
+    FILE *fopen(const char *, const char *)
+    size_t fread(void*, size_t, size_t, FILE *)
+    int fseek(FILE *, long, int)
+    int fclose(FILE *)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -1269,7 +1242,10 @@ def read_diagnostics_trajectory(
     flag_ptr = <DTYPE_t*>flag.data
 
     if has_position_data == 1:
-        file_pos_list = file_pos_diag_var if read_diag_data == 1 else file_pos_model_var
+        if read_diag_data == 1:
+            file_pos_list = file_pos_diag_var
+        else:
+            file_pos_list = file_pos_model_var
         for file_pos in file_pos_list:
             os_specific_fseek(cfile, file_pos+data_index*sizeof_type, 0)
             fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
@@ -1327,17 +1303,12 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
 
         A dict with the names as key and an index as value
     """
-    cdef int i = 0, j = 0, py3, need_replace = 0
+    cdef int i = 0, j = 0, need_replace = 0
     cdef FILE* cfile
     cdef char *tmp = <char*>FMIL.calloc(max_length,sizeof(char))
     cdef bytes py_str
     cdef dict data = {}
 
-    # This if-statement contributes to a performance gain within the for-loop that follows
-    if python3_flag:
-        py3 = 1
-    else:
-        py3 = 0
     if tmp == NULL:
         raise fmi.IOException("Couldn't allocate memory to read name list.")
 
@@ -1352,10 +1323,7 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
                 need_replace = 1
 
         if need_replace:
-            if py3:
-                py_str = py_str.replace(b" ", b"")
-            else:
-                py_str = py_str.replace(" ", "")
+            py_str = py_str.replace(b" ", b"")
         data[py_str] = i
 
     fclose(cfile)

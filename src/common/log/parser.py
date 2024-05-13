@@ -20,11 +20,9 @@ Parser for a XML based FMU log format
 
 from xml import sax
 import re
-import os
 import numpy as np
 from distutils.util import strtobool
-from .tree import *
-from pyfmi.fmi_util import python3_flag
+from pyfmi.common.log.tree import Node, Comment
 from pyfmi.fmi import FMUException
 
 ## Leaf parser ##
@@ -59,8 +57,7 @@ def parse_value(text):
             text = text[1:-1].replace('""','"')
         else:
             assert '"' not in text
-        # for python 2 we need to avoid printing all strings as u'...'
-        return text if python3_flag else text.encode('ascii', 'xmlcharrefreplace')
+        return text
 
 def parse_vector(text):
 
@@ -206,7 +203,7 @@ def extract_xml_log(dest, log, modulename = 'Model'):
 
             dest  --
                 Name of the file which holds the extracted log, or a stream to write to
-                that supports the function 'write'. Default behaviour is to write to a file.
+                that supports the function 'write'. Default behavior is to write to a file.
                 Default: get_log_filename() + xml
             log --
                 String of filename to extract log from or a stream. The support for stream

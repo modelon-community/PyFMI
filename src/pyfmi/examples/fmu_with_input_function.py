@@ -15,16 +15,16 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import os as O
-import numpy as N
-import pylab as p
+import os
+import numpy as np
+import pylab as pl
 
 from pyfmi import load_fmu
 
-curr_dir = O.path.dirname(O.path.abspath(__file__));
-path_to_fmus = O.path.join(curr_dir, 'files', 'FMUs')
-path_to_fmus_me1 = O.path.join(path_to_fmus,"ME1.0")
-path_to_fmus_cs1 = O.path.join(path_to_fmus,"CS1.0")
+curr_dir = os.path.dirname(os.path.abspath(__file__))
+path_to_fmus = os.path.join(curr_dir, 'files', 'FMUs')
+path_to_fmus_me1 = os.path.join(path_to_fmus,"ME1.0")
+path_to_fmus_cs1 = os.path.join(path_to_fmus,"CS1.0")
 
 def run_demo(with_plots=True):
     """
@@ -32,10 +32,10 @@ def run_demo(with_plots=True):
     
     See also simulation_with_input.py
     """
-    fmu_name = O.path.join(path_to_fmus_me1,'SecondOrder.fmu')
+    fmu_name = os.path.join(path_to_fmus_me1,'SecondOrder.fmu')
 
     # Create input object
-    input_object = ('u', N.cos)
+    input_object = ('u', np.cos)
 
     # Load the dynamic library and XML data
     model = load_fmu(fmu_name)
@@ -48,18 +48,17 @@ def run_demo(with_plots=True):
     u_sim = res['u']
     time_sim = res['time']
         
-    assert N.abs(res.final('x1') - (-1.646485144)) < 1e-3
-    assert N.abs(res.final('x2')*1.e1 - (-7.30591626709)) < 1e-3  
-    assert N.abs(res.final('u')*1.e1 - (1.54251449888)) < 1e-3    
+    assert np.abs(res.final('x1') - (-1.646485144)) < 1e-3
+    assert np.abs(res.final('x2')*1.e1 - (-7.30591626709)) < 1e-3  
+    assert np.abs(res.final('u')*1.e1 - (1.54251449888)) < 1e-3    
 
     if with_plots:
-        fig = p.figure()
-        p.subplot(2,1,1)
-        p.plot(time_sim, x1_sim, time_sim, x2_sim)
-        p.subplot(2,1,2)
-        p.plot(time_sim, u_sim)
-        p.show()
+        pl.figure()
+        pl.subplot(2,1,1)
+        pl.plot(time_sim, x1_sim, time_sim, x2_sim)
+        pl.subplot(2,1,2)
+        pl.plot(time_sim, u_sim)
+        pl.show()
 
 if __name__=="__main__":
     run_demo()
-

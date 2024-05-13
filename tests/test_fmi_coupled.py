@@ -17,16 +17,12 @@
 
 import nose
 import os
-import numpy as np
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2, PyEventInfo
+from pyfmi.fmi import FMUModelME2
 from pyfmi.fmi_coupled import CoupledFMUModelME2
-import pyfmi.fmi_util as fmi_util
 import pyfmi.fmi as fmi
-import pyfmi.fmi_algorithm_drivers as fmi_algorithm_drivers
 from pyfmi.tests.test_util import Dummy_FMUModelME2
-from pyfmi.common.io import ResultHandler
 
 assimulo_installed = True
 try:
@@ -46,26 +42,26 @@ if assimulo_installed:
             model_sub_2 = Dummy_FMUModelME2([], os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
 
             def sub1(*args, **kwargs):
-                u1 = model_sub_1.values[model_sub_1.get_variable_valueref("u1")]
-                a1 = model_sub_1.values[model_sub_1.get_variable_valueref("a1")]
-                b1 = model_sub_1.values[model_sub_1.get_variable_valueref("b1")]
-                c1 = model_sub_1.values[model_sub_1.get_variable_valueref("c1")]
-                d1 = model_sub_1.values[model_sub_1.get_variable_valueref("d1")]
+                u1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("u1")], evaluate = False)
+                a1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("a1")], evaluate = False)
+                b1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("b1")], evaluate = False)
+                c1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("c1")], evaluate = False)
+                d1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("d1")], evaluate = False)
                 x1 = model_sub_1.continuous_states[0]
-                model_sub_1.values[model_sub_1.get_variable_valueref("y1")] = c1*x1+d1*u1
-                model_sub_1.values[model_sub_1.get_variable_valueref("x1")] = x1
-                return np.array([a1*x1+b1*u1])
+                model_sub_1.set_real([model_sub_1.get_variable_valueref("y1")], c1*x1+d1*u1)
+                model_sub_1.set_real([model_sub_1.get_variable_valueref("x1")], [x1])
+                return a1*x1+b1*u1
             
             def sub2(*args, **kwargs):
-                u2 = model_sub_2.values[model_sub_2.get_variable_valueref("u2")]
-                a2 = model_sub_2.values[model_sub_2.get_variable_valueref("a2")]
-                b2 = model_sub_2.values[model_sub_2.get_variable_valueref("b2")]
-                c2 = model_sub_2.values[model_sub_2.get_variable_valueref("c2")]
-                d2 = model_sub_2.values[model_sub_2.get_variable_valueref("d2")]
+                u2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("u2")], evaluate = False)
+                a2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("a2")], evaluate = False)
+                b2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("b2")], evaluate = False)
+                c2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("c2")], evaluate = False)
+                d2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("d2")], evaluate = False)
                 x2 = model_sub_2.continuous_states[0]
-                model_sub_2.values[model_sub_2.get_variable_valueref("y2")] = c2*x2+d2*u2
-                model_sub_2.values[model_sub_2.get_variable_valueref("x2")] = x2
-                return np.array([a2*x2+b2*u2])
+                model_sub_2.set_real([model_sub_2.get_variable_valueref("y2")], c2*x2+d2*u2)
+                model_sub_2.set_real([model_sub_2.get_variable_valueref("x2")], [x2])
+                return a2*x2+b2*u2
             
             model_sub_1.get_derivatives = sub1
             model_sub_2.get_derivatives = sub2

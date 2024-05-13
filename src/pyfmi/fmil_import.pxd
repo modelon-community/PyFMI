@@ -47,7 +47,6 @@ cdef extern from "stdarg.h":
     void va_end(va_list)
     int vsnprintf(char *str, size_t size, char *format, va_list ap)
 
-#cdef extern from 'FMI1/fmi1_import.h':
 cdef extern from 'fmilib.h':
 
     #FMI VARIABLE TYPE DEFINITIONS
@@ -56,18 +55,18 @@ cdef extern from 'fmilib.h':
     ctypedef unsigned int fmi1_value_reference_t
     ctypedef char   fmi1_boolean_t
     ctypedef int    fmi2_boolean_t
-    ctypedef void * fmi1_component_t
-    ctypedef void * fmi2_component_t
-    ctypedef char * fmi1_string_t
-    ctypedef char * fmi2_string_t
+    ctypedef void*  fmi1_component_t
+    ctypedef void*  fmi2_component_t
+    ctypedef char*  fmi1_string_t
+    ctypedef char*  fmi2_string_t
     ctypedef int    fmi1_integer_t
     ctypedef int    fmi2_integer_t
-    ctypedef long unsigned int size_t
-    ctypedef void * jm_voidp
-    ctypedef char * jm_string
+    # ctypedef long unsigned int size_t # same as via stdlib.h
+    ctypedef void*  jm_voidp
+    ctypedef char*  jm_string
     ctypedef char   fmi2_byte_t
-    ctypedef void * fmi2_FMU_state_t
-    ctypedef void * fmi2_component_environment_t
+    ctypedef void*  fmi2_FMU_state_t
+    ctypedef void*  fmi2_component_environment_t
     ctypedef size_t fmi2_value_reference_t
 
     #STRUCTS
@@ -292,7 +291,7 @@ cdef extern from 'fmilib.h':
     ctypedef void(*fmi2_callback_logger_ft)(fmi2_component_environment_t c,fmi2_string_t instanceName, fmi2_status_t status, fmi2_string_t category,fmi2_string_t message,...)
     ctypedef void(*fmi1_step_finished_ft)(fmi1_component_t c, fmi1_status_t status)
     ctypedef void(*fmi2_step_finished_ft)(fmi2_component_environment_t env, fmi2_status_t status)
-    ctypedef void (*jm_logger_f)(jm_callbacks* c, jm_string module, jm_log_level_enu_t log_level, jm_string message)
+    ctypedef void (*jm_logger_f)(jm_callbacks* c, jm_string module, jm_log_level_enu_t log_level, jm_string message) except *
     ctypedef void *(*fmi2_callback_allocate_memory_ft)(size_t, size_t)
     ctypedef void(*fmi2_callback_free_memory_ft)(void *)
     ctypedef int(*fmi2_xml_element_start_handle_ft)(void *, char *, void *, char *, char * *)
@@ -545,7 +544,7 @@ cdef extern from 'fmilib.h':
     char * fmi1_import_get_GUID(fmi1_import_t *)
 
     #FMI HELPER METHODS (2.0)
-    char * fmi2_get_types_platform()
+    # char * fmi2_get_types_platform()
     char * fmi2_import_get_GUID(fmi2_import_t *)
     char * fmi2_import_get_description(fmi2_import_t *)
     char * fmi2_import_get_author(fmi2_import_t *)
@@ -584,7 +583,7 @@ cdef extern from 'fmilib.h':
     fmi1_import_t * fmi1_import_parse_xml(fmi_import_context_t *, char *)
     char * fmi1_variability_to_string(fmi1_variability_enu_t)
     char * fmi1_fmu_kind_to_string(fmi1_fmu_kind_enu_t)
-    char * fmi1_get_platform()
+    # char * fmi1_get_platform()
     char * fmi1_status_to_string(int)
     fmi_version_enu_t fmi_import_get_fmi_version(fmi_import_context_t*, char*, char*)
     int fmi_import_rmdir(jm_callbacks*, char *)
@@ -780,7 +779,7 @@ cdef extern from 'fmilib.h':
     #OTHER HELPER METHODS
     void jm_set_default_callbacks(jm_callbacks *)
     jm_string jm_get_last_error(jm_callbacks *)
-    void jm_clear_last_error(jm_callbacks *)
+    # void jm_clear_last_error(jm_callbacks *)
     void jm_log(jm_callbacks *, char *, int, char *)
     void * mempcpy(void *, void *, size_t)
     void * memcpy(void *, void *, size_t)

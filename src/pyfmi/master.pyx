@@ -15,45 +15,36 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import pyfmi.fmi as fmi
-from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
-from pyfmi.common.io import get_result_handler
-from pyfmi.common.core import TrajectoryLinearInterpolation
-from pyfmi.common.core import TrajectoryUserFunction
-
-from timeit import default_timer as timer
+# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
 
 import fnmatch
 import sys
-import re
-from collections import OrderedDict
 import time
-import numpy as np
 import warnings
-cimport numpy as np
-import scipy.sparse as sp
-import scipy.linalg as lin
-import scipy.sparse.linalg as splin
-import scipy.optimize as sopt
-import scipy.version
-
-from fmi cimport FMUModelCS2
+from collections import OrderedDict
+from timeit import default_timer as timer
 from cpython cimport bool
-cimport fmil_import as FMIL
-from fmi_util import Graph
 from cython.parallel import prange, parallel
+
+import numpy as np
+cimport numpy as np
+import scipy as sp
+import scipy.sparse as sps
+import scipy.optimize as spopt
+
+import pyfmi.fmi as fmi
+from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
+from pyfmi.common.io import get_result_handler
+from pyfmi.common.core import TrajectoryLinearInterpolation, TrajectoryUserFunction
+from pyfmi.fmi cimport FMUModelCS2
+cimport fmil_import as FMIL
+from pyfmi.fmi_util import Graph
 
 IF WITH_OPENMP:
     cimport openmp
 
 DEF SERIAL   = 0
 DEF PARALLEL = 1
-
-try:
-    from numpy.lib import NumpyVersion
-    USE_ROOT = NumpyVersion(scipy.version.version) >= "0.11.0"
-except ImportError: #Numpy version is < 1.9.0 so assume scipy version is the same
-    USE_ROOT = False
 
 cdef reset_models(list models):
     for model in models:
@@ -85,8 +76,9 @@ cdef perform_do_step_parallel(list models, FMIL.fmi2_import_t** model_addresses,
     Perform a do step on all the models.
     """
     cdef int i, status = 0
-    cdef int num_threads, id
-    cdef double time
+    # cdef int num_threads
+    # cdef int id
+    # cdef double time
     
     for i in prange(n, nogil=True, schedule="dynamic", chunksize=1): 
     #for i in prange(n, nogil=True, schedule="dynamic"): 
@@ -384,7 +376,7 @@ cdef class Master:
     cdef public dict statistics, models_id_mapping
     cdef public object opts
     cdef public object models_dict, L, L_discrete
-    cdef public object I
+    cdef public object _ident_matrix
     cdef public object y_prev, yd_prev, input_traj
     cdef public object DL_prev
     cdef public int algebraic_loops, storing_fmu_state
@@ -480,7 +472,7 @@ cdef class Master:
         
         self.y_prev = None
         self.input_traj = None
-        self.I = sp.eye(self._len_inputs, self._len_outputs, format="csr") #y = Cx + Du , u = Ly -> DLy   DL[inputsXoutputs]
+        self._ident_matrix = sps.eye(self._len_inputs, self._len_outputs, format="csr") #y = Cx + Du , u = Ly -> DLy   DL[inputsXoutputs]
         
         self._error_data = {"time":[], "error":[], "step-size":[], "rejected":[]}
     
@@ -583,8 +575,8 @@ cdef class Master:
                 col_discrete.append(self.models_dict[src]["global_index_outputs_discrete"]+self.models_dict[src]["local_output_discrete"].index(src_var))
                 len_connections_discrete = len_connections_discrete + 1
             
-        self.L = sp.csr_matrix((data, (row, col)), (len_connections,len_connections), dtype=np.float64)
-        self.L_discrete = sp.csr_matrix((data_discrete, (row_discrete, col_discrete)), (len_connections_discrete,len_connections_discrete), dtype=np.float64)
+        self.L = sps.csr_matrix((data, (row, col)), (len_connections,len_connections), dtype=np.float64)
+        self.L_discrete = sps.csr_matrix((data_discrete, (row_discrete, col_discrete)), (len_connections_discrete,len_connections_discrete), dtype=np.float64)
         
     cpdef compute_global_D(self):
         cdef list data = []
@@ -625,7 +617,7 @@ cdef class Master:
             col = self._storedDcol
         
         if self._D is None:
-            self._D = sp.csr_matrix((data, (row, col)))#, (len(col),len(row)))
+            self._D = sps.csr_matrix((data, (row, col)))#, (len(col),len(row)))
         else:
             self._D.data = np.array(data, dtype=np.float64)
             
@@ -646,7 +638,7 @@ cdef class Master:
                 data.extend(local_C)
                 col.extend([self.models_dict[model]["global_index_states"]+i]*len(local_C))
                 row.extend(np.array([self.models_dict[model]["global_index_outputs"]]*len(self.models_dict[model]["local_output_vref"]))+np.array(range(len(self.models_dict[model]["local_output_vref"]))))
-        return sp.csr_matrix((data, (row, col)))
+        return sps.csr_matrix((data, (row, col)))
         
     def compute_global_A(self):
         cdef list data = []
@@ -662,7 +654,7 @@ cdef class Master:
                 data.extend(local_A)
                 col.extend([self.models_dict[model]["global_index_states"]+i]*len(local_A))
                 row.extend(np.array([self.models_dict[model]["global_index_derivatives"]]*len(self.models_dict[model]["local_derivative_vref"]))+np.array(range(len(self.models_dict[model]["local_derivative_vref"]))))
-        return sp.csr_matrix((data, (row, col)))
+        return sps.csr_matrix((data, (row, col)))
         
     def compute_global_B(self):
         cdef list data = []
@@ -678,7 +670,7 @@ cdef class Master:
                 data.extend(local_B)
                 col.extend([self.models_dict[model]["global_index_inputs"]+i]*len(local_B))
                 row.extend(np.array([self.models_dict[model]["global_index_derivatives"]]*len(self.models_dict[model]["local_derivative_vref"]))+np.array(range(len(self.models_dict[model]["local_derivative_vref"]))))
-        return sp.csr_matrix((data, (row, col)))
+        return sps.csr_matrix((data, (row, col)))
         
     def connection_setup(self, connections):
         for connection in connections:
@@ -774,34 +766,31 @@ cdef class Master:
         return self.storing_fmu_state
         
     cpdef np.ndarray get_connection_outputs(self):
-        cdef int i = 0, inext = 0
+        cdef int i, index, index_start, index_end
         cdef np.ndarray y = np.empty((self._len_outputs))
 
         for model in self.models:
-            #y.extend(model.get(self.models_dict[model]["local_output"]))
-            #y.extend(model.get_real(self.models_dict[model]["local_output_vref"]))
-            i = self.models_dict[model]["global_index_outputs"]
-            inext = i + self.models_dict[model]["local_output_len"]
-            y[i:inext] = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
-            i = inext
-            
-        #return np.array(y)
+            index_start = self.models_dict[model]["global_index_outputs"]
+            index_end = index_start + self.models_dict[model]["local_output_len"]
+            local_output_vref_array = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
+            for i, index in enumerate(range(index_start, index_end)):
+                y[index] = local_output_vref_array[i]
         return y.reshape(-1,1)
     
     cpdef np.ndarray get_connection_outputs_discrete(self):
-        cdef int i = 0, inext = 0
+        cdef int i, index, index_start, index_end
         cdef np.ndarray y = np.empty((self._len_outputs_discrete))
 
         for model in self.models:
-            i = self.models_dict[model]["global_index_outputs_discrete"]
-            inext = i + self.models_dict[model]["local_output_discrete_len"]
-            y[i:inext] = model.get(self.models_dict[model]["local_output_discrete"])
-            i = inext
-            
+            index_start = self.models_dict[model]["global_index_outputs_discrete"]
+            index_end = index_start + self.models_dict[model]["local_output_discrete_len"]
+            local_output_discrete = model.get(self.models_dict[model]["local_output_discrete"])
+            for i, index in enumerate(range(index_start, index_end)):
+                y[index] = local_output_discrete[i]
         return y.reshape(-1,1)
         
     cpdef np.ndarray _get_derivatives(self):
-        cdef int i = 0, inext = 0
+        cdef int i, index, index_start, index_end
         cdef np.ndarray xd = np.empty((self._len_derivatives))
         
         for model in self.models_dict.keys():
@@ -809,10 +798,11 @@ cdef class Master:
                 return None
 
         for model in self.models:
-            i = self.models_dict[model]["global_index_derivatives"]
-            inext = i + self.models_dict[model]["local_derivative_len"]
-            xd[i:inext] = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_derivative_vref_array"])
-            i = inext
+            index_start = self.models_dict[model]["global_index_derivatives"]
+            index_end = index_start + self.models_dict[model]["local_derivative_len"]
+            local_derivative_vref_array = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_derivative_vref_array"])
+            for i, index in enumerate(range(index_start, index_end)):
+                xd[index] = local_derivative_vref_array[i]
 
         return xd.reshape(-1,1)
     
@@ -871,7 +861,7 @@ cdef class Master:
                             else:
                                 return C.dot(xd)+D.dot(ud)
                         else: #First step
-                            return splin.spsolve((self.I-D.dot(self.L)),C.dot(xd)).reshape((-1,1))
+                            return sps.linalg.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(xd)).reshape((-1,1))
 
                 y_last = self.get_last_y()
                 if y_last is not None:
@@ -916,7 +906,7 @@ cdef class Master:
                         if ud is not None and udd is not None:
                             return C.dot(A.dot(xd))+C.dot(B.dot(ud+self.get_current_step_size()*udd))+D.dot(udd)
                         else: #First step
-                            return splin.spsolve((self.I-D.dot(self.L)),C.dot(A.dot(xd)+B.dot(self.L.dot(yd_cur)))).reshape((-1,1))
+                            return sps.linalg.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(A.dot(xd)+B.dot(self.L.dot(yd_cur)))).reshape((-1,1))
                 
                 yd_last = self.get_last_yd()
                 if yd_last is not None:
@@ -983,7 +973,7 @@ cdef class Master:
                 
                 z = yd - D.dot(uhat)
             
-            yd = splin.spsolve((self.I-DL),z).reshape((-1,1))
+            yd = sps.linalg.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
             """
         return ydd
 
@@ -998,7 +988,7 @@ cdef class Master:
                 
                 z = yd - D.dot(uhat)
             
-            yd = splin.spsolve((self.I-DL),z).reshape((-1,1))
+            yd = sps.linalg.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
 
         return yd
     
@@ -1010,10 +1000,7 @@ cdef class Master:
                     JM_FMUS = False
                     break
             if JM_FMUS:
-                if USE_ROOT:
-                    res = sopt.root(init_f, y, args=(self))
-                else:
-                    res = sopt.fsolve(init_f, y, args=(self))
+                res = spopt.root(init_f, y, args=(self))
                 if not res["success"]:
                     print(res)
                     raise fmi.FMUException("Failed to converge the output system.")
@@ -1026,16 +1013,11 @@ cdef class Master:
             if self.opts["extrapolation_order"] > 0:
                 uold, udold, uddold = self.get_last_us()
                 uhat = uold + (self.get_current_step_size()*udold if udold is not None else 0.0)
-                
                 z = y - D.dot(uhat)
-                #z = y - matvec(D,uhat.ravel())
             else:
-                
                 z = y - DL.dot(y_prev)
-                #z = y - matvec(DL, y_prev.ravel())
             
-            y = splin.spsolve((self.I-DL),z).reshape((-1,1))
-            #y = splin.lsqr((sp.eye(*DL.shape)-DL),z)[0].reshape((-1,1))
+            y = sps.linalg.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
 
         elif self.algebraic_loops and self.support_directional_derivatives:
             pass
@@ -1142,10 +1124,7 @@ cdef class Master:
                     for model in block["outputs"].keys():
                         self.get_specific_connection_outputs(model, block["outputs_mask"][model], y)
                     
-                    if USE_ROOT:
-                        res = sopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
-                    else:
-                        res = sopt.fsolve(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
+                    res = spopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
                     if not res["success"]:
                         print(res)
                         raise fmi.FMUException("Failed to converge the initialization system.")
@@ -1167,15 +1146,9 @@ cdef class Master:
             
             if self.algebraic_loops: #If there is an algebraic loop, solve the resulting system
                 if self.support_directional_derivatives:
-                    if USE_ROOT:
-                        res = sopt.root(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
-                    else:
-                        res = sopt.fsolve(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
+                    res = spopt.root(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
                 else:
-                    if USE_ROOT:
-                        res = sopt.root(init_f, self.get_connection_outputs(), args=(self))
-                    else:
-                        res = sopt.fsolve(init_f, self.get_connection_outputs(), args=(self))
+                    res = spopt.root(init_f, self.get_connection_outputs(), args=(self))
                 if not res["success"]:
                     print(res)
                     raise fmi.FMUException("Failed to converge the initialization system.")
@@ -1358,27 +1331,25 @@ cdef class Master:
                 if opts["logging"]:
                     D = self.compute_global_D()
                     DL = D.dot(self.L)
-                    import numpy.linalg
-                    import scipy.linalg as slin
-                    print("At time: %E , rho(DL)=%s"%(tcur + step_size, str(numpy.linalg.eig(DL.todense())[0])))
+                    print("At time: %E , rho(DL)=%s"%(tcur + step_size, str(np.linalg.eig(DL.todense())[0])))
                     C = self.compute_global_C()
                     if C is not None:
                         C = C.todense()
-                        I = np.eye(*DL.shape)
-                        LIDLC = self.L.dot(lin.solve(I-DL,C))
-                        print("           , rho(L(I-DL)^(-1)C)=%s"%(str(numpy.linalg.eig(LIDLC)[0])))
+                        _ident_matrix = np.eye(*DL.shape)
+                        LIDLC = self.L.dot(np.linalg.solve(_ident_matrix-DL,C))
+                        print("           , rho(L(I-DL)^(-1)C)=%s"%(str(np.linalg.eig(LIDLC)[0])))
                     A = self.compute_global_A()
                     B = self.compute_global_B()
                     if C is not None and A is not None and B is not None:
                         A = A.todense(); B = B.todense()
-                        eAH = slin.expm(A*step_size)
-                        K1  = lin.solve(I-DL,C)
-                        K2  = lin.solve(A,(eAH-np.eye(*eAH.shape)).dot(B.dot(self.L.todense())))
+                        eAH = sp.linalg.expm(A*step_size)
+                        K1  = np.linalg.solve(_ident_matrix-DL,C)
+                        K2  = np.linalg.solve(A,(eAH-np.eye(*eAH.shape)).dot(B.dot(self.L.todense())))
                         R1  = np.hstack((eAH, K1))
                         R2  = np.hstack((K2.dot(eAH), K2.dot(K1)))
                         G   = np.vstack((R1,R2))
                         G1  = K2.dot(K1)
-                        print("           , rho(G)=%s"%(str(numpy.linalg.eig(G1)[0])))
+                        print("           , rho(G)=%s"%(str(np.linalg.eig(G1)[0])))
                     
     
     def specify_external_input(self, input):
@@ -1416,11 +1387,13 @@ cdef class Master:
         cdef double alpha = 0.9
         cdef double fac1 = 6.0
         cdef double fac2 = 0.2
+        cdef double _tmp
         
         if error == 0.0:
             return step_size*fac1
         else:
-            return step_size*min(fac1,max(fac2,alpha*(1.0/error)**one_over_p))
+            _tmp = alpha*(1.0/error)**one_over_p
+            return step_size*min(fac1, max(fac2, _tmp))
             
     cdef reset_statistics(self):
         for key in self.elapsed_time: 

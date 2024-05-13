@@ -9,10 +9,15 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.9.x'
+    - name: Setup Python
+      run: |
+        python3 -m pip install Cython numpy scipy==1.12.0 matplotlib nose-py3 setuptools==69.1.0
     - name: Install system
       run: |
-        sudo apt-get -y install python3-scipy python3-setuptools python3-nose cython3 python3-matplotlib
         sudo apt-get -y install cmake liblapack-dev libsuitesparse-dev libhypre-dev
         sudo cp -v /usr/lib/x86_64-linux-gnu/libblas.so /usr/lib/x86_64-linux-gnu/libblas_OPENMP.so
     - name: Install superlu
@@ -35,9 +40,8 @@ jobs:
         sudo make install
     - name: Install assimulo
       run: |
-        cd /tmp
-        curl -fSsL https://github.com/modelon-community/Assimulo/archive/Assimulo-3.4.1.tar.gz | tar xz
-        cd Assimulo-Assimulo-3.4.1
+        git clone --depth 1 -b Assimulo-3.5.0 https://github.com/modelon-community/Assimulo /tmp/Assimulo
+        cd /tmp/Assimulo
         python3 setup.py install --user --sundials-home=/usr --blas-home=/usr/lib/x86_64-linux-gnu/ --lapack-home=/usr/lib/x86_64-linux-gnu/ --superlu-home=/usr --extra-fortran-compile-flags="-fallow-argument-mismatch"
     - name: Install fmilib
       run: |
@@ -55,5 +59,4 @@ jobs:
       run: |
         rm src/pyfmi/__init__.py
         cp -rv src/pyfmi/tests/files tests
-        nosetests3 tests
-
+        python3 -m nose --verbose tests/*.py

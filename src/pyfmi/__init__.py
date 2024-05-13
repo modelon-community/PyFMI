@@ -21,18 +21,14 @@ The JModelica.org Python package for working with FMI <http:/www.jmodelica.org/>
 __all__ = ['fmi_algorithm_drivers', 'examples', 'fmi', 'common']
 
 #Import the model class allowing for users to type e.g.,: from pyfmi import FMUModelME1
-from .fmi import load_fmu, FMUModelME1, FMUModelME2
-from .fmi import FMUModelCS1, FMUModelCS2
-from .fmi_coupled import CoupledFMUModelME2
-from .master import Master
-from .fmi_extended import FMUModelME1Extended
-import numpy as N
+from pyfmi.fmi import load_fmu, FMUModelME1, FMUModelME2
+from pyfmi.fmi import FMUModelCS1, FMUModelCS2
+from pyfmi.fmi_coupled import CoupledFMUModelME2
+from pyfmi.master import Master
+from pyfmi.fmi_extended import FMUModelME1Extended
 import os.path
 import sys
 import time
-
-int = N.int32
-N.int = N.int32
 
 def testattr(**kwargs):
     """Add attributes to a test function/method/class.
@@ -49,7 +45,7 @@ def testattr(**kwargs):
 
 
 try:
-    curr_dir = os.path.dirname(os.path.abspath(__file__));
+    curr_dir = os.path.dirname(os.path.abspath(__file__))
     _fpath=os.path.join(curr_dir,'version.txt')
     with open(_fpath, 'r') as f:
         __version__=f.readline().strip()
@@ -178,5 +174,3 @@ in pyfmi.examples will not work.")
 This package is needed to be able to use the plot-GUI.")
 
             sys.stdout.write("\n\n")
-
-

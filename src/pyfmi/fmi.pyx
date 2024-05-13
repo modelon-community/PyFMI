@@ -14,6 +14,9 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
 """
 Module containing the FMI interface Python wrappers.
 """
@@ -24,7 +27,6 @@ For profiling:
 # distutils: define_macros=CYTHON_TRACE_NOGIL=1
 """
 import os
-import sys
 import logging
 import fnmatch
 import re
@@ -32,25 +34,20 @@ from collections import OrderedDict
 cimport cython
 from io import UnsupportedOperation
 
-import scipy.sparse as sp
-import numpy as N
-cimport numpy as N
+import scipy.sparse as sps
+import numpy as np
+cimport numpy as np
 from numpy cimport PyArray_DATA
 
-N.import_array()
+cimport pyfmi.fmil_import as FMIL
 
-cimport fmil_import as FMIL
+from pyfmi.common.core import create_temp_dir
 
-from pyfmi.common.core import create_temp_dir, delete_temp_dir
-from pyfmi.common.core import create_temp_file, delete_temp_file
-#from pyfmi.common.core cimport BaseModel
-
-#from pyfmi.common import python3_flag, encode, decode
-from pyfmi.fmi_util import cpr_seed, enable_caching, python3_flag
+from pyfmi.fmi_util import cpr_seed, enable_caching
 from pyfmi.fmi_util cimport encode, decode
 
-int   = N.int32
-N.int = N.int32
+int   = np.int32
+np.int = np.int32
 
 """Basic flags related to FMI"""
 
@@ -131,7 +128,7 @@ FMI2_KIND_DISCRETE  = FMIL.fmi2_dependency_factor_kind_discrete
 FMI_ME                 = FMIL.fmi1_fmu_kind_enu_me
 FMI_CS_STANDALONE      = FMIL.fmi1_fmu_kind_enu_cs_standalone
 FMI_CS_TOOL            = FMIL.fmi1_fmu_kind_enu_cs_tool
-FMI_MIME_CS_STANDALONE = encode("application/x-fmu-sharedlibrary")
+cdef FMI_MIME_CS_STANDALONE = encode("application/x-fmu-sharedlibrary")
 
 FMI_REGISTER_GLOBALLY = 1
 FMI_DEFAULT_LOG_LEVEL = FMIL.jm_log_level_error
@@ -144,8 +141,8 @@ FMI2_INITIAL_UNKNOWN    = 3
 
 DEF FORWARD_DIFFERENCE = 1
 DEF CENTRAL_DIFFERENCE = 2
-FORWARD_DIFFERENCE_EPS = (N.finfo(float).eps)**0.5
-CENTRAL_DIFFERENCE_EPS = (N.finfo(float).eps)**(1/3.0)
+FORWARD_DIFFERENCE_EPS = (np.finfo(float).eps)**0.5
+CENTRAL_DIFFERENCE_EPS = (np.finfo(float).eps)**(1/3.0)
 
 """Flags for evaluation of FMI Jacobians"""
 """Evaluate Jacobian w.r.t. states."""
@@ -1159,7 +1156,7 @@ cdef class IntegerType2(DeclaredType2):
     """
     Class defining data structure based on the XML element Enumeration.
     """
-    def __init__(self, name, description = "", quantity = "", min = -N.inf, max = N.inf):
+    def __init__(self, name, description = "", quantity = "", min = -np.inf, max = np.inf):
         DeclaredType2.__init__(self, name, description, quantity)
 
         self._min = min
@@ -1191,7 +1188,7 @@ cdef class RealType2(DeclaredType2):
     """
     Class defining data structure based on the XML element Enumeration.
     """
-    def __init__(self, name, description = "", quantity = "", min = -N.inf, max = N.inf, nominal = 1.0, unbounded = False,
+    def __init__(self, name, description = "", quantity = "", min = -np.inf, max = np.inf, nominal = 1.0, unbounded = False,
                 relative_quantity = False, display_unit = "", unit = ""):
         DeclaredType2.__init__(self, name, description, quantity)
 
@@ -1446,7 +1443,7 @@ cdef class FMUModelBase(ModelBase):
             FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
 
         #Default values
-        self.__t = None
+        self._t = None
 
         #Internal values
         self._file_open = False
@@ -1502,7 +1499,7 @@ cdef class FMUModelBase(ModelBase):
 
             model.get_version()
         """
-        version = FMIL.fmi1_import_get_version(self._fmu)
+        cdef FMIL.fmi1_string_t version = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_version(self._fmu)
         return decode(version)
 
     def get_ode_sizes(self):
@@ -1545,10 +1542,9 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiGetReal
         """
         cdef int status
-        cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        nref = val_ref.size
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array([0.0]*nref, dtype=float, ndmin=1)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = np.array([0.0]*nref, dtype=float, ndmin=1)
 
         if nref == 0: ## get_real([])
             return val
@@ -1579,12 +1575,11 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiSetReal
         """
         cdef int status
-        cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, copy=False, dtype=float).ravel()
-        nref = val_ref.size
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = np.array(values, copy=False, dtype=float).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
 
-        if val_ref.size != val.size:
+        if nref != np.size(val):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
@@ -1614,10 +1609,9 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiGetInteger
         """
         cdef int status
-        cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        nref = val_ref.size
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = N.array([0]*nref, dtype=int,ndmin=1)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
+        cdef np.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = np.array([0]*nref, dtype=int,ndmin=1)
 
         if nref == 0: ## get_integer([])
             return val
@@ -1648,13 +1642,11 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiSetInteger
         """
         cdef int status
-        cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = N.array(values, dtype=int,ndmin=1).ravel()
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef np.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] val = np.array(values, dtype=int,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
 
-        nref = val_ref.size
-
-        if val_ref.size != val.size:
+        if nref != np.size(val):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
@@ -1685,12 +1677,11 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiGetBoolean
         """
         cdef int status
-        cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        nref = val_ref.size
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
 
         if nref == 0: ## get_boolean([])
-            return N.array([])
+            return np.array([])
 
         cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
 
@@ -1706,7 +1697,7 @@ cdef class FMUModelBase(ModelBase):
         if status != 0:
             raise FMUException('Failed to get the Boolean values.')
 
-        return N.array(return_values)
+        return np.array(return_values)
 
     def set_boolean(self, valueref, values):
         """
@@ -1727,21 +1718,19 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiSetBoolean
         """
         cdef int status
-        cdef FMIL.size_t nref
-
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        nref = val_ref.size
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val_ref)
 
         cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
 
-        values = N.array(values,ndmin=1).ravel()
+        values = np.array(values,ndmin=1).ravel()
         for i in range(nref):
             if values[i]:
                 (<FMIL.fmi1_boolean_t*>val)[i] = 1
             else:
                 (<FMIL.fmi1_boolean_t*>val)[i] = 0
 
-        if val_ref.size != values.size:
+        if nref != np.size(values):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
@@ -1773,9 +1762,8 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiGetString
         """
         cdef int status
-        cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1, mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
-        nref = input_valueref.size
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1, mode='c'] input_valueref = np.array(valueref, dtype=np.uint32, ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
 
         if nref == 0: ## get_string([])
             return []
@@ -1813,21 +1801,21 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiSetString
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef FMIL.fmi1_string_t* val = <FMIL.fmi1_string_t*>FMIL.malloc(sizeof(FMIL.fmi1_string_t)*val_ref.size)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.fmi1_string_t* val = <FMIL.fmi1_string_t*>FMIL.malloc(sizeof(FMIL.fmi1_string_t)*np.size(val_ref))
 
         if not isinstance(values, list):
             raise FMUException(
                 'The values needs to be a list of values.')
-        if len(values) != val_ref.size:
+        if len(values) != np.size(val_ref):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
         values = [encode(item) for item in values]
-        for i in range(val_ref.size):
+        for i in range(np.size(val_ref)):
             val[i] = values[i]
 
-        status = FMIL.fmi1_import_set_string(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, val_ref.size, val)
+        status = FMIL.fmi1_import_set_string(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, np.size(val_ref), val)
 
         FMIL.free(val)
 
@@ -1870,7 +1858,7 @@ cdef class FMUModelBase(ModelBase):
         Helper method to set, see docstring on set.
         """
         cdef FMIL.fmi1_value_reference_t ref
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
 
@@ -1882,20 +1870,20 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException("The variable %s could not be found."%variable_name)
 
         ref =  FMIL.fmi1_import_get_variable_vr(variable)
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
         alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
 
-        if type == FMIL.fmi1_base_type_real:  #REAL
+        if basetype == FMIL.fmi1_base_type_real:  #REAL
             if alias_kind == FMI_NEGATED_ALIAS:
                 value = -value
             self.set_real([ref], [value])
-        elif type == FMIL.fmi1_base_type_int or type == FMIL.fmi1_base_type_enum: #INTEGER
+        elif basetype == FMIL.fmi1_base_type_int or basetype == FMIL.fmi1_base_type_enum: #INTEGER
             if alias_kind == FMI_NEGATED_ALIAS:
                 value = -value
             self.set_integer([ref], [value])
-        elif type == FMIL.fmi1_base_type_str: #STRING
+        elif basetype == FMIL.fmi1_base_type_str: #STRING
             self.set_string([ref], [value])
-        elif type == FMIL.fmi1_base_type_bool: #BOOLEAN
+        elif basetype == FMIL.fmi1_base_type_bool: #BOOLEAN
             if alias_kind == FMI_NEGATED_ALIAS:
                 value = not value
             self.set_boolean([ref], [value])
@@ -1908,7 +1896,7 @@ cdef class FMUModelBase(ModelBase):
         Helper method to get, see docstring on get.
         """
         cdef FMIL.fmi1_value_reference_t ref
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
         cdef FMIL.fmi1_import_variable_t* variable
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
 
@@ -1920,18 +1908,18 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException("The variable %s could not be found."%variable_name)
 
         ref =  FMIL.fmi1_import_get_variable_vr(variable)
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
         alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
 
-        if type == FMIL.fmi1_base_type_real:  #REAL
+        if basetype == FMIL.fmi1_base_type_real:  #REAL
             value = self.get_real([ref])
             return -1*value if alias_kind == FMI_NEGATED_ALIAS else value
-        elif type == FMIL.fmi1_base_type_int or type == FMIL.fmi1_base_type_enum: #INTEGER
+        elif basetype == FMIL.fmi1_base_type_int or basetype == FMIL.fmi1_base_type_enum: #INTEGER
             value = self.get_integer([ref])
             return -1*value if alias_kind == FMI_NEGATED_ALIAS else value
-        elif type == FMIL.fmi1_base_type_str: #STRING
+        elif basetype == FMIL.fmi1_base_type_str: #STRING
             return self.get_string([ref])
-        elif type == FMIL.fmi1_base_type_bool: #BOOLEAN
+        elif basetype == FMIL.fmi1_base_type_bool: #BOOLEAN
             value = self.get_boolean([ref])
             return not value if alias_kind == FMI_NEGATED_ALIAS else value
         else:
@@ -1951,7 +1939,7 @@ cdef class FMUModelBase(ModelBase):
             The description of the variable.
         """
         cdef FMIL.fmi1_import_variable_t* variable
-        cdef char* desc
+        cdef FMIL.fmi1_string_t desc
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -1960,11 +1948,12 @@ cdef class FMUModelBase(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        desc = FMIL.fmi1_import_get_variable_description(variable)
+        desc = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_variable_description(variable)
 
         return decode(desc) if desc != NULL else ""
 
     cdef _add_scalar_variable(self, FMIL.fmi1_import_variable_t* variable):
+        cdef FMIL.fmi1_string_t desc
 
         if variable == NULL:
             raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
@@ -1976,7 +1965,7 @@ cdef class FMUModelBase(ModelBase):
         has_start  = FMIL.fmi1_import_get_variable_has_start(variable)
         data_variability = FMIL.fmi1_import_get_variability(variable)
         data_causality   = FMIL.fmi1_import_get_causality(variable)
-        desc       = FMIL.fmi1_import_get_variable_description(variable)
+        desc       = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_variable_description(variable)
 
         return ScalarVariable(name,value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                             data_variability, data_causality, alias_kind)
@@ -2019,7 +2008,7 @@ cdef class FMUModelBase(ModelBase):
             The type of the variable.
         """
         cdef FMIL.fmi1_import_variable_t* variable
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -2028,9 +2017,9 @@ cdef class FMUModelBase(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
 
-        return type
+        return basetype
 
     cpdef FMIL.fmi1_value_reference_t get_variable_valueref(self, variable_name) except *:
         """
@@ -2170,7 +2159,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_import_bool_variable_t* bool_variable
         cdef FMIL.fmi1_import_enum_variable_t* enum_variable
         cdef FMIL.fmi1_import_string_variable_t*  str_variable
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
         cdef int status
         cdef FMIL.fmi1_boolean_t FMITRUE = 1
 
@@ -2186,25 +2175,25 @@ cdef class FMUModelBase(ModelBase):
         if status == 0:
             raise FMUException("The variable %s does not have a start value."%variablename)
 
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi1_base_type_real:
+        if basetype == FMIL.fmi1_base_type_real:
             real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
             return FMIL.fmi1_import_get_real_variable_start(real_variable)
 
-        elif type == FMIL.fmi1_base_type_int:
+        elif basetype == FMIL.fmi1_base_type_int:
             int_variable = FMIL.fmi1_import_get_variable_as_integer(variable)
             return FMIL.fmi1_import_get_integer_variable_start(int_variable)
 
-        elif type == FMIL.fmi1_base_type_bool:
+        elif basetype == FMIL.fmi1_base_type_bool:
             bool_variable = FMIL.fmi1_import_get_variable_as_boolean(variable)
             return FMIL.fmi1_import_get_boolean_variable_start(bool_variable) == FMITRUE
 
-        elif type == FMIL.fmi1_base_type_enum:
+        elif basetype == FMIL.fmi1_base_type_enum:
             enum_variable = FMIL.fmi1_import_get_variable_as_enum(variable)
             return FMIL.fmi1_import_get_enum_variable_start(enum_variable)
 
-        elif type == FMIL.fmi1_base_type_str:
+        elif basetype == FMIL.fmi1_base_type_str:
             str_variable = FMIL.fmi1_import_get_variable_as_string(variable)
             return FMIL.fmi1_import_get_string_variable_start(str_variable)
 
@@ -2228,7 +2217,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_import_integer_variable_t* int_variable
         cdef FMIL.fmi1_import_real_variable_t* real_variable
         cdef FMIL.fmi1_import_enum_variable_t* enum_variable
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -2237,17 +2226,17 @@ cdef class FMUModelBase(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi1_base_type_real:
+        if basetype == FMIL.fmi1_base_type_real:
             real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
             return FMIL.fmi1_import_get_real_variable_max(real_variable)
 
-        elif type == FMIL.fmi1_base_type_int:
+        elif basetype == FMIL.fmi1_base_type_int:
             int_variable = FMIL.fmi1_import_get_variable_as_integer(variable)
             return FMIL.fmi1_import_get_integer_variable_max(int_variable)
 
-        elif type == FMIL.fmi1_base_type_enum:
+        elif basetype == FMIL.fmi1_base_type_enum:
             enum_variable = FMIL.fmi1_import_get_variable_as_enum(variable)
             return FMIL.fmi1_import_get_enum_variable_max(enum_variable)
 
@@ -2271,7 +2260,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_import_integer_variable_t* int_variable
         cdef FMIL.fmi1_import_real_variable_t* real_variable
         cdef FMIL.fmi1_import_enum_variable_t* enum_variable
-        cdef FMIL.fmi1_base_type_enu_t type
+        cdef FMIL.fmi1_base_type_enu_t basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -2280,17 +2269,17 @@ cdef class FMUModelBase(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi1_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi1_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi1_base_type_real:
+        if basetype == FMIL.fmi1_base_type_real:
             real_variable = FMIL.fmi1_import_get_variable_as_real(variable)
             return FMIL.fmi1_import_get_real_variable_min(real_variable)
 
-        elif type == FMIL.fmi1_base_type_int:
+        elif basetype == FMIL.fmi1_base_type_int:
             int_variable = FMIL.fmi1_import_get_variable_as_integer(variable)
             return FMIL.fmi1_import_get_integer_variable_min(int_variable)
 
-        elif type == FMIL.fmi1_base_type_enum:
+        elif basetype == FMIL.fmi1_base_type_enum:
             enum_variable = FMIL.fmi1_import_get_variable_as_enum(variable)
             return FMIL.fmi1_import_get_enum_variable_min(enum_variable)
 
@@ -2298,9 +2287,9 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException("The variable type does not have a minimum value.")
 
     @enable_caching
-    def get_model_variables(self,type=None, int include_alias=True,
-                            causality=None,   variability=None,
-                            int only_start=False,  int only_fixed=False,
+    def get_model_variables(self, type=None, int include_alias=True,
+                            causality=None, variability=None,
+                            int only_start=False, int only_fixed=False,
                             filter=None, int _as_list = False):
         """
         Extract the names of the variables in a model.
@@ -2344,7 +2333,7 @@ cdef class FMUModelBase(ModelBase):
         cdef FMIL.fmi1_variability_enu_t data_variability,target_variability = FMIL.fmi1_variability_enu_constant
         cdef FMIL.fmi1_causality_enu_t data_causality,target_causality = FMIL.fmi1_causality_enu_input
         cdef FMIL.fmi1_variable_alias_kind_enu_t alias_kind
-        cdef char* desc
+        cdef FMIL.fmi1_string_t desc
         cdef dict variable_dict = {}
         cdef list filter_list = [], variable_return_list = []
         cdef int  selected_type = 0 #If a type has been selected
@@ -2381,7 +2370,7 @@ cdef class FMUModelBase(ModelBase):
             has_start  = FMIL.fmi1_import_get_variable_has_start(variable)
             data_variability = FMIL.fmi1_import_get_variability(variable)
             data_causality   = FMIL.fmi1_import_get_causality(variable)
-            desc       = FMIL.fmi1_import_get_variable_description(variable)
+            desc       = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_variable_description(variable)
 
             #If only variables with start are wanted, check if the variable has start
             if only_start and has_start != 1:
@@ -2708,8 +2697,8 @@ cdef class FMUModelBase(ModelBase):
         """
         Return the name and organization of the model author.
         """
-        cdef char* author
-        author = FMIL.fmi1_import_get_author(self._fmu)
+        cdef FMIL.fmi1_string_t author
+        author = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_author(self._fmu)
         return author if author != NULL else ""
 
     def get_default_experiment_start_time(self):
@@ -2737,16 +2726,16 @@ cdef class FMUModelBase(ModelBase):
         """
         Return the model description.
         """
-        cdef char* desc
-        desc = FMIL.fmi1_import_get_description(self._fmu)
+        cdef FMIL.fmi1_string_t desc
+        desc = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_description(self._fmu)
         return decode(desc) if desc != NULL else ""
 
     def get_generation_tool(self):
         """
         Return the model generation tool.
         """
-        cdef char* gen
-        gen = FMIL.fmi1_import_get_generation_tool(self._fmu)
+        cdef FMIL.fmi1_string_t gen
+        gen = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_generation_tool(self._fmu)
         return decode(gen) if gen != NULL else ""
 
     def get_guid(self):
@@ -2790,10 +2779,10 @@ cdef class FMUModelCS1(FMUModelBase):
             GLOBAL_FMU_OBJECT = None
 
     cpdef _get_time(self):
-        return self.__t
+        return self._t
 
     cpdef _set_time(self, FMIL.fmi1_real_t t):
-        self.__t = t
+        self._t = t
 
     time = property(_get_time,_set_time, doc =
     """
@@ -2897,9 +2886,9 @@ cdef class FMUModelCS1(FMUModelBase):
         cdef int status
         cdef unsigned int max_output_derivative
         cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] orders
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
+        cdef np.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] orders
         cdef FMIL.fmi1_import_capabilities_t *fmu_capabilities
 
         fmu_capabilities = FMIL.fmi1_import_get_capabilities(self._fmu)
@@ -2910,20 +2899,20 @@ cdef class FMUModelCS1(FMUModelBase):
 
         if isinstance(variables,str):
             nref = 1
-            value_refs = N.array([0], dtype=N.uint32,ndmin=1).ravel()
-            orders = N.array(order, dtype=N.int32)
+            value_refs = np.array([0], dtype=np.uint32,ndmin=1).ravel()
+            orders = np.array(order, dtype=np.int32)
             value_refs[0] = self.get_variable_valueref(variables)
         elif isinstance(variables,list) and isinstance(variables[-1],str):
             nref = len(variables)
-            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).ravel()
-            orders = N.array([0]*nref, dtype=N.int32)
+            value_refs = np.array([0]*nref, dtype=np.uint32,ndmin=1).ravel()
+            orders = np.array([0]*nref, dtype=np.int32)
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
                 orders[i] = order
         else:
             raise FMUException("The variables must either be a string or a list of strings")
 
-        values = N.array([0.0]*nref,dtype=float, ndmin=1)
+        values = np.array([0.0]*nref,dtype=float, ndmin=1)
 
         status = FMIL.fmi1_import_get_real_output_derivatives(self._fmu, <FMIL.fmi1_value_reference_t*>value_refs.data, nref, <FMIL.fmi1_integer_t*>orders.data, <FMIL.fmi1_real_t*>values.data)
 
@@ -2946,7 +2935,7 @@ cdef class FMUModelCS1(FMUModelBase):
 
             model.types_platform
         """
-        types_platform = FMIL.fmi1_import_get_types_platform(self._fmu)
+        cdef FMIL.fmi1_string_t types_platform = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_types_platform(self._fmu)
         return decode(types_platform)
 
     types_platform = property(fget=_get_types_platform)
@@ -2984,33 +2973,31 @@ cdef class FMUModelCS1(FMUModelBase):
         """
         cdef int status
         cdef int can_interpolate_inputs
-        cdef FMIL.size_t nref
         cdef FMIL.fmi1_import_capabilities_t *fmu_capabilities
-        cdef N.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = N.array(orders, dtype=N.int32, ndmin=1).ravel()
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = N.array(values, dtype=float, ndmin=1).ravel()
+        cdef np.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = np.array(orders, dtype=np.int32, ndmin=1).ravel()
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = np.array(values, dtype=float, ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val)
+        orders = np.array([0]*nref, dtype=np.int32)
 
-        nref = val.size
-        orders = N.array([0]*nref, dtype=N.int32)
-
-        if nref != np_orders.size:
+        if nref != np.size(np_orders):
             raise FMUException("The number of variables must be the same as the number of orders.")
 
         fmu_capabilities = FMIL.fmi1_import_get_capabilities(self._fmu)
         can_interpolate_inputs = FMIL.fmi1_import_get_canInterpolateInputs(fmu_capabilities)
         #NOTE IS THIS THE HIGHEST ORDER OF INTERPOLATION OR SIMPLY IF IT CAN OR NOT?
 
-        for i in range(np_orders.size):
+        for i in range(np.size(np_orders)):
             if np_orders[i] < 1:
                 raise FMUException("The order must be greater than zero.")
         if not can_interpolate_inputs:
             raise FMUException("The FMU does not support input derivatives.")
 
         if isinstance(variables,str):
-            value_refs = N.array([0], dtype=N.uint32,ndmin=1).ravel()
+            value_refs = np.array([0], dtype=np.uint32,ndmin=1).ravel()
             value_refs[0] = self.get_variable_valueref(variables)
         elif isinstance(variables,list) and isinstance(variables[-1],str):
-            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).ravel()
+            value_refs = np.array([0]*nref, dtype=np.uint32,ndmin=1).ravel()
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
         else:
@@ -3170,7 +3157,7 @@ cdef class FMUModelCS1(FMUModelBase):
         self._allocated_fmu = 0
 
         #Default values
-        self.__t = None
+        self._t = None
 
         #Internal values
         self._file_open = False
@@ -3321,7 +3308,7 @@ cdef class FMUModelME1(FMUModelBase):
 
             model.model_types_platform
         """
-        model_types_platform = FMIL.fmi1_import_get_model_types_platform(self._fmu)
+        cdef FMIL.fmi1_string_t model_types_platform = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_model_types_platform(self._fmu)
         return decode(model_types_platform)
 
     model_types_platform = property(fget=_get_model_types_platform)
@@ -3350,7 +3337,7 @@ cdef class FMUModelME1(FMUModelBase):
         FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
 
         #Default values
-        self.__t = None
+        self._t = None
 
         #Internal values
         self._file_open = False
@@ -3396,11 +3383,11 @@ cdef class FMUModelME1(FMUModelBase):
             self._log_stream = None
 
     cpdef _get_time(self):
-        return self.__t
+        return self._t
 
     cpdef _set_time(self, FMIL.fmi1_real_t t):
         cdef int status
-        self.__t = t
+        self._t = t
 
         status = FMIL.fmi1_import_set_time(self._fmu,t)
 
@@ -3415,7 +3402,7 @@ cdef class FMUModelME1(FMUModelBase):
 
     def _get_continuous_states(self):
         cdef int status
-        cdef N.ndarray[double, ndim=1,mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
+        cdef np.ndarray[double, ndim=1,mode='c'] ndx = np.zeros(self._nContinuousStates, dtype=np.double)
         status = FMIL.fmi1_import_get_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data ,self._nContinuousStates)
 
         if status != 0:
@@ -3423,11 +3410,11 @@ cdef class FMUModelME1(FMUModelBase):
 
         return ndx
 
-    def _set_continuous_states(self, N.ndarray[FMIL.fmi1_real_t] values):
+    def _set_continuous_states(self, np.ndarray[FMIL.fmi1_real_t] values):
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = values
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] ndx = values
 
-        if ndx.size != self._nContinuousStates:
+        if np.size(ndx) != self._nContinuousStates:
             raise FMUException(
                 'Failed to set the new continuous states. ' \
                 'The number of values are not consistent with the number of '\
@@ -3446,7 +3433,7 @@ cdef class FMUModelME1(FMUModelBase):
     """)
 
 
-    cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx):
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx):
         return FMIL.fmi1_import_get_nominal_continuous_states(self._fmu, xnominal, nx)
 
     def _get_nominal_continuous_states(self):
@@ -3457,9 +3444,9 @@ cdef class FMUModelME1(FMUModelBase):
             The nominal values.
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1, mode='c'] xn = N.zeros(self._nContinuousStates, dtype=N.double)
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1, mode='c'] xn = np.zeros(self._nContinuousStates, dtype=np.double)
 
-        status = self.__get_nominal_continuous_states(<FMIL.fmi1_real_t*> xn.data, self._nContinuousStates)
+        status = self._get_nominal_continuous_states_fmil(<FMIL.fmi1_real_t*> xn.data, self._nContinuousStates)
         if status != 0:
             raise FMUException('Failed to get the nominal values.')
 
@@ -3507,7 +3494,7 @@ cdef class FMUModelME1(FMUModelBase):
         Calls the low-level FMI function: fmiGetDerivatives
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nContinuousStates,dtype=N.double)
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = np.empty(self._nContinuousStates,dtype=np.double)
 
         if self._nContinuousStates > 0:
             status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
@@ -3535,7 +3522,7 @@ cdef class FMUModelME1(FMUModelBase):
         Calls the low-level FMI function: fmiGetEventIndicators
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = N.empty(self._nEventIndicators,dtype=N.double)
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = np.empty(self._nEventIndicators,dtype=np.double)
 
         status = FMIL.fmi1_import_get_event_indicators(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nEventIndicators)
 
@@ -3692,7 +3679,7 @@ cdef class FMUModelME1(FMUModelBase):
         Calls the low-level FMI function: fmiGetStateValueReferences
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] values = N.zeros(self._nContinuousStates,dtype=N.uint32)
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] values = np.zeros(self._nContinuousStates,dtype=np.uint32)
 
         status = FMIL.fmi1_import_get_state_value_references(
             self._fmu, <FMIL.fmi1_value_reference_t*>values.data, self._nContinuousStates)
@@ -3956,27 +3943,6 @@ cdef class FMUModelME1(FMUModelBase):
             self._instantiated_fmu = 0
 
 
-cdef class __ForTestingFMUModelME1(FMUModelME1):
-
-    cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx):
-        for i in range(nx):
-            if self._allocated_fmu == 1:  # If initialized
-                # Set new values to test that atol gets auto-corrected.
-                xnominal[i] = 3.0
-            else:
-                # Set some illegal values in order to test the fallback/auto-correction.
-                xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
-        return FMIL.fmi1_status_ok
-
-    cpdef set_allocated_fmu(self, int value):
-        self._allocated_fmu = value
-
-    def __dealloc__(self):
-        # Avoid segfaults in dealloc. The FMU binaries should never be loaded for this
-        # test class, so we should never try to terminate or deallocate the FMU instance.
-        self._allocated_fmu = 0
-
-
 cdef class FMUModelBase2(ModelBase):
     """
     FMI Model loaded from a dll.
@@ -4040,7 +4006,7 @@ cdef class FMUModelBase2(ModelBase):
         self._allow_unzipped_fmu = 1 if allow_unzipped_fmu else 0
 
         #Default values
-        self.__t = None
+        self._t = None
         self._A = None
         self._group_A = None
         self._mask_A = None
@@ -4200,7 +4166,7 @@ cdef class FMUModelBase2(ModelBase):
 
         self._log = []
 
-    cpdef N.ndarray get_real(self, valueref):
+    cpdef np.ndarray get_real(self, valueref):
         """
         Returns the real-values from the valuereference(s).
 
@@ -4221,10 +4187,9 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2GetReal
         """
         cdef int status
-        cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        nref = input_valueref.size
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            output_value   = N.zeros(nref)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            output_value   = np.zeros(nref)
 
         if nref == 0: ## get_real([])
             return output_value
@@ -4256,28 +4221,28 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int status
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, copy=False, dtype=N.uint32).ravel()
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = N.array(values, copy=False, dtype=float).ravel()
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = np.array(values, copy=False, dtype=float).ravel()
 
-        if input_valueref.size != set_value.size:
+        if np.size(input_valueref) != np.size(set_value):
             raise FMUException('The length of valueref and values are inconsistent.')
 
-        status = FMIL.fmi2_import_set_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, input_valueref.size, <FMIL.fmi2_real_t*> set_value.data)
+        status = FMIL.fmi2_import_set_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, np.size(input_valueref), <FMIL.fmi2_real_t*> set_value.data)
 
         if status != 0:
             raise FMUException('Failed to set the Real values. See the log for possibly more information.')
 
-    cdef int _get_real(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
-        return FMIL.fmi2_import_get_real(self._fmu, &valueref[0], size, &values[0])
+    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
+        return FMIL.fmi2_import_get_real(self._fmu, &valueref[0], _size, &values[0])
 
-    cdef int __get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
-        return FMIL.fmi2_import_get_real(self._fmu, vrefs, size, values)
+    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values):
+        return FMIL.fmi2_import_get_real(self._fmu, vrefs, _size, values)
 
-    cdef int __set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
-        return FMIL.fmi2_import_set_real(self._fmu, vrefs, size, values)
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size):
+        return FMIL.fmi2_import_set_real(self._fmu, vrefs, _size, values)
 
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values):
-        return FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], size, &values[0])
+    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values):
+        return FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], _size, &values[0])
 
     def get_integer(self, valueref):
         """
@@ -4300,10 +4265,9 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2GetInteger
         """
         cdef int         status
-        cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        nref = input_valueref.size
-        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         output_value   = N.zeros(nref, dtype=int)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         output_value   = np.zeros(nref, dtype=int)
 
         if nref == 0: ## get_integer([])
             return output_value
@@ -4334,14 +4298,11 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2SetInteger
         """
         cdef int status
-        cdef FMIL.size_t nref
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef np.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         set_value      = np.array(values, dtype=int,ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1,mode='c']         set_value      = N.array(values, dtype=int,ndmin=1).ravel()
-
-        nref = input_valueref.size
-
-        if input_valueref.size != set_value.size:
+        if nref != np.size(set_value):
             raise FMUException('The length of valueref and values are inconsistent.')
 
         status = FMIL.fmi2_import_set_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> set_value.data)
@@ -4349,13 +4310,13 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to set the Integer values. See the log for possibly more information.')
 
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
+    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
         cdef int status
-        cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*size)
+        cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*_size)
 
-        status = FMIL.fmi2_import_get_boolean(self._fmu, &valueref[0], size, <FMIL.fmi2_boolean_t*> output_value)
+        status = FMIL.fmi2_import_get_boolean(self._fmu, &valueref[0], _size, <FMIL.fmi2_boolean_t*> output_value)
 
-        for i in range(size):
+        for i in range(_size):
             values[i] = (<FMIL.fmi2_boolean_t*>output_value)[i]==1
 
         FMIL.free(output_value)
@@ -4383,12 +4344,11 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2GetBoolean
         """
         cdef int         status
-        cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
-        nref = input_valueref.size
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, dtype=np.uint32, ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
 
         if nref == 0: ## get_boolean([])
-            return N.array([])
+            return np.array([])
 
         cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
 
@@ -4404,7 +4364,7 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to get the Boolean values.')
 
-        return N.array(return_values)
+        return np.array(return_values)
 
     def set_boolean(self, valueref, values):
         """
@@ -4425,14 +4385,13 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2SetBoolean
         """
         cdef int         status
-        cdef FMIL.size_t nref
 
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = N.array(valueref, dtype=N.uint32,ndmin=1).flatten()
-        nref = len(input_valueref)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, dtype=np.uint32,ndmin=1).flatten()
+        cdef FMIL.size_t nref = np.size(input_valueref)
 
         cdef void* set_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
 
-        values = N.array(values,ndmin=1).ravel()
+        values = np.array(values,ndmin=1).ravel()
         for i in range(nref):
             if values[i]:
                 (<FMIL.fmi2_boolean_t*> set_value)[i] = 1
@@ -4470,9 +4429,8 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2GetString
         """
         cdef int status
-        cdef FMIL.size_t nref
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] input_valueref = N.array(valueref, dtype=N.uint32, ndmin=1).ravel()
-        nref = input_valueref.size
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] input_valueref = np.array(valueref, dtype=np.uint32, ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
 
         if nref == 0: ## get_string([])
             return []
@@ -4511,21 +4469,21 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2SetString
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] val_ref = N.array(valueref, dtype=N.uint32,ndmin=1).ravel()
-        cdef FMIL.fmi2_string_t* val = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*val_ref.size)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, dtype=np.uint32,ndmin=1).ravel()
+        cdef FMIL.fmi2_string_t* val = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*np.size(val_ref))
 
         if not isinstance(values, list):
             raise FMUException(
                 'The values needs to be a list of values.')
-        if len(values) != val_ref.size:
+        if len(values) != np.size(val_ref):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
         values = [encode(item) for item in values]
-        for i in range(val_ref.size):
+        for i in range(np.size(val_ref)):
             val[i] = values[i]
 
-        status = FMIL.fmi2_import_set_string(self._fmu, <FMIL.fmi2_value_reference_t*>val_ref.data, val_ref.size, val)
+        status = FMIL.fmi2_import_set_string(self._fmu, <FMIL.fmi2_value_reference_t*>val_ref.data, np.size(val_ref), val)
 
         FMIL.free(val)
 
@@ -4537,16 +4495,16 @@ cdef class FMUModelBase2(ModelBase):
         Helper method to set, see docstring on set.
         """
         cdef FMIL.fmi2_value_reference_t ref
-        cdef FMIL.fmi2_base_type_enu_t   type
+        cdef FMIL.fmi2_base_type_enu_t basetype
 
         ref  = self.get_variable_valueref(variable_name)
-        type = self.get_variable_data_type(variable_name)
+        basetype = self.get_variable_data_type(variable_name)
 
-        if type == FMIL.fmi2_base_type_real:  #REAL
+        if basetype == FMIL.fmi2_base_type_real:  #REAL
             self.set_real([ref], [value])
-        elif type == FMIL.fmi2_base_type_int:
+        elif basetype == FMIL.fmi2_base_type_int:
             self.set_integer([ref], [value])
-        elif type == FMIL.fmi2_base_type_enum:
+        elif basetype == FMIL.fmi2_base_type_enum:
             if isinstance(value, str) or isinstance(value, bytes):
                 enum_type = self.get_variable_declared_type(variable_name)
                 enum_values = {encode(v[0]): k for k, v in enum_type.items.items()}
@@ -4558,9 +4516,9 @@ cdef class FMUModelBase2(ModelBase):
                     raise FMUException(msg)
             else:
                 self.set_integer([ref], [value])
-        elif type == FMIL.fmi2_base_type_str: #STRING
+        elif basetype == FMIL.fmi2_base_type_str: #STRING
             self.set_string([ref], [value])
-        elif type == FMIL.fmi2_base_type_bool: #BOOLEAN
+        elif basetype == FMIL.fmi2_base_type_bool: #BOOLEAN
             self.set_boolean([ref], [value])
         else:
             raise FMUException('Type not supported.')
@@ -4570,18 +4528,18 @@ cdef class FMUModelBase2(ModelBase):
         Helper method to get, see docstring on get.
         """
         cdef FMIL.fmi2_value_reference_t ref
-        cdef FMIL.fmi2_base_type_enu_t type
+        cdef FMIL.fmi2_base_type_enu_t basetype
 
         ref  = self.get_variable_valueref(variable_name)
-        type = self.get_variable_data_type(variable_name)
+        basetype = self.get_variable_data_type(variable_name)
 
-        if type == FMIL.fmi2_base_type_real:  #REAL
+        if basetype == FMIL.fmi2_base_type_real:  #REAL
             return self.get_real([ref])
-        elif type == FMIL.fmi2_base_type_int or type == FMIL.fmi2_base_type_enum: #INTEGER
+        elif basetype == FMIL.fmi2_base_type_int or basetype == FMIL.fmi2_base_type_enum: #INTEGER
             return self.get_integer([ref])
-        elif type == FMIL.fmi2_base_type_str: #STRING
+        elif basetype == FMIL.fmi2_base_type_str: #STRING
             return self.get_string([ref])
-        elif type == FMIL.fmi2_base_type_bool: #BOOLEAN
+        elif basetype == FMIL.fmi2_base_type_bool: #BOOLEAN
             return self.get_boolean([ref])
         else:
             raise FMUException('Type not supported.')
@@ -4668,7 +4626,7 @@ cdef class FMUModelBase2(ModelBase):
         if stop_time == "Default":
             stop_time = self.get_default_experiment_stop_time()
 
-        self.__t = start_time
+        self._t = start_time
         self._last_accepted_time = start_time
         self._relative_tolerance = tolerance
 
@@ -4690,7 +4648,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('An error occured when reseting the model, see the log for possible more information')
 
         #Default values
-        self.__t = None
+        self._t = None
         self._has_entered_init_mode = False
 
         #Reseting the allocation flags
@@ -5219,14 +5177,14 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_causality_enu_t           data_causality,   target_causality = FMIL.fmi2_causality_enu_parameter
         cdef FMIL.fmi2_variable_alias_kind_enu_t alias_kind
         cdef FMIL.fmi2_initial_enu_t             initial
-        cdef char* desc
-        cdef int   selected_type = 0        #If a type has been selected
-        cdef int   selected_variability = 0 #If a variability has been selected
-        cdef int   selected_causality = 0   #If a causality has been selected
-        cdef int   has_start, is_fixed
-        cdef int   i, j
-        cdef int  selected_filter = 1 if filter else 0
-        cdef int  length_filter = 0
+        cdef FMIL.fmi2_string_t desc
+        cdef int selected_type = 0        #If a type has been selected
+        cdef int selected_variability = 0 #If a variability has been selected
+        cdef int selected_causality = 0   #If a causality has been selected
+        cdef int has_start, is_fixed
+        cdef int i, j
+        cdef int selected_filter = 1 if filter else 0
+        cdef int length_filter = 0
         cdef list filter_list, variable_return_list = []
         variable_dict = OrderedDict()
 
@@ -5257,7 +5215,7 @@ cdef class FMUModelBase2(ModelBase):
             has_start        = FMIL.fmi2_import_get_variable_has_start(variable)  #fmi2_import_get_initial, may be of interest
             data_variability = FMIL.fmi2_import_get_variability(variable)
             data_causality   = FMIL.fmi2_import_get_causality(variable)
-            desc             = FMIL.fmi2_import_get_variable_description(variable)
+            desc             = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_variable_description(variable)
             initial          = FMIL.fmi2_import_get_initial(variable)
 
             #If only variables with start are wanted, check if the variable has start
@@ -5398,22 +5356,22 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_value_reference_t  vr
         cdef FMIL.fmi2_import_variable_typedef_t* variable_type
-        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_base_type_enu_t    basetype
         cdef FMIL.fmi2_import_enumeration_typedef_t * enumeration_type
         cdef FMIL.fmi2_import_integer_typedef_t * integer_type
         cdef FMIL.fmi2_import_real_typedef_t * real_type
         cdef FMIL.fmi2_import_unit_t * type_unit
         cdef FMIL.fmi2_import_display_unit_t * type_display_unit
-        cdef char * type_name
-        cdef char * type_desc
+        cdef FMIL.fmi2_string_t type_name
+        cdef FMIL.fmi2_string_t type_desc
         cdef object ret_type, min_val, max_val, unbounded, nominal_val
-        cdef char * type_quantity
+        cdef FMIL.fmi2_string_t type_quantity
         cdef unsigned int enum_size
         cdef int item_value
-        cdef char * item_desc
-        cdef char * item_name
-        cdef char * type_unit_name
-        cdef char * type_display_unit_name
+        cdef FMIL.fmi2_string_t item_desc
+        cdef FMIL.fmi2_string_t item_name
+        cdef FMIL.fmi2_string_t type_unit_name
+        cdef FMIL.fmi2_string_t type_display_unit_name
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5426,21 +5384,21 @@ cdef class FMUModelBase2(ModelBase):
         if variable_type == NULL:
             raise FMUException("The variable %s does not have a declared type."%variablename)
 
-        type_name = FMIL.fmi2_import_get_type_name(variable_type)
-        type_desc = FMIL.fmi2_import_get_type_description(variable_type)
-        type_quantity = FMIL.fmi2_import_get_type_quantity(variable_type)
+        type_name = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_type_name(variable_type)
+        type_desc = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_type_description(variable_type)
+        type_quantity = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_type_quantity(variable_type)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi2_base_type_enum:
+        if basetype == FMIL.fmi2_base_type_enum:
             enumeration_type  = FMIL.fmi2_import_get_type_as_enum(variable_type)
             enum_size = FMIL.fmi2_import_get_enum_type_size(enumeration_type)
             items = OrderedDict()
 
             for i in range(1,enum_size+1):
                 item_value = FMIL.fmi2_import_get_enum_type_item_value(enumeration_type, i)
-                item_name  = FMIL.fmi2_import_get_enum_type_item_name(enumeration_type, i)
-                item_desc  = FMIL.fmi2_import_get_enum_type_item_description(enumeration_type, i)
+                item_name  = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_enum_type_item_name(enumeration_type, i)
+                item_desc  = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_enum_type_item_description(enumeration_type, i)
 
                 items[item_value] = (decode(item_name) if item_name != NULL else "",
                                      decode(item_desc) if item_desc != NULL else "")
@@ -5450,7 +5408,7 @@ cdef class FMUModelBase2(ModelBase):
                                         decode(type_quantity) if type_quantity != NULL else "", items)
 
 
-        elif type == FMIL.fmi2_base_type_int:
+        elif basetype == FMIL.fmi2_base_type_int:
             integer_type = FMIL.fmi2_import_get_type_as_int(variable_type)
 
             min_val = FMIL.fmi2_import_get_integer_type_min(integer_type)
@@ -5460,7 +5418,7 @@ cdef class FMUModelBase2(ModelBase):
                                     decode(type_desc) if type_desc != NULL else "",
                                     decode(type_quantity) if type_quantity != NULL else "",
                                          min_val, max_val)
-        elif type == FMIL.fmi2_base_type_real:
+        elif basetype == FMIL.fmi2_base_type_real:
             real_type = FMIL.fmi2_import_get_type_as_real(variable_type)
 
             min_val = FMIL.fmi2_import_get_real_type_min(real_type)
@@ -5472,8 +5430,8 @@ cdef class FMUModelBase2(ModelBase):
             type_display_unit = FMIL.fmi2_import_get_type_display_unit(real_type)
             type_unit = FMIL.fmi2_import_get_real_type_unit(real_type)
 
-            type_unit_name = FMIL.fmi2_import_get_unit_name(type_unit)
-            type_display_unit_name = FMIL.fmi2_import_get_display_unit_name(type_display_unit)
+            type_unit_name = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_unit_name(type_unit)
+            type_display_unit_name = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_display_unit_name(type_display_unit)
 
             ret_type = RealType2(decode(type_name) if type_name != NULL else "",
                                  decode(type_desc) if type_desc != NULL else "",
@@ -5523,7 +5481,7 @@ cdef class FMUModelBase2(ModelBase):
             The type of the variable.
         """
         cdef FMIL.fmi2_import_variable_t* variable
-        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_base_type_enu_t    basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5532,9 +5490,9 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
 
-        return type
+        return basetype
 
     cpdef get_variable_description(self, variable_name):
         """
@@ -5550,7 +5508,7 @@ cdef class FMUModelBase2(ModelBase):
             The description of the variable.
         """
         cdef FMIL.fmi2_import_variable_t* variable
-        cdef char* desc
+        cdef FMIL.fmi2_string_t desc
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5559,7 +5517,7 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        desc = FMIL.fmi2_import_get_variable_description(variable)
+        desc = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_variable_description(variable)
 
         return decode(desc) if desc != NULL else ""
 
@@ -5633,8 +5591,8 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
         cdef FMIL.fmi2_import_unit_t* unit
-        cdef FMIL.fmi2_base_type_enu_t    type
-        cdef char* unit_description
+        cdef FMIL.fmi2_base_type_enu_t basetype
+        cdef FMIL.fmi2_string_t unit_description
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5643,8 +5601,8 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
-        if type != FMIL.fmi2_base_type_real:
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if basetype != FMIL.fmi2_base_type_real:
             raise FMUException("The variable %s is not a Real variable. Units only exists for Real variables."%variablename)
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
@@ -5653,7 +5611,7 @@ cdef class FMUModelBase2(ModelBase):
         if unit == NULL:
             raise FMUException("No unit was found for the variable %s."%variablename)
 
-        unit_description = FMIL.fmi2_import_get_unit_name(unit)
+        unit_description = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_unit_name(unit)
 
         return decode(unit_description) if unit_description != NULL else ""
 
@@ -5672,7 +5630,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
-        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_base_type_enu_t basetype
         cdef FMIL.fmi2_boolean_t relative_quantity
 
         variable_name = encode(variable_name)
@@ -5682,8 +5640,8 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
-        if type != FMIL.fmi2_base_type_real:
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if basetype != FMIL.fmi2_base_type_real:
             raise FMUException("The variable %s is not a Real variable. Relative quantity only exists for Real variables."%variablename)
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
@@ -5706,7 +5664,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
-        cdef FMIL.fmi2_base_type_enu_t    type
+        cdef FMIL.fmi2_base_type_enu_t basetype
         cdef FMIL.fmi2_boolean_t unbounded
 
         variable_name = encode(variable_name)
@@ -5716,8 +5674,8 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
-        if type != FMIL.fmi2_base_type_real:
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if basetype != FMIL.fmi2_base_type_real:
             raise FMUException("The variable %s is not a Real variable. Unbounded attribute only exists for Real variables."%variablename)
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
@@ -5741,8 +5699,8 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_import_real_variable_t* real_variable
         cdef FMIL.fmi2_import_display_unit_t* display_unit
-        cdef FMIL.fmi2_base_type_enu_t    type
-        cdef char* display_unit_description
+        cdef FMIL.fmi2_base_type_enu_t basetype
+        cdef FMIL.fmi2_string_t display_unit_description
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5751,8 +5709,8 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
-        if type != FMIL.fmi2_base_type_real:
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if basetype != FMIL.fmi2_base_type_real:
             raise FMUException("The variable %s is not a Real variable. Display units only exists for Real variables."%variablename)
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
@@ -5761,7 +5719,7 @@ cdef class FMUModelBase2(ModelBase):
         if display_unit == NULL:
             raise FMUException("No display unit was found for the variable %s."%variablename)
 
-        display_unit_description = FMIL.fmi2_import_get_display_unit_name(display_unit)
+        display_unit_description = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_display_unit_name(display_unit)
 
         return decode(display_unit_description) if display_unit_description != NULL else ""
 
@@ -5796,8 +5754,8 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
-        if type != FMIL.fmi2_base_type_real:
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if basetype != FMIL.fmi2_base_type_real:
             raise FMUException("The variable %s is not a Real variable. Display units only exists for Real variables."%variablename)
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
@@ -5809,7 +5767,7 @@ cdef class FMUModelBase2(ModelBase):
         relative_quantity = 1 if relative_quantity_bool == FMI2_TRUE else 0
 
         vr = FMIL.fmi2_import_get_variable_vr(variable)
-        value = self.get_real(vr)
+        value = self.get_real(vr)[0]
 
         display_value = FMIL.fmi2_import_convert_to_display_unit(value, display_unit, relative_quantity)
 
@@ -5858,7 +5816,7 @@ cdef class FMUModelBase2(ModelBase):
             The start value.
         """
         cdef FMIL.fmi2_import_variable_t *        variable
-        cdef FMIL.fmi2_base_type_enu_t            type
+        cdef FMIL.fmi2_base_type_enu_t            basetype
         cdef FMIL.fmi2_import_integer_variable_t* int_variable
         cdef FMIL.fmi2_import_real_variable_t*    real_variable
         cdef FMIL.fmi2_import_bool_variable_t*    bool_variable
@@ -5879,25 +5837,25 @@ cdef class FMUModelBase2(ModelBase):
         if status == 0:
             raise FMUException("The variable %s does not have a start value."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi2_base_type_real:
+        if basetype == FMIL.fmi2_base_type_real:
             real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
             return FMIL.fmi2_import_get_real_variable_start(real_variable)
 
-        elif type == FMIL.fmi2_base_type_int:
+        elif basetype == FMIL.fmi2_base_type_int:
             int_variable = FMIL.fmi2_import_get_variable_as_integer(variable)
             return FMIL.fmi2_import_get_integer_variable_start(int_variable)
 
-        elif type == FMIL.fmi2_base_type_bool:
+        elif basetype == FMIL.fmi2_base_type_bool:
             bool_variable = FMIL.fmi2_import_get_variable_as_boolean(variable)
             return FMIL.fmi2_import_get_boolean_variable_start(bool_variable) == FMITRUE
 
-        elif type == FMIL.fmi2_base_type_enum:
+        elif basetype == FMIL.fmi2_base_type_enum:
             enum_variable = FMIL.fmi2_import_get_variable_as_enum(variable)
             return FMIL.fmi2_import_get_enum_variable_start(enum_variable)
 
-        elif type == FMIL.fmi2_base_type_str:
+        elif basetype == FMIL.fmi2_base_type_str:
             str_variable = FMIL.fmi2_import_get_variable_as_string(variable)
             return FMIL.fmi2_import_get_string_variable_start(str_variable)
 
@@ -5921,7 +5879,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_integer_variable_t* int_variable
         cdef FMIL.fmi2_import_real_variable_t*    real_variable
         cdef FMIL.fmi2_import_enum_variable_t*    enum_variable
-        cdef FMIL.fmi2_base_type_enu_t            type
+        cdef FMIL.fmi2_base_type_enu_t            basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5930,17 +5888,17 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi2_base_type_real:
+        if basetype == FMIL.fmi2_base_type_real:
             real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
             return FMIL.fmi2_import_get_real_variable_max(real_variable)
 
-        elif type == FMIL.fmi2_base_type_int:
+        elif basetype == FMIL.fmi2_base_type_int:
             int_variable = FMIL.fmi2_import_get_variable_as_integer(variable)
             return FMIL.fmi2_import_get_integer_variable_max(int_variable)
 
-        elif type == FMIL.fmi2_base_type_enum:
+        elif basetype == FMIL.fmi2_base_type_enum:
             enum_variable = FMIL.fmi2_import_get_variable_as_enum(variable)
             return FMIL.fmi2_import_get_enum_variable_max(enum_variable)
 
@@ -5964,7 +5922,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_integer_variable_t* int_variable
         cdef FMIL.fmi2_import_real_variable_t*    real_variable
         cdef FMIL.fmi2_import_enum_variable_t*    enum_variable
-        cdef FMIL.fmi2_base_type_enu_t            type
+        cdef FMIL.fmi2_base_type_enu_t            basetype
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5973,17 +5931,17 @@ cdef class FMUModelBase2(ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        type = FMIL.fmi2_import_get_variable_base_type(variable)
+        basetype = FMIL.fmi2_import_get_variable_base_type(variable)
 
-        if type == FMIL.fmi2_base_type_real:
+        if basetype == FMIL.fmi2_base_type_real:
             real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
             return FMIL.fmi2_import_get_real_variable_min(real_variable)
 
-        elif type == FMIL.fmi2_base_type_int:
+        elif basetype == FMIL.fmi2_base_type_int:
             int_variable = FMIL.fmi2_import_get_variable_as_integer(variable)
             return FMIL.fmi2_import_get_integer_variable_min(int_variable)
 
-        elif type == FMIL.fmi2_base_type_enum:
+        elif basetype == FMIL.fmi2_base_type_enum:
             enum_variable = FMIL.fmi2_import_get_variable_as_enum(variable)
             return FMIL.fmi2_import_get_enum_variable_min(enum_variable)
 
@@ -6138,7 +6096,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMUState2 internal_state = state
 
         cdef FMIL.size_t n_bytes
-        cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] serialized_fmu
+        cdef np.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] serialized_fmu
 
         cap1 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canSerializeFMUstate)
         cap2 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSerializeFMUstate)
@@ -6146,7 +6104,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('This FMU dos not support serialisation of FMU-state')
 
         n_bytes = self.serialized_fmu_state_size(state)
-        serialized_fmu = N.empty(n_bytes, dtype=N.byte)
+        serialized_fmu = np.empty(n_bytes, dtype=np.byte)
 
         status = FMIL.fmi2_import_serialize_fmu_state(self._fmu, internal_state.fmu_state, <FMIL.fmi2_byte_t*> serialized_fmu.data, n_bytes)
 
@@ -6178,7 +6136,7 @@ cdef class FMUModelBase2(ModelBase):
         """
 
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu[0]
+        cdef np.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu[0]
         cdef FMUState2 state = FMUState2()
         cdef FMIL.size_t n_byte = len(ser_fmu)
 
@@ -6291,6 +6249,7 @@ cdef class FMUModelBase2(ModelBase):
         return variable_dict
 
     cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable):
+        cdef FMIL.fmi2_string_t desc
 
         if variable == NULL:
             raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
@@ -6301,7 +6260,7 @@ cdef class FMUModelBase2(ModelBase):
         data_type        = FMIL.fmi2_import_get_variable_base_type(variable)
         data_variability = FMIL.fmi2_import_get_variability(variable)
         data_causality   = FMIL.fmi2_import_get_causality(variable)
-        desc             = FMIL.fmi2_import_get_variable_description(variable)
+        desc             = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_variable_description(variable)
         initial          = FMIL.fmi2_import_get_initial(variable)
 
         return ScalarVariable2(name, value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
@@ -6345,18 +6304,11 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t *variable
         cdef FMIL.fmi2_import_variable_list_t *variable_list
 
-        if python3_flag:
-            outputs = list(self.get_output_list().keys())
-            states_dict = self.get_states_list()
-            states_list = list(states_dict.keys())
-            inputs_dict = self.get_input_list()
-            inputs_list = list(inputs_dict.keys())
-        else:
-            outputs = self.get_output_list().keys()
-            states_dict = self.get_states_list()
-            states_list = states_dict.keys()
-            inputs_dict = self.get_input_list()
-            inputs_list = inputs_dict.keys()
+        outputs = list(self.get_output_list().keys())
+        states_dict = self.get_states_list()
+        states_list = list(states_dict.keys())
+        inputs_dict = self.get_input_list()
+        inputs_list = list(inputs_dict.keys())
 
         states = OrderedDict()
         states_kind = OrderedDict()
@@ -6453,14 +6405,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_t *variable
         cdef FMIL.fmi2_import_variable_list_t *variable_list
 
-        if python3_flag:
-            derivatives = list(self.get_derivatives_list().keys())
-            states_list = list(self.get_states_list().keys())
-            inputs_list = list(self.get_input_list().keys())
-        else:
-            derivatives = self.get_derivatives_list().keys()
-            states_list = self.get_states_list().keys()
-            inputs_list = self.get_input_list().keys()
+        derivatives = list(self.get_derivatives_list().keys())
+        states_list = list(self.get_states_list().keys())
+        inputs_list = list(self.get_input_list().keys())
 
         states = OrderedDict()
         states_kind = OrderedDict()
@@ -6538,8 +6485,8 @@ cdef class FMUModelBase2(ModelBase):
         cdef list data = [], row = [], col = []
         cdef list local_group
         cdef int nbr_var_ref  = len(var_ref), nbr_func_ref = len(func_ref)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v = N.zeros(nbr_var_ref, dtype = N.double)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] data_local
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] v = np.zeros(nbr_var_ref, dtype = np.double)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] data_local
         cdef int ind_local = 5 if add_diag else 4
 
         if not self._has_entered_init_mode:
@@ -6548,7 +6495,7 @@ cdef class FMUModelBase2(ModelBase):
 
         if group is not None:
             if output_matrix is not None:
-                if not isinstance(output_matrix, sp.csc_matrix):
+                if not isinstance(output_matrix, sps.csc_matrix):
                     output_matrix = None
                 else:
                     data_local = output_matrix.data
@@ -6579,16 +6526,16 @@ cdef class FMUModelBase2(ModelBase):
                 A = output_matrix
             else:
                 if len(data) == 0:
-                    A = sp.csc_matrix((nbr_func_ref,nbr_var_ref))
+                    A = sps.csc_matrix((nbr_func_ref,nbr_var_ref))
                 else:
-                    A = sp.csc_matrix((data, (row, col)), (nbr_func_ref,nbr_var_ref))
+                    A = sps.csc_matrix((data, (row, col)), (nbr_func_ref,nbr_var_ref))
 
             return A
         else:
             if output_matrix is None or \
-                (not isinstance(output_matrix, N.ndarray)) or \
-                (isinstance(output_matrix, N.ndarray) and (output_matrix.shape[0] != nbr_func_ref or output_matrix.shape[1] != nbr_var_ref)):
-                    A = N.zeros((nbr_func_ref,nbr_var_ref))
+                (not isinstance(output_matrix, np.ndarray)) or \
+                (isinstance(output_matrix, np.ndarray) and (output_matrix.shape[0] != nbr_func_ref or output_matrix.shape[1] != nbr_var_ref)):
+                    A = np.zeros((nbr_func_ref,nbr_var_ref))
             else:
                 A = output_matrix
 
@@ -6601,10 +6548,7 @@ cdef class FMUModelBase2(ModelBase):
     def _get_A(self, use_structure_info=True, add_diag=True, output_matrix=None):
         if self._group_A is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
-            if python3_flag:
-                self._group_A = cpr_seed(derv_state_dep, list(self.get_states_list().keys()))
-            else:
-                self._group_A = cpr_seed(derv_state_dep, self.get_states_list().keys())
+            self._group_A = cpr_seed(derv_state_dep, list(self.get_states_list().keys()))
         if self._states_references is None:
             states                       = self.get_states_list()
             self._states_references      = [s.value_reference for s in states.values()]
@@ -6622,10 +6566,7 @@ cdef class FMUModelBase2(ModelBase):
     def _get_B(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_B is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
-            if python3_flag:
-                self._group_B = cpr_seed(derv_input_dep, list(self.get_input_list().keys()))
-            else:
-                self._group_B = cpr_seed(derv_input_dep, self.get_input_list().keys())
+            self._group_B = cpr_seed(derv_input_dep, list(self.get_input_list().keys()))
         if self._inputs_references is None:
             inputs                       = self.get_input_list()
             self._inputs_references      = [s.value_reference for s in inputs.values()]
@@ -6643,10 +6584,7 @@ cdef class FMUModelBase2(ModelBase):
     def _get_C(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_C is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
-            if python3_flag:
-                self._group_C = cpr_seed(out_state_dep, list(self.get_states_list().keys()))
-            else:
-                self._group_C = cpr_seed(out_state_dep, self.get_states_list().keys())
+            self._group_C = cpr_seed(out_state_dep, list(self.get_states_list().keys()))
         if self._states_references is None:
             states                       = self.get_states_list()
             self._states_references      = [s.value_reference for s in states.values()]
@@ -6664,10 +6602,7 @@ cdef class FMUModelBase2(ModelBase):
     def _get_D(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_D is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
-            if python3_flag:
-                self._group_D = cpr_seed(out_input_dep, list(self.get_input_list().keys()))
-            else:
-                self._group_D = cpr_seed(out_input_dep, self.get_input_list().keys())
+            self._group_D = cpr_seed(out_input_dep, list(self.get_input_list().keys()))
         if self._inputs_references is None:
             inputs                       = self.get_input_list()
             self._inputs_references      = [s.value_reference for s in inputs.values()]
@@ -6859,11 +6794,11 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.size_t nv, nz
 
         #input arrays
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.zeros(len(var_ref),  dtype = N.uint32)
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.zeros(len(func_ref), dtype = N.uint32)
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dv    = N.zeros(len(v),        dtype = N.double)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = np.zeros(len(var_ref),  dtype = np.uint32)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = np.zeros(len(func_ref), dtype = np.uint32)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dv    = np.zeros(len(v),        dtype = np.double)
         #output array
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dz    = N.zeros(len(func_ref), dtype = N.double)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dz    = np.zeros(len(func_ref), dtype = np.double)
 
         if not self._provides_directional_derivatives():
             raise FMUException('This FMU does not provide directional derivatives')
@@ -6888,20 +6823,20 @@ cdef class FMUModelBase2(ModelBase):
 
         return dz
 
-    cdef int _get_directional_derivative(self, N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] v_ref,
-                                               N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] z_ref,
-                                               N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dv,
-                                               N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dz) except -1:
+    cdef int _get_directional_derivative(self, np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] v_ref,
+                                               np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] z_ref,
+                                               np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dv,
+                                               np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dz) except -1:
         cdef int status
 
-        assert dv.size >= v_ref.size and dz.size >= z_ref.size
+        assert np.size(dv) >= np.size(v_ref) and np.size(dz) >= np.size(z_ref)
 
         if not self._provides_directional_derivatives():
             raise FMUException('This FMU does not provide directional derivatives')
 
         status = FMIL.fmi2_import_get_directional_derivative(self._fmu,
-                  <FMIL.fmi2_value_reference_t*> v_ref.data, v_ref.size,
-                  <FMIL.fmi2_value_reference_t*> z_ref.data, z_ref.size,
+                  <FMIL.fmi2_value_reference_t*> v_ref.data, np.size(v_ref),
+                  <FMIL.fmi2_value_reference_t*> z_ref.data, np.size(z_ref),
                   <FMIL.fmi2_real_t*> dv.data,
                   <FMIL.fmi2_real_t*> dz.data)
 
@@ -6920,15 +6855,15 @@ cdef class FMUModelBase2(ModelBase):
 
             model.get_version()
         """
-        cdef char* version = FMIL.fmi2_import_get_version(self._fmu)
+        cdef FMIL.fmi2_string_t version = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_version(self._fmu)
         return decode(version)
 
     def get_model_version(self):
         """
         Returns the version of the FMU.
         """
-        cdef char* version
-        version = FMIL.fmi2_import_get_model_version(self._fmu)
+        cdef FMIL.fmi2_string_t version
+        version = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_model_version(self._fmu)
         return decode(version) if version != NULL else ""
 
     def get_name(self):
@@ -6941,48 +6876,48 @@ cdef class FMUModelBase2(ModelBase):
         """
         Return the name and organization of the model author.
         """
-        cdef char* author
-        author = FMIL.fmi2_import_get_author(self._fmu)
+        cdef FMIL.fmi2_string_t author
+        author = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_author(self._fmu)
         return decode(author) if author != NULL else ""
 
     def get_description(self):
         """
         Return the model description.
         """
-        cdef char* desc
-        desc = FMIL.fmi2_import_get_description(self._fmu)
+        cdef FMIL.fmi2_string_t desc
+        desc = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_description(self._fmu)
         return decode(desc) if desc != NULL else ""
 
     def get_copyright(self):
         """
         Return the model copyright.
         """
-        cdef char* copyright
-        copyright = FMIL.fmi2_import_get_copyright(self._fmu)
+        cdef FMIL.fmi2_string_t copyright
+        copyright = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_copyright(self._fmu)
         return decode(copyright) if copyright != NULL else ""
 
     def get_license(self):
         """
         Return the model license.
         """
-        cdef char* license
-        license = FMIL.fmi2_import_get_license(self._fmu)
+        cdef FMIL.fmi2_string_t license
+        license = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_license(self._fmu)
         return decode(license) if license != NULL else ""
 
     def get_generation_tool(self):
         """
         Return the model generation tool.
         """
-        cdef char* gen
-        gen = FMIL.fmi2_import_get_generation_tool(self._fmu)
+        cdef FMIL.fmi2_string_t gen
+        gen = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_generation_tool(self._fmu)
         return decode(gen) if gen != NULL else ""
 
     def get_generation_date_and_time(self):
         """
         Return the model generation date and time.
         """
-        cdef char* gen
-        gen = FMIL.fmi2_import_get_generation_date_and_time(self._fmu)
+        cdef FMIL.fmi2_string_t gen
+        gen = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_generation_date_and_time(self._fmu)
         return decode(gen) if gen != NULL else ""
 
     def get_guid(self):
@@ -7115,7 +7050,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         Returns::
             The time.
         """
-        return self.__t
+        return self._t
 
     cpdef _set_time(self, FMIL.fmi2_real_t t):
         """
@@ -7125,7 +7060,7 @@ cdef class FMUModelCS2(FMUModelBase2):
             t--
                 The time to set.
         """
-        self.__t = t
+        self._t = t
 
     time = property(_get_time,_set_time, doc =
     """
@@ -7212,13 +7147,11 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         cdef int          status
         cdef unsigned int can_interpolate_inputs
-        cdef FMIL.size_t  nref
-        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            val = N.array(values, dtype=float, ndmin=1).ravel()
-
-        nref = val.size
-        orders = N.array([0]*nref, dtype=N.int32)
+        cdef np.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            val = np.array(values, dtype=float, ndmin=1).ravel()
+        cdef FMIL.size_t nref = np.size(val)
+        orders = np.array([0]*nref, dtype=np.int32)
 
         can_interpolate_inputs = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canInterpolateInputs)
         #NOTE IS THIS THE HIGHEST ORDER OF INTERPOLATION OR SIMPLY IF IT CAN OR NOT?
@@ -7229,10 +7162,10 @@ cdef class FMUModelCS2(FMUModelBase2):
             raise FMUException("The FMU does not support input derivatives.")
 
         if isinstance(variables,str):
-            value_refs = N.array([0], dtype=N.uint32, ndmin=1).ravel()
+            value_refs = np.array([0], dtype=np.uint32, ndmin=1).ravel()
             value_refs[0] = self.get_variable_valueref(variables)
-        elif isinstance(variables,list) and N.prod([int(isinstance(v,str)) for v in variables]): #prod equals 0 or 1
-            value_refs = N.array([0]*nref, dtype=N.uint32,ndmin=1).ravel()
+        elif isinstance(variables,list) and np.prod([int(isinstance(v,str)) for v in variables]): #prod equals 0 or 1
+            value_refs = np.array([0]*nref, dtype=np.uint32,ndmin=1).ravel()
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
                 orders[i] = order
@@ -7246,16 +7179,16 @@ cdef class FMUModelCS2(FMUModelBase2):
         if status != 0:
             raise FMUException('Failed to set the Real input derivatives.')
 
-    cdef int _set_input_derivatives(self, N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] value_refs,
-                                          N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values,
-                                          N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
+    cdef int _set_input_derivatives(self, np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] value_refs,
+                                          np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values,
+                                          np.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
         cdef int status
 
-        assert values.size >= value_refs.size and orders.size >= value_refs.size
+        assert np.size(values) >= np.size(value_refs) and np.size(orders) >= np.size(value_refs)
 
         status = FMIL.fmi2_import_set_real_input_derivatives(self._fmu,
                         <FMIL.fmi2_value_reference_t*> value_refs.data,
-                        value_refs.size, <FMIL.fmi2_integer_t*> orders.data,
+                        np.size(value_refs), <FMIL.fmi2_integer_t*> orders.data,
                         <FMIL.fmi2_real_t*> values.data)
 
         return status
@@ -7280,11 +7213,10 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         cdef int status
         cdef unsigned int max_output_derivative
-        cdef FMIL.size_t  nref
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            values
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
-        cdef N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
-
+        cdef FMIL.size_t nref
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']            values
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] value_refs
+        cdef np.ndarray[FMIL.fmi2_integer_t, ndim=1, mode='c']         orders
 
         max_output_derivative = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_maxOutputDerivativeOrder)
 
@@ -7293,20 +7225,20 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         if isinstance(variables,str):
             nref = 1
-            value_refs = N.array([0], dtype=N.uint32, ndmin=1).ravel()
-            orders = N.array([order], dtype=N.int32)
+            value_refs = np.array([0], dtype=np.uint32, ndmin=1).ravel()
+            orders = np.array([order], dtype=np.int32)
             value_refs[0] = self.get_variable_valueref(variables)
-        elif isinstance(variables,list) and N.prod([int(isinstance(v,str)) for v in variables]): #prod equals 0 or 1
+        elif isinstance(variables,list) and np.prod([int(isinstance(v,str)) for v in variables]): #prod equals 0 or 1
             nref = len(variables)
-            value_refs = N.array([0]*nref, dtype=N.uint32, ndmin=1).ravel()
-            orders = N.array([0]*nref, dtype=N.int32)
+            value_refs = np.array([0]*nref, dtype=np.uint32, ndmin=1).ravel()
+            orders = np.array([0]*nref, dtype=np.int32)
             for i in range(nref):
                 value_refs[i] = self.get_variable_valueref(variables[i])
                 orders[i] = order
         else:
             raise FMUException("The variables must either be a string or a list of strings")
 
-        values = N.array([0.0]*nref, dtype=float, ndmin=1)
+        values = np.array([0.0]*nref, dtype=float, ndmin=1)
 
         #status = FMIL.fmi2_import_get_real_output_derivatives(self._fmu, <FMIL.fmi2_value_reference_t*> value_refs.data, nref,
         #                                                    <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> values.data)
@@ -7317,15 +7249,15 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         return values
 
-    cdef int _get_output_derivatives(self, N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] value_refs,
-                                           N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values,
-                                           N.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
+    cdef int _get_output_derivatives(self, np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode="c"] value_refs,
+                                           np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values,
+                                           np.ndarray[FMIL.fmi2_integer_t, ndim=1, mode="c"] orders):
         cdef int status
 
-        assert values.size >= value_refs.size and orders.size >= value_refs.size
+        assert np.size(values) >= np.size(value_refs) and np.size(orders) >= np.size(value_refs)
 
         status = FMIL.fmi2_import_get_real_output_derivatives(self._fmu,
-                    <FMIL.fmi2_value_reference_t*> value_refs.data, value_refs.size,
+                    <FMIL.fmi2_value_reference_t*> value_refs.data, np.size(value_refs),
                     <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> values.data)
 
         return status
@@ -7746,7 +7678,7 @@ cdef class FMUModelME2(FMUModelBase2):
         Returns::
             The time.
         """
-        return self.__t
+        return self._t
 
     cpdef _set_time(self, FMIL.fmi2_real_t t):
         """
@@ -7762,7 +7694,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         if status != 0:
             raise FMUException('Failed to set the time.')
-        self.__t = t
+        self._t = t
 
     time = property(_get_time,_set_time, doc =
     """
@@ -7834,7 +7766,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
     cdef int _get_event_indicators(self, FMIL.fmi2_real_t[:] values):
         #if not values.flags['C_CONTIGUOUS']:
-        #    values = N.ascontiguousarray(values)
+        #    values = np.ascontiguousarray(values)
         if self._nEventIndicators > 0:
             return FMIL.fmi2_import_get_event_indicators(self._fmu, &values[0], self._nEventIndicators)
         else:
@@ -7856,7 +7788,7 @@ cdef class FMUModelME2(FMUModelBase2):
         Calls the low-level FMI function: fmiGetEventIndicators
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] values = N.empty(self._nEventIndicators, dtype=N.double)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] values = np.empty(self._nEventIndicators, dtype=np.double)
 
         status = self._get_event_indicators(values)
 
@@ -8015,7 +7947,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         return enterEventMode==FMI2_TRUE, terminateSimulation==FMI2_TRUE
 
-    cdef int __get_continuous_states(self, FMIL.fmi2_real_t[:] ndx):
+    cdef int _get_continuous_states_fmil(self, FMIL.fmi2_real_t[:] ndx):
         if self._nContinuousStates > 0:
             return FMIL.fmi2_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
         else:
@@ -8030,21 +7962,21 @@ cdef class FMUModelME2(FMUModelBase2):
             The continuous states.
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] ndx = N.zeros(self._nContinuousStates, dtype=N.double)
-        status = self.__get_continuous_states(ndx)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] ndx = np.zeros(self._nContinuousStates, dtype=np.double)
+        status = self._get_continuous_states_fmil(ndx)
 
         if status != 0:
             raise FMUException('Failed to retrieve the continuous states.')
 
         return ndx
 
-    cdef int __set_continuous_states(self, FMIL.fmi2_real_t[:] ndx):
+    cdef int _set_continuous_states_fmil(self, FMIL.fmi2_real_t[:] ndx):
         if self._nContinuousStates > 0:
-            return FMIL.fmi2_import_set_continuous_states(self._fmu, &ndx[0] , self._nContinuousStates)
+            return FMIL.fmi2_import_set_continuous_states(self._fmu, &ndx[0], self._nContinuousStates)
         else:
             return FMIL.fmi2_status_ok
 
-    def _set_continuous_states(self, N.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values):
+    def _set_continuous_states(self, np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values):
         """
         Set the values of the continuous states.
 
@@ -8054,15 +7986,15 @@ cdef class FMUModelME2(FMUModelBase2):
                 The new values of the continuous states.
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c'] ndx = values
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c'] ndx = values
 
-        if ndx.size != self._nContinuousStates:
+        if np.size(ndx) != self._nContinuousStates:
             raise FMUException(
                 'Failed to set the new continuous states. ' \
                 'The number of values are not consistent with the number of '\
                 'continuous states.')
 
-        status = self.__set_continuous_states(ndx)
+        status = self._set_continuous_states_fmil(ndx)
 
         if status >= 3:
             raise FMUException('Failed to set the new continuous states.')
@@ -8074,7 +8006,7 @@ cdef class FMUModelME2(FMUModelBase2):
     the low-level FMI function: fmi2SetContinuousStates/fmi2GetContinuousStates.
     """)
 
-    cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx):
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx):
         return FMIL.fmi2_import_get_nominals_of_continuous_states(self._fmu, xnominal, nx)
 
     def _get_nominal_continuous_states(self):
@@ -8085,9 +8017,9 @@ cdef class FMUModelME2(FMUModelBase2):
             The nominal values.
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] xn = N.zeros(self._nContinuousStates, dtype=N.double)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] xn = np.zeros(self._nContinuousStates, dtype=np.double)
 
-        status = self.__get_nominal_continuous_states(<FMIL.fmi2_real_t*> xn.data, self._nContinuousStates)
+        status = self._get_nominal_continuous_states_fmil(<FMIL.fmi2_real_t*> xn.data, self._nContinuousStates)
         if status != 0:
             raise FMUException('Failed to get the nominal values.')
 
@@ -8139,7 +8071,7 @@ cdef class FMUModelME2(FMUModelBase2):
         Calls the low-level FMI function: fmi2GetDerivatives
         """
         cdef int status
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] values = N.empty(self._nContinuousStates, dtype = N.double)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] values = np.empty(self._nContinuousStates, dtype = np.double)
 
         status = self._get_derivatives(values)
 
@@ -8304,9 +8236,9 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef double tmp_nominal, fac, tmp
         cdef int method = FORWARD_DIFFERENCE if self.force_finite_differences is True or self.force_finite_differences == 0 else CENTRAL_DIFFERENCE
         cdef double RUROUND = FORWARD_DIFFERENCE_EPS if method == FORWARD_DIFFERENCE else CENTRAL_DIFFERENCE_EPS
-        cdef N.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert, df, eps, nominals
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = N.array(var_ref, copy=False, dtype = N.uint32)
-        cdef N.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = N.array(func_ref, copy=False, dtype = N.uint32)
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert, df, eps, nominals
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = np.array(var_ref, copy=False, dtype = np.uint32)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = np.array(func_ref, copy=False, dtype = np.uint32)
         cdef int ind_local = 5 if add_diag else 4
         cdef list local_group
 
@@ -8341,8 +8273,8 @@ cdef class FMUModelME2(FMUModelBase2):
         local_z_vref_pt = self._worker_object.get_value_reference_vector(1)
 
         #Get updated values for the derivatives and states
-        self.__get_real(z_ref_pt, len_f, df_pt)
-        self.__get_real(v_ref_pt, len_v, v_pt)
+        self._get_real_by_ptr(z_ref_pt, len_f, df_pt)
+        self._get_real_by_ptr(v_ref_pt, len_v, v_pt)
 
         if group is not None:
             if "nominals" in group: # Re-use extracted nominals
@@ -8351,11 +8283,11 @@ cdef class FMUModelME2(FMUModelBase2):
             else: # First time extraction of nominals
                 #If we are using the states, then the nominals should instead be picked up from the C callback function for nominals
                 if self._states_references and len_v == len(self._states_references) and (self._states_references[i] == var_ref[i] for i in range(len_v)):
-                    group["nominals"] = N.array(self.nominal_continuous_states, dtype=float)
+                    group["nominals"] = np.array(self.nominal_continuous_states, dtype=float)
                     nominals = group["nominals"]
                     nominals_pt = <FMIL.fmi2_real_t*>PyArray_DATA(nominals)
                 else:
-                    group["nominals"] = N.empty(len_v, dtype=float)
+                    group["nominals"] = np.empty(len_v, dtype=float)
                     nominals = group["nominals"]
                     nominals_pt = <FMIL.fmi2_real_t*>PyArray_DATA(nominals)
                     for i in range(len_v):
@@ -8370,7 +8302,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         if group is not None:
             if output_matrix is not None:
-                if not isinstance(output_matrix, sp.csc_matrix):
+                if not isinstance(output_matrix, sps.csc_matrix):
                     output_matrix = None
                 else:
                     output_matrix_data_pt = <FMIL.fmi2_real_t*>PyArray_DATA(output_matrix.data)
@@ -8406,12 +8338,12 @@ cdef class FMUModelME2(FMUModelBase2):
 
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
                     for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]+fac*eps_pt[local_indices_vars_pt[i]]
-                    self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                    self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
 
                     if method == FORWARD_DIFFERENCE: #Forward and Backward difference
                         column_data_pt = tmp_val_pt
 
-                        status = self.__get_real(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
+                        status = self._get_real_by_ptr(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
                         if status == 0:
                             for i in range(local_indices_matrix_rows_nbr):
                                 column_data_pt[i] = (tmp_val_pt[i] - df_pt[local_indices_matrix_rows_pt[i]])/(fac*eps_pt[local_indices_matrix_columns_pt[i]])
@@ -8420,9 +8352,9 @@ cdef class FMUModelME2(FMUModelBase2):
                         else: #Backward
 
                             for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]-fac*eps_pt[local_indices_vars_pt[i]]
-                            self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                            self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
 
-                            status = self.__get_real(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
+                            status = self._get_real_by_ptr(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
                             if status == 0:
                                 for i in range(local_indices_matrix_rows_nbr):
                                     column_data_pt[i] = (df_pt[local_indices_matrix_rows_pt[i]] - tmp_val_pt[i])/(fac*eps_pt[local_indices_matrix_columns_pt[i]])
@@ -8433,7 +8365,7 @@ cdef class FMUModelME2(FMUModelBase2):
                         dfpertp = self.get_real(z_ref[local_group[2]])
 
                         for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]-fac*eps_pt[local_indices_vars_pt[i]]
-                        self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                        self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
 
                         dfpertm = self.get_real(z_ref[local_group[2]])
 
@@ -8457,35 +8389,35 @@ cdef class FMUModelME2(FMUModelBase2):
                     col.extend(local_group[3])
 
                 for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]
-                self.__set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+                self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
 
             if output_matrix is not None:
                 A = output_matrix
             else:
                 if len(data) == 0:
-                    A = sp.csc_matrix((len_f,len_v))
+                    A = sps.csc_matrix((len_f,len_v))
                 else:
-                    A = sp.csc_matrix((data, (row, col)), (len_f,len_v))
+                    A = sps.csc_matrix((data, (row, col)), (len_f,len_v))
 
             return A
         else:
             if output_matrix is None or \
-                (not isinstance(output_matrix, N.ndarray)) or \
-                (isinstance(output_matrix, N.ndarray) and (output_matrix.shape[0] != len_f or output_matrix.shape[1] != len_v)):
-                    A = N.zeros((len_f,len_v))
+                (not isinstance(output_matrix, np.ndarray)) or \
+                (isinstance(output_matrix, np.ndarray) and (output_matrix.shape[0] != len_f or output_matrix.shape[1] != len_v)):
+                    A = np.zeros((len_f,len_v))
             else:
                 A = output_matrix
 
             if len_v == 0 or len_f == 0:
                 return A
 
-            dfpert = N.zeros(len_f, dtype = N.double)
+            dfpert = np.zeros(len_f, dtype = np.double)
             df = df[:len_f] #Should be removed in the future
             for i in range(len_v):
                 tmp = v_pt[i]
                 for fac in [1.0, 0.1, 0.01, 0.001]: #In very special cases, the epsilon is too big, if an error, try to reduce eps
                     v_pt[i] = tmp+fac*eps_pt[i]
-                    self.__set_real(v_ref_pt, v_pt, len_v)
+                    self._set_real(v_ref_pt, v_pt, len_v)
 
                     if method == FORWARD_DIFFERENCE: #Forward and Backward difference
                         try:
@@ -8494,7 +8426,7 @@ cdef class FMUModelME2(FMUModelBase2):
                             break
                         except FMUException: #Try backward difference
                             v_pt[i] = tmp - fac*eps_pt[i]
-                            self.__set_real(v_ref_pt, v_pt, len_v)
+                            self._set_real(v_ref_pt, v_pt, len_v)
                             try:
                                 dfpert = self.get_real(z_ref)
                                 A[:, i] = (df - dfpert)/(fac*eps_pt[i])
@@ -8505,7 +8437,7 @@ cdef class FMUModelME2(FMUModelBase2):
                     else: #Central difference
                         dfpertp = self.get_real(z_ref)
                         v_pt[i] = tmp - fac*eps_pt[i]
-                        self.__set_real(v_ref_pt, v_pt, len_v)
+                        self._set_real(v_ref_pt, v_pt, len_v)
                         dfpertm = self.get_real(z_ref)
                         A[:, i] = (dfpertp - dfpertm)/(2*fac*eps_pt[i])
                         break
@@ -8514,84 +8446,10 @@ cdef class FMUModelME2(FMUModelBase2):
 
                 #Reset values
                 v_pt[i] = tmp
-                self.__set_real(v_ref_pt, v_pt, len_v)
+                self._set_real(v_ref_pt, v_pt, len_v)
 
             return A
 
-cdef class __ForTestingFMUModelME2(FMUModelME2):
-    cdef int __get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values):
-        vr = N.zeros(size)
-        for i in range(size):
-            vr[i] = vrefs[i]
-
-        try:
-            vv = self.get_real(vr)
-        except Exception:
-            return FMIL.fmi2_status_error
-
-        for i in range(size):
-            values[i] = vv[i]
-
-        return FMIL.fmi2_status_ok
-
-    cdef int __set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size):
-        vr = N.zeros(size)
-        vv = N.zeros(size)
-        for i in range(size):
-            vr[i] = vrefs[i]
-            vv[i] = values[i]
-
-        try:
-            self.set_real(vr, vv)
-        except Exception:
-            return FMIL.fmi2_status_error
-
-        return FMIL.fmi2_status_ok
-
-    cdef int _get_real(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
-        try:
-            tmp = self.get_real(valueref)
-            for i in range(size):
-                values[i] = tmp[i]
-        except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
-
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values):
-        try:
-            tmp = self.get_integer(valueref)
-            for i in range(size):
-                values[i] = tmp[i]
-        except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
-
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values):
-        try:
-            tmp = self.get_boolean(valueref)
-            for i in range(size):
-                values[i] = tmp[i]
-        except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
-
-    cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx):
-        for i in range(nx):
-            if self._initialized_fmu == 1:
-                # Set new values to test that atol gets auto-corrected.
-                xnominal[i] = 3.0
-            else:
-                # Set some illegal values in order to test the fallback/auto-correction.
-                xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
-        return FMIL.fmi2_status_ok
-
-    cpdef set_initialized_fmu(self, int value):
-        self._initialized_fmu = value
-
-    def __dealloc__(self):
-        # Avoid segfaults in dealloc. The FMU binaries should never be loaded for this
-        # test class, so we should never try to terminate or deallocate the FMU instance.
-        self._initialized_fmu = 0
 
 def _handle_load_fmu_exception(fmu, log_data):
     for log in log_data:
@@ -8877,22 +8735,22 @@ cdef class WorkerClass2:
         self._dim = 0
 
     def _update_work_vectors(self, dim):
-        self._tmp1_val = N.zeros(dim, dtype = N.double)
-        self._tmp2_val = N.zeros(dim, dtype = N.double)
-        self._tmp3_val = N.zeros(dim, dtype = N.double)
-        self._tmp4_val = N.zeros(dim, dtype = N.double)
+        self._tmp1_val = np.zeros(dim, dtype = np.double)
+        self._tmp2_val = np.zeros(dim, dtype = np.double)
+        self._tmp3_val = np.zeros(dim, dtype = np.double)
+        self._tmp4_val = np.zeros(dim, dtype = np.double)
 
-        self._tmp1_ref = N.zeros(dim, dtype = N.uint32)
-        self._tmp2_ref = N.zeros(dim, dtype = N.uint32)
-        self._tmp3_ref = N.zeros(dim, dtype = N.uint32)
-        self._tmp4_ref = N.zeros(dim, dtype = N.uint32)
+        self._tmp1_ref = np.zeros(dim, dtype = np.uint32)
+        self._tmp2_ref = np.zeros(dim, dtype = np.uint32)
+        self._tmp3_ref = np.zeros(dim, dtype = np.uint32)
+        self._tmp4_ref = np.zeros(dim, dtype = np.uint32)
 
     cpdef verify_dimensions(self, int dim):
         if dim > self._dim:
             self._update_work_vectors(dim)
 
-    cdef N.ndarray get_real_numpy_vector(self, int index):
-        cdef N.ndarray ret = None
+    cdef np.ndarray get_real_numpy_vector(self, int index):
+        cdef np.ndarray ret = None
 
         if index == 0:
             ret = self._tmp1_val
@@ -8918,8 +8776,8 @@ cdef class WorkerClass2:
 
         return ret
 
-    cdef N.ndarray get_value_reference_numpy_vector(self, int index):
-        cdef N.ndarray ret = None
+    cdef np.ndarray get_value_reference_numpy_vector(self, int index):
+        cdef np.ndarray ret = None
 
         if index == 0:
             ret = self._tmp1_ref

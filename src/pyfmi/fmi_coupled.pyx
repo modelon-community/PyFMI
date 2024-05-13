@@ -15,25 +15,20 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import pyfmi.fmi as fmi
-from fmi cimport FMUModelME2
-cimport fmil_import as FMIL
+# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
 
-from pyfmi.fmi_util import cpr_seed, enable_caching, Graph
-
-from collections import OrderedDict
 import time
-import warnings
 import numpy as np
 cimport numpy as np
-import scipy.optimize as sopt
-import scipy
 
-try:
-    from numpy.lib import NumpyVersion
-    USE_ROOT = NumpyVersion(scipy.version.version) >= "0.11.0"
-except ImportError: #Numpy version is < 1.9.0 so assume scipy version is the same
-    USE_ROOT = False
+import pyfmi.fmi as fmi
+from pyfmi.fmi cimport FMUModelME2
+cimport fmil_import as FMIL
+
+from pyfmi.fmi_util import enable_caching, Graph
+
+from collections import OrderedDict
+import scipy.optimize as spopt
 
 def init_f_block(u, coupled, block):
     
@@ -205,7 +200,7 @@ cdef class CoupledModelBase:
 
 cdef class CoupledFMUModelBase(CoupledModelBase):
     cdef public list connections, models
-    cdef public object __t, __tolerance, _has_entered_init_mode
+    cdef public object _t, _tolerance, _has_entered_init_mode
     cdef public int _len_inputs, _len_outputs, _len_states, _len_events
     cdef public object models_dict, models_id_mapping
     cdef public dict index,names
@@ -232,7 +227,6 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
                                                "couplings": {}}) for model in self.models)
         self.models_id_mapping = {str(id(model)): model for model in self.models}
         
-        self._len_inputs  = 0
         self._len_outputs = 0
         self._len_states  = 0
         self._len_events  = 0
@@ -241,8 +235,8 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         self.connection_setup()
         
         #Default values
-        self.__t = None
-        self.__tolerance = None
+        self._t = None
+        self._tolerance = None
         
         self._has_entered_init_mode = False
     
@@ -421,8 +415,8 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         if stop_time == "Default":
             stop_time = self.get_default_experiment_stop_time()
         
-        self.__t = start_time
-        self.__tolerance = tolerance
+        self._t = start_time
+        self._tolerance = tolerance
         
         for model in self.models:
             model.setup_experiment(tolerance_defined, tolerance, start_time, stop_time_defined, stop_time)
@@ -487,7 +481,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             model.reset()
 
         #Default values
-        self.__t = None
+        self._t = None
         self._has_entered_init_mode = False
 
         #Internal values
@@ -680,7 +674,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
 
             The ValueReference for the variable passed as argument.
         """
-        cdef FMIL.fmi2_value_reference_t  vr
+        cdef FMIL.fmi2_value_reference_t vr
         
         name_parts = variable_name.split(".")
         try:
@@ -1008,7 +1002,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         input_valueref = np.array(valueref, ndmin=1).ravel()
         set_value      = np.array(values, dtype=float, ndmin=1).ravel()
 
-        if input_valueref.size != set_value.size:
+        if np.size(input_valueref) != np.size(set_value):
             raise fmi.FMUException('The length of valueref and values are inconsistent.')
         
         for i,vref in enumerate(input_valueref):
@@ -1043,7 +1037,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         input_valueref = np.array(valueref, ndmin=1).ravel()
         set_value      = np.array(values, dtype=int,ndmin=1).ravel()
 
-        if input_valueref.size != set_value.size:
+        if np.size(input_valueref) != np.size(set_value):
             raise fmi.FMUException('The length of valueref and values are inconsistent.')
         
         for i,vref in enumerate(input_valueref):
@@ -1078,7 +1072,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         input_valueref = np.array(valueref, ndmin=1).ravel()
         set_value      = np.array(values, ndmin=1).ravel()
 
-        if input_valueref.size != set_value.size:
+        if np.size(input_valueref) != np.size(set_value):
             raise fmi.FMUException('The length of valueref and values are inconsistent.')
         
         for i,vref in enumerate(input_valueref):
@@ -1865,7 +1859,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
         
             The time.
         """
-        return self.__t
+        return self._t
 
     cpdef _set_time(self, FMIL.fmi2_real_t t):
         """
@@ -1878,7 +1872,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
         """
         for model in self.models:
             model.time = t
-        self.__t = t
+        self._t = t
  
     time = property(_get_time,_set_time)
     
@@ -1985,12 +1979,8 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 u = np.array(u).ravel()
                 
                 success = False
-                if USE_ROOT:
-                    res = sopt.root(init_f_block, u, args=(self,block))
-                    success = res["success"]
-                else:
-                    [res, info, ier, msg] = sopt.fsolve(init_f_block, u, args=(self,block), full_output=True)
-                    success = True if ier == 1 else False
+                res = spopt.root(init_f_block, u, args=(self,block))
+                success = res["success"]
                 
                 if not success:
                     raise fmi.FMUException("Failed to converge the block.")
@@ -1999,10 +1989,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 for model in block["outputs"].keys():
                     self.get_specific_connection_outputs(model, block["outputs_mask"][model], y)
                 
-                if USE_ROOT:
-                    res = sopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
-                else:
-                    res = sopt.fsolve(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
+                res = spopt.root(init_f_block, y[block["global_outputs_mask"]], args=(self,block))
                 if not res["success"]:
                     print res
                     raise Exception("Failed to converge the initialization system.")
@@ -2264,14 +2251,15 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
         return capabilities['providesDirectionalDerivatives']
         
     def _compare_connected_outputs(self, y, y_new):
-        cdef double sum = 0.0
+        cdef double _sum = 0.0
         cdef int i, N = len(y)
+        cdef double err
         
         for i in range(N):
-            prod = (y[i]-y_new[i]) * (1 / (self.__tolerance*y[i]+self.__tolerance)) #Missing nominals
-            sum += prod*prod
+            prod = (y[i]-y_new[i]) * (1 / (self._tolerance*y[i]+self._tolerance)) #Missing nominals
+            _sum += prod*prod
         
-        err = (sum/N)**0.5 if N > 0 else 0.0 #If there are no connections between the models
+        err = (_sum/N)**0.5 if N > 0 else 0.0 #If there are no connections between the models
         
         if err < 1:
             return False #No new discrete states needed

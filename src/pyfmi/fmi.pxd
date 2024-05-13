@@ -17,19 +17,10 @@
 """
 Module containing the FMI interface Python wrappers.
 """
-import os
-import sys
-import logging
-import fnmatch
-import re
-from collections import OrderedDict
+import numpy as np
+cimport numpy as np
 
-import numpy as N
-cimport numpy as N
-
-N.import_array()
-
-cimport fmil_import as FMIL
+cimport pyfmi.fmil_import as FMIL
 
 cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t*, char*, char*, int)
 
@@ -116,7 +107,7 @@ cdef class FMUModelBase(ModelBase):
     cdef FMIL.jm_callbacks* callbacks_standard
 
     #Internal values
-    cdef public object __t
+    cdef public object _t
     cdef public object _file_open
     cdef public object _npoints
     cdef public object _enable_logging
@@ -158,11 +149,8 @@ cdef class FMUModelME1(FMUModelBase):
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi1_real_t t)
     cpdef get_derivatives(self)
-    cdef int __get_nominal_continuous_states(self, FMIL.fmi1_real_t* xnominal, size_t nx)
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx)
     cdef public object _preinit_nominal_continuous_states
-
-cdef class __ForTestingFMUModelME1(FMUModelME1):
-    cpdef set_allocated_fmu(self, int value)
 
 cdef class FMUModelBase2(ModelBase):
     """
@@ -190,7 +178,7 @@ cdef class FMUModelBase2(ModelBase):
     cdef public list    _save_real_variables_val
     cdef public list    _save_int_variables_val
     cdef public list    _save_bool_variables_val
-    cdef object         __t
+    cdef object         _t
     cdef public object  _pyEventInfo
     cdef char* _fmu_temp_dir
     cdef object         _states_references
@@ -206,7 +194,7 @@ cdef class FMUModelBase2(ModelBase):
     cdef object         _outputs_states_dependencies_kind
     cdef object         _outputs_inputs_dependencies_kind
     cdef object         _A, _B, _C, _D
-    cdef public object         _group_A, _group_B, _group_C, _group_D
+    cdef public object  _group_A, _group_B, _group_C, _group_D
     cdef object         _mask_A
     cdef object         _A_row_ind, _A_col_ind
     cdef public object  _has_entered_init_mode
@@ -231,22 +219,22 @@ cdef class FMUModelBase2(ModelBase):
     cpdef serialized_fmu_state_size(self, state)
     cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list)
     cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable)
-    cdef int _get_directional_derivative(self, N.ndarray v_ref, N.ndarray z_ref, N.ndarray dv, N.ndarray dz) except -1
+    cdef int _get_directional_derivative(self, np.ndarray v_ref, np.ndarray z_ref, np.ndarray dv, np.ndarray dz) except -1
     cpdef set_real(self, valueref, values)
-    cpdef N.ndarray get_real(self, valueref)
-    cdef int __set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t size)
-    cdef int __get_real(self, FMIL.fmi2_value_reference_t* vrefs, size_t size, FMIL.fmi2_real_t* values)
-    cdef int _get_real(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_integer_t[:] values)
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t size, FMIL.fmi2_real_t[:] values)
+    cpdef np.ndarray get_real(self, valueref)
+    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size)
+    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values)
+    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values)
+    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values)
+    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values)
 
 cdef class FMUModelCS2(FMUModelBase2):
 
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL.fmi2_real_t t)
     cpdef int do_step(self, FMIL.fmi2_real_t current_t, FMIL.fmi2_real_t step_size, new_step=*)
-    cdef int _set_input_derivatives(self, N.ndarray value_refs, N.ndarray values, N.ndarray orders)
-    cdef int _get_output_derivatives(self, N.ndarray value_refs, N.ndarray values, N.ndarray orders)
+    cdef int _set_input_derivatives(self, np.ndarray value_refs, np.ndarray values, np.ndarray orders)
+    cdef int _get_output_derivatives(self, np.ndarray value_refs, np.ndarray values, np.ndarray orders)
 
 cdef class FMUModelME2(FMUModelBase2):
 
@@ -255,24 +243,21 @@ cdef class FMUModelME2(FMUModelBase2):
     cpdef get_derivatives(self)
     cdef public object force_finite_differences
     cdef int _get_derivatives(self, FMIL.fmi2_real_t[:] values)
-    cdef int __get_continuous_states(self, FMIL.fmi2_real_t[:] ndx)
-    cdef int __set_continuous_states(self, FMIL.fmi2_real_t[:] ndx)
+    cdef int _get_continuous_states_fmil(self, FMIL.fmi2_real_t[:] ndx)
+    cdef int _set_continuous_states_fmil(self, FMIL.fmi2_real_t[:] ndx)
     cdef int _get_event_indicators(self, FMIL.fmi2_real_t[:] values)
     cdef int _completed_integrator_step(self, int* enter_event_mode, int* terminate_simulation)
-    cdef int __get_nominal_continuous_states(self, FMIL.fmi2_real_t* xnominal, size_t nx)
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx)
     cdef public object _preinit_nominal_continuous_states
 
 cdef class WorkerClass2:
     cdef int _dim
 
-    cdef N.ndarray _tmp1_val, _tmp2_val, _tmp3_val, _tmp4_val
-    cdef N.ndarray _tmp1_ref, _tmp2_ref, _tmp3_ref, _tmp4_ref
+    cdef np.ndarray _tmp1_val, _tmp2_val, _tmp3_val, _tmp4_val
+    cdef np.ndarray _tmp1_ref, _tmp2_ref, _tmp3_ref, _tmp4_ref
 
     cdef FMIL.fmi2_real_t* get_real_vector(self, int index)
     cdef FMIL.fmi2_value_reference_t* get_value_reference_vector(self, int index)
-    cdef N.ndarray get_value_reference_numpy_vector(self, int index)
-    cdef N.ndarray get_real_numpy_vector(self, int index)
+    cdef np.ndarray get_value_reference_numpy_vector(self, int index)
+    cdef np.ndarray get_real_numpy_vector(self, int index)
     cpdef verify_dimensions(self, int dim)
-
-cdef class __ForTestingFMUModelME2(FMUModelME2):
-    cpdef set_initialized_fmu(self, int value)

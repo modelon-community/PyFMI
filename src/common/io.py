@@ -25,11 +25,8 @@ import os
 import logging as logging_module
 from functools import reduce
 
-import numpy as N
 import numpy as np
 import scipy
-import scipy.io
-from scipy import interpolate
 scipy_minmaj = tuple(map(int, scipy.__version__.split('.')[:2]))
 if scipy_minmaj >= (1, 8):
     # due to a DeprecationWarning, we do below, this will likely need another change in a future update of scipy.
@@ -39,7 +36,7 @@ else:
 
 import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
-from pyfmi.common import python3_flag, encode, decode
+from pyfmi.common import encode, decode
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, DiagnosticsBase
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
@@ -161,7 +158,7 @@ class ResultDymola:
         name = name.replace(" ", "")
 
         try:
-            if python3_flag and isinstance(self, ResultDymolaBinary):
+            if isinstance(self, ResultDymolaBinary):
                 return self.name_lookup[encode(name)]
             else:
                 return self.name_lookup[name]
@@ -172,7 +169,7 @@ class ResultDymola:
             if self._check_if_derivative_variable(name):
                 try:
                     #First do a simple search for the other naming convention
-                    if python3_flag and isinstance(self, ResultDymolaBinary):
+                    if isinstance(self, ResultDymolaBinary):
                         return self.name_lookup[encode(self._convert_dx_name(name))]
                     else:
                         return self.name_lookup[self._convert_dx_name(name)]
@@ -203,7 +200,7 @@ class ResultDymola:
         state = self._find_underlying_state(name)
         index = self.get_variable_index(state)
 
-        alias_index = N.where(self.dataInfo[:,1]==self.dataInfo[index,1])[0]
+        alias_index = np.where(self.dataInfo[:,1]==self.dataInfo[index,1])[0]
 
         #Loop through all alias
         for ind in alias_index:
@@ -211,19 +208,19 @@ class ResultDymola:
             trial_name = list(self.name_lookup.keys())[ind]
 
             #Create the derivative name
-            if python3_flag and isinstance(self, ResultDymolaBinary):
+            if isinstance(self, ResultDymolaBinary):
                 der_trial_name = self._create_derivative_from_state(decode(trial_name))
             else:
                 der_trial_name = self._create_derivative_from_state(trial_name)
 
             try:
-                if python3_flag and isinstance(self, ResultDymolaBinary):
+                if isinstance(self, ResultDymolaBinary):
                     return self.name_lookup[encode(der_trial_name)]
                 else:
                     return self.name_lookup[der_trial_name]
             except KeyError:
                 try:
-                    if python3_flag and isinstance(self, ResultDymolaBinary):
+                    if isinstance(self, ResultDymolaBinary):
                         return self.name_lookup[encode(self._convert_dx_name(der_trial_name))]
                     else:
                         return self.name_lookup[self._convert_dx_name(der_trial_name)]
@@ -329,7 +326,7 @@ class ResultCSVTextual:
 
             data.append([float(d) for d in row])
 
-        self.data = N.array(data)
+        self.data = np.array(data)
 
     def get_variable_data(self,name):
         """
@@ -371,20 +368,20 @@ class ResultWriter():
     Base class for writing results to file.
     """
 
-    def write_header():
+    def write_header(self):
         """
         The header is intended to be used for writing general information about
         the model. This is intended to be called once.
         """
         pass
 
-    def write_point():
+    def write_point(self):
         """
         This method does the writing of the actual result.
         """
         pass
 
-    def write_finalize():
+    def write_finalize(self):
         """
         The finalize method can be used to for instance close the file.
         """
@@ -607,9 +604,9 @@ class ResultWriterDymola(ResultWriter):
         f.write('int dataInfo(%d,%d)\n' % (num_vars+len(names_sens) + 1, 4))
         f.write('0 1 0 -1 # time\n')
 
-        list_of_continuous_states = N.append(self.model._save_real_variables_val,
+        list_of_continuous_states = np.append(self.model._save_real_variables_val,
             self.model._save_int_variables_val)
-        list_of_continuous_states = N.append(list_of_continuous_states,
+        list_of_continuous_states = np.append(list_of_continuous_states,
             self.model._save_bool_variables_val).tolist()
         list_of_continuous_states = dict(zip(list_of_continuous_states,
             range(len(list_of_continuous_states))))
@@ -715,7 +712,7 @@ class ResultWriterDymola(ResultWriter):
         if data is None:
             #Retrieves the time-point
             [r,i,b] = self.model.save_time_point()
-            data = N.append(N.append(N.append(self.model.time,r),i),b)
+            data = np.append(np.append(np.append(self.model.time,r),i),b)
 
         #Write the point
         str_text = (" %.14E" % data[0])
@@ -751,7 +748,6 @@ class ResultWriterDymola(ResultWriter):
             f.write('\n')
             f.close()
             self._file_open = False
-
 
 
 class ResultStorageMemory(ResultDymola):
@@ -810,7 +806,7 @@ class ResultStorageMemory(ResultDymola):
             factor = -1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1
 
             if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
-                return Trajectory([self.time[0],self.time[-1]],N.array([self.model.get(name),self.model.get(name)]).ravel())
+                return Trajectory([self.time[0],self.time[-1]],np.array([self.model.get(name),self.model.get(name)]).ravel())
             else:
                 return Trajectory(self.time,factor*self.data[var.value_reference])
 
@@ -906,38 +902,24 @@ class ResultDymolaTextual(ResultDymola):
             fid = fname
             fid.seek(0,0) # Needs to start from beginning of file
 
-        result  = []
-
         # Read Aclass section
         nLines = self._find_phrase(fid, 'char Aclass')
 
         nLines = int(nLines[0])
-        Aclass = [fid.readline().strip() for i in range(nLines)]
-        #Aclass = []
-        #for i in range(0,nLines):
-        #    Aclass.append(fid.readline().strip())
-        self.Aclass = Aclass
+        self.Aclass = [fid.readline().strip() for i in range(nLines)]
 
         # Read name section
         nLines = self._find_phrase(fid, 'char name')
 
         nLines = int(nLines[0])
-        name = [fid.readline().strip().replace(" ","") for i in range(nLines)]
-        #name = []
-        #for i in range(0,nLines):
-        #    name.append(fid.readline().strip().replace(" ",""))
-        self._name = name
+        self._name = [fid.readline().strip().replace(" ","") for i in range(nLines)]
         self.name_lookup = {key:ind for ind,key in enumerate(self._name)}
 
         # Read description section
         nLines = self._find_phrase(fid, 'char description')
 
         nLines = int(nLines[0])
-        description = [fid.readline().strip() for i in range(nLines)]
-        #description = []
-        #for i in range(0,nLines):
-        #    description.append(fid.readline().strip())
-        self.description = description
+        self.description = [fid.readline().strip() for i in range(nLines)]
 
         # Read dataInfo section
         nLines = self._find_phrase(fid, 'int dataInfo')
@@ -946,26 +928,22 @@ class ResultDymolaTextual(ResultDymola):
         nLines = int(nLines[0])
         nCols = int(nCols[0])
 
-        if python3_flag:
-            dataInfo = [list(map(int,fid.readline().split()[0:nCols])) for i in range(nLines)]
-        else:
-            dataInfo = [map(int,fid.readline().split()[0:nCols]) for i in range(nLines)]
-        self.dataInfo = N.array(dataInfo)
+        self.dataInfo = np.array([list(map(int,fid.readline().split()[0:nCols])) for i in range(nLines)])
 
         # Find out how many data matrices there are
-        if len(name) == 1: #Only time
+        if len(self._name) == 1: #Only time
             nData = 2
         else:
             nData = max(self.dataInfo[:,0])
 
         self.data = []
         for i in range(0,nData):
-            l = fid.readline()
-            tmp = l.partition(' ')
-            while tmp[0]!='float' and tmp[0]!='double' and l!='':
-                l = fid.readline()
-                tmp = l. partition(' ')
-            if l=='':
+            line = fid.readline()
+            tmp = line.partition(' ')
+            while tmp[0]!='float' and tmp[0]!='double' and line!='':
+                line = fid.readline()
+                tmp = line.partition(' ')
+            if line=='':
                 raise JIOError('The result does not seem to be of a supported format.')
             tmp = tmp[2].partition('(')
             nLines = tmp[2].partition(',')
@@ -975,34 +953,28 @@ class ResultDymolaTextual(ResultDymola):
             data = []
             for i in range(0,nLines):
                 info = []
-                while len(info) < nCols and l != '':
-                    l = fid.readline()
-                    info.extend(l.split())
+                while len(info) < nCols and line != '':
+                    line = fid.readline()
+                    info.extend(line.split())
                 try:
-                    if python3_flag:
-                        data.append(list(map(float,info[0:nCols])))
-                    else:
-                        data.append(map(float,info[0:nCols]))
+                    data.append(list(map(float,info[0:nCols])))
                 except ValueError: #Handle 1.#INF's and such
-                    if python3_flag:
-                        data.append(list(map(robust_float,info[0:nCols])))
-                    else:
-                        data.append(map(robust_float,info[0:nCols]))
+                    data.append(list(map(robust_float,info[0:nCols])))
                 if len(info) == 0 and i < nLines-1:
                     raise JIOError("Inconsistent number of lines in the result data.")
                 del(info)
-            self.data.append(N.array(data))
+            self.data.append(np.array(data))
 
         if len(self.data) == 0:
             raise JIOError('Could not find any variable data in the result file.')
 
     def _find_phrase(self,fid, phrase):
-        l = fid.readline()
-        tmp = l.partition('(')
-        while tmp[0]!=phrase and l!='':
-            l = fid.readline()
-            tmp = l. partition('(')
-        if l=='':
+        line = fid.readline()
+        tmp = line.partition('(')
+        while tmp[0]!=phrase and line!='':
+            line = fid.readline()
+            tmp = line.partition('(')
+        if line=='':
             raise JIOError("The result does not seem to be of a supported format.")
         return tmp[2].partition(',')
 
@@ -1137,7 +1109,7 @@ class ResultDymolaTextual(ResultDymola):
                 The time shift offset.
         """
         for i in range(len(self.data)):
-            for j in range(N.shape(self.data[i])[0]):
+            for j in range(np.shape(self.data[i])[0]):
                 self.data[i][j,0] = self.data[i][j,0] + time_shift
 
     def append(self, res):
@@ -1150,9 +1122,9 @@ class ResultDymolaTextual(ResultDymola):
             res --
                 A simulation result object of type DymolaResultTextual.
         """
-        n_points = N.size(res.data[1],0)
+        n_points = np.size(res.data[1],0)
         time_shift = self.data[1][-1,0]
-        self.data[1] = N.vstack((self.data[1],res.data[1]))
+        self.data[1] = np.vstack((self.data[1],res.data[1]))
         self.data[1][n_points:,0] = self.data[1][n_points:,0] + time_shift
 
 #Overriding SCIPYs default reader for MATLAB v4 format
@@ -1350,7 +1322,7 @@ class ResultDymolaBinary(ResultDymola):
             dict_names = list(name_dict.keys())
             name_dict[DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']] = None
             for name in dict_names:
-                if python3_flag and isinstance(name, bytes):
+                if isinstance(name, bytes):
                     name = decode(name)
                 if name == f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type':
                     name_dict[DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name']] = None
@@ -1431,7 +1403,7 @@ class ResultDymolaBinary(ResultDymola):
         time_vector      = self._read_trajectory_data(0, False)
         data             = self._read_trajectory_data(data_index, False)
         
-        f = interpolate.interp1d(time_vector, data, fill_value="extrapolate")
+        f = scipy.interpolate.interp1d(time_vector, data, fill_value="extrapolate")
         
         self._data_2[data_index] = f(diag_time_vector)
         
@@ -1441,7 +1413,7 @@ class ResultDymolaBinary(ResultDymola):
     def _get_description(self):
         if not self._description:
             description = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["description"])["description"]
-            self._description = ["".join(description[:,i]).rstrip() for i in range(description[0,:].size)]
+            self._description = ["".join(description[:,i]).rstrip() for i in range(np.size(description[0,:]))]
 
         return self._description
 
@@ -1464,7 +1436,7 @@ class ResultDymolaBinary(ResultDymola):
             A Trajectory object containing the time vector and the data vector
             of the variable.
         """
-        if python3_flag and isinstance(name, bytes):
+        if isinstance(name, bytes):
             name = decode(name)
 
         if name == 'time' or name== 'Time':
@@ -1477,7 +1449,7 @@ class ResultDymolaBinary(ResultDymola):
         elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
              return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_nbr_state_limits_step(name))
         elif name == f'{DIAGNOSTICS_PREFIX}cpu_time':
-            return Trajectory(self._get_diagnostics_trajectory(0), N.cumsum(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x))
+            return Trajectory(self._get_diagnostics_trajectory(0), np.cumsum(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x))
         else:
             varInd  = self.get_variable_index(name)
 
@@ -1516,12 +1488,12 @@ class ResultDymolaBinary(ResultDymola):
             event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type')
         except Exception:
             if name == steps_name:
-                self._data_3[steps_name] = N.array(range(len(self._get_diagnostics_trajectory(0))))
+                self._data_3[steps_name] = np.array(range(len(self._get_diagnostics_trajectory(0))))
                 return self._data_3[name]
-        self._data_3[all_events_name] = N.zeros(len(event_type_data.x))
-        self._data_3[time_events_name] = N.zeros(len(event_type_data.x))
-        self._data_3[state_events_name] = N.zeros(len(event_type_data.x))
-        self._data_3[steps_name] = N.zeros(len(event_type_data.x))
+        self._data_3[all_events_name] = np.zeros(len(event_type_data.x))
+        self._data_3[time_events_name] = np.zeros(len(event_type_data.x))
+        self._data_3[state_events_name] = np.zeros(len(event_type_data.x))
+        self._data_3[steps_name] = np.zeros(len(event_type_data.x))
         nof_events = 0
         nof_time_events = 0
         nof_state_events = 0
@@ -1548,7 +1520,7 @@ class ResultDymolaBinary(ResultDymola):
         state_name = name.replace(step_limitation_name, '')
         state_error_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}state_errors.'+state_name)
         event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type')
-        self._data_3[name] = N.zeros(len(event_type_data.x))
+        self._data_3[name] = np.zeros(len(event_type_data.x))
         nof_times_state_limits_step = 0
         for ind, state_error in enumerate(state_error_data.x):
             if event_type_data.x[ind] == -1 and state_error >= 1.0:
@@ -1698,7 +1670,7 @@ class ResultHandlerMemory(ResultHandler):
 
         #Sets the parameters, if any
         if solver and self.options["sensitivities"]:
-            self.param_sol += [N.array(solver.interpolate_sensitivity(model.time, 0)).flatten()]
+            self.param_sol += [np.array(solver.interpolate_sensitivity(model.time, 0)).flatten()]
 
     def simulation_end(self):
         """
@@ -1713,16 +1685,16 @@ class ResultHandlerMemory(ResultHandler):
         result of an instance of ResultBase or of an instance of a
         subclass of ResultBase.
         """
-        t = N.array(self.time_sol)
-        r = N.array(self.real_sol)
-        data = N.c_[t,r]
+        t = np.array(self.time_sol)
+        r = np.array(self.real_sol)
+        data = np.c_[t,r]
 
         if len(self.int_sol) > 0 and len(self.int_sol[0]) > 0:
-            i = N.array(self.int_sol)
-            data = N.c_[data,i]
+            i = np.array(self.int_sol)
+            data = np.c_[data,i]
         if len(self.bool_sol) > 0 and len(self.bool_sol[0]) > 0:
-            b = N.array(self.bool_sol)
-            data = N.c_[data,b]
+            b = np.array(self.bool_sol)
+            data = np.c_[data,b]
 
         return ResultStorageMemory(self.model, data, [self.real_var_ref,self.int_var_ref,self.bool_var_ref], self.vars)
 
@@ -1850,18 +1822,18 @@ class ResultHandlerCSV(ResultHandler):
         for i,val in enumerate(const_val_bool):
             const_str += "%.14E"%(const_alias_bool[i]*val)+delimiter
 
-        #for val in N.append(const_val_real,N.append(const_val_int,const_val_boolean)):
+        #for val in np.append(const_val_real,np.append(const_val_int,const_val_boolean)):
         #    const_str += "%.14E"%val+delimiter
         self.const_str = const_str
 
         self._file = f
 
         self.cont_valref_real = cont_valref_real
-        self.cont_alias_real  = N.array(cont_alias_real)
+        self.cont_alias_real  = np.array(cont_alias_real)
         self.cont_valref_int  = cont_valref_int
-        self.cont_alias_int  = N.array(cont_alias_int)
+        self.cont_alias_int  = np.array(cont_alias_int)
         self.cont_valref_bool = cont_valref_bool
-        self.cont_alias_bool  = N.array(cont_alias_bool)
+        self.cont_alias_bool  = np.array(cont_alias_bool)
 
     def integration_point(self, solver = None):
         """
@@ -1887,7 +1859,7 @@ class ResultHandlerCSV(ResultHandler):
         i = model.get_integer(self.cont_valref_int)*self.cont_alias_int
         b = model.get_boolean(self.cont_valref_bool)*self.cont_alias_bool
 
-        data = N.append(N.append(r,i),b)
+        data = np.append(np.append(r,i),b)
 
         cont_str = ""
         for val in data:
@@ -2079,10 +2051,7 @@ class ResultHandlerFile(ResultHandler):
 
             if isinstance(self.model, fmi.FMUModelME2):
                 vars = self.model.get_model_variables(type=fmi.FMI2_REAL,include_alias=False,variability=fmi.FMI2_CONTINUOUS,filter=self.options["filter"])
-                if python3_flag:
-                    state_vars = [v.value_reference for i,v in self.model.get_states_list().items()]
-                else:
-                    state_vars = [v.value_reference for i,v in self.model.get_states_list().iteritems()]
+                state_vars = [v.value_reference for i,v in self.model.get_states_list().items()]
             else:
                 vars = self.model.get_model_variables(type=fmi.FMI_REAL,include_alias=False,variability=fmi.FMI_CONTINUOUS,filter=self.options["filter"])
                 state_vars = self.model.get_state_value_references()
@@ -2261,10 +2230,10 @@ class ResultHandlerFile(ResultHandler):
             vref = dtype[0]
             if dtype[1] == fmi.FMI_REAL:
                 str_text = str_text + (
-                    " %.14E" % (self.model.get_real([vref])))
+                    " %.14E" % (self.model.get_real([vref])[0]))
             elif dtype[1] == fmi.FMI_INTEGER or dtype[1] == fmi.FMI_ENUMERATION:
                 str_text = str_text + (
-                    " %.14E" % (self.model.get_integer([vref])))
+                    " %.14E" % (self.model.get_integer([vref])[0]))
             elif dtype[1] == fmi.FMI_BOOLEAN:
                 str_text = str_text + (
                     " %.14E" % (float(
@@ -2290,10 +2259,10 @@ class ResultHandlerFile(ResultHandler):
         #f.write('%s,%d)\n' % (' '*14, self._nvariables))
 
         self._file = f
-        self._data_order  = N.array(valueref_of_continuous_states)
-        self.real_var_ref = N.array(self.real_var_ref)
-        self.int_var_ref  = N.array(self.int_var_ref)
-        self.bool_var_ref = N.array(self.bool_var_ref)
+        self._data_order  = np.array(valueref_of_continuous_states)
+        self.real_var_ref = np.array(self.real_var_ref)
+        self.int_var_ref  = np.array(self.int_var_ref)
+        self.bool_var_ref = np.array(self.bool_var_ref)
 
     def integration_point(self, solver = None):#parameter_data=[]):
         """
@@ -2318,14 +2287,14 @@ class ResultHandlerFile(ResultHandler):
         i = model.get_integer(self.int_var_ref)
         b = model.get_boolean(self.bool_var_ref)
 
-        data = N.append(N.append(r,i),b)
+        data = np.append(np.append(r,i),b)
 
         #Write the point
         str_text = (" %.14E" % self.model.time) + ''.join([" %.14E" % (data[data_order[j]]) for j in range(self._nvariables-1)])
 
         #Sets the parameters, if any
         if solver and self.options["sensitivities"]:
-            parameter_data = N.array(solver.interpolate_sensitivity(model.time, 0)).flatten()
+            parameter_data = np.array(solver.interpolate_sensitivity(model.time, 0)).flatten()
             for j in range(len(parameter_data)):
                 str_text = str_text + (" %.14E" % (parameter_data[j]))
 
@@ -2428,11 +2397,11 @@ def robust_float(value):
         return float(value)
     except ValueError:
         if value.startswith("1.#INF"):
-            return float(N.inf)
+            return float(np.inf)
         elif value.startswith("-1.#INF"):
-            return float(-N.inf)
+            return float(-np.inf)
         elif value.startswith("1.#QNAN") or value.startswith("-1.#IND"):
-            return float(N.nan)
+            return float(np.nan)
         else:
             raise ValueError
 
@@ -2640,7 +2609,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref, self._with_diagnostics)
 
         if self._with_diagnostics:
-            diag_data = N.array([val[0] for val in diagnostics_vars.values()], dtype=float)
+            diag_data = np.array([val[0] for val in diagnostics_vars.values()], dtype=float)
             self.diagnostics_point(diag_data)
 
     def integration_point(self, solver = None):
