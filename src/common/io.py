@@ -1477,10 +1477,10 @@ class ResultDymolaBinary(ResultDymola):
         else:
             return Trajectory(self._get_diagnostics_trajectory(0),factor*self._get_interpolated_trajectory(dataInd))
         
-    def get_trajectories(self, names, start = -np.inf, stop = np.inf, include_start = True):
+    def get_trajectories(self, names, start_index = 0, stop_index = None):
         """"
             EXPERIMENTAL
-            Returns multiple trajectories restricted to a specific time interval.
+            Returns multiple trajectories, sliced to index range.
             Do not expect this to work with dynamic diagnostics
 
             Parameters::
@@ -1488,31 +1488,27 @@ class ResultDymolaBinary(ResultDymola):
                 names --
                     List of variables names for which to fetch trajectories
 
-                start --
-                    (default: -np.inf) Return trajectory for times >= start.
+                start_index --
+                    (default: 0) Starting index for trajectory slicing.
 
-                stop -- 
-                    (default: np.inf) Return trajectory for times <= end.
+                stop_index -- 
+                    (default: None) Stopping index for trajectory slicing;
+                    (None: No cut-off at end)
 
-                include_start --
-                    (default: True) If True, uses times >= start, else times > start.
-                    
             Returns::
 
-                List of trajectories
+                List of trajectories, next start index (non-negative)
         """
-
-        time_traj = self.get_variable_data('time')
-
-        start_idx = np.argmin(time_traj.t < start) if include_start else np.argmin(time_traj.t <= start)
-        stop_idx = len(time_traj.t) - np.argmax(time_traj.t[::-1] < stop)
 
         return_trajs = []
         for name in names:
             traj = self.get_variable_data(name)
-            return_trajs.append(Trajectory(traj.t[start_idx:stop_idx], traj.x[start_idx:stop_idx]))
+            return_trajs.append(Trajectory(traj.t[start_index:stop_index], traj.x[start_index:stop_index]))
 
-        return return_trajs
+        if len(return_trajs) > 0:
+            return return_trajs, start_index + len(return_trajs[0].t)
+        else:
+            return return_trajs, None
 
     def _calculate_events_and_steps(self, name):
         if name in self._data_3:
