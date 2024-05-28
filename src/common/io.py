@@ -1355,7 +1355,6 @@ class ResultDymolaBinary(ResultDymola):
         else:
             return self._data_2[data_index,:]
 
-
     def _get_diagnostics_trajectory(self, data_index):
         """ Returns trajectory for the diagnostics variable that corresponds to index 'data_index'. """
         self._verify_file_data()
@@ -1408,7 +1407,6 @@ class ResultDymolaBinary(ResultDymola):
         self._data_2[data_index] = f(diag_time_vector)
         
         return self._data_2[data_index]
-
 
     def _get_description(self):
         if not self._description:
@@ -1501,9 +1499,46 @@ class ResultDymolaBinary(ResultDymola):
         """
 
         return_trajs = []
+        tt = self._get_trajectory(0)[start_index:stop_index] ## time trajectory; non parameter variant
+
         for name in names:
-            traj = self.get_variable_data(name)
-            return_trajs.append(Trajectory(traj.t[start_index:stop_index], traj.x[start_index:stop_index]))
+            if isinstance(name, bytes):
+                name = decode(name)
+
+            if name == 'time' or name== 'Time':
+                return_trajs.append(Trajectory(tt, tt))
+                continue
+            else:
+                # expect potential issues with diagnostics data right here
+                varInd = self.get_variable_index(name)
+
+            dataInd = self._dataInfo[1][varInd]
+            dataMat = self._dataInfo[0][varInd]
+
+            factor = 1
+            if dataInd < 0:
+                factor = -1
+                dataInd = -dataInd -1
+            else:
+                dataInd = dataInd - 1
+
+            if dataMat == 0:
+                # Take into account that the 'Time' variable has data matrix index 0
+                # and that 'time' is called 'Time' in Dymola results
+                dataMat = 2 if len(self.raw['data_2'])> 0 else 1
+
+            if dataMat == 1: # XXX: parameters?
+                return_trajs.append(Trajectory(self.data_1[0,start_index:stop_index], factor*self.data_1[dataInd,start_index:stop_index]))
+                continue
+            elif dataMat == 2 and not self._contains_diagnostic_data:
+                xx = factor*self._get_trajectory(dataInd)[start_index:stop_index]
+            elif dataMat == 3:
+                raise ValueError("No diagnostics yet")
+            else:
+                raise ValueError("No interpolation yet")
+                xx = factor*self._get_interpolated_trajectory(dataInd)[start_index:stop_index]
+
+            return_trajs.append(Trajectory(tt, xx))
 
         if len(return_trajs) > 0:
             return return_trajs, start_index + len(return_trajs[0].t)
