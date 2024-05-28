@@ -193,7 +193,7 @@ def parse_fmu_xml_log(filename, modulename = 'Model', accept_errors=False):
 
     return handler.get_root()
 
-def extract_xml_log(dest, log, modulename = 'Model'):
+def extract_xml_log(dest, log, modulename = 'Model', max_size = None):
     """
     Extract the XML contents of a FMU log and write as a new file dest, or extract into a stream.
     Input argument 'modulename' selects the module as recorded in the beginning of each line by
@@ -212,6 +212,9 @@ def extract_xml_log(dest, log, modulename = 'Model'):
             modulename --
                 Selects the module as recorded in the beginning of each line by FMI Library.
                 Default: 'Model'
+            max_size --
+                Only read until max_size characters, if none: no limit
+                Default: None
     """
     # if it is a string, we assume we write to a file (since the file doesnt exist yet)
     dest_is_file = isinstance(dest, str)
@@ -223,30 +226,34 @@ def extract_xml_log(dest, log, modulename = 'Model'):
         with open(log, 'r') as sourcefile:
             if dest_is_file:
                 with open(dest, 'w') as destfile:
-                    filter_xml_log(destfile.write, sourcefile, modulename)
+                    filter_xml_log(destfile.write, sourcefile, modulename, max_size = max_size)
             else:
-                filter_xml_log(dest.write, sourcefile, modulename)
+                filter_xml_log(dest.write, sourcefile, modulename, max_size = max_size)
     elif hasattr(log, 'readlines'):
             if dest_is_file:
                 with open(dest, 'w') as destfile:
-                    filter_xml_log(destfile.write, log.readlines(), modulename)
+                    filter_xml_log(destfile.write, log.readlines(), modulename, max_size = max_size)
             else:
-                filter_xml_log(dest.write, log.readlines(), modulename)
+                filter_xml_log(dest.write, log.readlines(), modulename, max_size = max_size)
     else:
         raise FMUException(
             "Input argument 'log' needs to be either a file, or a stream that supports 'readlines'."
         )
 
-def filter_xml_log(write, sourcefile, modulename = 'Model'):
+def filter_xml_log(write, sourcefile, modulename = 'Model', max_size = None):
     write('<?xml version="1.0" encoding="UTF-8"?>\n<JMILog category="info">\n')
 
     pre_re = r'FMIL: module = ' + modulename + r', log level = ([0-9]+): \[([^]]+)\]\[FMU status:([^]]+)\] '
     pre_pattern = re.compile(pre_re)
 
+    size_read = 0
     for line in sourcefile:
+        size_read = size_read + len(line) # linebreaks?
         m = pre_pattern.match(line)
         if m is not None:
             # log_level, category, fmu_status = m.groups()
             write(line[m.end():])
+        if max_size is not None and size_read >= max_size:
+            break
 
     write('</JMILog>\n')

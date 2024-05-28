@@ -238,6 +238,7 @@ cdef class ModelBase:
         self._current_log_size = 0
         self._max_log_size = 1024**3*2 #About 2GB limit
         self._max_log_size_msg_sent = False
+        self._log_checkpoint = 0
         self._log_stream = None
         self._modelId = None
         self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
@@ -589,7 +590,7 @@ cdef class ModelBase:
             except AttributeError:
                 raise FMUException("In order to extract the XML-log from a stream, it needs to support 'seek'")
 
-        extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name)
+        extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name, max_size = self._log_checkpoint)
 
         if isinstance(file_name, str):
             return os.path.abspath(file_name)
@@ -1361,6 +1362,7 @@ cdef class FMUModelBase(ModelBase):
         self.callbacks.free    = FMIL.free
         self.callbacks.logger  = importlogger
         self.callbacks.context = <void*>self #Class loggger
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
             if log_level == FMIL.jm_log_level_nothing:
@@ -1478,6 +1480,7 @@ cdef class FMUModelBase(ModelBase):
                     file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
 
         self._log = []
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
     cpdef _internal_set_fmu_null(self):
         """
@@ -1499,7 +1502,9 @@ cdef class FMUModelBase(ModelBase):
 
             model.get_version()
         """
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         cdef FMIL.fmi1_string_t version = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_version(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return decode(version)
 
     def get_ode_sizes(self):
@@ -1549,7 +1554,9 @@ cdef class FMUModelBase(ModelBase):
         if nref == 0: ## get_real([])
             return val
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi1_import_get_real(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_real_t*>val.data)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to get the Real values.')
@@ -1583,7 +1590,9 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi1_import_set_real(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_real_t*>val.data)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to set the Real values. See the log for possibly more information.')
@@ -1616,7 +1625,9 @@ cdef class FMUModelBase(ModelBase):
         if nref == 0: ## get_integer([])
             return val
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi1_import_get_integer(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_integer_t*>val.data)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to get the Integer values.')
@@ -1650,7 +1661,9 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi1_import_set_integer(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_integer_t*>val.data)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to set the Integer values. See the log for possibly more information.')
@@ -1685,14 +1698,18 @@ cdef class FMUModelBase(ModelBase):
 
         cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return_values = []
         for i in range(nref):
             return_values.append((<FMIL.fmi1_boolean_t*>val)[i]==1)
 
         #Dealloc
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         FMIL.free(val)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to get the Boolean values.')
@@ -1734,9 +1751,12 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         FMIL.free(val)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to set the Boolean values. See the log for possibly more information.')
@@ -1769,7 +1789,9 @@ cdef class FMUModelBase(ModelBase):
             return []
 
         cdef FMIL.fmi1_string_t* output_value = <FMIL.fmi1_string_t*>FMIL.malloc(sizeof(FMIL.fmi1_string_t)*nref)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi1_import_get_string(self._fmu, <FMIL.fmi1_value_reference_t*> input_valueref.data, nref, output_value)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to get the String values.')
@@ -1778,7 +1800,9 @@ cdef class FMUModelBase(ModelBase):
         for i in range(nref):
             out.append(decode(output_value[i]))
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         FMIL.free(output_value)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return out
 
@@ -1815,9 +1839,12 @@ cdef class FMUModelBase(ModelBase):
         for i in range(np.size(val_ref)):
             val[i] = values[i]
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi1_import_set_string(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, np.size(val_ref), val)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         FMIL.free(val)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to set the String values. See the log for possibly more information.')
@@ -1847,7 +1874,9 @@ cdef class FMUModelBase(ModelBase):
         else:
             log = 0
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi1_import_set_debug_logging(self._fmu, log)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         self._enable_logging = bool(log)
 
         if status != 0:
@@ -1865,13 +1894,19 @@ cdef class FMUModelBase(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variable_name)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         ref =  FMIL.fmi1_import_get_variable_vr(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         basetype = FMIL.fmi1_import_get_variable_base_type(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if basetype == FMIL.fmi1_base_type_real:  #REAL
             if alias_kind == FMI_NEGATED_ALIAS:
@@ -1903,13 +1938,19 @@ cdef class FMUModelBase(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variable_name)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         ref =  FMIL.fmi1_import_get_variable_vr(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         basetype = FMIL.fmi1_import_get_variable_base_type(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if basetype == FMIL.fmi1_base_type_real:  #REAL
             value = self.get_real([ref])
@@ -1944,11 +1985,15 @@ cdef class FMUModelBase(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         desc = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_variable_description(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return decode(desc) if desc != NULL else ""
 
@@ -1958,14 +2003,23 @@ cdef class FMUModelBase(ModelBase):
         if variable == NULL:
             raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         alias_kind = FMIL.fmi1_import_get_variable_alias_kind(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         name       = decode(FMIL.fmi1_import_get_variable_name(variable))
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         value_ref  = FMIL.fmi1_import_get_variable_vr(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         data_type  = FMIL.fmi1_import_get_variable_base_type(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         has_start  = FMIL.fmi1_import_get_variable_has_start(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         data_variability = FMIL.fmi1_import_get_variability(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         data_causality   = FMIL.fmi1_import_get_causality(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         desc       = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_variable_description(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return ScalarVariable(name,value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                             data_variability, data_causality, alias_kind)
@@ -1988,7 +2042,9 @@ cdef class FMUModelBase(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
@@ -2013,11 +2069,15 @@ cdef class FMUModelBase(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi1_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         basetype = FMIL.fmi1_import_get_variable_base_type(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return basetype
 
@@ -4098,7 +4158,9 @@ cdef class FMUModelBase2(ModelBase):
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version is not supported by this class. Enable logging for possibly more information.")
 
         #Parse xml and check fmu-kind
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         self._fmu           = FMIL.fmi2_import_parse_xml(self._context, self._fmu_temp_dir, NULL)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if self._fmu is NULL:
             last_error = decode(FMIL.jm_get_last_error(&self.callbacks))
@@ -4108,7 +4170,9 @@ cdef class FMUModelBase2(ModelBase):
                 raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible nore information.")
 
         self.callBackFunctions.componentEnvironment = <FMIL.fmi2_component_environment_t>self._fmu
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         self._fmu_kind      = FMIL.fmi2_import_get_fmu_kind(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         self._allocated_xml = 1
 
         #FMU kind is unknown
@@ -4128,9 +4192,13 @@ cdef class FMUModelBase2(ModelBase):
 
         #Connect the DLL
         if _connect_dll:
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             status = FMIL.fmi2_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             if status == FMIL.jm_status_error:
+                if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
                 last_error = decode(FMIL.fmi2_import_get_last_error(self._fmu))
+                if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
                 if enable_logging:
                     raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. " + last_error)
                 else:
@@ -4138,17 +4206,23 @@ cdef class FMUModelBase2(ModelBase):
             self._allocated_dll = 1
 
         #Load information from model
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if isinstance(self,FMUModelME2):
             self._modelId           = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
         elif isinstance(self,FMUModelCS2):
             self._modelId           = decode(FMIL.fmi2_import_get_model_identifier_CS(self._fmu))
         else:
             raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         #Connect the DLL
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         self._modelName         = decode(FMIL.fmi2_import_get_model_name(self._fmu))
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if not isinstance(log_file_name, str):
             self._set_log_stream(log_file_name)
@@ -4194,7 +4268,9 @@ cdef class FMUModelBase2(ModelBase):
         if nref == 0: ## get_real([])
             return output_value
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_get_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_real_t*> output_value.data)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to get the Real values.')
@@ -4227,22 +4303,36 @@ cdef class FMUModelBase2(ModelBase):
         if np.size(input_valueref) != np.size(set_value):
             raise FMUException('The length of valueref and values are inconsistent.')
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_set_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, np.size(input_valueref), <FMIL.fmi2_real_t*> set_value.data)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to set the Real values. See the log for possibly more information.')
 
     cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
-        return FMIL.fmi2_import_get_real(self._fmu, &valueref[0], _size, &values[0])
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        cdef int res = FMIL.fmi2_import_get_real(self._fmu, &valueref[0], _size, &values[0])
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return res
 
     cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values):
-        return FMIL.fmi2_import_get_real(self._fmu, vrefs, _size, values)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        cdef int res = FMIL.fmi2_import_get_real(self._fmu, vrefs, _size, values)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return res
 
     cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size):
-        return FMIL.fmi2_import_set_real(self._fmu, vrefs, _size, values)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        cdef int res = FMIL.fmi2_import_set_real(self._fmu, vrefs, _size, values)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return res
 
     cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values):
-        return FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], _size, &values[0])
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        cdef int res = FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], _size, &values[0])
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return res
 
     def get_integer(self, valueref):
         """
@@ -4272,7 +4362,9 @@ cdef class FMUModelBase2(ModelBase):
         if nref == 0: ## get_integer([])
             return output_value
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_get_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> output_value.data)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to get the Integer values.')
@@ -4305,7 +4397,9 @@ cdef class FMUModelBase2(ModelBase):
         if nref != np.size(set_value):
             raise FMUException('The length of valueref and values are inconsistent.')
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_set_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> set_value.data)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to set the Integer values. See the log for possibly more information.')
@@ -4314,7 +4408,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef int status
         cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*_size)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_get_boolean(self._fmu, &valueref[0], _size, <FMIL.fmi2_boolean_t*> output_value)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         for i in range(_size):
             values[i] = (<FMIL.fmi2_boolean_t*>output_value)[i]==1
@@ -4352,7 +4448,9 @@ cdef class FMUModelBase2(ModelBase):
 
         cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_get_boolean(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_boolean_t*> output_value)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return_values = []
         for i in range(nref):
@@ -4389,7 +4487,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, dtype=np.uint32,ndmin=1).flatten()
         cdef FMIL.size_t nref = np.size(input_valueref)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         cdef void* set_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         values = np.array(values,ndmin=1).ravel()
         for i in range(nref):
@@ -4401,7 +4501,9 @@ cdef class FMUModelBase2(ModelBase):
         if len(input_valueref) != len(values):
             raise FMUException('The length of valueref and values are inconsistent.')
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_set_boolean(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_boolean_t*> set_value)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         FMIL.free(set_value)
 
@@ -4435,9 +4537,11 @@ cdef class FMUModelBase2(ModelBase):
         if nref == 0: ## get_string([])
             return []
         
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         cdef FMIL.fmi2_string_t* output_value = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*nref)
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_get_string(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, output_value)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to get the String values.')
@@ -4483,7 +4587,9 @@ cdef class FMUModelBase2(ModelBase):
         for i in range(np.size(val_ref)):
             val[i] = values[i]
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_set_string(self._fmu, <FMIL.fmi2_value_reference_t*>val_ref.data, np.size(val_ref), val)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         FMIL.free(val)
 
@@ -4578,7 +4684,9 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('The instance is not curent an instance of an ME-model or a CS-model. Use load_fmu for correct loading.')
 
         name = encode(name)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status =  FMIL.fmi2_import_instantiate(self._fmu, name, fmuType, NULL, vis)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != FMIL.jm_status_success:
             raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
@@ -4630,8 +4738,10 @@ cdef class FMUModelBase2(ModelBase):
         self._last_accepted_time = start_time
         self._relative_tolerance = tolerance
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_setup_experiment(self._fmu,
                 tol_defined, tolerance, start_time, stop_defined, stop_time)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to setup the experiment.')
@@ -4643,7 +4753,9 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int status
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_reset(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if status != 0:
             raise FMUException('An error occured when reseting the model, see the log for possible more information')
 
@@ -4662,14 +4774,18 @@ cdef class FMUModelBase2(ModelBase):
         Calls the FMI function fmi2Terminate() on the FMU.
         After this call, any call to a function changing the state of the FMU will fail.
         """
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         FMIL.fmi2_import_terminate(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
     def free_instance(self):
         """
         Calls the FMI function fmi2FreeInstance() on the FMU. Note that this is not
         needed generally.
         """
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         FMIL.fmi2_import_free_instance(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
     def exit_initialization_mode(self):
         """
@@ -4679,7 +4795,9 @@ cdef class FMUModelBase2(ModelBase):
         Note that the method initialize() performs both the enter and
         exit of initialization mode.
         """
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_exit_initialization_mode(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status == 1:
             if self._enable_logging:
@@ -4716,7 +4834,9 @@ cdef class FMUModelBase2(ModelBase):
         if self.time is None:
             raise FMUException("Setup Experiment has to be called prior to the initialization method.")
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_enter_initialization_mode(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status == 1:
             if self._enable_logging:
@@ -4840,7 +4960,9 @@ cdef class FMUModelBase2(ModelBase):
         if len(categories) > 0:
             raise FMUException('Currently the logging of categories is not available. See the docstring for more information')
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, nCat, NULL)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to set the debugging option.')
@@ -4853,11 +4975,15 @@ cdef class FMUModelBase2(ModelBase):
 
             A list with the categories available for logging.
         """
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         cdef FMIL.size_t i, nbr_categories = FMIL.fmi2_import_get_log_categories_num(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         cdef list categories = []
 
         for i in range(nbr_categories):
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             categories.append(FMIL.fmi2_import_get_log_category(self._fmu, i))
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return categories
 
@@ -4884,24 +5010,32 @@ cdef class FMUModelBase2(ModelBase):
         cdef char* variablename = NULL
 
         if valueref is not None:
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             variable = FMIL.fmi2_import_get_variable_by_vr(self._fmu, FMIL.fmi2_base_type_real, <FMIL.fmi2_value_reference_t>valueref)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             if variable == NULL:
                 raise FMUException("The variable with value reference: %s, could not be found."%str(valueref))
         elif variable_name is not None:
             variable_name = encode(variable_name)
             variablename = variable_name
 
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             if variable == NULL:
                 raise FMUException("The variable %s could not be found."%variablename)
         else:
             raise FMUException('Either provide value reference or variable name.')
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if real_variable == NULL:
             raise FMUException("The variable is not a real variable.")
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         value = FMIL.fmi2_import_get_real_variable_nominal(real_variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if _override_erroneous_nominal:
             if variable_name is None:
@@ -4940,11 +5074,15 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi2_import_get_variable_by_vr(self._fmu, <FMIL.fmi2_base_type_enu_t> type, <FMIL.fmi2_value_reference_t> valueref)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable with the valuref %i could not be found."%valueref)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         name = decode(FMIL.fmi2_import_get_variable_name(variable))
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return name
 
@@ -4968,15 +5106,21 @@ cdef class FMUModelBase2(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         base_variable = FMIL.fmi2_import_get_variable_alias_base(self._fmu, variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if base_variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         name = decode(FMIL.fmi2_import_get_variable_name(base_variable))
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return name
 
@@ -5010,26 +5154,34 @@ cdef class FMUModelBase2(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         alias_list = FMIL.fmi2_import_get_variable_aliases(self._fmu, variable)
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         alias_list_size = FMIL.fmi2_import_get_variable_list_size(alias_list)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         #Loop over all the alias variables
         for i in range(alias_list_size):
-
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             variable = FMIL.fmi2_import_get_variable(alias_list, i)
-
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             alias_kind = FMIL.fmi2_import_get_variable_alias_kind(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             alias_name = decode(FMIL.fmi2_import_get_variable_name(variable))
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
             ret_values[alias_name] = alias_kind
 
         #FREE VARIABLE LIST
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         FMIL.fmi2_import_free_variable_list(alias_list)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return ret_values
 
@@ -5068,22 +5220,30 @@ cdef class FMUModelBase2(ModelBase):
         cdef list bool_var_ref = []
         cdef dict added_vars = {}
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable_list      = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if selected_filter:
             filter_list = self._convert_filter(filter)
             length_filter = len(filter_list)
 
         for i in range(variable_list_size):
-
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             variable = FMIL.fmi2_import_get_variable(variable_list, i)
-
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             alias_kind       = FMIL.fmi2_import_get_variable_alias_kind(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             name             = decode(FMIL.fmi2_import_get_variable_name(variable))
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             value_ref        = FMIL.fmi2_import_get_variable_vr(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             data_type        = FMIL.fmi2_import_get_variable_base_type(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             data_variability = FMIL.fmi2_import_get_variability(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
             if data_type != FMIL.fmi2_base_type_real and data_type != FMIL.fmi2_base_type_int and data_type != FMIL.fmi2_base_type_bool and data_type != FMIL.fmi2_base_type_enum:
                 continue
@@ -5113,7 +5273,9 @@ cdef class FMUModelBase2(ModelBase):
                 bool_var_ref.append(value_ref)
 
         #Free the variable list
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         FMIL.fmi2_import_free_variable_list(variable_list)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return real_var_ref, int_var_ref, bool_var_ref
 
@@ -5188,8 +5350,11 @@ cdef class FMUModelBase2(ModelBase):
         cdef list filter_list, variable_return_list = []
         variable_dict = OrderedDict()
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable_list      = FMIL.fmi2_import_get_variable_list(self._fmu, 0)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if type is not None:        #A type have has been selected
             target_type = type
@@ -5205,18 +5370,27 @@ cdef class FMUModelBase2(ModelBase):
             length_filter = len(filter_list)
 
         for i in range(variable_list_size):
-
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             variable = FMIL.fmi2_import_get_variable(variable_list, i)
-
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             alias_kind       = FMIL.fmi2_import_get_variable_alias_kind(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             name             = decode(FMIL.fmi2_import_get_variable_name(variable))
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             value_ref        = FMIL.fmi2_import_get_variable_vr(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             data_type        = FMIL.fmi2_import_get_variable_base_type(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             has_start        = FMIL.fmi2_import_get_variable_has_start(variable)  #fmi2_import_get_initial, may be of interest
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             data_variability = FMIL.fmi2_import_get_variability(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             data_causality   = FMIL.fmi2_import_get_causality(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             desc             = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_variable_description(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             initial          = FMIL.fmi2_import_get_initial(variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
             #If only variables with start are wanted, check if the variable has start
             if only_start and has_start != 1:
@@ -5224,9 +5398,11 @@ cdef class FMUModelBase2(ModelBase):
 
             if only_fixed:
                 #fixed variability requires start-value
+                if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
                 if has_start != 1:
                     continue
                 elif (FMIL.fmi2_import_get_variability(variable) != FMIL.fmi2_variability_enu_fixed):
+                    if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
                     continue
 
             if selected_type == 1 and data_type != target_type:
@@ -5269,7 +5445,9 @@ cdef class FMUModelBase2(ModelBase):
                                        alias_kind, initial)
 
         #Free the variable list
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         FMIL.fmi2_import_free_variable_list(variable_list)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if _as_list:
             return variable_return_list
@@ -5333,10 +5511,14 @@ cdef class FMUModelBase2(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         vr =  FMIL.fmi2_import_get_variable_vr(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return vr
 
@@ -5376,29 +5558,44 @@ cdef class FMUModelBase2(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable_type = FMIL.fmi2_import_get_variable_declared_type(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable_type == NULL:
             raise FMUException("The variable %s does not have a declared type."%variablename)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         type_name = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_type_name(variable_type)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         type_desc = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_type_description(variable_type)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         type_quantity = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_type_quantity(variable_type)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if basetype == FMIL.fmi2_base_type_enum:
             enumeration_type  = FMIL.fmi2_import_get_type_as_enum(variable_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             enum_size = FMIL.fmi2_import_get_enum_type_size(enumeration_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             items = OrderedDict()
 
             for i in range(1,enum_size+1):
+                if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
                 item_value = FMIL.fmi2_import_get_enum_type_item_value(enumeration_type, i)
+                if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
                 item_name  = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_enum_type_item_name(enumeration_type, i)
+                if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
                 item_desc  = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_enum_type_item_description(enumeration_type, i)
+                if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
                 items[item_value] = (decode(item_name) if item_name != NULL else "",
                                      decode(item_desc) if item_desc != NULL else "")
@@ -5409,29 +5606,44 @@ cdef class FMUModelBase2(ModelBase):
 
 
         elif basetype == FMIL.fmi2_base_type_int:
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             integer_type = FMIL.fmi2_import_get_type_as_int(variable_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
             min_val = FMIL.fmi2_import_get_integer_type_min(integer_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             max_val = FMIL.fmi2_import_get_integer_type_max(integer_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
             ret_type = IntegerType2(decode(type_name) if type_name != NULL else "",
                                     decode(type_desc) if type_desc != NULL else "",
                                     decode(type_quantity) if type_quantity != NULL else "",
                                          min_val, max_val)
         elif basetype == FMIL.fmi2_base_type_real:
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             real_type = FMIL.fmi2_import_get_type_as_real(variable_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
             min_val = FMIL.fmi2_import_get_real_type_min(real_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             max_val = FMIL.fmi2_import_get_real_type_max(real_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             nominal_val = FMIL.fmi2_import_get_real_type_nominal(real_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             unbounded = FMIL.fmi2_import_get_real_type_is_unbounded(real_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             relative_quantity = FMIL.fmi2_import_get_real_type_is_relative_quantity(real_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
             type_display_unit = FMIL.fmi2_import_get_type_display_unit(real_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             type_unit = FMIL.fmi2_import_get_real_type_unit(real_type)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
             type_unit_name = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_unit_name(type_unit)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
             type_display_unit_name = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_display_unit_name(type_display_unit)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
             ret_type = RealType2(decode(type_name) if type_name != NULL else "",
                                  decode(type_desc) if type_desc != NULL else "",
@@ -5461,7 +5673,9 @@ cdef class FMUModelBase2(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
@@ -5486,11 +5700,15 @@ cdef class FMUModelBase2(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         basetype = FMIL.fmi2_import_get_variable_base_type(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return basetype
 
@@ -5513,11 +5731,15 @@ cdef class FMUModelBase2(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         desc = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_variable_description(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return decode(desc) if desc != NULL else ""
 
@@ -5541,10 +5763,14 @@ cdef class FMUModelBase2(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variability = FMIL.fmi2_import_get_variability(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return variability
 
@@ -5568,10 +5794,14 @@ cdef class FMUModelBase2(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         initial = FMIL.fmi2_import_get_initial(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return initial
 
@@ -5597,6 +5827,7 @@ cdef class FMUModelBase2(ModelBase):
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
@@ -5612,7 +5843,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException("No unit was found for the variable %s."%variablename)
 
         unit_description = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_unit_name(unit)
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return decode(unit_description) if unit_description != NULL else ""
 
     def get_variable_relative_quantity(self, variable_name):
@@ -5632,6 +5863,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_real_variable_t* real_variable
         cdef FMIL.fmi2_base_type_enu_t basetype
         cdef FMIL.fmi2_boolean_t relative_quantity
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5646,7 +5878,7 @@ cdef class FMUModelBase2(ModelBase):
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
         relative_quantity = FMIL.fmi2_import_get_real_variable_relative_quantity(real_variable)
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return relative_quantity == FMI2_TRUE
     
     cpdef get_variable_unbounded(self, variable_name):
@@ -5666,6 +5898,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_real_variable_t* real_variable
         cdef FMIL.fmi2_base_type_enu_t basetype
         cdef FMIL.fmi2_boolean_t unbounded
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5680,7 +5913,7 @@ cdef class FMUModelBase2(ModelBase):
 
         real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
         unbounded = FMIL.fmi2_import_get_real_variable_unbounded(real_variable)
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return unbounded == FMI2_TRUE
 
     def get_variable_display_unit(self, variable_name):
@@ -5701,6 +5934,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_display_unit_t* display_unit
         cdef FMIL.fmi2_base_type_enu_t basetype
         cdef FMIL.fmi2_string_t display_unit_description
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5720,7 +5954,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException("No display unit was found for the variable %s."%variablename)
 
         display_unit_description = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_display_unit_name(display_unit)
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return decode(display_unit_description) if display_unit_description != NULL else ""
 
     def get_variable_display_value(self, variable_name):
@@ -5746,6 +5980,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_value_reference_t  vr
         cdef int relative_quantity
         cdef FMIL.fmi2_boolean_t relative_quantity_bool
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5770,7 +6005,7 @@ cdef class FMUModelBase2(ModelBase):
         value = self.get_real(vr)[0]
 
         display_value = FMIL.fmi2_import_convert_to_display_unit(value, display_unit, relative_quantity)
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return display_value
 
     cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, variable_name) except *:
@@ -5789,6 +6024,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.fmi2_import_variable_t* variable
         cdef FMIL.fmi2_causality_enu_t causality
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5798,7 +6034,7 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException("The variable %s could not be found."%variablename)
 
         causality = FMIL.fmi2_import_get_causality(variable)
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return causality
 
     cpdef get_variable_start(self, variable_name):
@@ -5827,6 +6063,7 @@ cdef class FMUModelBase2(ModelBase):
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -5841,23 +6078,33 @@ cdef class FMUModelBase2(ModelBase):
 
         if basetype == FMIL.fmi2_base_type_real:
             real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
-            return FMIL.fmi2_import_get_real_variable_start(real_variable)
+            ret = FMIL.fmi2_import_get_real_variable_start(real_variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+            return ret
 
         elif basetype == FMIL.fmi2_base_type_int:
             int_variable = FMIL.fmi2_import_get_variable_as_integer(variable)
-            return FMIL.fmi2_import_get_integer_variable_start(int_variable)
+            ret = FMIL.fmi2_import_get_integer_variable_start(int_variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+            return ret
 
         elif basetype == FMIL.fmi2_base_type_bool:
             bool_variable = FMIL.fmi2_import_get_variable_as_boolean(variable)
-            return FMIL.fmi2_import_get_boolean_variable_start(bool_variable) == FMITRUE
+            ret = FMIL.fmi2_import_get_boolean_variable_start(bool_variable) == FMITRUE
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+            return ret
 
         elif basetype == FMIL.fmi2_base_type_enum:
             enum_variable = FMIL.fmi2_import_get_variable_as_enum(variable)
-            return FMIL.fmi2_import_get_enum_variable_start(enum_variable)
+            ret = FMIL.fmi2_import_get_enum_variable_start(enum_variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+            return ret 
 
         elif basetype == FMIL.fmi2_base_type_str:
             str_variable = FMIL.fmi2_import_get_variable_as_string(variable)
-            return FMIL.fmi2_import_get_string_variable_start(str_variable)
+            ret = FMIL.fmi2_import_get_string_variable_start(str_variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+            return ret
 
         else:
             raise FMUException("Unknown variable type.")
@@ -5880,6 +6127,8 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_real_variable_t*    real_variable
         cdef FMIL.fmi2_import_enum_variable_t*    enum_variable
         cdef FMIL.fmi2_base_type_enu_t            basetype
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        cdef double ret
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
@@ -5892,16 +6141,21 @@ cdef class FMUModelBase2(ModelBase):
 
         if basetype == FMIL.fmi2_base_type_real:
             real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
-            return FMIL.fmi2_import_get_real_variable_max(real_variable)
+            ret = FMIL.fmi2_import_get_real_variable_max(real_variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+            return ret
 
         elif basetype == FMIL.fmi2_base_type_int:
             int_variable = FMIL.fmi2_import_get_variable_as_integer(variable)
-            return FMIL.fmi2_import_get_integer_variable_max(int_variable)
+            ret = FMIL.fmi2_import_get_integer_variable_max(int_variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+            return ret
 
         elif basetype == FMIL.fmi2_base_type_enum:
             enum_variable = FMIL.fmi2_import_get_variable_as_enum(variable)
-            return FMIL.fmi2_import_get_enum_variable_max(enum_variable)
-
+            ret = FMIL.fmi2_import_get_enum_variable_max(enum_variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+            return ret
         else:
             raise FMUException("The variable type does not have a maximum value.")
 
@@ -5923,9 +6177,11 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_real_variable_t*    real_variable
         cdef FMIL.fmi2_import_enum_variable_t*    enum_variable
         cdef FMIL.fmi2_base_type_enu_t            basetype
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         variable_name = encode(variable_name)
         cdef char* variablename = variable_name
+        cdef double ret
 
         variable = FMIL.fmi2_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
@@ -5935,15 +6191,21 @@ cdef class FMUModelBase2(ModelBase):
 
         if basetype == FMIL.fmi2_base_type_real:
             real_variable = FMIL.fmi2_import_get_variable_as_real(variable)
-            return FMIL.fmi2_import_get_real_variable_min(real_variable)
+            ret = FMIL.fmi2_import_get_real_variable_min(real_variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+            return ret
 
         elif basetype == FMIL.fmi2_base_type_int:
             int_variable = FMIL.fmi2_import_get_variable_as_integer(variable)
-            return FMIL.fmi2_import_get_integer_variable_min(int_variable)
+            ret = FMIL.fmi2_import_get_integer_variable_min(int_variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+            return ret
 
         elif basetype == FMIL.fmi2_base_type_enum:
             enum_variable = FMIL.fmi2_import_get_variable_as_enum(variable)
-            return FMIL.fmi2_import_get_enum_variable_min(enum_variable)
+            ret = FMIL.fmi2_import_get_enum_variable_min(enum_variable)
+            if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+            return ret
 
         else:
             raise FMUException("The variable type does not have a minimum value.")
@@ -5968,6 +6230,7 @@ cdef class FMUModelBase2(ModelBase):
             FMU_state = model.get_fmu_state()
         """
         cdef int status
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if state is None:
             state = FMUState2()
@@ -5991,7 +6254,7 @@ cdef class FMUModelBase2(ModelBase):
         state._internal_state_variables["event_info.values_of_continuous_states_changed"]   = self._eventInfo.valuesOfContinuousStatesChanged
         state._internal_state_variables["event_info.next_event_time_defined"]               = self._eventInfo.nextEventTimeDefined
         state._internal_state_variables["event_info.next_event_time"]                       = self._eventInfo.nextEventTime
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return state
 
     def set_fmu_state(self, FMUState2 state):
@@ -6010,6 +6273,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int status
         cdef FMIL.fmi2_FMU_state_t internal_state = state.fmu_state
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if not self._supports_get_set_FMU_state():
             raise FMUException('This FMU dos not support get and set FMU-state')
@@ -6040,6 +6304,7 @@ cdef class FMUModelBase2(ModelBase):
             self._eventInfo.nextEventTimeDefined = state._internal_state_variables["event_info.next_event_time_defined"]
         if state._internal_state_variables["event_info.next_event_time"] is not None:
             self._eventInfo.nextEventTime = state._internal_state_variables["event_info.next_event_time"]
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
     def free_fmu_state(self, FMUState2 state):
         """
@@ -6058,6 +6323,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int status
         cdef FMIL.fmi2_FMU_state_t internal_state = state.fmu_state
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if not self._supports_get_set_FMU_state():
             raise FMUException('This FMU does not support get and set FMU-state')
@@ -6073,6 +6339,7 @@ cdef class FMUModelBase2(ModelBase):
         #Memory has been released
         state.fmu_state = NULL
         state._internal_state_variables = {}
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
     cpdef serialize_fmu_state(self, state):
         """
@@ -6097,6 +6364,7 @@ cdef class FMUModelBase2(ModelBase):
 
         cdef FMIL.size_t n_bytes
         cdef np.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] serialized_fmu
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         cap1 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canSerializeFMUstate)
         cap2 = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_cs_canSerializeFMUstate)
@@ -6113,6 +6381,7 @@ cdef class FMUModelBase2(ModelBase):
 
         # We temporarily return a list with wrapper values in the second entry.
         # What we need to do is add serialization/deserialization for the wrapper values
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return [serialized_fmu, list(internal_state._internal_state_variables.values())]
 
     cpdef deserialize_fmu_state(self, serialized_fmu):
@@ -6139,6 +6408,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef np.ndarray[FMIL.fmi2_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu[0]
         cdef FMUState2 state = FMUState2()
         cdef FMIL.size_t n_byte = len(ser_fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         status = FMIL.fmi2_import_de_serialize_fmu_state(self._fmu, <FMIL.fmi2_byte_t *> ser_fmu.data, n_byte, &(state.fmu_state))
 
@@ -6156,7 +6426,7 @@ cdef class FMUModelBase2(ModelBase):
                                            'event_info.values_of_continuous_states_changed': serialized_fmu[1][7],
                                            'event_info.next_event_time_defined': serialized_fmu[1][8],
                                            'event_info.next_event_time': serialized_fmu[1][9]}
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return state
 
     cpdef serialized_fmu_state_size(self, state):
@@ -6176,12 +6446,13 @@ cdef class FMUModelBase2(ModelBase):
         cdef int status
         cdef FMUState2 internal_state = state
         cdef FMIL.size_t n_bytes
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         status = FMIL.fmi2_import_serialized_fmu_state_size(self._fmu, internal_state.fmu_state, &n_bytes)
 
         if status != 0:
             raise FMUException('An error occured while computing the FMU-state size, see the log for possible more information')
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return n_bytes
 
     def get_ode_sizes(self):
@@ -6208,28 +6479,40 @@ cdef class FMUModelBase2(ModelBase):
         Returns the default experiment start time as defined the XML
         description.
         """
-        return FMIL.fmi2_import_get_default_experiment_start(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        ret = FMIL.fmi2_import_get_default_experiment_start(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
     def get_default_experiment_stop_time(self):
         """
         Returns the default experiment stop time as defined the XML
         description.
         """
-        return FMIL.fmi2_import_get_default_experiment_stop(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        ret = FMIL.fmi2_import_get_default_experiment_stop(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
     def get_default_experiment_tolerance(self):
         """
         Returns the default experiment tolerance as defined in the XML
         description.
         """
-        return FMIL.fmi2_import_get_default_experiment_tolerance(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        ret = FMIL.fmi2_import_get_default_experiment_tolerance(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
     def get_default_experiment_step(self):
         """
         Returns the default experiment step as defined in the XML
         description.
         """
-        return FMIL.fmi2_import_get_default_experiment_step(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        ret = FMIL.fmi2_import_get_default_experiment_step(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
     cdef _add_scalar_variables(self, FMIL.fmi2_import_variable_list_t*   variable_list):
         """
@@ -6237,6 +6520,7 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef FMIL.size_t             variable_list_size
         variable_dict = OrderedDict()
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
 
@@ -6246,10 +6530,12 @@ cdef class FMUModelBase2(ModelBase):
             scalar_variable = self._add_scalar_variable(variable)
             variable_dict[scalar_variable.name] = scalar_variable
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return variable_dict
 
     cdef _add_scalar_variable(self, FMIL.fmi2_import_variable_t* variable):
         cdef FMIL.fmi2_string_t desc
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if variable == NULL:
             raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
@@ -6262,6 +6548,7 @@ cdef class FMUModelBase2(ModelBase):
         data_causality   = FMIL.fmi2_import_get_causality(variable)
         desc             = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_variable_description(variable)
         initial          = FMIL.fmi2_import_get_initial(variable)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return ScalarVariable2(name, value_ref, data_type, desc.decode('UTF-8') if desc!=NULL else "",
                                     data_variability, data_causality,
@@ -6276,6 +6563,7 @@ cdef class FMUModelBase2(ModelBase):
             An ordered dictionary with the derivative variables.
         """
         cdef FMIL.fmi2_import_variable_list_t*   variable_list
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         variable_list = FMIL.fmi2_import_get_derivatives_list(self._fmu)
         if variable_list == NULL:
@@ -6285,6 +6573,7 @@ cdef class FMUModelBase2(ModelBase):
 
         #Free the variable list
         FMIL.fmi2_import_free_variable_list(variable_list)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return variable_dict
 
@@ -6294,6 +6583,7 @@ cdef class FMUModelBase2(ModelBase):
         dependent on. Returns two dictionaries, one with the states and
         one with the inputs.
         """
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if (self._outputs_states_dependencies is not None and
             self._outputs_inputs_dependencies is not None):
                return self._outputs_states_dependencies, self._outputs_inputs_dependencies
@@ -6369,7 +6659,7 @@ cdef class FMUModelBase2(ModelBase):
         self._outputs_states_dependencies_kind = states_kind
         self._outputs_inputs_dependencies = inputs
         self._outputs_inputs_dependencies_kind = inputs_kind
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return states, inputs
 
     cpdef get_output_dependencies_kind(self):
@@ -6404,6 +6694,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef char   *factor_kindp
         cdef FMIL.fmi2_import_variable_t *variable
         cdef FMIL.fmi2_import_variable_list_t *variable_list
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         derivatives = list(self.get_derivatives_list().keys())
         states_list = list(self.get_states_list().keys())
@@ -6462,6 +6753,7 @@ cdef class FMUModelBase2(ModelBase):
         self._derivatives_inputs_dependencies = inputs
         self._derivatives_inputs_dependencies_kind = inputs_kind
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return states, inputs
 
     cpdef get_derivatives_dependencies_kind(self):
@@ -6680,6 +6972,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.fmi2_import_variable_list_t*   variable_list
         cdef FMIL.size_t             variable_list_size
         variable_dict = OrderedDict()
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         variable_list = FMIL.fmi2_import_get_derivatives_list(self._fmu)
         variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
@@ -6696,7 +6989,7 @@ cdef class FMUModelBase2(ModelBase):
 
         #Free the variable list
         FMIL.fmi2_import_free_variable_list(variable_list)
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return variable_dict
 
     def get_input_list(self):
@@ -6724,6 +7017,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMIL.size_t                         variable_list_size
         cdef FMIL.fmi2_import_variable_t*        variable
         variable_dict = OrderedDict()
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         variable_list = FMIL.fmi2_import_get_outputs_list(self._fmu)
         variable_list_size = FMIL.fmi2_import_get_variable_list_size(variable_list)
@@ -6739,6 +7033,7 @@ cdef class FMUModelBase2(ModelBase):
 
         #Free the variable list
         FMIL.fmi2_import_free_variable_list(variable_list)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return variable_dict
 
@@ -6828,6 +7123,7 @@ cdef class FMUModelBase2(ModelBase):
                                                np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dv,
                                                np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] dz) except -1:
         cdef int status
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         assert np.size(dv) >= np.size(v_ref) and np.size(dz) >= np.size(z_ref)
 
@@ -6840,6 +7136,7 @@ cdef class FMUModelBase2(ModelBase):
                   <FMIL.fmi2_real_t*> dv.data,
                   <FMIL.fmi2_real_t*> dz.data)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return status
 
     def get_version(self):
@@ -6855,7 +7152,9 @@ cdef class FMUModelBase2(ModelBase):
 
             model.get_version()
         """
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         cdef FMIL.fmi2_string_t version = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_version(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return decode(version)
 
     def get_model_version(self):
@@ -6863,7 +7162,9 @@ cdef class FMUModelBase2(ModelBase):
         Returns the version of the FMU.
         """
         cdef FMIL.fmi2_string_t version
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         version = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_model_version(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return decode(version) if version != NULL else ""
 
     def get_name(self):
@@ -6877,7 +7178,9 @@ cdef class FMUModelBase2(ModelBase):
         Return the name and organization of the model author.
         """
         cdef FMIL.fmi2_string_t author
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         author = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_author(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return decode(author) if author != NULL else ""
 
     def get_description(self):
@@ -6885,7 +7188,9 @@ cdef class FMUModelBase2(ModelBase):
         Return the model description.
         """
         cdef FMIL.fmi2_string_t desc
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         desc = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_description(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return decode(desc) if desc != NULL else ""
 
     def get_copyright(self):
@@ -6893,7 +7198,9 @@ cdef class FMUModelBase2(ModelBase):
         Return the model copyright.
         """
         cdef FMIL.fmi2_string_t copyright
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         copyright = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_copyright(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return decode(copyright) if copyright != NULL else ""
 
     def get_license(self):
@@ -6901,7 +7208,9 @@ cdef class FMUModelBase2(ModelBase):
         Return the model license.
         """
         cdef FMIL.fmi2_string_t license
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         license = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_license(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return decode(license) if license != NULL else ""
 
     def get_generation_tool(self):
@@ -6909,7 +7218,9 @@ cdef class FMUModelBase2(ModelBase):
         Return the model generation tool.
         """
         cdef FMIL.fmi2_string_t gen
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         gen = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_generation_tool(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return decode(gen) if gen != NULL else ""
 
     def get_generation_date_and_time(self):
@@ -6917,14 +7228,18 @@ cdef class FMUModelBase2(ModelBase):
         Return the model generation date and time.
         """
         cdef FMIL.fmi2_string_t gen
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         gen = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_generation_date_and_time(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return decode(gen) if gen != NULL else ""
 
     def get_guid(self):
         """
         Return the model GUID.
         """
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         guid = decode(FMIL.fmi2_import_get_GUID(self._fmu))
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return guid
 
     def get_variable_naming_convention(self):
@@ -6932,7 +7247,9 @@ cdef class FMUModelBase2(ModelBase):
         Return the variable naming convention.
         """
         cdef FMIL.fmi2_variable_naming_convension_enu_t conv
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         conv = FMIL.fmi2_import_get_naming_convention(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if conv == FMIL.fmi2_naming_enu_flat:
             return "flat"
         elif conv == FMIL.fmi2_naming_enu_structured:
@@ -6952,8 +7269,10 @@ cdef class FMUModelBase2(ModelBase):
         Returns the set of valid compatible platforms for the Model, extracted
         from the XML.
         """
-        return FMIL.fmi2_import_get_types_platform(self._fmu)
-
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        ret = FMIL.fmi2_import_get_types_platform(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
 cdef class FMUModelCS2(FMUModelBase2):
     """
@@ -7632,7 +7951,9 @@ cdef class FMUModelME2(FMUModelBase2):
         # State nominals retrieved before initialization
         self._preinit_nominal_continuous_states = None
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         self._modelId = decode(FMIL.fmi2_import_get_model_identifier_ME(self._fmu))
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if _connect_dll:
             self.instantiate()
@@ -7642,6 +7963,7 @@ cdef class FMUModelME2(FMUModelBase2):
         Deallocate memory allocated
         """
         self._invoked_dealloc = 1
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         
         if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
@@ -7670,6 +7992,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
         if self._log_stream:
             self._log_stream = None
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
     cpdef _get_time(self):
         """
@@ -7690,7 +8013,9 @@ cdef class FMUModelME2(FMUModelBase2):
         """
 
         cdef int status
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_set_time(self._fmu, t)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to set the time.')
@@ -7748,7 +8073,9 @@ cdef class FMUModelME2(FMUModelBase2):
         underlying FMU method.
         """
         cdef int status
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_enter_event_mode(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to enter event mode.')
@@ -7759,7 +8086,9 @@ cdef class FMUModelME2(FMUModelBase2):
         underlying FMU method.
         """
         cdef int status
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_enter_continuous_time_mode(self._fmu)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if status != 0:
             raise FMUException('Failed to enter continuous time mode.')
@@ -7767,10 +8096,14 @@ cdef class FMUModelME2(FMUModelBase2):
     cdef int _get_event_indicators(self, FMIL.fmi2_real_t[:] values):
         #if not values.flags['C_CONTIGUOUS']:
         #    values = np.ascontiguousarray(values)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        cdef int ret 
         if self._nEventIndicators > 0:
-            return FMIL.fmi2_import_get_event_indicators(self._fmu, &values[0], self._nEventIndicators)
+            ret = FMIL.fmi2_import_get_event_indicators(self._fmu, &values[0], self._nEventIndicators)
         else:
-            return FMIL.fmi2_import_get_event_indicators(self._fmu, NULL, self._nEventIndicators)
+            ret = FMIL.fmi2_import_get_event_indicators(self._fmu, NULL, self._nEventIndicators)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
     def get_event_indicators(self):
         """
@@ -7820,6 +8153,7 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef int status
         cdef int tmp_values_continuous_states_changed
         cdef int tmp_nominals_continuous_states_changed
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         if intermediateResult:
             status = FMIL.fmi2_import_new_discrete_states(self._fmu, &self._eventInfo)
@@ -7845,6 +8179,7 @@ cdef class FMUModelME2(FMUModelBase2):
                 self._eventInfo.valuesOfContinuousStatesChanged = True
             if tmp_nominals_continuous_states_changed:
                 self._eventInfo.nominalsOfContinuousStatesChanged = True
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
     def get_tolerances(self):
         """
@@ -7909,12 +8244,14 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef FMIL.fmi2_boolean_t enterEventMode
         cdef FMIL.fmi2_boolean_t terminateSimulation
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         status = FMIL.fmi2_import_completed_integrator_step(self._fmu, noSetFMUStatePriorToCurrentPoint, &enterEventMode, &terminateSimulation)
 
         self._last_accepted_time = self._get_time()
 
         enter_event_mode[0] = enterEventMode==FMI2_TRUE
         terminate_simulation[0] = terminateSimulation==FMI2_TRUE
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return status
 
@@ -7937,6 +8274,7 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef FMIL.fmi2_boolean_t noSetFMUStatePriorToCurrentPoint = FMI2_TRUE if no_set_FMU_state_prior_to_current_point else FMI2_FALSE
         cdef FMIL.fmi2_boolean_t enterEventMode
         cdef FMIL.fmi2_boolean_t terminateSimulation
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         status = FMIL.fmi2_import_completed_integrator_step(self._fmu, noSetFMUStatePriorToCurrentPoint, &enterEventMode, &terminateSimulation)
 
@@ -7945,13 +8283,18 @@ cdef class FMUModelME2(FMUModelBase2):
         if status != 0:
             raise FMUException('Failed to call FMI completed step at time: %E.'%self.time)
 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         return enterEventMode==FMI2_TRUE, terminateSimulation==FMI2_TRUE
 
     cdef int _get_continuous_states_fmil(self, FMIL.fmi2_real_t[:] ndx):
+        cdef int ret 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if self._nContinuousStates > 0:
-            return FMIL.fmi2_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
+            ret = FMIL.fmi2_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
         else:
-            return FMIL.fmi2_status_ok
+            ret = FMIL.fmi2_status_ok
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
     def _get_continuous_states(self):
         """
@@ -7971,10 +8314,14 @@ cdef class FMUModelME2(FMUModelBase2):
         return ndx
 
     cdef int _set_continuous_states_fmil(self, FMIL.fmi2_real_t[:] ndx):
+        cdef int ret
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         if self._nContinuousStates > 0:
-            return FMIL.fmi2_import_set_continuous_states(self._fmu, &ndx[0], self._nContinuousStates)
+            ret = FMIL.fmi2_import_set_continuous_states(self._fmu, &ndx[0], self._nContinuousStates)
         else:
-            return FMIL.fmi2_status_ok
+            ret = FMIL.fmi2_status_ok
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
     def _set_continuous_states(self, np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values):
         """
@@ -8007,7 +8354,11 @@ cdef class FMUModelME2(FMUModelBase2):
     """)
 
     cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx):
-        return FMIL.fmi2_import_get_nominals_of_continuous_states(self._fmu, xnominal, nx)
+        cdef int ret 
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        ret = FMIL.fmi2_import_get_nominals_of_continuous_states(self._fmu, xnominal, nx)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
     def _get_nominal_continuous_states(self):
         """
@@ -8050,10 +8401,13 @@ cdef class FMUModelME2(FMUModelBase2):
     """)
 
     cdef int _get_derivatives(self, FMIL.fmi2_real_t[:] values):
+        cdef int ret
         if self._nContinuousStates > 0:
-            return FMIL.fmi2_import_get_derivatives(self._fmu, &values[0], self._nContinuousStates)
+            ret = FMIL.fmi2_import_get_derivatives(self._fmu, &values[0], self._nContinuousStates)
         else:
-            return FMIL.fmi2_status_ok
+            ret = FMIL.fmi2_status_ok
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
     cpdef get_derivatives(self):
         """
@@ -8195,6 +8549,7 @@ cdef class FMUModelME2(FMUModelBase2):
             completedEventIterationIsProvided
         """
         cdef dict capabilities = {}
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
         capabilities['needsExecutionTool']                  = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_needsExecutionTool))
         capabilities['completedIntegratorStepNotNeeded']    = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_completedIntegratorStepNotNeeded))
         capabilities['canBeInstantiatedOnlyOncePerProcess'] = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canBeInstantiatedOnlyOncePerProcess))
@@ -8203,6 +8558,7 @@ cdef class FMUModelME2(FMUModelBase2):
         capabilities['canSerializeFMUstate']                = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canSerializeFMUstate))
         capabilities['providesDirectionalDerivatives']      = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives))
         capabilities['completedEventIterationIsProvided']   = bool(FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_completedEventIterationIsProvided))
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
 
         return capabilities
 
@@ -8210,13 +8566,19 @@ cdef class FMUModelME2(FMUModelBase2):
         """
         Check capability to provide directional derivatives.
         """
-        return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        ret = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_providesDirectionalDerivatives)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
     def _supports_get_set_FMU_state(self):
         """
         Check support for getting and setting the FMU state.
         """
-        return FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        ret = FMIL.fmi2_import_get_capability(self._fmu, FMIL.fmi2_me_canGetAndSetFMUstate)
+        if not self._max_log_size_msg_sent: self._log_checkpoint = self._current_log_size
+        return ret
 
     def _get_directional_proxy(self, var_ref, func_ref, group, add_diag=False, output_matrix=None):
         if not self._has_entered_init_mode:
