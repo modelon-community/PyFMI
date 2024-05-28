@@ -1476,6 +1476,43 @@ class ResultDymolaBinary(ResultDymola):
             return Trajectory(self._get_diagnostics_trajectory(0),self._get_diagnostics_trajectory(dataInd+1))
         else:
             return Trajectory(self._get_diagnostics_trajectory(0),factor*self._get_interpolated_trajectory(dataInd))
+        
+    def get_trajectories(self, names, start = -np.inf, stop = np.inf, include_start = True):
+        """"
+            EXPERIMENTAL
+            Returns multiple trajectories restricted to a specific time interval.
+            Do not expect this to work with dynamic diagnostics
+
+            Parameters::
+
+                names --
+                    List of variables names for which to fetch trajectories
+
+                start --
+                    (default: -np.inf) Return trajectory for times >= start.
+
+                stop -- 
+                    (default: np.inf) Return trajectory for times <= end.
+
+                include_start --
+                    (default: True) If True, uses times >= start, else times > start.
+                    
+            Returns::
+
+                List of trajectories
+        """
+
+        time_traj = self.get_variable_data('time')
+
+        start_idx = np.argmin(time_traj.t < start) if include_start else np.argmin(time_traj.t <= start)
+        stop_idx = len(time_traj.t) - np.argmax(time_traj.t[::-1] < stop)
+
+        return_trajs = []
+        for name in names:
+            traj = self.get_variable_data(name)
+            return_trajs.append(Trajectory(traj.t[start_idx:stop_idx], traj.x[start_idx:stop_idx]))
+
+        return return_trajs
 
     def _calculate_events_and_steps(self, name):
         if name in self._data_3:
