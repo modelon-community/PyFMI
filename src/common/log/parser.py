@@ -254,6 +254,7 @@ def filter_xml_log(write, sourcefile, modulename = 'Model', max_size = None):
             # log_level, category, fmu_status = m.groups()
             write(line[m.end():])
         if max_size is not None and size_read >= max_size:
+            write('<MaxmimumLogSizeExceeded>Maximum log size was exceeded, log was truncated.</MaxmimumLogSizeExceeded>\n')
             break
 
     write('</JMILog>\n')
