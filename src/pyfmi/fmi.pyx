@@ -4828,9 +4828,9 @@ cdef class FMUModelBase2(ModelBase):
 
         cdef FMIL.fmi2_boolean_t  log
         cdef int                  status
-        cdef FMIL.size_t          nCat = 0
+        cdef FMIL.size_t          nCat = len(categories)
 
-        self.callbacks.log_level = FMIL.jm_log_level_warning if logging_on else FMIL.jm_log_level_nothing
+        # self.callbacks.log_level = FMIL.jm_log_level_warning if logging_on else FMIL.jm_log_level_nothing
 
         if logging_on:
             log = 1
@@ -4839,10 +4839,13 @@ cdef class FMUModelBase2(ModelBase):
 
         self._enable_logging = bool(log)
 
-        if len(categories) > 0:
-            raise FMUException('Currently the logging of categories is not available. See the docstring for more information')
+        cdef FMIL.fmi2_string_t* val = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*nCat)
+        for i, c in enumerate(categories):
+            val[i] = <FMIL.fmi2_string_t>c
 
-        status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, nCat, NULL)
+        status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, nCat, val)
+
+        FMIL.free(val)
 
         if status != 0:
             raise FMUException('Failed to set the debugging option.')
