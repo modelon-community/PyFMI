@@ -15,7 +15,7 @@ jobs:
         python-version: '3.9.x'
     - name: Setup Python
       run: |
-        python3 -m pip install Cython "numpy<2" scipy matplotlib nose-py3 setuptools==69.1.0
+        python3 -m pip install Cython numpy scipy matplotlib nose-py3 setuptools==69.1.0
     - name: Install system
       run: |
         sudo apt-get -y install cmake liblapack-dev libsuitesparse-dev libhypre-dev
