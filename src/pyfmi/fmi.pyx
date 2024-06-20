@@ -1542,7 +1542,7 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiGetReal
         """
         cdef int status
-        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.asarray(valueref, dtype=np.uint32).ravel()
         cdef FMIL.size_t nref = np.size(val_ref)
         cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = np.array([0.0]*nref, dtype=float, ndmin=1)
 
@@ -1575,8 +1575,8 @@ cdef class FMUModelBase(ModelBase):
         Calls the low-level FMI function: fmiSetReal
         """
         cdef int status
-        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
-        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = np.array(values, copy=False, dtype=float).ravel()
+        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] val_ref = np.asarray(valueref, dtype=np.uint32).ravel()
+        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = np.asarray(values, dtype=float).ravel()
         cdef FMIL.size_t nref = np.size(val_ref)
 
         if nref != np.size(val):
@@ -4187,7 +4187,7 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2GetReal
         """
         cdef int status
-        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.asarray(valueref, dtype=np.uint32).ravel()
         cdef FMIL.size_t nref = np.size(input_valueref)
         cdef np.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            output_value   = np.zeros(nref)
 
@@ -4221,8 +4221,8 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int status
 
-        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.array(valueref, copy=False, dtype=np.uint32).ravel()
-        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = np.array(values, copy=False, dtype=float).ravel()
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1,mode='c'] input_valueref = np.asarray(valueref, dtype=np.uint32).ravel()
+        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1,mode='c']            set_value      = np.asarray(values, dtype=float).ravel()
 
         if np.size(input_valueref) != np.size(set_value):
             raise FMUException('The length of valueref and values are inconsistent.')
@@ -8237,8 +8237,8 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef int method = FORWARD_DIFFERENCE if self.force_finite_differences is True or self.force_finite_differences == 0 else CENTRAL_DIFFERENCE
         cdef double RUROUND = FORWARD_DIFFERENCE_EPS if method == FORWARD_DIFFERENCE else CENTRAL_DIFFERENCE_EPS
         cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c'] dfpert, df, eps, nominals
-        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = np.array(var_ref, copy=False, dtype = np.uint32)
-        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = np.array(func_ref, copy=False, dtype = np.uint32)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] v_ref = np.asarray(var_ref, dtype=np.uint32)
+        cdef np.ndarray[FMIL.fmi2_value_reference_t, ndim=1, mode='c'] z_ref = np.asarray(func_ref, dtype=np.uint32)
         cdef int ind_local = 5 if add_diag else 4
         cdef list local_group
 
