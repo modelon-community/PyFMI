@@ -15,19 +15,18 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import distutils
 import os
 import shutil
 import numpy as np
 import ctypes.util
 import sys
 
-#If prefix is set, we want to allow installation in a directory that is not on PYTHONPATH
-#and this is only possible with distutils, not setuptools
-if str(sys.argv[1:]).find("--prefix") == -1:
-    from setuptools import setup  
-else:
-    from distutils.core import setup
+try:
+    from numpy.distutils.core import setup
+    have_nd = True
+except ImportError:
+    from setuptools import setup
+    have_nd = False
 
 try:
     from Cython.Distutils import build_ext
@@ -114,6 +113,8 @@ extra_c_flags = ""
 # Fix path sep
 for x in sys.argv[1:]:
     if not x.find('--prefix'):
+        if not have_nd:
+            raise Exception("Cannot specify --prefix without numpy.distutils")
         copy_args[copy_args.index(x)] = x.replace('/',os.sep)
     if not x.find('--fmil-home'):
         incdirs = os.path.join(x[12:],'include')
@@ -136,6 +137,8 @@ for x in sys.argv[1:]:
         copy_args.remove(x)
     if not x.find('--no-msvcr'):
         if x[11:].upper() == "TRUE":
+            if not have_nd:
+                raise Exception("Cannot specify --no-msvcr without numpy.distutils")
             no_msvcr = True
         copy_args.remove(x)
     if not x.find('--extra-c-flags'):
@@ -308,7 +311,6 @@ except Exception:
 extra_package_data = ['*fmilib_shared*'] if sys.platform.startswith("win") else []
 extra_package_data += ['libgcc_s_dw2-1.dll'] if copy_gcc_lib else []
 
-from numpy.distutils.core import setup
 setup(name=NAME,
       version=VERSION,
       license=LICENSE,
