@@ -2,6 +2,10 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.13.1 ---
+    * Numpy 2.x support
+    * Allow to build without distutils for Python>=3.12 support
+
 --- PyFMI-2.13.0 ---
     * Upgraded to Cython3.
 
