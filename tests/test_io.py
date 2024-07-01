@@ -1171,8 +1171,8 @@ class TestResultFileBinary:
 
         bouncingBall = ResultHandlerBinaryFile(model)
         bouncingBall.set_options(opts)
-        msg = "Unable to start simulation. The following keyword argument\(s\) are empty:"
-        msg += " 'diagnostics\_params' and 'diagnostics\_vars'."
+        msg = r"Unable to start simulation. The following keyword argument\(s\) are empty:"
+        msg += r" 'diagnostics\_params' and 'diagnostics\_vars'."
         with nose.tools.assert_raises_regex(FMUException, msg):
             bouncingBall.simulation_start()
 
