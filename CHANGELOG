@@ -1,5 +1,8 @@
 --- CHANGELOG ---
 
+--- Future release ---
+    * Updated the error message displayed when loading FMUs with needsExecutionTool set to True.
+
 --- PyFMI-2.13.1 ---
     * Numpy 2.x support
     * Allow to build without distutils for Python>=3.12 support
