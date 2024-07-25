@@ -705,6 +705,7 @@ cdef class ModelBase:
 
             msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method."
             self._max_log_size_msg_sent = True
+            self._current_log_size = self._current_log_size + len(msg)
 
         if self._fmu_log_name != NULL:
             if self.file_object:
@@ -1444,9 +1445,9 @@ cdef class FMUModelBase(ModelBase):
         #Connect the DLL
         if _connect_dll:
             global FMI_REGISTER_GLOBALLY
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             if status == FMIL.jm_status_error:
                 last_error = decode(FMIL.fmi1_import_get_last_error(self._fmu))
                 if self.callbacks.log_level >= FMIL.jm_log_level_error:
@@ -1468,12 +1469,12 @@ cdef class FMUModelBase(ModelBase):
         #Load information from model
         self._modelId = decode(FMIL.fmi1_import_get_model_identifier(self._fmu))
         self._modelname = decode(FMIL.fmi1_import_get_model_name(self._fmu))
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         self._nEventIndicators = FMIL.fmi1_import_get_number_of_event_indicators(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         self._nContinuousStates = FMIL.fmi1_import_get_number_of_continuous_states(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if not isinstance(log_file_name, str):
             self._set_log_stream(log_file_name)
@@ -1518,9 +1519,9 @@ cdef class FMUModelBase(ModelBase):
             model.get_version()
         """
         cdef FMIL.fmi1_string_t version
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         version = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_version(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return decode(version)
 
     def get_ode_sizes(self):
@@ -1570,9 +1571,9 @@ cdef class FMUModelBase(ModelBase):
         if nref == 0: ## get_real([])
             return val
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_get_real(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_real_t*>val.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to get the Real values.')
@@ -1606,9 +1607,9 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_set_real(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_real_t*>val.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to set the Real values. See the log for possibly more information.')
@@ -1641,9 +1642,9 @@ cdef class FMUModelBase(ModelBase):
         if nref == 0: ## get_integer([])
             return val
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_get_integer(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_integer_t*>val.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to get the Integer values.')
@@ -1677,9 +1678,9 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_set_integer(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_integer_t*>val.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to set the Integer values. See the log for possibly more information.')
@@ -1714,9 +1715,9 @@ cdef class FMUModelBase(ModelBase):
 
         cdef void *val = FMIL.malloc(sizeof(FMIL.fmi1_boolean_t)*nref)
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_get_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         return_values = []
         for i in range(nref):
@@ -1765,9 +1766,9 @@ cdef class FMUModelBase(ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_set_boolean(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, nref, <FMIL.fmi1_boolean_t*>val)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         FMIL.free(val)
 
@@ -1802,9 +1803,9 @@ cdef class FMUModelBase(ModelBase):
             return []
 
         cdef FMIL.fmi1_string_t* output_value = <FMIL.fmi1_string_t*>FMIL.malloc(sizeof(FMIL.fmi1_string_t)*nref)
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_get_string(self._fmu, <FMIL.fmi1_value_reference_t*> input_valueref.data, nref, output_value)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to get the String values.')
@@ -1850,9 +1851,9 @@ cdef class FMUModelBase(ModelBase):
         for i in range(np.size(val_ref)):
             val[i] = values[i]
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_set_string(self._fmu, <FMIL.fmi1_value_reference_t*>val_ref.data, np.size(val_ref), val)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         FMIL.free(val)
 
@@ -1884,9 +1885,9 @@ cdef class FMUModelBase(ModelBase):
         else:
             log = 0
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_set_debug_logging(self._fmu, log)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         self._enable_logging = bool(log)
 
         if status != 0:
@@ -2836,19 +2837,19 @@ cdef class FMUModelCS1(FMUModelBase):
         self._invoked_dealloc = 1
 
         if self._allocated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_terminate_slave(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._instantiated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_free_slave_instance(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_dll == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_xml == 1:
             FMIL.fmi1_import_free(self._fmu)
@@ -2903,9 +2904,9 @@ cdef class FMUModelCS1(FMUModelBase):
 
         self.time = current_t+step_size
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_do_step(self._fmu, current_t, step_size, new_s)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         return status
 
@@ -2961,9 +2962,9 @@ cdef class FMUModelCS1(FMUModelBase):
 
         values = np.array([0.0]*nref,dtype=float, ndmin=1)
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_get_real_output_derivatives(self._fmu, <FMIL.fmi1_value_reference_t*>value_refs.data, nref, <FMIL.fmi1_integer_t*>orders.data, <FMIL.fmi1_real_t*>values.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to get the Real output derivatives.')
@@ -2985,9 +2986,9 @@ cdef class FMUModelCS1(FMUModelBase):
             model.types_platform
         """
         cdef FMIL.fmi1_string_t types_platform
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         types_platform = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_types_platform(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return decode(types_platform)
 
     types_platform = property(fget=_get_types_platform)
@@ -3055,9 +3056,9 @@ cdef class FMUModelCS1(FMUModelBase):
         else:
             raise FMUException("The variables must either be a string or a list of strings")
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_set_real_input_derivatives(self._fmu, <FMIL.fmi1_value_reference_t*>value_refs.data, nref, <FMIL.fmi1_integer_t*>np_orders.data, <FMIL.fmi1_real_t*>val.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to set the Real input derivatives.')
@@ -3187,9 +3188,9 @@ cdef class FMUModelCS1(FMUModelBase):
         if not log_open and self.get_log_level() > 2:
             self._open_log_file()
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_initialize_slave(self._fmu, start_time, stop_defined, stop_time)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if not log_open and self.get_log_level() > 2:
             self._close_log_file()
@@ -3205,9 +3206,9 @@ cdef class FMUModelCS1(FMUModelBase):
         in the FMI1 specification.
         """
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_reset_slave(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != FMIL.fmi1_status_ok:
             raise FMUException("Failed to reset the FMU.")
 
@@ -3247,11 +3248,11 @@ cdef class FMUModelCS1(FMUModelBase):
         cdef FMIL.fmi1_string_t location = NULL
 
         name = encode(name)
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_instantiate_slave(self._fmu, name, location,
                                         FMI_MIME_CS_STANDALONE, timeout, visible,
                                         interactive)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != FMIL.jm_status_success:
             raise FMUException('Failed to instantiate the slave. See the log for possibly more information.')
@@ -3261,9 +3262,9 @@ cdef class FMUModelCS1(FMUModelBase):
 
         #Just to be safe, some problems with Dymola (2012) FMUs not reacting
         #to logging when set to the instantiate method.
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_set_debug_logging(self._fmu, log)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to set the debugging option. See the log for possibly more information.')
@@ -3307,9 +3308,9 @@ cdef class FMUModelCS1(FMUModelBase):
         After this call, any call to a function changing the state of the FMU will fail.
         """
         if self._allocated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_terminate_slave(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             self._allocated_fmu = 0 #No longer initialized
 
     def free_instance(self):
@@ -3318,9 +3319,9 @@ cdef class FMUModelCS1(FMUModelBase):
         Note that this is not needed in general as it is done automatically.
         """
         if self._instantiated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_free_slave_instance(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             self._instantiated_fmu = 0
 
 cdef class FMUModelME1(FMUModelBase):
@@ -3375,9 +3376,9 @@ cdef class FMUModelME1(FMUModelBase):
             model.model_types_platform
         """
         cdef FMIL.fmi1_string_t model_types_platform
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         model_types_platform = <FMIL.fmi1_string_t>FMIL.fmi1_import_get_model_types_platform(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return decode(model_types_platform)
 
     model_types_platform = property(fget=_get_model_types_platform)
@@ -3389,26 +3390,26 @@ cdef class FMUModelME1(FMUModelBase):
         re-instantiates using fmiInstantiateModel.
         """
         if self._allocated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_terminate(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             self._allocated_fmu = 0
 
         if self._instantiated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_free_model_instance(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             self._instantiated_fmu = 0
 
         if self._allocated_dll == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         global FMI_REGISTER_GLOBALLY
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_create_dllfmu(self._fmu, self.callBackFunctions, FMI_REGISTER_GLOBALLY);
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status == FMIL.jm_status_error:
             raise FMUException("The DLL could not be reloaded, check the log for more information.")
         FMI_REGISTER_GLOBALLY += 1 #Update the global register of FMUs
@@ -3432,19 +3433,19 @@ cdef class FMUModelME1(FMUModelBase):
         self._invoked_dealloc = 1
 
         if self._allocated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_terminate(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._instantiated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_free_model_instance(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_dll == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_xml == 1:
             FMIL.fmi1_import_free(self._fmu)
@@ -3472,9 +3473,9 @@ cdef class FMUModelME1(FMUModelBase):
         cdef int status
         self._t = t
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_set_time(self._fmu,t)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to set the time.')
@@ -3488,9 +3489,9 @@ cdef class FMUModelME1(FMUModelBase):
     def _get_continuous_states(self):
         cdef int status
         cdef np.ndarray[double, ndim=1,mode='c'] ndx = np.zeros(self._nContinuousStates, dtype=np.double)
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_get_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data, self._nContinuousStates)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to retrieve the continuous states.')
@@ -3507,9 +3508,9 @@ cdef class FMUModelME1(FMUModelBase):
                 'The number of values are not consistent with the number of '\
                 'continuous states.')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_set_continuous_states(self._fmu, <FMIL.fmi1_real_t*>ndx.data, self._nContinuousStates)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status >= 3:
             raise FMUException('Failed to set the new continuous states.')
@@ -3524,9 +3525,9 @@ cdef class FMUModelME1(FMUModelBase):
 
     cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx):
         cdef int status
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_get_nominal_continuous_states(self._fmu, xnominal, nx)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return status
 
     def _get_nominal_continuous_states(self):
@@ -3590,9 +3591,9 @@ cdef class FMUModelME1(FMUModelBase):
         cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = np.empty(self._nContinuousStates,dtype=np.double)
 
         if self._nContinuousStates > 0:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         else:
             return values
 
@@ -3619,9 +3620,9 @@ cdef class FMUModelME1(FMUModelBase):
         cdef int status
         cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = np.empty(self._nEventIndicators,dtype=np.double)
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_get_event_indicators(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nEventIndicators)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to get the event indicators at time: %E.'%self.time)
@@ -3709,14 +3710,14 @@ cdef class FMUModelME1(FMUModelBase):
         cdef int status
         cdef FMIL.fmi1_boolean_t intermediate_result
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         if intermediateResult:
             intermediate_result = 1
             status = FMIL.fmi1_import_eventUpdate(self._fmu, intermediate_result, &self._eventInfo)
         else:
             intermediate_result = 0
             status = FMIL.fmi1_import_eventUpdate(self._fmu, intermediate_result, &self._eventInfo)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to update the events at time: %E.'%self.time)
@@ -3780,10 +3781,10 @@ cdef class FMUModelME1(FMUModelBase):
         cdef int status
         cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] values = np.zeros(self._nContinuousStates,dtype=np.uint32)
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_get_state_value_references(
             self._fmu, <FMIL.fmi1_value_reference_t*>values.data, self._nContinuousStates)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException(
@@ -3807,9 +3808,9 @@ cdef class FMUModelME1(FMUModelBase):
         cdef int status
         cdef FMIL.fmi1_boolean_t call_event_update
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_completed_integrator_step(self._fmu, &call_event_update)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to call FMI completed step at time: %E.'%self.time)
@@ -3861,9 +3862,9 @@ cdef class FMUModelME1(FMUModelBase):
         if not log_open and self.get_log_level() > 2:
             self._open_log_file()
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_initialize(self._fmu, tolerance_controlled, c_tolerance, &self._eventInfo)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if not log_open and self.get_log_level() > 2:
             self._close_log_file()
@@ -3914,9 +3915,9 @@ cdef class FMUModelME1(FMUModelBase):
             log = 0
 
         name = encode(name)
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_instantiate_model(self._fmu, name)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
@@ -3926,9 +3927,9 @@ cdef class FMUModelME1(FMUModelBase):
 
         #Just to be safe, some problems with Dymola (2012) FMUs not reacting
         #to logging when set to the instantiate method.
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi1_import_set_debug_logging(self._fmu, log)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to set the debugging option. See the log for possibly more information.')
@@ -4039,9 +4040,9 @@ cdef class FMUModelME1(FMUModelBase):
         After this call, any call to a function changing the state of the FMU will fail.
         """
         if self._allocated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_terminate(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             self._allocated_fmu = 0 #No longer initialized
 
     def free_instance(self):
@@ -4050,9 +4051,9 @@ cdef class FMUModelME1(FMUModelBase):
         Note that this is not needed in general as it is done automatically.
         """
         if self._instantiated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_free_model_instance(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             self._instantiated_fmu = 0
 
 
@@ -4242,9 +4243,9 @@ cdef class FMUModelBase2(ModelBase):
 
         #Connect the DLL
         if _connect_dll:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             status = FMIL.fmi2_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             if status == FMIL.jm_status_error:
                 last_error = decode(FMIL.fmi2_import_get_last_error(self._fmu))
                 if enable_logging:
@@ -4263,12 +4264,12 @@ cdef class FMUModelBase2(ModelBase):
 
         #Connect the DLL
         self._modelName         = decode(FMIL.fmi2_import_get_model_name(self._fmu))
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         self._nEventIndicators  = FMIL.fmi2_import_get_number_of_event_indicators(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         self._nContinuousStates = FMIL.fmi2_import_get_number_of_continuous_states(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if not isinstance(log_file_name, str):
             self._set_log_stream(log_file_name)
@@ -4314,9 +4315,9 @@ cdef class FMUModelBase2(ModelBase):
         if nref == 0: ## get_real([])
             return output_value
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_real_t*> output_value.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to get the Real values.')
@@ -4349,39 +4350,39 @@ cdef class FMUModelBase2(ModelBase):
         if np.size(input_valueref) != np.size(set_value):
             raise FMUException('The length of valueref and values are inconsistent.')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_set_real(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, np.size(input_valueref), <FMIL.fmi2_real_t*> set_value.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to set the Real values. See the log for possibly more information.')
 
     cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
         cdef int status
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_real(self._fmu, &valueref[0], _size, &values[0])
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return status
 
     cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values):
         cdef int status
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_real(self._fmu, vrefs, _size, values)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return status
 
     cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size):
         cdef int status
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_set_real(self._fmu, vrefs, _size, values)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return status
 
     cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values):
         cdef int status
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], _size, &values[0])
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return status
 
     def get_integer(self, valueref):
@@ -4412,9 +4413,9 @@ cdef class FMUModelBase2(ModelBase):
         if nref == 0: ## get_integer([])
             return output_value
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> output_value.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to get the Integer values.')
@@ -4447,9 +4448,9 @@ cdef class FMUModelBase2(ModelBase):
         if nref != np.size(set_value):
             raise FMUException('The length of valueref and values are inconsistent.')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_set_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> set_value.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to set the Integer values. See the log for possibly more information.')
@@ -4458,9 +4459,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef int status
         cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*_size)
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_boolean(self._fmu, &valueref[0], _size, <FMIL.fmi2_boolean_t*> output_value)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         for i in range(_size):
             values[i] = (<FMIL.fmi2_boolean_t*>output_value)[i]==1
@@ -4498,9 +4499,9 @@ cdef class FMUModelBase2(ModelBase):
 
         cdef void* output_value = FMIL.malloc(sizeof(FMIL.fmi2_boolean_t)*nref)
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_boolean(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_boolean_t*> output_value)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         return_values = []
         for i in range(nref):
@@ -4549,9 +4550,9 @@ cdef class FMUModelBase2(ModelBase):
         if len(input_valueref) != len(values):
             raise FMUException('The length of valueref and values are inconsistent.')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_set_boolean(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_boolean_t*> set_value)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         FMIL.free(set_value)
 
@@ -4587,9 +4588,9 @@ cdef class FMUModelBase2(ModelBase):
         
         cdef FMIL.fmi2_string_t* output_value = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*nref)
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_string(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, output_value)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to get the String values.')
@@ -4635,9 +4636,9 @@ cdef class FMUModelBase2(ModelBase):
         for i in range(np.size(val_ref)):
             val[i] = values[i]
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_set_string(self._fmu, <FMIL.fmi2_value_reference_t*>val_ref.data, np.size(val_ref), val)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         FMIL.free(val)
 
@@ -4732,9 +4733,9 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('The instance is not curent an instance of an ME-model or a CS-model. Use load_fmu for correct loading.')
 
         name = encode(name)
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_instantiate(self._fmu, name, fmuType, NULL, vis)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != FMIL.jm_status_success:
             raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
@@ -4786,10 +4787,10 @@ cdef class FMUModelBase2(ModelBase):
         self._last_accepted_time = start_time
         self._relative_tolerance = tolerance
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_setup_experiment(self._fmu,
                 tol_defined, tolerance, start_time, stop_defined, stop_time)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to setup the experiment.')
@@ -4801,9 +4802,9 @@ cdef class FMUModelBase2(ModelBase):
         """
         cdef int status
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_reset(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != 0:
             raise FMUException('An error occured when reseting the model, see the log for possible more information')
 
@@ -4822,18 +4823,18 @@ cdef class FMUModelBase2(ModelBase):
         Calls the FMI function fmi2Terminate() on the FMU.
         After this call, any call to a function changing the state of the FMU will fail.
         """
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         FMIL.fmi2_import_terminate(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
     def free_instance(self):
         """
         Calls the FMI function fmi2FreeInstance() on the FMU. Note that this is not
         needed generally.
         """
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         FMIL.fmi2_import_free_instance(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
     def exit_initialization_mode(self):
         """
@@ -4843,9 +4844,9 @@ cdef class FMUModelBase2(ModelBase):
         Note that the method initialize() performs both the enter and
         exit of initialization mode.
         """
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_exit_initialization_mode(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status == 1:
             if self._enable_logging:
@@ -4882,9 +4883,9 @@ cdef class FMUModelBase2(ModelBase):
         if self.time is None:
             raise FMUException("Setup Experiment has to be called prior to the initialization method.")
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_enter_initialization_mode(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status == 1:
             if self._enable_logging:
@@ -6155,9 +6156,9 @@ cdef class FMUModelBase2(ModelBase):
         if not self._supports_get_set_FMU_state():
             raise FMUException('This FMU does not support get and set FMU-state')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_fmu_state(self._fmu, &(state.fmu_state))
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('An error occured while trying to get the FMU-state, see the log for possible more information')
@@ -6196,9 +6197,9 @@ cdef class FMUModelBase2(ModelBase):
         if not self._supports_get_set_FMU_state():
             raise FMUException('This FMU dos not support get and set FMU-state')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_set_fmu_state(self._fmu, internal_state)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('An error occured while trying to set the FMU-state, see the log for possible more information')
@@ -6249,9 +6250,9 @@ cdef class FMUModelBase2(ModelBase):
             print("FMU-state does not seem to be allocated.")
             return
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_free_fmu_state(self._fmu, &internal_state)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('An error occured while trying to free the FMU-state, see the log for possible more information')
@@ -6292,9 +6293,9 @@ cdef class FMUModelBase2(ModelBase):
         n_bytes = self.serialized_fmu_state_size(state)
         serialized_fmu = np.empty(n_bytes, dtype=np.byte)
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_serialize_fmu_state(self._fmu, internal_state.fmu_state, <FMIL.fmi2_byte_t*> serialized_fmu.data, n_bytes)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('An error occured while serializing the FMU-state, see the log for possible more information')
@@ -6328,9 +6329,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMUState2 state = FMUState2()
         cdef FMIL.size_t n_byte = len(ser_fmu)
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_de_serialize_fmu_state(self._fmu, <FMIL.fmi2_byte_t *> ser_fmu.data, n_byte, &(state.fmu_state))
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('An error occured while deserializing the FMU-state, see the log for possible more information')
@@ -6367,9 +6368,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMUState2 internal_state = state
         cdef FMIL.size_t n_bytes
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_serialized_fmu_state_size(self._fmu, internal_state.fmu_state, &n_bytes)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('An error occured while computing the FMU-state size, see the log for possible more information')
@@ -7025,13 +7026,13 @@ cdef class FMUModelBase2(ModelBase):
         if not self._provides_directional_derivatives():
             raise FMUException('This FMU does not provide directional derivatives')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_directional_derivative(self._fmu,
                   <FMIL.fmi2_value_reference_t*> v_ref.data, np.size(v_ref),
                   <FMIL.fmi2_value_reference_t*> z_ref.data, np.size(z_ref),
                   <FMIL.fmi2_real_t*> dv.data,
                   <FMIL.fmi2_real_t*> dz.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         return status
 
@@ -7048,9 +7049,9 @@ cdef class FMUModelBase2(ModelBase):
 
             model.get_version()
         """
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         cdef FMIL.fmi2_string_t version = <FMIL.fmi2_string_t>FMIL.fmi2_import_get_version(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return decode(version)
 
     def get_model_version(self):
@@ -7147,9 +7148,9 @@ cdef class FMUModelBase2(ModelBase):
         Returns the set of valid compatible platforms for the Model, extracted
         from the XML.
         """
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         res = FMIL.fmi2_import_get_types_platform(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return res
 
 
@@ -7214,14 +7215,14 @@ cdef class FMUModelCS2(FMUModelBase2):
         self._invoked_dealloc = 1
 
         if self._initialized_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi2_import_terminate(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi2_import_free_instance(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_dll == 1:
             FMIL.fmi2_import_destroy_dllfmu(self._fmu)
@@ -7310,9 +7311,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         if not log_open and self.get_log_level() > 2:
             self._open_log_file()
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_do_step(self._fmu, current_t, step_size, new_s)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if not log_open and self.get_log_level() > 2:
             self._close_log_file()
@@ -7328,9 +7329,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         """
         cdef int status
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_cancel_step(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != 0:
             raise FMUException('An error occured while canceling the step')
 
@@ -7392,12 +7393,12 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         assert np.size(values) >= np.size(value_refs) and np.size(orders) >= np.size(value_refs)
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_set_real_input_derivatives(self._fmu,
                         <FMIL.fmi2_value_reference_t*> value_refs.data,
                         np.size(value_refs), <FMIL.fmi2_integer_t*> orders.data,
                         <FMIL.fmi2_real_t*> values.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         return status
 
@@ -7464,11 +7465,11 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         assert np.size(values) >= np.size(value_refs) and np.size(orders) >= np.size(value_refs)
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_real_output_derivatives(self._fmu,
                     <FMIL.fmi2_value_reference_t*> value_refs.data, np.size(value_refs),
                     <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> values.data)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         return status
 
@@ -7505,9 +7506,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         else:
             raise FMUException('Status kind has to be between 0 and 3')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_status(self._fmu, fmi_status_kind, &status_value)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != 0:
             raise FMUException('An error occured while retriving the status')
 
@@ -7539,9 +7540,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         else:
             raise FMUException('Status kind has to be between 0 and 3')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_real_status(self._fmu, fmi_status_kind, &output)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != 0:
             raise FMUException('An error occured while retriving the status')
 
@@ -7573,9 +7574,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         else:
             raise FMUException('Status kind has to be between 0 and 3')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_integer_status(self._fmu, fmi_status_kind, &output)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != 0:
             raise FMUException('An error occured while retriving the status')
 
@@ -7607,9 +7608,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         else:
             raise FMUException('Status kind has to be between 0 and 3')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_boolean_status(self._fmu, fmi_status_kind, &output)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != 0:
             raise FMUException('An error occured while retriving the status')
 
@@ -7641,9 +7642,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         else:
             raise FMUException('Status kind has to be between 0 and 3')
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_string_status(self._fmu, fmi_status_kind, &output)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != 0:
             raise FMUException('An error occured while retriving the status')
 
@@ -7860,14 +7861,14 @@ cdef class FMUModelME2(FMUModelBase2):
         self._invoked_dealloc = 1
         
         if self._initialized_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi2_import_terminate(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_fmu == 1:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi2_import_free_instance(self._fmu)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_dll == 1:
             FMIL.fmi2_import_destroy_dllfmu(self._fmu)
@@ -7910,9 +7911,9 @@ cdef class FMUModelME2(FMUModelBase2):
         """
 
         cdef int status
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_set_time(self._fmu, t)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to set the time.')
@@ -7970,9 +7971,9 @@ cdef class FMUModelME2(FMUModelBase2):
         underlying FMU method.
         """
         cdef int status
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_enter_event_mode(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to enter event mode.')
@@ -7983,9 +7984,9 @@ cdef class FMUModelME2(FMUModelBase2):
         underlying FMU method.
         """
         cdef int status
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_enter_continuous_time_mode(self._fmu)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to enter continuous time mode.')
@@ -7994,12 +7995,12 @@ cdef class FMUModelME2(FMUModelBase2):
         #if not values.flags['C_CONTIGUOUS']:
         #    values = np.ascontiguousarray(values)
         cdef int status
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         if self._nEventIndicators > 0:
             status = FMIL.fmi2_import_get_event_indicators(self._fmu, &values[0], self._nEventIndicators)
         else:
             status = FMIL.fmi2_import_get_event_indicators(self._fmu, NULL, self._nEventIndicators)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return status
 
     def get_event_indicators(self):
@@ -8052,9 +8053,9 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef int tmp_nominals_continuous_states_changed
 
         if intermediateResult:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             status = FMIL.fmi2_import_new_discrete_states(self._fmu, &self._eventInfo)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             if status != 0:
                 raise FMUException('Failed to update the events at time: %E.'%self.time)
         else:
@@ -8063,9 +8064,9 @@ cdef class FMUModelME2(FMUModelBase2):
 
             self._eventInfo.newDiscreteStatesNeeded = FMI2_TRUE
             while self._eventInfo.newDiscreteStatesNeeded:
-                self._log_handler.capi_start_callback(self._current_log_size)
+                self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
                 status = FMIL.fmi2_import_new_discrete_states(self._fmu, &self._eventInfo)
-                self._log_handler.capi_end_callback(self._current_log_size)
+                self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
                 if self._eventInfo.nominalsOfContinuousStatesChanged:
                     tmp_nominals_continuous_states_changed = 1
@@ -8143,9 +8144,9 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef FMIL.fmi2_boolean_t enterEventMode
         cdef FMIL.fmi2_boolean_t terminateSimulation
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_completed_integrator_step(self._fmu, noSetFMUStatePriorToCurrentPoint, &enterEventMode, &terminateSimulation)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         self._last_accepted_time = self._get_time()
 
@@ -8174,9 +8175,9 @@ cdef class FMUModelME2(FMUModelBase2):
         cdef FMIL.fmi2_boolean_t enterEventMode
         cdef FMIL.fmi2_boolean_t terminateSimulation
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_completed_integrator_step(self._fmu, noSetFMUStatePriorToCurrentPoint, &enterEventMode, &terminateSimulation)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         self._last_accepted_time = self._get_time()
 
@@ -8188,9 +8189,9 @@ cdef class FMUModelME2(FMUModelBase2):
     cdef int _get_continuous_states_fmil(self, FMIL.fmi2_real_t[:] ndx):
         cdef int status
         if self._nContinuousStates > 0:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             status = FMIL.fmi2_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             return status
         else:
             return FMIL.fmi2_status_ok
@@ -8215,9 +8216,9 @@ cdef class FMUModelME2(FMUModelBase2):
     cdef int _set_continuous_states_fmil(self, FMIL.fmi2_real_t[:] ndx):
         cdef int status
         if self._nContinuousStates > 0:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             status = FMIL.fmi2_import_set_continuous_states(self._fmu, &ndx[0], self._nContinuousStates)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             return status
         else:
             return FMIL.fmi2_status_ok
@@ -8254,9 +8255,9 @@ cdef class FMUModelME2(FMUModelBase2):
 
     cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx):
         cdef int status
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_get_nominals_of_continuous_states(self._fmu, xnominal, nx)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return status
 
     def _get_nominal_continuous_states(self):
@@ -8302,9 +8303,9 @@ cdef class FMUModelME2(FMUModelBase2):
     cdef int _get_derivatives(self, FMIL.fmi2_real_t[:] values):
         cdef int status
         if self._nContinuousStates > 0:
-            self._log_handler.capi_start_callback(self._current_log_size)
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             status = FMIL.fmi2_import_get_derivatives(self._fmu, &values[0], self._nContinuousStates)
-            self._log_handler.capi_end_callback(self._current_log_size)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             return status
         else:
             return FMIL.fmi2_status_ok

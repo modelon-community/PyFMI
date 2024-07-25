@@ -22,10 +22,10 @@ if one updated the maximum log size after previously exceeding it
 
 class LogHandler:
     """Base class for a log handling class."""
-    def __init__(self, max_log_size):
+    def __init__(self, max_log_size: int):
         self._max_log_size = max_log_size
 
-    def _set_max_log_size(self, val):
+    def _set_max_log_size(self, val: int):
         self._max_log_size = val
     max_log_size = property(
         fget = lambda self: self._max_log_size,
@@ -33,11 +33,11 @@ class LogHandler:
         doc = "Maximal size (number of characters) of raw text log."
     )
 
-    def capi_start_callback(self, current_log_size):
+    def capi_start_callback(self, limit_reached: bool, current_log_size: int):
         """Callback invoked directly before an FMI CAPI call."""
         pass
 
-    def capi_end_callback(self, current_log_size):
+    def capi_end_callback(self, limit_reached: bool, current_log_size: int):
         """Callback invoked directly after an FMI CAPI call."""
         pass
 
@@ -45,7 +45,7 @@ class LogHandlerDefault(LogHandler):
     """Default LogHandler that uses checkpoints around FMI CAPI calls to 
     ensure logs are truncated at checkpoints. For FMUs generating XML during 
     CAPI calls, this ensures valid XML. """
-    def __init__(self, max_log_size):
+    def __init__(self, max_log_size: int):
         super().__init__(max_log_size)
         self._log_checkpoint = 0
 
@@ -54,12 +54,12 @@ class LogHandlerDefault(LogHandler):
         doc = "Latest log size before/after a FMU CAPI call that does not exceed the maximum log size."
     )
 
-    def _update_checkpoint(self, current_log_size):
-        if current_log_size <= self.max_log_size:
+    def _update_checkpoint(self, limit_reached: bool, current_log_size: int):
+        if limit_reached and (current_log_size <= self.max_log_size):
             self._log_checkpoint = current_log_size
 
-    def capi_start_callback(self, current_log_size):
-        self._update_checkpoint(current_log_size)
+    def capi_start_callback(self, limit_reached: bool, current_log_size: int):
+        self._update_checkpoint(limit_reached, current_log_size)
 
-    def capi_end_callback(self, current_log_size):
-        self._update_checkpoint(current_log_size)
+    def capi_end_callback(self, limit_reached: bool, current_log_size: int):
+        self._update_checkpoint(limit_reached, current_log_size)
