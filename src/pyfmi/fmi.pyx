@@ -45,7 +45,6 @@ from pyfmi.common.core import create_temp_dir
 
 from pyfmi.fmi_util import cpr_seed, enable_caching
 from pyfmi.fmi_util cimport encode, decode
-from pyfmi.common.log.handler import LogHandlerDefault
 
 int   = np.int32
 np.int = np.int32
@@ -243,6 +242,8 @@ cdef class ModelBase:
         self._modelId = None
         self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
         self._result_file = None
+        # XXX: Needs to be here for now, due to cicular dependency 
+        from pyfmi.common.log import LogHandlerDefault
         self._log_handler = LogHandlerDefault(self._max_log_size)
 
     def _set_log_stream(self, stream):
@@ -577,6 +578,7 @@ cdef class ModelBase:
                 file_path -- path to extracted XML file
             otherwise function returns nothing
         """
+        # XXX: Needs to be here for now, due to cicular dependency, since pyfmi.common.log.parser imports FMUException (from this file)
         from pyfmi.common.log import extract_xml_log
 
         if file_name is None:
@@ -591,6 +593,8 @@ cdef class ModelBase:
             except AttributeError:
                 raise FMUException("In order to extract the XML-log from a stream, it needs to support 'seek'")
 
+        # XXX: Needs to be here for now, due to cicular dependency 
+        from pyfmi.common.log import LogHandlerDefault
         if isinstance(self._log_handler, LogHandlerDefault):
             extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name,
                             max_size = self._log_handler.log_checkpoint)

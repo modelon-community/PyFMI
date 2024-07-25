@@ -49,17 +49,14 @@ class LogHandlerDefault(LogHandler):
         super().__init__(max_log_size)
         self._log_checkpoint = 0
 
-    def _set_log_checkpoint(self, val):
-        self._log_checkpoint = val
     log_checkpoint = property(
         fget = lambda self: self._log_checkpoint,
-        fset = _set_log_checkpoint,
         doc = "Latest log size before/after a FMU CAPI call that does not exceed the maximum log size."
     )
 
     def _update_checkpoint(self, current_log_size):
         if current_log_size <= self.max_log_size:
-            self.log_checkpoint = current_log_size
+            self._log_checkpoint = current_log_size
 
     def capi_start_callback(self, current_log_size):
         self._update_checkpoint(current_log_size)
