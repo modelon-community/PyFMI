@@ -7935,7 +7935,7 @@ cdef class FMUModelME2(FMUModelBase2):
         else:
             status = FMIL.fmi2_import_get_event_indicators(self._fmu, NULL, self._nEventIndicators)
         self._log_handler.capi_end_callback(self._current_log_size)
-        returns status
+        return status
 
     def get_event_indicators(self):
         """

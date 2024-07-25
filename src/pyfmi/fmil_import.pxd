@@ -790,230 +790,148 @@ cdef extern from 'fmilib.h':
     jm_callbacks * jm_get_default_callbacks()
     void jm_log_v(jm_callbacks *, char *, int, char *, __va_list_tag *)
 
-
-
-
-
-    #UNSORTED!!!
-    size_t fmi2_import_get_derivative_index(fmi2_import_variable_t *)
-
-    void  fmi2_default_callback_logger(fmi2_component_t c, fmi2_string_t instanceName, fmi2_status_t status, fmi2_string_t category, fmi2_string_t message, ...)
-
-
-    void fmi2_import_init_logger(jm_callbacks *, fmi2_callback_functions_t *)
+    # unsorted !!!
     int fmi2_import_get_enum_type_item_value(fmi2_import_enumeration_typedef_t *, unsigned int)
-
-
     char * fmi2_import_get_variable_name(fmi2_import_variable_t *)
-    fmi2_import_unit_t * fmi2_import_get_unit(fmi2_import_unit_definitions_t *, unsigned int)
-    fmi2_import_variable_typedef_t * fmi2_import_get_typedef(fmi2_import_type_definitions_t *, unsigned int)
-    size_t fmi2_import_get_input_index(fmi2_import_variable_t *)
-
-
-    size_t fmi2_SI_base_unit_exp_to_string(int *, size_t, char *)
-    double fmi2_import_get_SI_unit_factor(fmi2_import_unit_t *)
-
-
-    unsigned int fmi2_import_get_unit_definitions_number(fmi2_import_unit_definitions_t *)
-
     fmi2_real_t fmi2_import_get_real_variable_nominal(fmi2_import_real_variable_t *)
-
-
     int fmi2_import_get_variable_has_start(fmi2_import_variable_t *)
-
-    fmi2_import_variable_list_t * fmi2_import_join_var_list(fmi2_import_variable_list_t *, fmi2_import_variable_list_t *)
-
-    size_t fmi2_import_get_state_index(fmi2_import_variable_t *)
-
-
-    int fmi2_import_var_list_push_back(fmi2_import_variable_list_t *, fmi2_import_variable_t *)
-    fmi2_import_variable_list_t * fmi2_import_append_to_var_list(fmi2_import_variable_list_t *, fmi2_import_variable_t *)
-
-
     char * fmi2_fmu_kind_to_string(fmi2_fmu_kind_enu_t)
-
-
-    void fmi2_log_forwarding_v(fmi2_component_t, fmi2_string_t, int, fmi2_string_t, fmi2_string_t, __va_list_tag *)
-
-
-    fmi2_base_type_enu_t fmi2_import_get_base_type(fmi2_import_variable_typedef_t *)
-
     int fmi2_import_set_integer(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *)
-    unsigned int fmi2_import_get_unit_display_unit_number(fmi2_import_unit_t *)
     int fmi2_import_get_string_status(fmi2_import_t *, int, fmi2_string_t *)
-
-
-    fmi2_value_reference_t * fmi2_import_get_value_referece_list(fmi2_import_variable_list_t *)
-
     int fmi2_import_set_real_input_derivatives(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *, fmi2_real_t *)
-
-    int fmi2_import_clear_last_error(fmi2_import_t *)
-
     char * fmi2_import_get_string_variable_start(fmi2_import_string_variable_t *)
-    unsigned int fmi2_import_get_type_definition_number(fmi2_import_type_definitions_t *)
-
-    char * fmi2_SI_base_unit_to_string(fmi2_SI_base_units_enu_t)
     double fmi2_import_get_default_experiment_tolerance(fmi2_import_t *)
-    unsigned int fmi2_import_get_enum_type_max(fmi2_import_enumeration_typedef_t *)
-
     int fmi2_import_get_real_type_is_relative_quantity(fmi2_import_real_typedef_t *)
     unsigned int fmi2_import_get_enum_type_size(fmi2_import_enumeration_typedef_t *)
-
-
     fmi2_import_variable_list_t* fmi2_import_get_derivatives_list(fmi2_import_t* fmu)
     fmi2_import_real_variable_t* fmi2_import_get_real_variable_derivative_of(fmi2_import_real_variable_t* v)
-
     fmi2_causality_enu_t fmi2_import_get_causality(fmi2_import_variable_t *)
-    fmi2_import_unit_definitions_t * fmi2_import_get_unit_definitions(fmi2_import_t *)
-    void fmi2_import_get_dependencies_derivatives_on_inputs(fmi2_import_t *, size_t * *, size_t * *, char * *)
-    fmi2_import_variable_list_t * fmi2_import_prepend_to_var_list(fmi2_import_variable_list_t *, fmi2_import_variable_t *)
     fmi2_import_variable_list_t * fmi2_import_get_variable_aliases(fmi2_import_t *, fmi2_import_variable_t *)
     fmi2_import_variable_list_t * fmi2_import_get_variable_list(fmi2_import_t *, int)
     fmi2_import_variable_typedef_t * fmi2_import_get_variable_declared_type(fmi2_import_variable_t *)
-    void fmi2_import_set_debug_mode(fmi2_import_t *, int)
-    char * fmi2_import_get_vendor_name(fmi2_import_t *, size_t)
-
     fmi2_boolean_t fmi2_import_get_boolean_variable_start(fmi2_import_bool_variable_t *)
     fmi2_import_enumeration_typedef_t * fmi2_import_get_type_as_enum(fmi2_import_variable_typedef_t *)
-    double fmi2_import_get_SI_unit_offset(fmi2_import_unit_t *)
-
-    void fmi2_import_expand_variable_references(fmi2_import_t *, char *, char *, size_t)
     fmi2_import_unit_t * fmi2_import_get_real_type_unit(fmi2_import_real_typedef_t *)
     jm_status_enu_t fmi2_import_instantiate(fmi2_import_t* fmu, fmi2_string_t instanceName, fmi2_type_t fmuType, fmi2_string_t fmuResourceLocation, fmi2_boolean_t visible)
-
     int fmi2_import_get_enum_variable_min(fmi2_import_enum_variable_t *)
-
     char * fmi2_import_get_display_unit_name(fmi2_import_display_unit_t *)
     fmi2_real_t fmi2_import_get_real_variable_min(fmi2_import_real_variable_t *)
-
-
-
-
-
-
-
     fmi2_initial_enu_t fmi2_import_get_initial(fmi2_import_variable_t *)
-    size_t fmi2_import_get_variable_original_order(fmi2_import_variable_t *)
-
-    char * fmi2_variability_to_string(fmi2_variability_enu_t)
     int fmi2_import_get_real_type_is_unbounded(fmi2_import_real_typedef_t *)
     fmi2_import_variable_t * fmi2_import_get_variable(fmi2_import_variable_list_t *, size_t)
-
     char * fmi2_import_get_variable_description(fmi2_import_variable_t *)
-    fmi2_import_variable_list_t * fmi2_import_create_var_list(fmi2_import_t *, fmi2_import_variable_t *)
     char * fmi2_import_get_model_identifier_CS(fmi2_import_t *)
     char * fmi2_import_get_log_category(fmi2_import_t *, size_t)
-    fmi2_real_t fmi2_import_get_display_unit_offset(fmi2_import_display_unit_t *)
-
-
-
-
-    fmi2_import_variable_list_t * fmi2_import_get_sublist(fmi2_import_variable_list_t *, size_t, size_t)
-    fmi2_import_variable_list_t * fmi2_import_clone_variable_list(fmi2_import_variable_list_t *)
-
-
-    unsigned int fmi2_import_get_enum_type_min(fmi2_import_enumeration_typedef_t *)
-
-
     int fmi2_import_get_directional_derivative(fmi2_import_t *, fmi2_value_reference_t*, size_t, fmi2_value_reference_t*, size_t, fmi2_real_t*, fmi2_real_t*)
     char * fmi2_import_get_last_error(fmi2_import_t *)
     char * fmi2_import_get_enum_type_item_description(fmi2_import_enumeration_typedef_t *, unsigned int)
-    char * fmi2_causality_to_string(fmi2_causality_enu_t)
-    fmi2_real_t fmi2_import_convert_from_display_unit(fmi2_real_t, fmi2_import_display_unit_t *, int)
     char * fmi2_import_get_types_platform(fmi2_import_t *)
-    double fmi2_import_convert_from_SI_base_unit(double, fmi2_import_unit_t *)
     int fmi2_import_set_fmu_state(fmi2_import_t *, fmi2_FMU_state_t)
-    int * fmi2_import_get_SI_unit_exponents(fmi2_import_unit_t *)
     int fmi2_import_get_real_output_derivatives(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *, fmi2_real_t *)
-    char * fmi2_import_get_enum_type_value_name(fmi2_import_enumeration_typedef_t *, int)
     fmi2_value_reference_t fmi2_import_get_variable_vr(fmi2_import_variable_t *)
-    fmi2_import_display_unit_t * fmi2_import_get_unit_display_unit(fmi2_import_unit_t *, size_t)
     int fmi2_import_get_fmu_state(fmi2_import_t *, fmi2_FMU_state_t *)
     fmi2_import_display_unit_t * fmi2_import_get_type_display_unit(fmi2_import_real_typedef_t *)
     fmi2_import_variable_t * fmi2_import_get_variable_by_name(fmi2_import_t *, char *)
-    fmi2_initial_enu_t fmi2_get_valid_initial(fmi2_variability_enu_t, fmi2_causality_enu_t, fmi2_initial_enu_t)
     double fmi2_import_get_real_type_min(fmi2_import_real_typedef_t *)
     fmi2_import_variable_t * fmi2_import_get_variable_by_vr(fmi2_import_t *, fmi2_base_type_enu_t, fmi2_value_reference_t)
     fmi2_real_t fmi2_import_get_real_variable_max(fmi2_import_real_variable_t *)
     fmi2_import_variable_list_t * fmi2_import_get_derivatives_list(fmi2_import_t *)
-
     int fmi2_import_de_serialize_fmu_state(fmi2_import_t *, fmi2_byte_t *, size_t, fmi2_FMU_state_t *)
-
-    fmi2_import_variable_list_t * fmi2_import_filter_variables(fmi2_import_variable_list_t *, fmi2_import_variable_filter_function_ft, void *)
-
-    void fmi2_import_get_dependencies_outputs_on_states(fmi2_import_t *, size_t * *, size_t * *, char * *)
     void fmi2_import_free_variable_list(fmi2_import_variable_list_t *)
-    char * fmi2_base_type_to_string(fmi2_base_type_enu_t)
     void fmi2_log_forwarding(fmi2_component_t, fmi2_string_t, fmi2_status_t, fmi2_string_t, fmi2_string_t,...)
-
-
     fmi2_import_t * fmi2_import_parse_xml(fmi_import_context_t *, char *, fmi2_xml_callbacks_t *)
-    size_t fmi2_import_get_vendors_num(fmi2_import_t *)
     fmi2_real_t fmi2_import_get_real_variable_start(fmi2_import_real_variable_t *)
-
-
-
-
-    void fmi2_import_collect_model_counts(fmi2_import_t *, fmi2_import_model_counts_t *)
-
-    int fmi2_import_get_status(fmi2_import_t* fmu, const fmi2_status_kind_t s, fmi2_status_t*  value)
-
+    int fmi2_import_get_status(fmi2_import_t* fmu, const fmi2_status_kind_t s, fmi2_status_t* value)
     void fmi2_import_free(fmi2_import_t *)
     size_t fmi2_import_get_log_categories_num(fmi2_import_t *)
     char * fmi2_import_get_type_quantity(fmi2_import_variable_typedef_t *)
     char * fmi2_import_get_unit_name(fmi2_import_unit_t *)
     fmi2_import_variable_t * fmi2_import_get_variable_alias_base(fmi2_import_t *, fmi2_import_variable_t *)
-
-
-    char * fmi2_dependency_factor_kind_to_string(fmi2_dependency_factor_kind_enu_t)
-    char * fmi2_status_to_string(int)
     char * fmi2_import_get_model_identifier_ME(fmi2_import_t *)
-    char * fmi2_import_get_model_standard_version(fmi2_import_t *)
     int fmi2_import_get_boolean_status(fmi2_import_t *, int, fmi2_boolean_t *)
     void fmi2_import_destroy_dllfmu(fmi2_import_t *)
     int fmi2_import_get_integer(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *)
     int fmi2_import_get_string(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_string_t *)
-    size_t fmi2_import_get_output_index(fmi2_import_variable_t *)
     double fmi2_import_get_real_type_nominal(fmi2_import_real_typedef_t *)
-
-
     fmi2_import_real_typedef_t * fmi2_import_get_type_as_real(fmi2_import_variable_typedef_t *)
-    fmi2_import_unit_t * fmi2_import_get_base_unit(fmi2_import_display_unit_t *)
     char * fmi2_import_get_copyright(fmi2_import_t *)
     fmi2_real_t fmi2_import_convert_to_display_unit(fmi2_real_t, fmi2_import_display_unit_t *, int)
     fmi2_import_unit_t * fmi2_import_get_real_variable_unit(fmi2_import_real_variable_t *)
-    fmi2_initial_enu_t fmi2_get_default_initial(fmi2_variability_enu_t, fmi2_causality_enu_t)
     fmi2_import_display_unit_t * fmi2_import_get_real_variable_display_unit(fmi2_import_real_variable_t *)
     int fmi2_import_get_enum_variable_max(fmi2_import_enum_variable_t *)
     char * fmi2_import_get_type_name(fmi2_import_variable_typedef_t *)
     double fmi2_import_get_real_type_max(fmi2_import_real_typedef_t *)
     size_t fmi2_import_get_variable_list_size(fmi2_import_variable_list_t *)
-    double fmi2_import_convert_to_SI_base_unit(double, fmi2_import_unit_t *)
-    void fmi2_import_get_dependencies_derivatives_on_states(fmi2_import_t *, size_t * *, size_t * *, char * *)
-
-
-
-
-
     fmi2_variable_alias_kind_enu_t fmi2_import_get_variable_alias_kind(fmi2_import_variable_t *)
-    char * fmi2_naming_convention_to_string(fmi2_variable_naming_convension_enu_t)
     int fmi2_import_get_enum_variable_start(fmi2_import_enum_variable_t *)
-
-    fmi2_import_type_definitions_t * fmi2_import_get_type_definitions(fmi2_import_t *)
-    char * fmi2_initial_to_string(fmi2_initial_enu_t)
     fmi2_base_type_enu_t fmi2_import_get_variable_base_type(fmi2_import_variable_t *)
-
     fmi2_variability_enu_t fmi2_import_get_variability(fmi2_import_variable_t *)
-
-
     char * fmi2_import_get_type_description(fmi2_import_variable_typedef_t *)
-
-    char * fmi2_capability_to_string(fmi2_capabilities_enu_t)
     fmi2_import_integer_typedef_t * fmi2_import_get_type_as_int(fmi2_import_variable_typedef_t *)
     char * fmi2_import_get_enum_type_item_name(fmi2_import_enumeration_typedef_t *, unsigned int)
     char * fmi2_import_get_model_version(fmi2_import_t *)
-    fmi2_import_variable_list_t * fmi2_import_get_states_list(fmi2_import_t *)
-
-    fmi2_real_t fmi2_import_get_display_unit_factor(fmi2_import_display_unit_t *)
     fmi2_boolean_t fmi2_import_get_real_variable_relative_quantity(fmi2_import_real_variable_t* v)
     fmi2_boolean_t fmi2_import_get_real_variable_unbounded(fmi2_import_real_variable_t* v)
+
+    # unsorted & unused!!!
+    size_t fmi2_import_get_derivative_index(fmi2_import_variable_t *)
+    void  fmi2_default_callback_logger(fmi2_component_t c, fmi2_string_t instanceName, fmi2_status_t status, fmi2_string_t category, fmi2_string_t message, ...)
+    void fmi2_import_init_logger(jm_callbacks *, fmi2_callback_functions_t *)
+    fmi2_import_unit_t * fmi2_import_get_unit(fmi2_import_unit_definitions_t *, unsigned int)
+    fmi2_import_variable_typedef_t * fmi2_import_get_typedef(fmi2_import_type_definitions_t *, unsigned int)
+    size_t fmi2_import_get_input_index(fmi2_import_variable_t *)
+    size_t fmi2_SI_base_unit_exp_to_string(int *, size_t, char *)
+    double fmi2_import_get_SI_unit_factor(fmi2_import_unit_t *)
+    unsigned int fmi2_import_get_unit_definitions_number(fmi2_import_unit_definitions_t *)
+    fmi2_import_variable_list_t * fmi2_import_join_var_list(fmi2_import_variable_list_t *, fmi2_import_variable_list_t *)
+    size_t fmi2_import_get_state_index(fmi2_import_variable_t *)
+    int fmi2_import_var_list_push_back(fmi2_import_variable_list_t *, fmi2_import_variable_t *)
+    fmi2_import_variable_list_t * fmi2_import_append_to_var_list(fmi2_import_variable_list_t *, fmi2_import_variable_t *)
+    void fmi2_log_forwarding_v(fmi2_component_t, fmi2_string_t, int, fmi2_string_t, fmi2_string_t, __va_list_tag *)
+    fmi2_base_type_enu_t fmi2_import_get_base_type(fmi2_import_variable_typedef_t *)
+    unsigned int fmi2_import_get_unit_display_unit_number(fmi2_import_unit_t *)
+    fmi2_value_reference_t * fmi2_import_get_value_referece_list(fmi2_import_variable_list_t *)
+    int fmi2_import_clear_last_error(fmi2_import_t *)
+    unsigned int fmi2_import_get_type_definition_number(fmi2_import_type_definitions_t *)
+    char * fmi2_SI_base_unit_to_string(fmi2_SI_base_units_enu_t)
+    unsigned int fmi2_import_get_enum_type_max(fmi2_import_enumeration_typedef_t *)
+    fmi2_import_unit_definitions_t * fmi2_import_get_unit_definitions(fmi2_import_t *)
+    void fmi2_import_get_dependencies_derivatives_on_inputs(fmi2_import_t *, size_t * *, size_t * *, char * *)
+    fmi2_import_variable_list_t * fmi2_import_prepend_to_var_list(fmi2_import_variable_list_t *, fmi2_import_variable_t *)
+    void fmi2_import_set_debug_mode(fmi2_import_t *, int)
+    char * fmi2_import_get_vendor_name(fmi2_import_t *, size_t)
+    double fmi2_import_get_SI_unit_offset(fmi2_import_unit_t *)
+    void fmi2_import_expand_variable_references(fmi2_import_t *, char *, char *, size_t)
+    size_t fmi2_import_get_variable_original_order(fmi2_import_variable_t *)
+    char * fmi2_variability_to_string(fmi2_variability_enu_t)
+    fmi2_import_variable_list_t * fmi2_import_create_var_list(fmi2_import_t *, fmi2_import_variable_t *)
+    fmi2_real_t fmi2_import_get_display_unit_offset(fmi2_import_display_unit_t *)
+    fmi2_import_variable_list_t * fmi2_import_get_sublist(fmi2_import_variable_list_t *, size_t, size_t)
+    fmi2_import_variable_list_t * fmi2_import_clone_variable_list(fmi2_import_variable_list_t *)
+    unsigned int fmi2_import_get_enum_type_min(fmi2_import_enumeration_typedef_t *)
+    char * fmi2_causality_to_string(fmi2_causality_enu_t)
+    fmi2_real_t fmi2_import_convert_from_display_unit(fmi2_real_t, fmi2_import_display_unit_t *, int)
+    double fmi2_import_convert_from_SI_base_unit(double, fmi2_import_unit_t *)
+    int * fmi2_import_get_SI_unit_exponents(fmi2_import_unit_t *)
+    char * fmi2_import_get_enum_type_value_name(fmi2_import_enumeration_typedef_t *, int)
+    fmi2_import_display_unit_t * fmi2_import_get_unit_display_unit(fmi2_import_unit_t *, size_t)
+    fmi2_initial_enu_t fmi2_get_valid_initial(fmi2_variability_enu_t, fmi2_causality_enu_t, fmi2_initial_enu_t)
+    fmi2_import_variable_list_t * fmi2_import_filter_variables(fmi2_import_variable_list_t *, fmi2_import_variable_filter_function_ft, void *)
+    void fmi2_import_get_dependencies_outputs_on_states(fmi2_import_t *, size_t * *, size_t * *, char * *)
+    char * fmi2_base_type_to_string(fmi2_base_type_enu_t)
+    size_t fmi2_import_get_vendors_num(fmi2_import_t *)
+    void fmi2_import_collect_model_counts(fmi2_import_t *, fmi2_import_model_counts_t *)
+    char * fmi2_dependency_factor_kind_to_string(fmi2_dependency_factor_kind_enu_t)
+    char * fmi2_status_to_string(int)
+    char * fmi2_import_get_model_standard_version(fmi2_import_t *)
+    size_t fmi2_import_get_output_index(fmi2_import_variable_t *)
+    fmi2_import_unit_t * fmi2_import_get_base_unit(fmi2_import_display_unit_t *)
+    fmi2_initial_enu_t fmi2_get_default_initial(fmi2_variability_enu_t, fmi2_causality_enu_t)
+    double fmi2_import_convert_to_SI_base_unit(double, fmi2_import_unit_t *)
+    void fmi2_import_get_dependencies_derivatives_on_states(fmi2_import_t *, size_t * *, size_t * *, char * *)
+    char * fmi2_naming_convention_to_string(fmi2_variable_naming_convension_enu_t)
+    fmi2_import_type_definitions_t * fmi2_import_get_type_definitions(fmi2_import_t *)
+    char * fmi2_initial_to_string(fmi2_initial_enu_t)
+    char * fmi2_capability_to_string(fmi2_capabilities_enu_t)
+    fmi2_import_variable_list_t * fmi2_import_get_states_list(fmi2_import_t *)
+    fmi2_real_t fmi2_import_get_display_unit_factor(fmi2_import_display_unit_t *)
