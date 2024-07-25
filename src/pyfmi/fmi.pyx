@@ -4341,7 +4341,11 @@ cdef class FMUModelBase2(ModelBase):
         return status
 
     cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values):
-        return FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], _size, &values[0])
+        cdef int status
+        self._log_handler.capi_start_callback(self._current_log_size)
+        status = FMIL.fmi2_import_get_integer(self._fmu, &valueref[0], _size, &values[0])
+        self._log_handler.capi_end_callback(self._current_log_size)
+        return status
 
     def get_integer(self, valueref):
         """
@@ -4371,7 +4375,9 @@ cdef class FMUModelBase2(ModelBase):
         if nref == 0: ## get_integer([])
             return output_value
 
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_get_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> output_value.data)
+        self._log_handler.capi_end_callback(self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to get the Integer values.')
@@ -4404,7 +4410,9 @@ cdef class FMUModelBase2(ModelBase):
         if nref != np.size(set_value):
             raise FMUException('The length of valueref and values are inconsistent.')
 
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_set_integer(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, <FMIL.fmi2_integer_t*> set_value.data)
+        self._log_handler.capi_end_callback(self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to set the Integer values. See the log for possibly more information.')
@@ -4542,7 +4550,9 @@ cdef class FMUModelBase2(ModelBase):
         
         cdef FMIL.fmi2_string_t* output_value = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*nref)
 
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_get_string(self._fmu, <FMIL.fmi2_value_reference_t*> input_valueref.data, nref, output_value)
+        self._log_handler.capi_end_callback(self._current_log_size)
 
         if status != 0:
             raise FMUException('Failed to get the String values.')
@@ -4685,7 +4695,9 @@ cdef class FMUModelBase2(ModelBase):
             raise FMUException('The instance is not curent an instance of an ME-model or a CS-model. Use load_fmu for correct loading.')
 
         name = encode(name)
-        status =  FMIL.fmi2_import_instantiate(self._fmu, name, fmuType, NULL, vis)
+        self._log_handler.capi_start_callback(self._current_log_size)
+        status = FMIL.fmi2_import_instantiate(self._fmu, name, fmuType, NULL, vis)
+        self._log_handler.capi_end_callback(self._current_log_size)
 
         if status != FMIL.jm_status_success:
             raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
@@ -6106,7 +6118,9 @@ cdef class FMUModelBase2(ModelBase):
         if not self._supports_get_set_FMU_state():
             raise FMUException('This FMU does not support get and set FMU-state')
 
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_get_fmu_state(self._fmu, &(state.fmu_state))
+        self._log_handler.capi_end_callback(self._current_log_size)
 
         if status != 0:
             raise FMUException('An error occured while trying to get the FMU-state, see the log for possible more information')
@@ -6145,7 +6159,9 @@ cdef class FMUModelBase2(ModelBase):
         if not self._supports_get_set_FMU_state():
             raise FMUException('This FMU dos not support get and set FMU-state')
 
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_set_fmu_state(self._fmu, internal_state)
+        self._log_handler.capi_end_callback(self._current_log_size)
 
         if status != 0:
             raise FMUException('An error occured while trying to set the FMU-state, see the log for possible more information')
@@ -6275,7 +6291,9 @@ cdef class FMUModelBase2(ModelBase):
         cdef FMUState2 state = FMUState2()
         cdef FMIL.size_t n_byte = len(ser_fmu)
 
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_de_serialize_fmu_state(self._fmu, <FMIL.fmi2_byte_t *> ser_fmu.data, n_byte, &(state.fmu_state))
+        self._log_handler.capi_end_callback(self._current_log_size)
 
         if status != 0:
             raise FMUException('An error occured while deserializing the FMU-state, see the log for possible more information')
@@ -6976,11 +6994,13 @@ cdef class FMUModelBase2(ModelBase):
         if not self._provides_directional_derivatives():
             raise FMUException('This FMU does not provide directional derivatives')
 
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_get_directional_derivative(self._fmu,
                   <FMIL.fmi2_value_reference_t*> v_ref.data, np.size(v_ref),
                   <FMIL.fmi2_value_reference_t*> z_ref.data, np.size(z_ref),
                   <FMIL.fmi2_real_t*> dv.data,
                   <FMIL.fmi2_real_t*> dz.data)
+        self._log_handler.capi_end_callback(self._current_log_size)
 
         return status
 
@@ -7094,7 +7114,10 @@ cdef class FMUModelBase2(ModelBase):
         Returns the set of valid compatible platforms for the Model, extracted
         from the XML.
         """
-        return FMIL.fmi2_import_get_types_platform(self._fmu)
+        self._log_handler.capi_start_callback(self._current_log_size)
+        res = FMIL.fmi2_import_get_types_platform(self._fmu)
+        self._log_handler.capi_end_callback(self._current_log_size)
+        return res
 
 
 cdef class FMUModelCS2(FMUModelBase2):
@@ -7336,10 +7359,12 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         assert np.size(values) >= np.size(value_refs) and np.size(orders) >= np.size(value_refs)
 
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_set_real_input_derivatives(self._fmu,
                         <FMIL.fmi2_value_reference_t*> value_refs.data,
                         np.size(value_refs), <FMIL.fmi2_integer_t*> orders.data,
                         <FMIL.fmi2_real_t*> values.data)
+        self._log_handler.capi_end_callback(self._current_log_size)
 
         return status
 
@@ -7406,9 +7431,11 @@ cdef class FMUModelCS2(FMUModelBase2):
 
         assert np.size(values) >= np.size(value_refs) and np.size(orders) >= np.size(value_refs)
 
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_get_real_output_derivatives(self._fmu,
                     <FMIL.fmi2_value_reference_t*> value_refs.data, np.size(value_refs),
                     <FMIL.fmi2_integer_t*> orders.data, <FMIL.fmi2_real_t*> values.data)
+        self._log_handler.capi_end_callback(self._current_log_size)
 
         return status
 
@@ -7445,7 +7472,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         else:
             raise FMUException('Status kind has to be between 0 and 3')
 
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_get_status(self._fmu, fmi_status_kind, &status_value)
+        self._log_handler.capi_end_callback(self._current_log_size)
         if status != 0:
             raise FMUException('An error occured while retriving the status')
 
@@ -7544,8 +7573,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         else:
             raise FMUException('Status kind has to be between 0 and 3')
 
-
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_get_boolean_status(self._fmu, fmi_status_kind, &output)
+        self._log_handler.capi_end_callback(self._current_log_size)
         if status != 0:
             raise FMUException('An error occured while retriving the status')
 
@@ -7577,8 +7607,9 @@ cdef class FMUModelCS2(FMUModelBase2):
         else:
             raise FMUException('Status kind has to be between 0 and 3')
 
-
+        self._log_handler.capi_start_callback(self._current_log_size)
         status = FMIL.fmi2_import_get_string_status(self._fmu, fmi_status_kind, &output)
+        self._log_handler.capi_end_callback(self._current_log_size)
         if status != 0:
             raise FMUException('An error occured while retriving the status')
 
