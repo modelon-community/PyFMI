@@ -208,4 +208,8 @@ class Test_Log:
         # 4. Verify (2) generated valid XML
         log_filename = "xml_log_truncated.xml"
         fmu.extract_xml_log(log_filename)
-        parse_xml_log(log_filename, accept_errors = False) # should simply work, without issues
+        root = parse_xml_log(log_filename, accept_errors = False) # should simply work, without issues
+
+        final_msg = root.find("MaximumLogSizeExceeded")
+        assert len(final_msg) == 1, "MaximumLogSizeExceeded not found or found multiple times?"
+        assert final_msg[0].nodes[0].text == "Maximum log size was exceeded, log is truncated to fully include logging from last CAPI call not exceeding limit."
