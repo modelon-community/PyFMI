@@ -27,7 +27,7 @@ from pyfmi.fmi import FMUException
 
 ## Leaf parser ##
 
-floatingpoint_re = r"^[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?$"
+floatingpoint_re = "^[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?$"
 integer_re       = "^[0-9]+$"
 quoted_string_re = '^"(?:[^"]|"")*"$'
 boolean_re       = "True$|true$|False$|false$"
@@ -37,8 +37,8 @@ floatingpoint_pattern = re.compile(floatingpoint_re)
 quoted_string_pattern = re.compile(quoted_string_re)
 boolean_pattern       = re.compile(boolean_re)
 
-comma_re     = r"((?:[^,']|(?:'[^']*'))*)(?:,|\Z)"
-semicolon_re = r"((?:[^;']|(?:'[^']*'))*)(?:;|\Z)"
+comma_re     = "((?:[^,']|(?:'[^']*'))*)(?:,|\Z)"
+semicolon_re = "((?:[^;']|(?:'[^']*'))*)(?:;|\Z)"
 
 comma_pattern     = re.compile(comma_re)
 semicolon_pattern = re.compile(semicolon_re)
@@ -193,7 +193,7 @@ def parse_fmu_xml_log(filename, modulename = 'Model', accept_errors=False):
 
     return handler.get_root()
 
-def extract_xml_log(dest, log, modulename = 'Model'):
+def extract_xml_log(dest, log, modulename = 'Model', max_size = None):
     """
     Extract the XML contents of a FMU log and write as a new file dest, or extract into a stream.
     Input argument 'modulename' selects the module as recorded in the beginning of each line by
@@ -212,8 +212,11 @@ def extract_xml_log(dest, log, modulename = 'Model'):
             modulename --
                 Selects the module as recorded in the beginning of each line by FMI Library.
                 Default: 'Model'
+            max_size --
+                Only read until max_size characters, if None: no limit
+                Default: None
     """
-    # if it is a string, we assume we write to a file (since the file doesnt exist yet)
+    # if it is a string, we assume we write to a file (since the file doesn't exist yet)
     dest_is_file = isinstance(dest, str)
     if not dest_is_file:
         if not hasattr(dest, 'write'):
@@ -223,30 +226,35 @@ def extract_xml_log(dest, log, modulename = 'Model'):
         with open(log, 'r') as sourcefile:
             if dest_is_file:
                 with open(dest, 'w') as destfile:
-                    filter_xml_log(destfile.write, sourcefile, modulename)
+                    filter_xml_log(destfile.write, sourcefile, modulename, max_size = max_size)
             else:
-                filter_xml_log(dest.write, sourcefile, modulename)
+                filter_xml_log(dest.write, sourcefile, modulename, max_size = max_size)
     elif hasattr(log, 'readlines'):
             if dest_is_file:
                 with open(dest, 'w') as destfile:
-                    filter_xml_log(destfile.write, log.readlines(), modulename)
+                    filter_xml_log(destfile.write, log.readlines(), modulename, max_size = max_size)
             else:
-                filter_xml_log(dest.write, log.readlines(), modulename)
+                filter_xml_log(dest.write, log.readlines(), modulename, max_size = max_size)
     else:
         raise FMUException(
             "Input argument 'log' needs to be either a file, or a stream that supports 'readlines'."
         )
 
-def filter_xml_log(write, sourcefile, modulename = 'Model'):
+def filter_xml_log(write, sourcefile, modulename = 'Model', max_size = None):
     write('<?xml version="1.0" encoding="UTF-8"?>\n<JMILog category="info">\n')
 
     pre_re = r'FMIL: module = ' + modulename + r', log level = ([0-9]+): \[([^]]+)\]\[FMU status:([^]]+)\] '
     pre_pattern = re.compile(pre_re)
 
+    size_read = 0
     for line in sourcefile:
+        size_read = size_read + len(line) # linebreaks?
         m = pre_pattern.match(line)
         if m is not None:
             # log_level, category, fmu_status = m.groups()
             write(line[m.end():])
+        if max_size is not None and size_read >= max_size:
+            write('<MaximumLogSizeExceeded>Maximum log size was exceeded, log is truncated.</MaximumLogSizeExceeded>\n')
+            break
 
     write('</JMILog>\n')
