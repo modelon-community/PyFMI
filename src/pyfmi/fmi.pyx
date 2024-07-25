@@ -45,6 +45,7 @@ from pyfmi.common.core import create_temp_dir
 
 from pyfmi.fmi_util import cpr_seed, enable_caching
 from pyfmi.fmi_util cimport encode, decode
+from pyfmi.common.log.handler import LogHandlerDefault
 
 int   = np.int32
 np.int = np.int32
@@ -242,6 +243,7 @@ cdef class ModelBase:
         self._modelId = None
         self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
         self._result_file = None
+        self._log_handler = LogHandlerDefault(self._max_log_size)
 
     def _set_log_stream(self, stream):
         """ Function that sets the class property 'log_stream' and does error handling. """
@@ -589,7 +591,11 @@ cdef class ModelBase:
             except AttributeError:
                 raise FMUException("In order to extract the XML-log from a stream, it needs to support 'seek'")
 
-        extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name)
+        if isinstance(self._log_handler, LogHandlerDefault):
+            extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name,
+                            max_size = self._log_handler.log_checkpoint)
+        else:
+            extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name)
 
         if isinstance(file_name, str):
             return os.path.abspath(file_name)
@@ -753,6 +759,7 @@ cdef class ModelBase:
                     Default: 1024^3*2 (about 2GB)
         """
         self._max_log_size = number_of_characters
+        self._log_handler.max_log_size = number_of_characters
 
     def get_max_log_size(self):
         """

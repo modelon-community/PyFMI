@@ -37,6 +37,7 @@ cdef class ModelBase:
     cdef public object _additional_logger
     cdef public object _max_log_size_msg_sent
     cdef public object _result_file
+    cdef public object _log_handler
     cdef object _modelId
     cdef public int _log_is_stream, _invoked_dealloc
     cdef public unsigned long long int _current_log_size, _max_log_size
