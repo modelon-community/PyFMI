@@ -467,64 +467,83 @@ cdef extern from 'fmilib.h':
         pass
 
     #FMI SPECIFICATION METHODS (2.0)
-    int fmi2_import_do_step(fmi2_import_t *, fmi2_real_t, fmi2_real_t, fmi2_boolean_t) nogil
-    int fmi2_import_get_event_indicators(fmi2_import_t *, fmi2_real_t *, size_t)
-    int fmi2_import_completed_integrator_step(fmi2_component_t, fmi2_boolean_t, fmi2_boolean_t*, fmi2_boolean_t*)
-    int fmi2_import_exit_initialization_mode(fmi2_import_t* fmu)
-    int fmi2_import_enter_initialization_mode(fmi2_import_t* fmu)
-    int fmi2_import_get_derivatives(fmi2_import_t *, fmi2_real_t *, size_t)
-    int fmi2_import_reset(fmi2_import_t* fmu)
-    int fmi2_import_serialize_fmu_state(fmi2_import_t *, fmi2_FMU_state_t, fmi2_byte_t *, size_t)
-    int fmi2_import_set_real(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_real_t *)
-    int fmi2_import_get_boolean(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_boolean_t *)
-    int fmi2_import_get_state_value_references(fmi2_import_t *, fmi2_value_reference_t *, size_t)
-    int fmi2_import_set_debug_logging(fmi2_import_t *, fmi2_boolean_t, size_t, fmi2_string_t*)
-    int fmi2_import_enter_event_mode(fmi2_import_t* fmu)
-    int fmi2_import_new_discrete_states(fmi2_import_t* fmu, fmi2_event_info_t* eventInfo)
-    int fmi2_import_enter_continuous_time_mode(fmi2_import_t* fmu)
-    int fmi2_import_set_time(fmi2_import_t *, fmi2_real_t)
-    int fmi2_import_cancel_step(fmi2_import_t *)
-    int fmi2_import_set_boolean(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_boolean_t *)
-    int fmi2_import_set_continuous_states(fmi2_import_t *, fmi2_real_t *, size_t)
-    int fmi2_import_set_string(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_string_t *)
-    int fmi2_import_terminate(fmi2_import_t *)
-    int fmi2_import_get_real_status(fmi2_import_t *, int, fmi2_real_t *)
-    int fmi2_import_serialized_fmu_state_size(fmi2_import_t *, fmi2_FMU_state_t, size_t *)
-    int fmi2_import_get_nominals_of_continuous_states(fmi2_import_t* fmu, fmi2_real_t *, size_t nx)
-    int fmi2_import_get_real(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_real_t *)
-    int fmi2_import_get_continuous_states(fmi2_import_t *, fmi2_real_t *, size_t)
-    int fmi2_import_free_fmu_state(fmi2_import_t *, fmi2_FMU_state_t *)
-    #void fmi2_import_get_dependencies_outputs_on_inputs(fmi2_import_t *, size_t **, size_t **, char **)
-    void fmi2_import_get_outputs_dependencies(fmi2_import_t* fmu, size_t** startIndex, size_t** dependency, char** factorKind)
-    void fmi2_import_get_derivatives_dependencies(fmi2_import_t* fmu, size_t** startIndex, size_t** dependency, char** factorKind)
+    # basic
+    int fmi2_import_create_dllfmu(fmi2_import_t *, fmi2_fmu_kind_enu_t, fmi2_callback_functions_t *)
+    jm_status_enu_t fmi2_import_instantiate(fmi2_import_t* fmu, fmi2_string_t instanceName, fmi2_type_t fmuType, fmi2_string_t fmuResourceLocation, fmi2_boolean_t visible)
     void fmi2_import_free_instance(fmi2_import_t* fmu)
-    size_t fmi2_import_get_number_of_event_indicators(fmi2_import_t *)
-    size_t fmi2_import_get_number_of_continuous_states(fmi2_import_t *)
+    char * fmi2_import_get_types_platform(fmi2_import_t *)
     int fmi2_import_setup_experiment(fmi2_import_t* fmu, fmi2_boolean_t toleranceDefined, fmi2_real_t tolerance,fmi2_real_t startTime, fmi2_boolean_t stopTimeDefined,fmi2_real_t stopTime)
-    fmi2_import_variable_list_t* fmi2_import_get_outputs_list(fmi2_import_t *)
+    int fmi2_import_do_step(fmi2_import_t *, fmi2_real_t, fmi2_real_t, fmi2_boolean_t) nogil
+    int fmi2_import_completed_integrator_step(fmi2_component_t, fmi2_boolean_t, fmi2_boolean_t*, fmi2_boolean_t*)
+    int fmi2_import_terminate(fmi2_import_t *)
+
+    # modes
+    int fmi2_import_enter_initialization_mode(fmi2_import_t* fmu)
+    int fmi2_import_exit_initialization_mode(fmi2_import_t* fmu)
+    int fmi2_import_enter_event_mode(fmi2_import_t* fmu)
+    int fmi2_import_enter_continuous_time_mode(fmi2_import_t* fmu)
+
+    # misc
+    int fmi2_import_set_debug_logging(fmi2_import_t *, fmi2_boolean_t, size_t, fmi2_string_t*)
+    int fmi2_import_reset(fmi2_import_t* fmu)
+    int fmi2_import_cancel_step(fmi2_import_t *)
+    int fmi2_import_new_discrete_states(fmi2_import_t* fmu, fmi2_event_info_t* eventInfo)
+    char * fmi2_import_get_version(fmi2_import_t *)
+
+    # setting
+    int fmi2_import_set_time(fmi2_import_t *, fmi2_real_t)
+    int fmi2_import_set_integer(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *)
+    int fmi2_import_set_real(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_real_t *)
+    int fmi2_import_set_boolean(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_boolean_t *)
+    int fmi2_import_set_string(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_string_t *)
+
+    int fmi2_import_set_continuous_states(fmi2_import_t *, fmi2_real_t *, size_t)
+    int fmi2_import_set_real_input_derivatives(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *, fmi2_real_t *)
+
+    # getting
+    int fmi2_import_get_integer(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *)
+    int fmi2_import_get_real(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_real_t *)
+    int fmi2_import_get_string(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_string_t *)
+    int fmi2_import_get_boolean(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_boolean_t *)
+
+    int fmi2_import_get_derivatives(fmi2_import_t *, fmi2_real_t *, size_t)
+    int fmi2_import_get_event_indicators(fmi2_import_t *, fmi2_real_t *, size_t)
+    int fmi2_import_get_continuous_states(fmi2_import_t *, fmi2_real_t *, size_t)
+    int fmi2_import_get_nominals_of_continuous_states(fmi2_import_t* fmu, fmi2_real_t *, size_t nx)
+    int fmi2_import_get_directional_derivative(fmi2_import_t *, fmi2_value_reference_t*, size_t, fmi2_value_reference_t*, size_t, fmi2_real_t*, fmi2_real_t*)
+    int fmi2_import_get_real_output_derivatives(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *, fmi2_real_t *)
+
+    int fmi2_import_get_status(fmi2_import_t* fmu, const fmi2_status_kind_t s, fmi2_status_t* value)
+    int fmi2_import_get_integer_status(fmi2_import_t *, int, fmi2_integer_t *)
+    int fmi2_import_get_real_status(fmi2_import_t *, int, fmi2_real_t *)
+    int fmi2_import_get_boolean_status(fmi2_import_t *, int, fmi2_boolean_t *)
+    int fmi2_import_get_string_status(fmi2_import_t *, int, fmi2_string_t *)
+
+    # save states
+    int fmi2_import_get_fmu_state(fmi2_import_t *, fmi2_FMU_state_t *)
+    int fmi2_import_set_fmu_state(fmi2_import_t *, fmi2_FMU_state_t)
+    int fmi2_import_free_fmu_state(fmi2_import_t *, fmi2_FMU_state_t *)
+    int fmi2_import_serialized_fmu_state_size(fmi2_import_t *, fmi2_FMU_state_t, size_t *)
+    int fmi2_import_serialize_fmu_state(fmi2_import_t *, fmi2_FMU_state_t, fmi2_byte_t *, size_t)
+    int fmi2_import_de_serialize_fmu_state(fmi2_import_t *, fmi2_byte_t *, size_t, fmi2_FMU_state_t *)
 
     #FMI SPECIFICATION METHODS (1.0)
-    unsigned int fmi1_import_get_number_of_event_indicators(fmi1_import_t *)
-    unsigned int fmi1_import_get_number_of_continuous_states(fmi1_import_t *)
     int fmi1_import_get_state_value_references(fmi1_import_t *, fmi1_value_reference_t *, size_t)
     int fmi1_import_get_nominal_continuous_states(fmi1_import_t *, fmi1_real_t *, size_t)
     int fmi1_import_get_event_indicators(fmi1_import_t *, fmi1_real_t *, size_t)
     int fmi1_import_set_time(fmi1_import_t *, fmi1_real_t)
     int fmi1_import_set_debug_logging(fmi1_import_t *, fmi1_boolean_t)
     int fmi1_import_get_continuous_states(fmi1_import_t *, fmi1_real_t *, size_t)
-    #int fmi1_import_instantiate_model(fmi1_import_t *, fmi1_string_t, fmi1_string_t, fmi1_boolean_t)
     int fmi1_import_instantiate_model(fmi1_import_t *, fmi1_string_t)
     int fmi1_import_set_continuous_states(fmi1_import_t *, fmi1_real_t *, size_t)
     int fmi1_import_get_status(fmi1_import_t *, int, int *)
     int fmi1_import_completed_integrator_step(fmi1_import_t *, fmi1_boolean_t *)
     int fmi1_import_reset_slave(fmi1_import_t *)
     int fmi1_import_eventUpdate(fmi1_import_t *, fmi1_boolean_t, fmi1_event_info_t *)
-    int fmi1_import_get_canSignalEvents(fmi1_import_capabilities_t *)
     int fmi1_import_initialize(fmi1_import_t *, fmi1_boolean_t, fmi1_real_t, fmi1_event_info_t *)
     int fmi1_import_terminate_slave(fmi1_import_t *)
     int fmi1_import_terminate(fmi1_import_t *)
     int fmi1_import_cancel_step(fmi1_import_t *)
-    #int fmi1_import_instantiate_slave(fmi1_import_t *, fmi1_string_t, fmi1_string_t, fmi1_string_t, fmi1_string_t, fmi1_real_t, fmi1_boolean_t, fmi1_boolean_t, fmi1_boolean_t)
     int fmi1_import_instantiate_slave(fmi1_import_t *, fmi1_string_t, fmi1_string_t, fmi1_string_t, fmi1_real_t, fmi1_boolean_t, fmi1_boolean_t)
     int fmi1_import_initialize_slave(fmi1_import_t *, fmi1_real_t, fmi1_boolean_t, fmi1_real_t)
     int fmi1_import_get_derivatives(fmi1_import_t *, fmi1_real_t *, size_t)
@@ -539,16 +558,23 @@ cdef extern from 'fmilib.h':
     int fmi1_import_set_boolean(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_boolean_t *)
     int fmi1_import_get_boolean(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_boolean_t *)
 
-    char * fmi1_import_get_entry_point(fmi1_import_t *)
-    char * fmi1_import_get_generation_date_and_time(fmi1_import_t *)
-    char * fmi1_import_get_GUID(fmi1_import_t *)
+    char * fmi1_import_get_types_platform(fmi1_import_t *)
+    char * fmi1_import_get_model_types_platform(fmi1_import_t *)
+    int fmi1_import_get_real_output_derivatives(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_integer_t *, fmi1_real_t *)
+    int fmi1_import_get_string_status(fmi1_import_t *, int, fmi1_string_t *)
+    int fmi1_import_set_real_input_derivatives(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_integer_t *, fmi1_real_t *)
+    int fmi1_import_get_boolean_status(fmi1_import_t *, int, fmi1_boolean_t *)
+    int fmi1_import_get_integer_status(fmi1_import_t *, int, fmi1_integer_t *)
+    char * fmi1_import_get_version(fmi1_import_t *)
+    int fmi1_import_create_dllfmu(fmi1_import_t *, fmi1_callback_functions_t, int)
+    void fmi1_import_destroy_dllfmu(fmi1_import_t *)
+    void fmi1_import_free_slave_instance(fmi1_import_t *)
+    void fmi1_import_free_model_instance(fmi1_import_t *)
 
     #FMI HELPER METHODS (2.0)
-    # char * fmi2_get_types_platform()
     char * fmi2_import_get_GUID(fmi2_import_t *)
     char * fmi2_import_get_description(fmi2_import_t *)
     char * fmi2_import_get_author(fmi2_import_t *)
-    char * fmi2_import_get_version(fmi2_import_t *)
     char * fmi2_import_get_license(fmi2_import_t *)
     char * fmi2_import_get_generation_tool(fmi2_import_t *)
     char * fmi2_import_get_generation_date_and_time(fmi2_import_t *)
@@ -557,8 +583,6 @@ cdef extern from 'fmilib.h':
 
     fmi2_fmu_kind_enu_t fmi2_import_get_fmu_kind(fmi2_import_t *)
 
-    int fmi2_import_create_dllfmu(fmi2_import_t *, fmi2_fmu_kind_enu_t, fmi2_callback_functions_t *)
-
     unsigned int fmi2_import_get_capability(fmi2_import_t *, fmi2_capabilities_enu_t)
     double fmi2_import_get_default_experiment_stop(fmi2_import_t *)
     double fmi2_import_get_default_experiment_start(fmi2_import_t *)
@@ -566,14 +590,9 @@ cdef extern from 'fmilib.h':
 
 
     #FMI HELPER METHODS (1.0)
-    char * fmi1_import_get_version(fmi1_import_t *)
-    int fmi1_import_create_dllfmu(fmi1_import_t *, fmi1_callback_functions_t, int)
     void fmi1_log_forwarding(fmi1_component_t c, fmi1_string_t instanceName, fmi1_status_t status, fmi1_string_t category, fmi1_string_t message,...)
     char * fmi_import_get_dll_path(char *, char *, jm_callbacks *)
     char * fmi_import_get_model_description_path(char *, jm_callbacks *)
-    void fmi1_import_destroy_dllfmu(fmi1_import_t *)
-    void fmi1_import_free_slave_instance(fmi1_import_t *)
-    void fmi1_import_free_model_instance(fmi1_import_t *)
     void fmi1_import_free(fmi1_import_t *)
     fmi_import_context_t * fmi_import_allocate_context(jm_callbacks *)
     char * fmi1_import_get_mime_type(fmi1_import_t *)
@@ -583,11 +602,15 @@ cdef extern from 'fmilib.h':
     fmi1_import_t * fmi1_import_parse_xml(fmi_import_context_t *, char *)
     char * fmi1_variability_to_string(fmi1_variability_enu_t)
     char * fmi1_fmu_kind_to_string(fmi1_fmu_kind_enu_t)
-    # char * fmi1_get_platform()
     char * fmi1_status_to_string(int)
     fmi_version_enu_t fmi_import_get_fmi_version(fmi_import_context_t*, char*, char*)
     int fmi_import_rmdir(jm_callbacks*, char *)
-
+    unsigned int fmi1_import_get_number_of_event_indicators(fmi1_import_t *)
+    unsigned int fmi1_import_get_number_of_continuous_states(fmi1_import_t *)
+    int fmi1_import_get_canSignalEvents(fmi1_import_capabilities_t *)
+    char * fmi1_import_get_entry_point(fmi1_import_t *)
+    char * fmi1_import_get_generation_date_and_time(fmi1_import_t *)
+    char * fmi1_import_get_GUID(fmi1_import_t *)
 
     #FMI XML METHODS
 
@@ -597,16 +620,13 @@ cdef extern from 'fmilib.h':
     double fmi1_import_get_default_experiment_start(fmi1_import_t *)
     char * fmi1_import_get_author(fmi1_import_t *)
     char * fmi1_import_get_description(fmi1_import_t *)
-    char * fmi1_import_get_types_platform(fmi1_import_t *)
     char * fmi1_import_get_generation_tool(fmi1_import_t *)
     char * fmi1_import_get_model_version(fmi1_import_t *)
-    char * fmi1_import_get_model_types_platform(fmi1_import_t *)
     char * fmi1_import_get_model_name(fmi1_import_t *)
     char * fmi1_import_get_model_identifier(fmi1_import_t *)
     char * fmi1_import_get_vendor_name(fmi1_import_vendor_t *)
     fmi1_import_vendor_list_t * fmi1_import_get_vendor_list(fmi1_import_t *)
     char * fmi1_naming_convention_to_string(fmi1_variable_naming_convension_enu_t)
-
 
     fmi1_import_variable_t* fmi1_import_get_variable_by_name(fmi1_import_t* fmu, char* name)
     fmi1_import_variable_t* fmi1_import_get_variable_by_vr(fmi1_import_t* fmu, fmi1_base_type_enu_t baseType, fmi1_value_reference_t vr)
@@ -632,11 +652,9 @@ cdef extern from 'fmilib.h':
     #INTEGER
     int fmi1_import_get_integer_type_min(fmi1_import_integer_typedef_t *)
     int fmi1_import_get_integer_type_max(fmi1_import_integer_typedef_t *)
-    int fmi1_import_get_integer_status(fmi1_import_t *, int, fmi1_integer_t *)
 
     int fmi2_import_get_integer_type_min(fmi2_import_integer_typedef_t *)
     int fmi2_import_get_integer_type_max(fmi2_import_integer_typedef_t *)
-    int fmi2_import_get_integer_status(fmi2_import_t *, int, fmi2_integer_t *)
 
     int fmi1_import_get_integer_variable_max(fmi1_import_integer_variable_t *)
     int fmi1_import_get_integer_variable_min(fmi1_import_integer_variable_t *)
@@ -675,16 +693,12 @@ cdef extern from 'fmilib.h':
     fmi1_boolean_t fmi1_import_get_boolean_variable_start(fmi1_import_bool_variable_t *)
     char *         fmi1_import_get_string_variable_start(fmi1_import_string_variable_t *)
 
-
-
     #TYPES
     fmi1_variability_enu_t fmi1_import_get_variability(fmi1_import_variable_t *)
     fmi1_causality_enu_t   fmi1_import_get_causality(fmi1_import_variable_t *)
     fmi1_base_type_enu_t   fmi1_import_get_base_type(fmi1_import_variable_typedef_t *)
 
-
     fmi1_import_capabilities_t * fmi1_import_get_capabilities(fmi1_import_t *)
-
 
     #VARIABLE LIST METHODS
     fmi1_import_variable_list_t * fmi1_import_get_variable_list(fmi1_import_t *)
@@ -693,10 +707,7 @@ cdef extern from 'fmilib.h':
     size_t fmi1_import_get_variable_list_size(fmi1_import_variable_list_t *)
     fmi1_import_variable_t * fmi1_import_get_variable(fmi1_import_variable_list_t *, unsigned int)
 
-
     fmi1_variable_alias_kind_enu_t fmi1_import_get_variable_alias_kind(fmi1_import_variable_t *)
-
-
 
     unsigned int fmi1_import_get_unit_definitions_number(fmi1_import_unit_definitions_t *)
     unsigned int fmi1_import_get_maxOutputDerivativeOrder(fmi1_import_capabilities_t *)
@@ -705,8 +716,6 @@ cdef extern from 'fmilib.h':
 
     int fmi1_import_get_canHandleEvents(fmi1_import_capabilities_t *)
     fmi1_import_variable_list_t * fmi1_import_create_var_list(fmi1_import_t *, fmi1_import_variable_t *)
-
-
 
     fmi1_import_display_unit_t * fmi1_import_get_unit_display_unit(fmi1_import_unit_t *, size_t)
     char * fmi1_import_get_type_quantity(fmi1_import_variable_typedef_t *)
@@ -727,13 +736,10 @@ cdef extern from 'fmilib.h':
     int fmi1_import_get_canRejectSteps(fmi1_import_capabilities_t *)
     fmi1_import_vendor_t * fmi1_import_get_vendor(fmi1_import_vendor_list_t *, unsigned int)
     int fmi1_import_get_canNotUseMemoryManagementFunctions(fmi1_import_capabilities_t *)
-    int fmi1_import_get_real_output_derivatives(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_integer_t *, fmi1_real_t *)
-    int fmi1_import_get_string_status(fmi1_import_t *, int, fmi1_string_t *)
 
     ctypedef int(*fmi1_import_variable_filter_function_ft)(fmi1_import_variable_t *, void *)
     fmi1_import_variable_list_t * fmi1_import_filter_variables(fmi1_import_variable_list_t *, fmi1_import_variable_filter_function_ft, void *)
     fmi1_import_variable_list_t * fmi1_import_get_sublist(fmi1_import_variable_list_t *, unsigned int, unsigned int)
-    int fmi1_import_set_real_input_derivatives(fmi1_import_t *, fmi1_value_reference_t *, size_t, fmi1_integer_t *, fmi1_real_t *)
     char * fmi1_import_get_unit_name(fmi1_import_unit_t *)
     char * fmi1_import_get_display_unit_name(fmi1_import_display_unit_t *)
     fmi1_import_type_definitions_t * fmi1_import_get_type_definitions(fmi1_import_t *)
@@ -742,7 +748,6 @@ cdef extern from 'fmilib.h':
     fmi1_import_variable_list_t * fmi1_import_prepend_to_var_list(fmi1_import_variable_list_t *, fmi1_import_variable_list_t *)
     int fmi1_import_get_canBeInstantiatedOnlyOncePerProcess(fmi1_import_capabilities_t *)
     size_t fmi1_import_get_number_of_additional_models(fmi1_import_t *)
-    int fmi1_import_get_boolean_status(fmi1_import_t *, int, fmi1_boolean_t *)
     fmi1_import_variable_t * fmi1_import_get_variable_alias_base(fmi1_import_t *, fmi1_import_variable_t *)
     int fmi1_import_get_canHandleVariableCommunicationStepSize(fmi1_import_capabilities_t *)
 
@@ -775,7 +780,6 @@ cdef extern from 'fmilib.h':
     char * fmi1_causality_to_string(fmi1_causality_enu_t)
     char * fmi1_import_get_annotation_name(fmi1_import_annotation_t *)
 
-
     #OTHER HELPER METHODS
     void jm_set_default_callbacks(jm_callbacks *)
     jm_string jm_get_last_error(jm_callbacks *)
@@ -790,25 +794,12 @@ cdef extern from 'fmilib.h':
     jm_callbacks * jm_get_default_callbacks()
     void jm_log_v(jm_callbacks *, char *, int, char *, __va_list_tag *)
 
-    # unsorted !!!
-
-    ## invokes CAPI call
-    int fmi2_import_set_integer(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *)
-    int fmi2_import_get_string_status(fmi2_import_t *, int, fmi2_string_t *)
-    int fmi2_import_set_real_input_derivatives(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *, fmi2_real_t *)
-    jm_status_enu_t fmi2_import_instantiate(fmi2_import_t* fmu, fmi2_string_t instanceName, fmi2_type_t fmuType, fmi2_string_t fmuResourceLocation, fmi2_boolean_t visible)
-    int fmi2_import_get_directional_derivative(fmi2_import_t *, fmi2_value_reference_t*, size_t, fmi2_value_reference_t*, size_t, fmi2_real_t*, fmi2_real_t*)
-    char * fmi2_import_get_types_platform(fmi2_import_t *)
-    int fmi2_import_set_fmu_state(fmi2_import_t *, fmi2_FMU_state_t)
-    int fmi2_import_get_real_output_derivatives(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *, fmi2_real_t *)
-    int fmi2_import_get_fmu_state(fmi2_import_t *, fmi2_FMU_state_t *)
-    int fmi2_import_de_serialize_fmu_state(fmi2_import_t *, fmi2_byte_t *, size_t, fmi2_FMU_state_t *)
-    int fmi2_import_get_status(fmi2_import_t* fmu, const fmi2_status_kind_t s, fmi2_status_t* value)
-    int fmi2_import_get_boolean_status(fmi2_import_t *, int, fmi2_boolean_t *)
-    int fmi2_import_get_integer(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_integer_t *)
-    int fmi2_import_get_string(fmi2_import_t *, fmi2_value_reference_t *, size_t, fmi2_string_t *)
-
-    ## doesn't invoke CAPI call
+    # unsorted, but does NOT invoke CAPI calls
+    size_t fmi2_import_get_number_of_event_indicators(fmi2_import_t *)
+    size_t fmi2_import_get_number_of_continuous_states(fmi2_import_t *)
+    fmi2_import_variable_list_t* fmi2_import_get_outputs_list(fmi2_import_t *)
+    void fmi2_import_get_outputs_dependencies(fmi2_import_t* fmu, size_t** startIndex, size_t** dependency, char** factorKind)
+    void fmi2_import_get_derivatives_dependencies(fmi2_import_t* fmu, size_t** startIndex, size_t** dependency, char** factorKind)
     int fmi2_import_get_enum_type_item_value(fmi2_import_enumeration_typedef_t *, unsigned int)
     char * fmi2_import_get_variable_name(fmi2_import_variable_t *)
     fmi2_real_t fmi2_import_get_real_variable_nominal(fmi2_import_real_variable_t *)
