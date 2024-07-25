@@ -22,6 +22,7 @@ from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
 from pyfmi.tests.test_util import Dummy_FMUModelME2
 from pyfmi.fmi_util import decode
+from pyfmi import load_fmu
 
 import numpy as np
 file_path = os.path.dirname(os.path.abspath(__file__))
@@ -173,3 +174,38 @@ class Test_Log:
             raise Exception("An exception was not raised for 'event_node.not_in_node'")
         except AttributeError:
             pass
+
+    @testattr(stddist = True)
+    def test_truncated_log_valid_xml(self):
+        """ Test that a truncated log still contains valid XML."""
+        file_path = os.path.dirname(os.path.abspath(__file__))
+        fmu_name = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Description.fmu")
+
+        # 1. Simulate + determine log size that corresponds to a truncation (resulting in invalid XML)
+        fmu = load_fmu(fmu_name, log_level = 7)
+        fmu.set('_log_level', 8)
+
+        fmu.simulate()
+        log = fmu.get_log()
+        assert "</CompletedIntegratorStep>" in log[-1], "Test requirement, last line contains XML content"
+        org_log_size = sum([len(line) for line in log])
+        trunc_log_size = org_log_size - len(log[-1])
+
+        # 2. Simulate with corresponding truncation from (1) as max log size
+        fmu = load_fmu(fmu_name, log_level = 7)
+        fmu.set('_log_level', 8)
+        fmu.set_max_log_size(trunc_log_size)
+
+        fmu.simulate()
+        new_log = fmu.get_log()
+        full_log_msg = "The log file has reached its maximum size and further log messages will not be saved." # first part
+        assert full_log_msg in new_log[-1], "log full message is missing?"
+
+        # 3. Verify that more than just the last truncated line is missing
+        new_log_size = sum([len(line) for line in new_log])
+        assert new_log_size < trunc_log_size, "Log not really truncated?"
+
+        # 4. Verify (2) generated valid XML
+        log_filename = "xml_log_truncated.xml"
+        fmu.extract_xml_log(log_filename)
+        parse_xml_log(log_filename, accept_errors = False) # should simply work, without issues
