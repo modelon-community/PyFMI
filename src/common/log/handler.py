@@ -55,7 +55,7 @@ class LogHandlerDefault(LogHandler):
     )
 
     def _update_checkpoint(self, limit_reached: bool, current_log_size: int):
-        if limit_reached and (current_log_size <= self.max_log_size):
+        if not limit_reached and (current_log_size <= self.max_log_size):
             self._log_checkpoint = current_log_size
 
     def capi_start_callback(self, limit_reached: bool, current_log_size: int):
