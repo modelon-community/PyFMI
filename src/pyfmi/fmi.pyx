@@ -703,7 +703,7 @@ cdef class ModelBase:
             if self._max_log_size_msg_sent:
                 return
 
-            msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method."
+            msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method.\n"
             self._max_log_size_msg_sent = True
             self._current_log_size = self._current_log_size + len(msg)
 
@@ -2837,19 +2837,13 @@ cdef class FMUModelCS1(FMUModelBase):
         self._invoked_dealloc = 1
 
         if self._allocated_fmu == 1:
-            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_terminate_slave(self._fmu)
-            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._instantiated_fmu == 1:
-            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_free_slave_instance(self._fmu)
-            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_dll == 1:
-            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
-            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_xml == 1:
             FMIL.fmi1_import_free(self._fmu)
@@ -3433,19 +3427,13 @@ cdef class FMUModelME1(FMUModelBase):
         self._invoked_dealloc = 1
 
         if self._allocated_fmu == 1:
-            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_terminate(self._fmu)
-            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._instantiated_fmu == 1:
-            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_free_model_instance(self._fmu)
-            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_dll == 1:
-            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi1_import_destroy_dllfmu(self._fmu)
-            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_xml == 1:
             FMIL.fmi1_import_free(self._fmu)
@@ -7215,14 +7203,10 @@ cdef class FMUModelCS2(FMUModelBase2):
         self._invoked_dealloc = 1
 
         if self._initialized_fmu == 1:
-            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi2_import_terminate(self._fmu)
-            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_fmu == 1:
-            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi2_import_free_instance(self._fmu)
-            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_dll == 1:
             FMIL.fmi2_import_destroy_dllfmu(self._fmu)
@@ -7861,14 +7845,10 @@ cdef class FMUModelME2(FMUModelBase2):
         self._invoked_dealloc = 1
         
         if self._initialized_fmu == 1:
-            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi2_import_terminate(self._fmu)
-            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_fmu == 1:
-            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             FMIL.fmi2_import_free_instance(self._fmu)
-            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if self._allocated_dll == 1:
             FMIL.fmi2_import_destroy_dllfmu(self._fmu)
