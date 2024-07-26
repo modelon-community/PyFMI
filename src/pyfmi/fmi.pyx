@@ -740,6 +740,16 @@ cdef class ModelBase:
             self._additional_logger(module, log_level, message)
 
         full_msg = "FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message)
+
+        self._current_log_size = self._current_log_size + len(full_msg)
+        if self._current_log_size > self._max_log_size:
+            if self._max_log_size_msg_sent:
+                return
+
+            msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method.\n"
+            self._max_log_size_msg_sent = True
+            self._current_log_size = self._current_log_size + len(msg)
+
         if self._fmu_log_name != NULL:
             if self.file_object:
                 self.file_object.write(full_msg)
@@ -2994,7 +3004,9 @@ cdef class FMUModelCS1(FMUModelBase):
         cdef int status
 
         if status_kind == FMIL.fmi1_last_successful_time:
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             status = FMIL.fmi1_import_get_real_status(self._fmu, FMIL.fmi1_last_successful_time, &value)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
             if status != 0:
                 raise FMUException('Failed to retrieve the last successful time. See the log for possibly more information.')
