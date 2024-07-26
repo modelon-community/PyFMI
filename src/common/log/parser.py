@@ -27,7 +27,7 @@ from pyfmi.fmi import FMUException
 
 ## Leaf parser ##
 
-floatingpoint_re = "^[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?$"
+floatingpoint_re = r"^[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?$"
 integer_re       = "^[0-9]+$"
 quoted_string_re = '^"(?:[^"]|"")*"$'
 boolean_re       = "True$|true$|False$|false$"
@@ -37,8 +37,8 @@ floatingpoint_pattern = re.compile(floatingpoint_re)
 quoted_string_pattern = re.compile(quoted_string_re)
 boolean_pattern       = re.compile(boolean_re)
 
-comma_re     = "((?:[^,']|(?:'[^']*'))*)(?:,|\Z)"
-semicolon_re = "((?:[^;']|(?:'[^']*'))*)(?:;|\Z)"
+comma_re     = r"((?:[^,']|(?:'[^']*'))*)(?:,|\Z)"
+semicolon_re = r"((?:[^;']|(?:'[^']*'))*)(?:;|\Z)"
 
 comma_pattern     = re.compile(comma_re)
 semicolon_pattern = re.compile(semicolon_re)
