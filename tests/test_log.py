@@ -178,37 +178,44 @@ class Test_Log:
     @testattr(stddist = True)
     def test_truncated_log_valid_xml(self):
         """ Test that a truncated log still contains valid XML."""
+        # XXX: There currently is no FMU is linux binaries running on Ubuntu 20+ (libgfortran issues)
+        # XXX: This is not a very good test, since it largely tests the mocked implementation, but better than nothing
         file_path = os.path.dirname(os.path.abspath(__file__))
-        fmu_name = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Description.fmu")
+        fmu_name = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu")
 
         # 1. Simulate + determine log size that corresponds to a truncation (resulting in invalid XML)
-        fmu = load_fmu(fmu_name, log_level = 7)
-        fmu.set('_log_level', 8)
+        fmu = Dummy_FMUModelME2([], fmu_name, _connect_dll=False)
+        fmu._log = []
+        fmu._with_logging = True
 
         fmu.simulate()
         log = fmu.get_log()
-        assert "</CompletedIntegratorStep>" in log[-1], "Test requirement, last line contains XML content"
+        assert "</SomeXMLTag>" in log[-1], "Test requirement, last line contains XML content"
         org_log_size = sum([len(line) for line in log])
-        trunc_log_size = org_log_size - len(log[-1])
+        trunc_log_size = org_log_size - sum([len(line) for line in log[-3:]]) # cut away a few lines
 
         # 2. Simulate with corresponding truncation from (1) as max log size
-        fmu = load_fmu(fmu_name, log_level = 7)
-        fmu.set('_log_level', 8)
+        fmu = Dummy_FMUModelME2([], fmu_name, _connect_dll=False)
+        fmu._log = []
+        fmu._with_logging = True
         fmu.set_max_log_size(trunc_log_size)
 
         fmu.simulate()
         new_log = fmu.get_log()
-        full_log_msg = "The log file has reached its maximum size and further log messages will not be saved." # first part
-        assert full_log_msg in new_log[-1], "log full message is missing?"
+        full_log_msg = "The log file has reached its maximum size and further log messages will not be saved."
+        assert full_log_msg in new_log[-1], "log full message is missing"
 
-        # 3. Verify that more than just the last truncated line is missing
-        new_log_size = sum([len(line) for line in new_log])
-        assert new_log_size < trunc_log_size, "Log not really truncated?"
+        # 3. Verify that new log was actually truncated
+        assert len(new_log) < len(log), "New log does not contain fewer lines"
 
         # 4. Verify (2) generated valid XML
-        log_filename = "xml_log_truncated.xml"
-        fmu.extract_xml_log(log_filename)
-        root = parse_xml_log(log_filename, accept_errors = False) # should simply work, without issues
+        text_log_filename = "raw_text_log.txt"
+        with open(text_log_filename, "w") as file:
+            file.writelines(new_log)
+
+        xml_log_filename = "xml_log_truncated.xml"
+        extract_xml_log(xml_log_filename, text_log_filename, "Model", fmu._log_handler.log_checkpoint)
+        root = parse_xml_log(xml_log_filename, accept_errors = False) # should simply work, without issues
 
         final_msg = root.find("MaximumLogSizeExceeded")
         assert len(final_msg) == 1, "MaximumLogSizeExceeded not found or found multiple times?"
