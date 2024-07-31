@@ -24,3 +24,5 @@ src/pyfmi/LICENSE
 src/pyfmi/CHANGELOG
 
 src/pyfmi/version.txt
+
+__pycache__
