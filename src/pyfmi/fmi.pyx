@@ -1378,6 +1378,7 @@ cdef class FMUModelBase(ModelBase):
             fmu_temp_dir = encode(fmu)
         else:
             fmu_temp_dir  = encode(create_temp_dir())
+        fmu_temp_dir = os.path.abspath(fmu_temp_dir)
         self._fmu_temp_dir = <char*>FMIL.malloc((FMIL.strlen(fmu_temp_dir)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_temp_dir, fmu_temp_dir)
 
@@ -4070,6 +4071,7 @@ cdef class FMUModelBase2(ModelBase):
             fmu_temp_dir = encode(fmu)
         else:
             fmu_temp_dir  = encode(create_temp_dir())
+        fmu_temp_dir = os.path.abspath(fmu_temp_dir)
         self._fmu_temp_dir = <char*>FMIL.malloc((FMIL.strlen(fmu_temp_dir)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_temp_dir, fmu_temp_dir)
 
