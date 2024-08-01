@@ -695,17 +695,16 @@ cdef class ModelBase:
 
         if self._additional_logger:
             self._additional_logger(module, log_level, message)
+        
+        if self._max_log_size_msg_sent:
+            return
 
         msg = "FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message)
 
-        self._current_log_size = self._current_log_size + len(msg)
-        if self._current_log_size > self._max_log_size:
-            if self._max_log_size_msg_sent:
-                return
-
+        if self._current_log_size + len(msg) > self._max_log_size:
             msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method.\n"
             self._max_log_size_msg_sent = True
-            self._current_log_size = self._current_log_size + len(msg)
+        self._current_log_size = self._current_log_size + len(msg)
 
         if self._fmu_log_name != NULL:
             if self.file_object:
@@ -739,25 +738,24 @@ cdef class ModelBase:
         if self._additional_logger:
             self._additional_logger(module, log_level, message)
 
-        full_msg = "FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message)
+        if self._max_log_size_msg_sent:
+            return
 
-        self._current_log_size = self._current_log_size + len(full_msg)
-        if self._current_log_size > self._max_log_size:
-            if self._max_log_size_msg_sent:
-                return
+        msg = "FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message)
 
+        if self._current_log_size + len(msg) > self._max_log_size:
             msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method.\n"
             self._max_log_size_msg_sent = True
-            self._current_log_size = self._current_log_size + len(msg)
+        self._current_log_size = self._current_log_size + len(msg)
 
         if self._fmu_log_name != NULL:
             if self.file_object:
-                self.file_object.write(full_msg)
+                self.file_object.write(msg)
             else:
                 with open(self._fmu_log_name,'a') as file:
-                    file.write(full_msg)
+                    file.write(msg)
         elif self._log_stream is not None:
-            self._log_stream.write(full_msg)
+            self._log_stream.write(msg)
         else:
             if isinstance(self._log, list):
                 self._log.append([module,log_level,message])
