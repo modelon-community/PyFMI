@@ -22,7 +22,6 @@ from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
 from pyfmi.tests.test_util import Dummy_FMUModelME2
 from pyfmi.fmi_util import decode
-from pyfmi import load_fmu
 
 import numpy as np
 file_path = os.path.dirname(os.path.abspath(__file__))
@@ -190,9 +189,10 @@ class Test_Log:
 
         fmu.simulate()
         log = fmu.get_log()
+        assert not fmu.has_reached_max_log_size()
         assert "</SomeXMLTag>" in log[-1], "Test requirement, last line contains XML content"
         org_log_size = sum([len(line) for line in log])
-        trunc_log_size = org_log_size - sum([len(line) for line in log[-3:]]) # cut away a few lines
+        trunc_log_size = org_log_size - sum([len(line) for line in log[-4:]]) # cut away a few lines
 
         # 2. Simulate with corresponding truncation from (1) as max log size
         fmu = Dummy_FMUModelME2([], fmu_name, _connect_dll=False)
@@ -202,8 +202,10 @@ class Test_Log:
 
         fmu.simulate()
         new_log = fmu.get_log()
+        assert fmu.has_reached_max_log_size()
         full_log_msg = "The log file has reached its maximum size and further log messages will not be saved."
         assert full_log_msg in new_log[-1], "log full message is missing"
+        assert "SomeNestedXMLTag" in new_log[-2], "Truncated log would not be invalid XML"
 
         # 3. Verify that new log was actually truncated
         assert len(new_log) < len(log), "New log does not contain fewer lines"
@@ -220,3 +222,28 @@ class Test_Log:
         final_msg = root.find("MaximumLogSizeExceeded")
         assert len(final_msg) == 1, "MaximumLogSizeExceeded not found or found multiple times?"
         assert final_msg[0].nodes[0].text == "Maximum log size was exceeded, log is truncated to fully include logging from last CAPI call not exceeding limit."
+
+    @testattr(stddist = True)
+    def test_resume_logging_on_increased_max_log_size(self):
+        """Test that logging will resume when increasing max log size & previously exceeding the maximal size."""
+        file_path = os.path.dirname(os.path.abspath(__file__))
+        fmu_name = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu")
+
+        fmu = Dummy_FMUModelME2([], fmu_name, _connect_dll=False)
+        fmu._log = []
+        fmu._with_logging = True
+
+        fmu.set_max_log_size(1)
+        fmu.initialize()
+        assert fmu.has_reached_max_log_size()
+        full_log_msg = "The log file has reached its maximum size and further log messages will not be saved."
+        log = fmu.get_log()
+        assert full_log_msg in log[-1], "log full message is missing"
+        trunc_log_len = len(log)
+
+        fmu.set_max_log_size(1024*1024)
+        assert not fmu.has_reached_max_log_size()
+
+        fmu.simulate()
+        assert not fmu.has_reached_max_log_size()
+        assert trunc_log_len < len(fmu.get_log()), "Logging did not appear to resume"
