@@ -15,11 +15,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-"""
-XXX: There are some practical limitations around how this works 
-if one updated the maximum log size after previously exceeding it
-"""
-
 class LogHandler:
     """Base class for a log handling class."""
     def __init__(self, max_log_size: int):

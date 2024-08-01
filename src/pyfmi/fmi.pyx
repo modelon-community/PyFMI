@@ -774,6 +774,9 @@ cdef class ModelBase:
         self._max_log_size = number_of_characters
         self._log_handler.max_log_size = number_of_characters
 
+        if self._max_log_size > self._current_log_size: # re-enable logging
+            self._max_log_size_msg_sent = False
+
     def get_max_log_size(self):
         """
         Returns the limit (in characters) of the log file.
