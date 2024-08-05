@@ -343,7 +343,7 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
         if self._with_logging:
             if self._max_log_size_msg_sent:
                 return
-            msg = self._log_msg_prefix + " " + msg
+            msg = f"{self._log_msg_prefix} {msg}"
             if self._current_log_size + len(msg) > self._max_log_size:
                 msg = "The log file has reached its maximum size and further log messages will not be saved.\n"
                 self._max_log_size_msg_sent = True

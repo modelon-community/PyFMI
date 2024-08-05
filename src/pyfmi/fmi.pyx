@@ -242,7 +242,7 @@ cdef class ModelBase:
         self._modelId = None
         self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
         self._result_file = None
-        # XXX: Needs to be here for now, due to cicular dependency 
+        # XXX: Needs to be here for now, due to circular dependency 
         from pyfmi.common.log import LogHandlerDefault
         self._log_handler = LogHandlerDefault(self._max_log_size)
 
@@ -578,7 +578,7 @@ cdef class ModelBase:
                 file_path -- path to extracted XML file
             otherwise function returns nothing
         """
-        # XXX: Needs to be here for now, due to cicular dependency, since pyfmi.common.log.parser imports FMUException (from this file)
+        # XXX: Needs to be here for now, due to circular dependency, since pyfmi.common.log.parser imports FMUException (from this file)
         from pyfmi.common.log import extract_xml_log
 
         if file_name is None:
@@ -593,7 +593,7 @@ cdef class ModelBase:
             except AttributeError:
                 raise FMUException("In order to extract the XML-log from a stream, it needs to support 'seek'")
 
-        # XXX: Needs to be here for now, due to cicular dependency 
+        # XXX: Needs to be here for now, due to circular dependency 
         from pyfmi.common.log import LogHandlerDefault
         if isinstance(self._log_handler, LogHandlerDefault):
             extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name,
