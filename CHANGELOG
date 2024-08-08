@@ -3,6 +3,7 @@
 --- Future release ---
     * Updated the error message displayed when loading FMUs with needsExecutionTool set to True.
     * Loading unzipped FMUs now also works with relative paths.
+    * Enabled setting logging categories in FMI2 via "set_debug_logging".
 
 --- PyFMI-2.13.1 ---
     * Numpy 2.x support

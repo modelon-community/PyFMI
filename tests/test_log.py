@@ -17,7 +17,7 @@
 
 import os
 
-from pyfmi import testattr
+from pyfmi import load_fmu, testattr
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
 from pyfmi.tests.test_util import Dummy_FMUModelME2
@@ -173,4 +173,18 @@ class Test_Log:
             raise Exception("An exception was not raised for 'event_node.not_in_node'")
         except AttributeError:
             pass
-        
+
+    @testattr(stddist = True)
+    def test_setting_debug_logging(self):
+        """Test that set_debug_logging works."""
+        file_path = os.path.dirname(os.path.abspath(__file__))
+        fmu_name = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Description.fmu")
+
+        fmu = load_fmu(fmu_name)
+
+        cats = fmu.get_categories()
+        assert len(cats), "No logging categories detected"
+
+        # simply test there are no errors in setting them
+        for c in cats:
+            fmu.set_debug_logging(True, [c])

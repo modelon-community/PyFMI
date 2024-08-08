@@ -4830,11 +4830,11 @@ cdef class FMUModelBase2(ModelBase):
         cdef int                  status
         cdef FMIL.size_t          nCat = len(categories)
 
-        # self.callbacks.log_level = FMIL.jm_log_level_warning if logging_on else FMIL.jm_log_level_nothing
-
         if logging_on:
+            self.callbacks.log_level = FMIL.jm_log_level_warning
             log = 1
         else:
+            self.callbacks.log_level = FMIL.jm_log_level_nothing
             log = 0
 
         self._enable_logging = bool(log)
