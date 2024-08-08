@@ -18,6 +18,7 @@
 import os
 
 from pyfmi import load_fmu, testattr
+from pyfmi.fmi import FMUException
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
 from pyfmi.tests.test_util import Dummy_FMUModelME2
@@ -188,3 +189,25 @@ class Test_Log:
         # simply test there are no errors in setting them
         for c in cats:
             fmu.set_debug_logging(True, [c])
+
+
+    @testattr(stddist = True)
+    def test_setting_debug_logging_invalid(self):
+        """Test that set_debug_logging raises an Exception for trying to set an invalid logging category."""
+        file_path = os.path.dirname(os.path.abspath(__file__))
+        fmu_name = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Description.fmu")
+
+        fmu = load_fmu(fmu_name)
+
+        cats = fmu.get_categories()
+        assert len(cats), "No logging categories detected"
+
+        invalid_cat = "meow"
+        assert invalid_cat not in cats, "Invalid testing category is actually valid"
+
+        ## TODO: Pytest + check error message
+        try:
+            fmu.set_debug_logging(True, [invalid_cat])
+            raise Exception("Expected an FMUException to be raises")
+        except FMUException:
+            pass
