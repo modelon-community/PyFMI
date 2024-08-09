@@ -173,4 +173,3 @@ class Test_Log:
             raise Exception("An exception was not raised for 'event_node.not_in_node'")
         except AttributeError:
             pass
-        
