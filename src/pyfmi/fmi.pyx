@@ -596,8 +596,9 @@ cdef class ModelBase:
         # XXX: Needs to be here for now, due to circular dependency 
         from pyfmi.common.log import LogHandlerDefault
         if isinstance(self._log_handler, LogHandlerDefault):
+            max_size = self._log_handler.log_checkpoint if self._max_log_size_msg_sent else None
             extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name,
-                            max_size = self._log_handler.log_checkpoint)
+                            max_size = max_size)
         else:
             extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name)
 
