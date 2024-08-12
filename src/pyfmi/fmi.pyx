@@ -4811,8 +4811,8 @@ cdef class FMUModelBase2(ModelBase):
 
     def set_debug_logging(self, logging_on, categories = []):
         """
-        Specifies if the debugging should be turned on or off.
-        Currently the only allowed value for categories is an empty list.
+        Specifies if the debugging should be turned on or off and calls fmi2SetDebugLogging
+        for the specified categories, after checking they are valid. 
 
         Parameters::
 
@@ -4823,26 +4823,36 @@ cdef class FMUModelBase2(ModelBase):
                 List of categories to log, call get_categories() for list of categories.
                 Default: [] (all categories)
 
-        Calls the low-level FMI function: fmi2SetDebuggLogging
+        Calls the low-level FMI function: fmi2SetDebugLogging
         """
 
         cdef FMIL.fmi2_boolean_t  log
         cdef int                  status
-        cdef FMIL.size_t          nCat = 0
-
-        self.callbacks.log_level = FMIL.jm_log_level_warning if logging_on else FMIL.jm_log_level_nothing
+        cdef FMIL.size_t          n_cat = len(categories)
+        cdef list valid_categories
 
         if logging_on:
+            self.callbacks.log_level = FMIL.jm_log_level_warning
             log = 1
         else:
+            self.callbacks.log_level = FMIL.jm_log_level_nothing
             log = 0
 
         self._enable_logging = bool(log)
 
-        if len(categories) > 0:
-            raise FMUException('Currently the logging of categories is not available. See the docstring for more information')
+        if n_cat > 0:
+            valid_categories = self.get_categories()
 
-        status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, nCat, NULL)
+        cdef FMIL.fmi2_string_t* val = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*n_cat)
+        for i, c in enumerate(categories):
+            if c not in valid_categories:
+                FMIL.free(val)
+                raise FMUException(f"'{c}' is not a valid logging category.")
+            val[i] = <FMIL.fmi2_string_t>c
+
+        status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, n_cat, val)
+
+        FMIL.free(val)
 
         if status != 0:
             raise FMUException('Failed to set the debugging option.')
