@@ -242,8 +242,6 @@ cdef class ModelBase:
         self._modelId = None
         self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
         self._result_file = None
-        # XXX: Needs to be here for now, due to circular dependency 
-        from pyfmi.common.log import LogHandlerDefault
         self._log_handler = LogHandlerDefault(self._max_log_size)
 
     def _set_log_stream(self, stream):
@@ -593,10 +591,8 @@ cdef class ModelBase:
             except AttributeError:
                 raise FMUException("In order to extract the XML-log from a stream, it needs to support 'seek'")
 
-        # XXX: Needs to be here for now, due to circular dependency 
-        from pyfmi.common.log import LogHandlerDefault
         if isinstance(self._log_handler, LogHandlerDefault):
-            max_size = self._log_handler.log_checkpoint if self._max_log_size_msg_sent else None
+            max_size = self._log_handler.get_log_checkpoint() if self._max_log_size_msg_sent else None
             extract_xml_log(file_name, self._log_stream if is_stream else self.get_log_filename(), module_name,
                             max_size = max_size)
         else:
@@ -773,7 +769,7 @@ cdef class ModelBase:
                     Default: 1024^3*2 (about 2GB)
         """
         self._max_log_size = number_of_characters
-        self._log_handler.max_log_size = number_of_characters
+        self._log_handler.set_max_log_size(number_of_characters)
 
         if self._max_log_size > self._current_log_size: # re-enable logging
             self._max_log_size_msg_sent = False
@@ -9051,3 +9047,42 @@ cdef class WorkerClass2:
             ret = <FMIL.fmi2_value_reference_t*>PyArray_DATA(self._tmp4_ref)
 
         return ret
+
+# XXX: Should likely be moved to pyfmi/common/log/
+# This does require some re-factoring due to circular dependency on FMUException
+cdef class LogHandler:
+    """Base class for a log handling class."""
+    def __init__(self, max_log_size):
+        self._max_log_size = max_log_size
+
+    cpdef void set_max_log_size(self, unsigned long val):
+        self._max_log_size = val
+
+    cpdef void capi_start_callback(self, int limit_reached, unsigned long current_log_size):
+        """Callback invoked directly before an FMI CAPI call."""
+        pass
+
+    cpdef void capi_end_callback(self, int limit_reached, unsigned long current_log_size):
+        """Callback invoked directly after an FMI CAPI call."""
+        pass
+
+cdef class LogHandlerDefault(LogHandler):
+    """Default LogHandler that uses checkpoints around FMI CAPI calls to 
+    ensure logs are truncated at checkpoints. For FMUs generating XML during 
+    CAPI calls, this ensures valid XML. """
+    def __init__(self, max_log_size):
+        super().__init__(max_log_size)
+        self._log_checkpoint = 0
+
+    cdef void _update_checkpoint(self, int limit_reached, unsigned long current_log_size):
+        if not limit_reached and (current_log_size <= self._max_log_size):
+            self._log_checkpoint = current_log_size
+
+    cpdef unsigned long get_log_checkpoint(self):
+        return self._log_checkpoint
+
+    cpdef void capi_start_callback(self, int limit_reached, unsigned long current_log_size):
+        self._update_checkpoint(limit_reached, current_log_size)
+
+    cpdef void capi_end_callback(self, int limit_reached, unsigned long current_log_size):
+        self._update_checkpoint(limit_reached, current_log_size)

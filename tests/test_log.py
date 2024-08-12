@@ -216,7 +216,7 @@ class Test_Log:
             file.writelines(new_log)
 
         xml_log_filename = "xml_log_truncated.xml"
-        extract_xml_log(xml_log_filename, text_log_filename, "Model", fmu._log_handler.log_checkpoint)
+        extract_xml_log(xml_log_filename, text_log_filename, "Model", fmu._log_handler.get_log_checkpoint())
         root = parse_xml_log(xml_log_filename, accept_errors = False) # should simply work, without issues
 
         final_msg = root.find("MaximumLogSizeExceeded")
