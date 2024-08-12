@@ -4993,7 +4993,7 @@ cdef class FMUModelBase2(ModelBase):
 
         cdef FMIL.fmi2_boolean_t  log
         cdef int                  status
-        cdef FMIL.size_t          nCat = len(categories)
+        cdef FMIL.size_t          n_cat = len(categories)
         cdef list valid_categories
 
         if logging_on:
@@ -5005,17 +5005,17 @@ cdef class FMUModelBase2(ModelBase):
 
         self._enable_logging = bool(log)
 
-        if nCat > 0:
+        if n_cat > 0:
             valid_categories = self.get_categories()
 
-        cdef FMIL.fmi2_string_t* val = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*nCat)
+        cdef FMIL.fmi2_string_t* val = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*n_cat)
         for i, c in enumerate(categories):
             if c not in valid_categories:
                 FMIL.free(val)
                 raise FMUException(f"'{c}' is not a valid logging category.")
             val[i] = <FMIL.fmi2_string_t>c
 
-        status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, nCat, val)
+        status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, n_cat, val)
 
         FMIL.free(val)
 
