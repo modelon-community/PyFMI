@@ -37,6 +37,7 @@ cdef class ModelBase:
     cdef public object _additional_logger
     cdef public object _max_log_size_msg_sent
     cdef public object _result_file
+    cdef public object _log_handler
     cdef object _modelId
     cdef public int _log_is_stream, _invoked_dealloc
     cdef public unsigned long long int _current_log_size, _max_log_size
@@ -261,3 +262,18 @@ cdef class WorkerClass2:
     cdef np.ndarray get_value_reference_numpy_vector(self, int index)
     cdef np.ndarray get_real_numpy_vector(self, int index)
     cpdef verify_dimensions(self, int dim)
+
+cdef class LogHandler:
+    cdef unsigned long _max_log_size
+
+    cpdef void set_max_log_size(self, unsigned long val)
+    cpdef void capi_start_callback(self, int limit_reached, unsigned long current_log_size)
+    cpdef void capi_end_callback  (self, int limit_reached, unsigned long current_log_size)
+
+cdef class LogHandlerDefault(LogHandler):
+    cdef unsigned long _log_checkpoint
+
+    cdef void _update_checkpoint (self, int limit_reached, unsigned long current_log_size)
+    cpdef unsigned long get_log_checkpoint(self)
+    cpdef void capi_start_callback(self, int limit_reached, unsigned long current_log_size)
+    cpdef void capi_end_callback  (self, int limit_reached, unsigned long current_log_size)

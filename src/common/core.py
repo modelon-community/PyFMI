@@ -548,7 +548,7 @@ class TrajectoryLinearInterpolation(Trajectory):
 
     def eval(self,x):
         """
-        Evaluate the trajectory at a specifed abscissa.
+        Evaluate the trajectory at a specified abscissa.
 
         Parameters::
         
@@ -602,7 +602,7 @@ class TrajectoryConstantInterpolationExtrapolation(Trajectory):
     
     def set_mode(self, mode):
         """
-        Specifices whether or not forward or backward mode should be
+        Specifies whether or not forward or backward mode should be
         used in the interpolation/extrapolation.
         """
         if mode.upper() == "FORWARD":

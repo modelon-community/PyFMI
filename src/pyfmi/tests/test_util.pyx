@@ -330,7 +330,25 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
         self.states = self.get_states_list()
         self._nominal_continuous_states = np.ones(self.get_ode_sizes()[0])
 
+        # logging related
+        self._log = []
+        self._with_logging = False
+        self._completed_step_counter = 0 # for logging
+        self._log_msg_prefix = "FMIL: module = Model, log level = 4: [INFO][FMU status:OK]"
+
         self.reset()
+    
+    def _logger(self, msg):
+        # emulating logging from a CAPI call
+        if self._with_logging:
+            if self._max_log_size_msg_sent:
+                return
+            msg = f"{self._log_msg_prefix} {msg}"
+            if self._current_log_size + len(msg) > self._max_log_size:
+                msg = "The log file has reached its maximum size and further log messages will not be saved.\n"
+                self._max_log_size_msg_sent = True
+            self._current_log_size = self._current_log_size + len(msg)
+            self._log.append(msg)
 
     def reset(self, *args, **kwargs):
         self.values = {}
@@ -354,6 +372,12 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
 
     def enter_initialization_mode(self, *args, **kwargs):
         self._has_entered_init_mode = True
+        if self._with_logging:
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+            self._logger("<Initialization>\n")
+            self._logger("\t<SomeNestedXMLTag>init!</SomeNestedXMLTag>\n")
+            self._logger("</Initialization>\n")
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return 0
 
     def exit_initialization_mode(self, *args, **kwargs):
@@ -377,6 +401,14 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
             self.values[states[state].value_reference] = self.continuous_states[i]
         for alias in self.negated_aliases:
             self.values[self.variables[alias[1]].value_reference] = -self.values[self.variables[alias[0]].value_reference]
+
+        if self._with_logging:
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+            self._logger("<SomeXMLTag value='1'>\n")
+            self._logger("\t<SomeNestedXMLTag>{}</SomeNestedXMLTag>\n".format(self._completed_step_counter))
+            self._logger("</SomeXMLTag>\n")
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+            self._completed_step_counter += 1
         return [False, False]
 
     def get_derivatives(self):
@@ -412,3 +444,6 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
             return super().nominal_continuous_states
 
     nominal_continuous_states = property(get_nominal_continuous_states_testimpl)
+
+    def get_log(self):
+        return self._log

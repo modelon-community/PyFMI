@@ -22,4 +22,4 @@ The log analysis toolkit.
 from pyfmi.common.log.parser import parse_xml_log, parse_xml_log, extract_xml_log, parse_fmu_xml_log
 from pyfmi.common.log.prettyprinter import prettyprint_to_file
 
-__all__=['parser','tree','prettyprinter']
+__all__=['parser', 'tree', 'prettyprinter']
