@@ -5015,9 +5015,9 @@ cdef class FMUModelBase2(ModelBase):
                 raise FMUException(f"'{c}' is not a valid logging category.")
             val[i] = <FMIL.fmi2_string_t>c
 
-        self._log_handler.capi_start_callback(self._current_log_size)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, n_cat, val)
-        self._log_handler.capi_end_callback(self._current_log_size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         FMIL.free(val)
 
