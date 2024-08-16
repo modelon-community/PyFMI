@@ -11,7 +11,9 @@ For citing PyFMI, please use:
 
 <em>Andersson, C, Åkesson, J & Führer, C 2016, PyFMI: A Python Package for Simulation of Coupled Dynamic Models with the Functional Mock-up Interface. Technical Report in Mathematical Sciences, nr. 2, vol. 2016, vol. LUTFNA-5008-2016, Centre for Mathematical Sciences, Lund University</em>.
 
-For information about contributing, see [here](https://github.com/modelon/contributing).
+Contributing
+-----------
+For information about contributing, see https://github.com/modelon-community/contributing.
 
 Installation from source
 -----------
