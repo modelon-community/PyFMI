@@ -34,7 +34,7 @@ import scipy.optimize as spopt
 
 import pyfmi.fmi as fmi
 from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
-from pyfmi.common.io import get_result_handler
+from pyfmi.common.io import get_result_handler, ResultHandler
 from pyfmi.common.core import TrajectoryLinearInterpolation, TrajectoryUserFunction
 from pyfmi.fmi cimport FMUModelCS2
 cimport fmil_import as FMIL
@@ -281,7 +281,7 @@ class MasterAlgOptions(OptionBase):
 
         result_handling --
             Specifies how the result should be handled. Either stored to
-            file or stored in memory. One can also use a custom handler.
+            file or stored in memory. One can also use a custom handlers.
             Available options: "file", "binary", "memory", "csv", "custom"
             Default: "binary"
 
@@ -289,7 +289,8 @@ class MasterAlgOptions(OptionBase):
             The handler for the result. Depending on the option in
             result_handling this either defaults to ResultHandlerFile
             or ResultHandlerMemory. If result_handling custom is choosen
-            This MUST be provided.
+            This MUST be provided and be a dictionary with model name as 'key'
+            and the ResultHandler instance for that model as 'value'.
             Default: None
 
         filter --
@@ -1175,9 +1176,20 @@ cdef class Master:
         self.set_last_y(self.y_prev)
         
     def initialize_result_objects(self, opts):
-        i = 0
-        for model in self.models_dict.keys():
-            result_object = get_result_handler(model, opts)
+        if (opts["result_handling"] == "custom") and (not isinstance(opts["result_handler"], dict)):
+            raise fmi.FMUException("'result_handler' option must be a dictionary for 'result_handling' = 'custom'.")
+
+        for i, model in enumerate(self.models_dict.keys()):
+            if opts["result_handling"] == "custom":
+                try:
+                    handler = opts["result_handler"][model]
+                except KeyError:
+                    raise fmi.FMUException("'result_handler' option does not contain result handler for model '{}'".format(model))
+                if not isinstance(handler, ResultHandler):
+                    raise fmi.FMUException("The result handler needs to be an instance of ResultHandler.")
+                result_object = handler
+            else:
+                result_object = get_result_handler(model, opts)
             
             if not isinstance(opts["result_file_name"], dict):
                 raise fmi.FMUException("The result file names needs to be stored in a dict with the individual models as key.")
@@ -1205,8 +1217,6 @@ cdef class Master:
             result_object.set_options(local_opts)
             result_object.simulation_start()
             result_object.initialize_complete()
-            
-            i = i + 1
             
             self.models_dict[model]["result"] = result_object
             

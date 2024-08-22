@@ -245,30 +245,47 @@ class Test_Master:
         opts = {}
         opts["result_handling"] = "hejhej"
         nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
+
         opts["result_handling"] = "custom"
-        nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
         opts["result_handler"] = A()
-        nose.tools.assert_raises(Exception, self._sim_basic_simulation, models, connections, opts)
+        err = "'result_handler' option must be a dictionary for 'result_handling' = 'custom'."
+        with nose.tools.assert_raises_regex(FMUException, err):
+            self._sim_basic_simulation(models, connections, opts)
+
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = {m: A() for m in models[1:]}
+        err = "'result_handler' option does not contain result handler for model '{}'".format(str(models[0]))
+        with nose.tools.assert_raises_regex(FMUException, err):
+            self._sim_basic_simulation(models, connections, opts)
+
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = {m: A() for m in models}
+        err = "The result handler needs to be an instance of ResultHandler."
+        with nose.tools.assert_raises_regex(FMUException, err):
+            self._sim_basic_simulation(models, connections, opts)       
         
     @testattr(stddist = True)
     def test_custom_result_handler_valid(self):
         models, connections = self._load_basic_simulation()
         
         class B(ResultHandler):
+            def __init__(self, i, *args, **kwargs):
+                super().__init__(self, *args, **kwargs)
+                self._i = i
             def get_result(self):
-                return None
+                return self._i
                 
         opts = {}
         opts["result_handling"] = "custom"
-        opts["result_handler"] = B()
+        opts["result_handler"] = {m: B(i) for i, m in enumerate(models)}
         opts["step_size"] = 0.0005
         
         master = Master(models, connections)
        
         res = master.simulate(options=opts)
-        
-        assert res[models[0]]._result_data is None, "Result is not none"
-        assert res[models[1]]._result_data is None, "Result is not none"
+
+        assert res[models[0]]._result_data == 0, "Result is not 0"
+        assert res[models[1]]._result_data == 1, "Result is not 1"
         
     @testattr(stddist = True)
     def test_basic_simulation_with_block_initialization(self):
