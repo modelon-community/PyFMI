@@ -281,7 +281,7 @@ class MasterAlgOptions(OptionBase):
 
         result_handling --
             Specifies how the result should be handled. Either stored to
-            file or stored in memory. One can also use a custom handlers.
+            file or stored in memory. One can also use custom handlers.
             Available options: "file", "binary", "memory", "csv", "custom"
             Default: "binary"
 
