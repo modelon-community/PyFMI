@@ -254,7 +254,7 @@ class Test_Master:
 
         opts["result_handling"] = "custom"
         opts["result_handler"] = {m: A() for m in models[1:]}
-        err = "'result_handler' option does not contain result handler for model '{}'".format(str(models[0]))
+        err = "'result_handler' option does not contain result handler for model '{}'".format(models[0].get_identifier())
         with nose.tools.assert_raises_regex(FMUException, err):
             self._sim_basic_simulation(models, connections, opts)
 

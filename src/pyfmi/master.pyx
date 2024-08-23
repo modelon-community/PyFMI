@@ -1184,7 +1184,7 @@ cdef class Master:
                 try:
                     handler = opts["result_handler"][model]
                 except KeyError:
-                    raise fmi.FMUException("'result_handler' option does not contain result handler for model '{}'".format(model))
+                    raise fmi.FMUException("'result_handler' option does not contain result handler for model '{}'".format(model.get_identifier()))
                 if not isinstance(handler, ResultHandler):
                     raise fmi.FMUException("The result handler needs to be an instance of ResultHandler.")
                 result_object = handler
