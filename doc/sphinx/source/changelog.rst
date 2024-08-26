@@ -2,6 +2,12 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.14.0 ---
+    * Updated the error message displayed when loading FMUs with needsExecutionTool set to True.
+    * Loading unzipped FMUs now also works with relative paths.
+    * Enabled setting logging categories in FMI2 via "set_debug_logging".
+    * XML Logs exceeding maximal size will now be truncated to start/end of the last CAPI call which did not exceed the maximal log size.
+
 --- PyFMI-2.13.1 ---
     * Numpy 2.x support
     * Allow to build without distutils for Python>=3.12 support
