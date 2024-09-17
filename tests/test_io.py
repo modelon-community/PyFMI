@@ -1694,7 +1694,7 @@ class TestResultCSVTextual:
 
 class TestResultDymolaBinary:
 
-    def _get_trajectories_helper(self,
+    def _get_variables_data_helper(self,
         dynamic_diagnostics = False,
         update_start_index = False,
         only_diagnostics_data = False,
@@ -1706,8 +1706,8 @@ class TestResultDymolaBinary:
                 Note that the option "logging" is also toggled with this value.
 
             update_start_index:
-                If enabled, then the value to 'start_index' for ResultDymolaBinary.get_trajectories will be updated
-                after each call to get_trajectories. If disabled, get_trajectories will always be invoked
+                If enabled, then the value to 'start_index' for ResultDymolaBinary.get_variables_data will be updated
+                after each call to get_variables_data. If disabled, get_variables_data will always be invoked
                 with start_index = 0.
 
             only_diagnostics_data:
@@ -1795,14 +1795,14 @@ class TestResultDymolaBinary:
                 fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
                 fmu.time += h
 
-            trajectories, new_start_index = rdb.get_trajectories(vars_to_plot, start_index, None)
+            trajectories, new_start_index = rdb.get_variables_data(vars_to_plot, start_index, None)
         if update_start_index:
             start_index = new_start_index
 
     @testattr(stddist = True)
-    def test_get_trajectories_0(self):
-        """ Test default with get_trajectories. """
-        self._get_trajectories_helper(
+    def test_get_variables_data_0(self):
+        """ Test default with get_variables_data. """
+        self._get_variables_data_helper(
             dynamic_diagnostics = False,
             update_start_index = False,
             only_diagnostics_data = False,
@@ -1810,9 +1810,9 @@ class TestResultDymolaBinary:
         )
 
     @testattr(stddist = True)
-    def test_get_trajectories_1(self):
-        """ Test get_trajectories while updating start_index. """
-        self._get_trajectories_helper(
+    def test_get_variables_data_1(self):
+        """ Test get_variables_data while updating start_index. """
+        self._get_variables_data_helper(
             dynamic_diagnostics = False,
             update_start_index = True,
             only_diagnostics_data = False,
@@ -1820,9 +1820,9 @@ class TestResultDymolaBinary:
         )
 
     @testattr(stddist = True)
-    def test_get_trajectories_2(self):
-        """ Test get_trajectories when dynamic_diagnostics is True. """
-        self._get_trajectories_helper(
+    def test_get_variables_data_2(self):
+        """ Test get_variables_data when dynamic_diagnostics is True. """
+        self._get_variables_data_helper(
             dynamic_diagnostics = True,
             update_start_index = False,
             only_diagnostics_data = False,
@@ -1830,9 +1830,9 @@ class TestResultDymolaBinary:
         )
 
     @testattr(stddist = True)
-    def test_get_trajectories_3(self):
-        """ Test get_trajectories when dynamic_diagnostics is True and updating start_index. """
-        self._get_trajectories_helper(
+    def test_get_variables_data_3(self):
+        """ Test get_variables_data when dynamic_diagnostics is True and updating start_index. """
+        self._get_variables_data_helper(
             dynamic_diagnostics = True,
             update_start_index = True,
             only_diagnostics_data = False,
@@ -1841,11 +1841,11 @@ class TestResultDymolaBinary:
 
 
     @testattr(stddist = True)
-    def test_get_trajectories_4(self):
-        """ Test get_trajectories when dynamic_diagnostics is True, updating start_index and result
+    def test_get_variables_data_4(self):
+        """ Test get_variables_data when dynamic_diagnostics is True, updating start_index and result
             contains more diagnostics data than regular data.
         """
-        self._get_trajectories_helper(
+        self._get_variables_data_helper(
             dynamic_diagnostics = True,
             update_start_index = True,
             only_diagnostics_data = False,
@@ -1853,11 +1853,11 @@ class TestResultDymolaBinary:
         )
 
     @testattr(stddist = True)
-    def test_get_trajectories_5(self):
-        """ Test get_trajectories when dynamic_diagnostics is True, updating start_index and result
+    def test_get_variables_data_5(self):
+        """ Test get_variables_data when dynamic_diagnostics is True, updating start_index and result
             contains only diagnostics data.
         """
-        self._get_trajectories_helper(
+        self._get_variables_data_helper(
             dynamic_diagnostics = True,
             update_start_index = True,
             only_diagnostics_data = True,

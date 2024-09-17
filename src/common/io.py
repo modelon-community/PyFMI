@@ -1474,14 +1474,15 @@ class ResultDymolaBinary(ResultDymola):
         else:
             return Trajectory(self._get_diagnostics_trajectory(0),factor*self._get_interpolated_trajectory(dataInd))
 
-    def get_trajectories(self, names, start_index = 0, stop_index = None):
+    def get_variables_data(self, names: list[str], start_index: int = 0, stop_index: int | None = None) -> tuple[list[Trajectory], int | None]:
         """"
             Returns multiple trajectories, sliced to index range.
+            Note that start_index and stop_index behaves as indices for slicing, i.e. array[start_index:stop_index].
 
             Parameters::
 
                 names --
-                    List of variables names for which to fetch trajectories
+                    List of variables names for which to fetch trajectories.
 
                 start_index --
                     (default: 0) Starting index for trajectory slicing.
@@ -1489,10 +1490,11 @@ class ResultDymolaBinary(ResultDymola):
                 stop_index --
                     (default: None) Stopping index for trajectory slicing;
                     (None: No cut-off at end)
+                    Note that if stop_index is larger than the amount of available data points,
+                    then the behavior is the default Python slice-behavior.
 
             Returns::
-
-                List of trajectories, next start index (non-negative)
+                Tuple: (List of trajectories, next start index (non-negative))
         """
 
         """
@@ -1503,9 +1505,6 @@ class ResultDymolaBinary(ResultDymola):
             trajectory which is then sliced, here. Instead we can account for
             start_index and stop_index and reduce the time spent reading unused data points.
         """
-        if stop_index and (stop_index < start_index):
-            raise ValueError(f"Unable to retrieve trajectories since {stop_index=} is less than {start_index=}")
-
         trajectories = []
 
         # Get the time trajectory
@@ -1573,7 +1572,8 @@ class ResultDymolaBinary(ResultDymola):
                 dataMat = 2 if len(self.raw['data_2'])> 0 else 1
 
             if dataMat == 1: # XXX: parameters?
-                trajectories.append(Trajectory(self.data_1[0,start_index:stop_index], factor*self.data_1[dataInd,start_index:stop_index]))
+                trajectories.append(Trajectory(self.data_1[0, start_index:stop_index],
+                                               factor*self.data_1[dataInd, start_index:stop_index]))
                 continue
             elif dataMat == 2 and not self._contains_diagnostic_data:
                 xx = factor*self._get_trajectory(dataInd)[start_index:stop_index]
