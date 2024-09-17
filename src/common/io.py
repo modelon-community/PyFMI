@@ -24,6 +24,7 @@ import sys
 import os
 import logging as logging_module
 from functools import reduce
+from typing import Union # we can remove when support for Python 3.9 is over, since Union[a, b] is equivalent to a | b
 
 import numpy as np
 import scipy
@@ -1474,7 +1475,11 @@ class ResultDymolaBinary(ResultDymola):
         else:
             return Trajectory(self._get_diagnostics_trajectory(0),factor*self._get_interpolated_trajectory(dataInd))
 
-    def get_variables_data(self, names: list[str], start_index: int = 0, stop_index: int | None = None) -> tuple[list[Trajectory], int | None]:
+    def get_variables_data(self,
+                           names: list[str],
+                           start_index: int = 0,
+                           stop_index: Union[int | None] = None
+    ) -> tuple[list[Trajectory], Union[int, None]]:
         """"
             Returns multiple trajectories, sliced to index range.
             Note that start_index and stop_index behaves as indices for slicing, i.e. array[start_index:stop_index].
