@@ -1478,11 +1478,13 @@ class ResultDymolaBinary(ResultDymola):
     def get_variables_data(self,
                            names: list[str],
                            start_index: int = 0,
-                           stop_index: Union[int | None] = None
+                           stop_index: Union[int, None] = None
     ) -> tuple[list[Trajectory], Union[int, None]]:
         """"
             Returns multiple trajectories, sliced to index range.
             Note that start_index and stop_index behaves as indices for slicing, i.e. array[start_index:stop_index].
+            This also implies that stop_index = None or stop_index larger than the number of available data points
+            results in retrieving all the available data points from start_index, i.e. as the slice [start_index:].
 
             Parameters::
 
@@ -1490,13 +1492,10 @@ class ResultDymolaBinary(ResultDymola):
                     List of variables names for which to fetch trajectories.
 
                 start_index --
-                    (default: 0) Starting index for trajectory slicing.
+                    Starting index for trajectory slicing.
 
                 stop_index --
-                    (default: None) Stopping index for trajectory slicing;
-                    (None: No cut-off at end)
-                    Note that if stop_index is larger than the amount of available data points,
-                    then the behavior is the default Python slice-behavior.
+                    Stopping index for trajectory slicing.
 
             Returns::
                 Tuple: (List of trajectories, next start index (non-negative))
@@ -1558,7 +1557,6 @@ class ResultDymolaBinary(ResultDymola):
                 )
                 continue
             else:
-                # expect potential issues with diagnostics data right here
                 varInd = self.get_variable_index(name)
 
             dataInd = self._dataInfo[1][varInd]
