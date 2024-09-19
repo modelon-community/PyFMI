@@ -1717,7 +1717,6 @@ class TestResultDymolaBinary:
                 If enabled, more diagnostics data is generated than 'regular data', i.e. more calls are done to
                 the method ResultDymolaBinary.diagnostics_data than ResultDymolaBinary.integration_point.
         """
-        print("1720")
         fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
             _connect_dll=False)
 
@@ -1769,13 +1768,11 @@ class TestResultDymolaBinary:
         counter = 0
         diag_data_ratio = np.random.randint(2, 5) # random for testing purpose
         start_index = 0
-        print("1771")
 
         for i in range(nbr_of_calls):
 
             nbr_of_points = np.random.randint(1, 20)
             h = 1/nbr_of_points * 0.1 # "arbitrary" step through time
-            print("1776")
 
             for j in range(nbr_of_points):
 
@@ -1797,9 +1794,7 @@ class TestResultDymolaBinary:
                 counter += 1
                 fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
                 fmu.time += h
-            print("1797")
             trajectories, new_start_index = rdb.get_variables_data(vars_to_plot, start_index, None)
-            print("1799")
         if update_start_index:
             start_index = new_start_index
 
@@ -1929,7 +1924,6 @@ class TestResultDymolaBinary:
                 fmu.time += h
 
             trajectories, start_index = rdb.get_variables_data(vars_to_plot, start_index, None)
-            print(trajectories[1].x)
             np.testing.assert_array_almost_equal(trajectories[1].x, reference_data[i])
 
 
@@ -2007,7 +2001,6 @@ class TestResultDymolaBinary:
                 fmu.time += h
 
             trajectories, start_index = rdb.get_variables_data(vars_to_plot, start_index, None)
-            print(trajectories[1].x)
             np.testing.assert_array_almost_equal(trajectories[1].x, reference_data[i])
 
 
@@ -2085,5 +2078,4 @@ class TestResultDymolaBinary:
                 fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
 
             trajectories, start_index = rdb.get_variables_data(vars_to_plot, start_index, start_index+1)
-            print(trajectories[1].x)
-            #np.testing.assert_array_almost_equal(trajectories[1].x, reference_data[i])
+            np.testing.assert_array_almost_equal(trajectories[1].x, reference_data[i])
