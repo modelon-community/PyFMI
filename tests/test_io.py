@@ -1717,6 +1717,7 @@ class TestResultDymolaBinary:
                 If enabled, more diagnostics data is generated than 'regular data', i.e. more calls are done to
                 the method ResultDymolaBinary.diagnostics_data than ResultDymolaBinary.integration_point.
         """
+        print("1720")
         fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
             _connect_dll=False)
 
@@ -1768,11 +1769,13 @@ class TestResultDymolaBinary:
         counter = 0
         diag_data_ratio = np.random.randint(2, 5) # random for testing purpose
         start_index = 0
+        print("1771")
 
         for i in range(nbr_of_calls):
 
             nbr_of_points = np.random.randint(1, 20)
             h = 1/nbr_of_points * 0.1 # "arbitrary" step through time
+            print("1776")
 
             for j in range(nbr_of_points):
 
@@ -1794,8 +1797,9 @@ class TestResultDymolaBinary:
                 counter += 1
                 fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
                 fmu.time += h
-
+            print("1797")
             trajectories, new_start_index = rdb.get_variables_data(vars_to_plot, start_index, None)
+            print("1799")
         if update_start_index:
             start_index = new_start_index
 
@@ -1863,3 +1867,223 @@ class TestResultDymolaBinary:
             only_diagnostics_data = True,
             favor_diagnostics_data = False # redundant when 'only_diagnostics_data' is True.
         )
+
+
+    @testattr(stddist = True)
+    def test_get_variables_data_values0(self):
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
+            _connect_dll=False)
+
+        result_handler = ResultHandlerBinaryFile(fmu)
+        opts = fmu.simulate_options()
+        opts["result_handling"] = "binary"
+        opts["result_handler"] = result_handler
+        opts["result_file_name"] = "TestFile0.mat"
+        opts["dynamic_diagnostics"] = False
+        opts["logging"] = opts["dynamic_diagnostics"]
+
+        # tolerances are required only to invoke 'setup_diagnostics_variables'
+        opts['CVode_options']['rtol'] = 1e-6
+        opts['CVode_options']['atol'] = fmu.nominal_continuous_states * opts['CVode_options']['rtol']
+
+        fmu.setup_experiment()
+        fmu.initialize()
+        opts["initialize"] = False
+
+        result_handler.set_options(opts) # required in order to call simulation_start()
+        result_handler.initialize_complete()
+        if opts["dynamic_diagnostics"]:
+            result_handler.simulation_start()
+        else:
+            result_handler.simulation_start()
+        fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+
+        result_handler.integration_point()
+
+        fmu.time += 0.01
+        fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+
+        rdb = ResultDymolaBinary(opts["result_file_name"], allow_file_updates=True)
+
+        vars_to_plot = ['time', 'J4.phi']
+
+        nbr_of_calls = 3
+        counter = 0
+        start_index = 0
+
+        reference_data = {
+            0: [1.00000000, 0.99875026, 0.99875026, 0.98877108, 0.96891242, 0.93937271],
+            1: [0.90044710, 0.85252452, 0.79608380, 0.73168887, 0.65998315],
+            2: [0.58168309, 0.49757105, 0.40848744, 0.31532236, 0.21900669]
+        }
+
+        for i in range(nbr_of_calls):
+            nbr_of_points = 5
+            h = 1/nbr_of_points * 0.1 # "arbitrary" step through time
+
+            for j in range(nbr_of_points):
+                result_handler.integration_point()
+
+                counter += 1
+                fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+                fmu.time += h
+
+            trajectories, start_index = rdb.get_variables_data(vars_to_plot, start_index, None)
+            print(trajectories[1].x)
+            np.testing.assert_array_almost_equal(trajectories[1].x, reference_data[i])
+
+
+    @testattr(stddist = True)
+    def test_get_variables_data_values1(self):
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
+            _connect_dll=False)
+
+        result_handler = ResultHandlerBinaryFile(fmu)
+        opts = fmu.simulate_options()
+        opts["result_handling"] = "binary"
+        opts["result_handler"] = result_handler
+        opts["result_file_name"] = "TestFile1.mat"
+        opts["dynamic_diagnostics"] = True
+        opts["logging"] = opts["dynamic_diagnostics"]
+
+        # tolerances are required only to invoke 'setup_diagnostics_variables'
+        opts['CVode_options']['rtol'] = 1e-6
+        opts['CVode_options']['atol'] = fmu.nominal_continuous_states * opts['CVode_options']['rtol']
+
+        fmu.setup_experiment()
+        fmu.initialize()
+        opts["initialize"] = False
+
+        diag_params, diag_vars = setup_diagnostics_variables(
+            model = fmu,
+            start_time = 0,
+            options = opts,
+            solver_options = opts['CVode_options'])
+
+        result_handler.set_options(opts) # required in order to call simulation_start()
+        result_handler.initialize_complete()
+        if opts["dynamic_diagnostics"]:
+            result_handler.simulation_start(diag_params, diag_vars)
+        else:
+            result_handler.simulation_start()
+        fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+
+        result_handler.integration_point()
+
+        fmu.time += 0.01
+        fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+
+        rdb = ResultDymolaBinary(opts["result_file_name"], allow_file_updates=True)
+
+        vars_to_plot = ['time', 'J4.phi']
+        if opts["dynamic_diagnostics"]:
+            vars_to_plot += ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
+
+        nbr_of_calls = 5
+        counter = 0
+        diag_data_ratio = 3
+        start_index = 0
+
+        reference_data = {
+            0: [ 1.00000000,  0.99875026,  0.96891242],
+            1: [ 0.85252452,  0.65998315],
+            2: [ 0.40848744],
+            3: [ 0.12050277, -0.17824606],
+            4: [-0.46107269, -0.70271308]
+        }
+
+        for i in range(nbr_of_calls):
+            nbr_of_points = 5
+            h = 1/nbr_of_points * 0.1 # "arbitrary" step through time
+
+            for j in range(nbr_of_points):
+                result_handler.integration_point()
+                if opts["dynamic_diagnostics"] and counter%diag_data_ratio==0:
+                    diag_vars['@Diagnostics.step_time'] = (h, 'Step time') # arbitrary test value
+                    result_handler.diagnostics_point(np.array([val[0] for val in diag_vars.values()], dtype=float))
+
+                counter += 1
+                fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+                fmu.time += h
+
+            trajectories, start_index = rdb.get_variables_data(vars_to_plot, start_index, None)
+            print(trajectories[1].x)
+            np.testing.assert_array_almost_equal(trajectories[1].x, reference_data[i])
+
+
+    @testattr(stddist = True)
+    def test_get_variables_data_values2(self):
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
+            _connect_dll=False)
+
+        result_handler = ResultHandlerBinaryFile(fmu)
+        opts = fmu.simulate_options()
+        opts["result_handling"] = "binary"
+        opts["result_handler"] = result_handler
+        opts["result_file_name"] = "TestFile2.mat"
+        opts["dynamic_diagnostics"] = False
+        opts["logging"] = opts["dynamic_diagnostics"]
+
+        # tolerances are required only to invoke 'setup_diagnostics_variables'
+        opts['CVode_options']['rtol'] = 1e-6
+        opts['CVode_options']['atol'] = fmu.nominal_continuous_states * opts['CVode_options']['rtol']
+
+        fmu.setup_experiment()
+        fmu.initialize()
+        opts["initialize"] = False
+
+        diag_params, diag_vars = setup_diagnostics_variables(
+            model = fmu,
+            start_time = 0,
+            options = opts,
+            solver_options = opts['CVode_options'])
+
+        result_handler.set_options(opts) # required in order to call simulation_start()
+        result_handler.initialize_complete()
+        if opts["dynamic_diagnostics"]:
+            result_handler.simulation_start(diag_params, diag_vars)
+        else:
+            result_handler.simulation_start()
+        fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+
+        result_handler.integration_point()
+
+        fmu.time += 0.01
+        fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+
+        rdb = ResultDymolaBinary(opts["result_file_name"], allow_file_updates=True)
+
+        vars_to_plot = ['time', 'J4.phi']
+        if opts["dynamic_diagnostics"]:
+            vars_to_plot += ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
+
+        nbr_of_calls = 5
+        counter = 0
+        diag_data_ratio = 3
+        start_index = 0
+
+        reference_data = {
+            0: [1],
+            1: [0.99875026],
+            2: [0.98877108],
+            3: [0.96891242],
+            4: [0.93937271]
+        }
+
+        for i in range(nbr_of_calls):
+            nbr_of_points = 5
+            h = 1/nbr_of_points * 0.1 # "arbitrary" step through time
+
+            for j in range(nbr_of_points):
+                result_handler.integration_point()
+                if opts["dynamic_diagnostics"] and counter%diag_data_ratio==0:
+                    diag_vars['@Diagnostics.step_time'] = (h, 'Step time') # arbitrary test value
+                    result_handler.diagnostics_point(np.array([val[0] for val in diag_vars.values()], dtype=float))
+
+                counter += 1
+                fmu.time += h
+                fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+
+            trajectories, start_index = rdb.get_variables_data(vars_to_plot, start_index, start_index+1)
+            print(trajectories[1].x)
+            #np.testing.assert_array_almost_equal(trajectories[1].x, reference_data[i])

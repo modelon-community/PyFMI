@@ -180,16 +180,16 @@ class ResultDymola:
                 raise VariableNotFoundError("Cannot find variable " +
                                         name + " in data file.")
 
+    def _correct_index_for_alias(self, data_index: int) -> tuple[int, int]:
+        """ TODO """
+        factor = -1 if data_index < 0 else 1
+        return factor*data_index - 1, factor
 
-    def _check_if_derivative_variable(self, name):
+    def _check_if_derivative_variable(self, name:str) -> bool:
         """
         Check if a variable is a derivative variable or not.
         """
-        if name.startswith("der(") or name.split(".")[-1].startswith("der("):
-            return True
-        else:
-            return False
-
+        return name.startswith("der(") or name.split(".")[-1].startswith("der(")
 
     def _exhaustive_search_for_derivatives(self, name):
         """
@@ -999,12 +999,7 @@ class ResultDymolaTextual(ResultDymola):
             variable_index  = self.get_variable_index(name)
 
         data_index = self.dataInfo[variable_index][1]
-        factor = 1
-        if data_index < 0:
-            factor = -1
-            data_index = -data_index -1
-        else:
-            data_index = data_index - 1
+        data_index, factor = self._correct_index_for_alias(data_index)
         data_mat = self.dataInfo[variable_index][0]-1
 
         if data_mat < 0:
@@ -1013,7 +1008,7 @@ class ResultDymolaTextual(ResultDymola):
              data_mat = 1 if len(self.data) > 1 else 0
 
         return Trajectory(
-            self.data[data_mat][:,0],factor*self.data[data_mat][:,data_index])
+            self.data[data_mat][:, 0],factor*self.data[data_mat][:, data_index])
 
     def is_variable(self, name):
         """
@@ -1078,16 +1073,10 @@ class ResultDymolaTextual(ResultDymola):
             return 0
 
         if not self.is_variable(name):
-            raise VariableNotTimeVarying("Variable " +
-                                        name + " is not time-varying.")
+            raise VariableNotTimeVarying("Variable " + name + " is not time-varying.")
         variable_index  = self.get_variable_index(name)
         data_index = self.dataInfo[variable_index][1]
-        factor = 1
-        if data_index<0:
-            factor = -1
-            data_index = -data_index -1
-        else:
-            data_index = data_index - 1
+        data_index, _ = self._correct_index_for_alias(data_index)
 
         return data_index
 
@@ -1338,7 +1327,7 @@ class ResultDymolaBinary(ResultDymola):
 
         return name_dict
 
-    def _get_trajectory(self, data_index):
+    def _get_trajectory(self, data_index, start_index = None, stop_index = None):
         if isinstance(self._data_2, dict):
             self._verify_file_data()
 
@@ -1349,9 +1338,16 @@ class ResultDymolaBinary(ResultDymola):
             sizeof_type    = self._data_2_info["sizeof_type"]
             nbr_points     = self._data_2_info["nbr_points"]
             nbr_variables  = self._data_2_info["nbr_variables"]
+
+            # Account for sub-sets of data
+            #if start_index is not None and start_index > 0:
+            #    data_index += start_index
+            #if stop_index is not None and stop_index > 0:
+            #    nbr_points -= stop_index
+
             self._data_2[data_index] = fmi_util.read_trajectory(encode(self._fname), data_index, file_position, sizeof_type, int(nbr_points), int(nbr_variables))
 
-            return self._data_2[data_index]
+            return self._data_2[data_index][start_index:stop_index]
         else:
             return self._data_2[data_index,:]
 
@@ -1361,9 +1357,9 @@ class ResultDymolaBinary(ResultDymola):
 
         if data_index in self._data_3:
             return self._data_3[data_index]
-
+        print(f"Now calling _read_trajectory_data for {data_index=} ")
         self._data_3[data_index] = self._read_trajectory_data(data_index, True)
-
+        print(f"Returning diagnostics trajectory for {data_index=}")
         return self._data_3[data_index]
 
     def _read_trajectory_data(self, data_index, read_diag_data):
@@ -1381,12 +1377,15 @@ class ResultDymolaBinary(ResultDymola):
         nbr_diag_points    = int(self._data_3_info.shape[0])
         nbr_diag_variables = int(self._data_4_info.shape[0])
 
-
+        print(f"Now invoking fmi_util.read_diagnostics_trajectory for {data_index=}")
+        print(f"{read_diag_data=}, {self._has_file_pos_data=}, {self._file_pos_model_var=}, {self._file_pos_diag_var=}, {file_position=}")
+        print(f"{sizeof_type=}, {nbr_points=}, {nbr_diag_points=}, {nbr_variables=}, {nbr_diag_variables=}")
         data, self._file_pos_model_var, self._file_pos_diag_var = fmi_util.read_diagnostics_trajectory(
                                                 encode(self._fname), int(read_diag_data), int(self._has_file_pos_data),
                                                 self._file_pos_model_var, self._file_pos_diag_var,
                                                 data_index, file_position, sizeof_type, nbr_points, nbr_diag_points,
                                                 nbr_variables, nbr_diag_variables)
+        print(f"Done with fmi_util.read_diagnostics_trajectory {self._file_pos_model_var=}, {self._file_pos_diag_var=}")
         self._has_file_pos_data = True
 
         return data
@@ -1401,11 +1400,11 @@ class ResultDymolaBinary(ResultDymola):
         diag_time_vector = self._get_diagnostics_trajectory(0)
         time_vector      = self._read_trajectory_data(0, False)
         data             = self._read_trajectory_data(data_index, False)
-
+        print("DEBUG: Attempting to interpolate")
         f = scipy.interpolate.interp1d(time_vector, data, fill_value="extrapolate")
 
         self._data_2[data_index] = f(diag_time_vector)
-
+        print("DEBUG: Returning interpolated data")
         return self._data_2[data_index]
 
     def _get_description(self):
@@ -1425,14 +1424,9 @@ class ResultDymolaBinary(ResultDymola):
 
         variable_index = self.get_variable_index(variable_name)
         data_mat = self._dataInfo[0][variable_index]
-        data_index = self._dataInfo[1][variable_index]
 
-        factor = 1
-        if data_index < 0:
-            factor = -1
-            data_index = -data_index -1
-        else:
-            data_index = data_index - 1
+        data_index = self._dataInfo[1][variable_index]
+        data_index, factor = self._correct_index_for_alias(data_index)
 
         if data_mat == 0:
             # Take into account that the 'Time' variable has data matrix index 0
@@ -1441,7 +1435,11 @@ class ResultDymolaBinary(ResultDymola):
 
         return factor, data_index, data_mat
 
-    def _get_variable_data_as_trajectory(self, name, time = None, start_index = None, stop_index = None):
+    def _get_variable_data_as_trajectory(self,
+                                         name: str,
+                                         time: Union[Trajectory, None] = None,
+                                         start_index: Union[int, None] = None,
+                                         stop_index : Union[int, None]= None) -> Trajectory:
         """
         Retrieve an instance of Trajectory for a variable with a given name.
 
@@ -1496,9 +1494,9 @@ class ResultDymolaBinary(ResultDymola):
             return Trajectory(
                 time, self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x[start_index:stop_index])
 
+        factor, data_index, data_mat = self._map_index_to_data_properties(name)
 
-        factor, data_index, data_mat = self._map_index_to_data_properties(name) # todo rename variable_index
-
+        print(f"DEBUG: Proceeding with {data_mat=}, {data_index=}")
         if data_mat == 1:
             return Trajectory(
                 self.data_1[0, start_index:stop_index], factor*self.data_1[data_index, start_index:stop_index])
@@ -1577,7 +1575,9 @@ class ResultDymolaBinary(ResultDymola):
             stop_index = len(time) + start_index
 
         for name in names:
+            print(f"DEBUG: Calling _get_variable_data_as_trajectory for {name=}")
             trajectories.append(self._get_variable_data_as_trajectory(name, time, start_index, stop_index))
+            print(f"DEBUG: Finished adding Trajectory for {name}")
 
         new_start_index = start_index + len(time) if len(trajectories) > 0 else None
         return trajectories, new_start_index
@@ -1704,16 +1704,10 @@ class ResultDymolaBinary(ResultDymola):
             return 0
 
         if not self.is_variable(name):
-            raise VariableNotTimeVarying("Variable " +
-                                        name + " is not time-varying.")
+            raise VariableNotTimeVarying("Variable " + name + " is not time-varying.")
         variable_index  = self.get_variable_index(name)
         data_index = self._dataInfo[1][variable_index]
-        factor = 1
-        if data_index<0:
-            factor = -1
-            data_index = -data_index -1
-        else:
-            data_index = data_index - 1
+        data_index, _ = self._correct_index_for_alias(data_index)
 
         return data_index
 
