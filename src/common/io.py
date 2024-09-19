@@ -1357,9 +1357,7 @@ class ResultDymolaBinary(ResultDymola):
 
         if data_index in self._data_3:
             return self._data_3[data_index]
-        print(f"Now calling _read_trajectory_data for {data_index=} ")
         self._data_3[data_index] = self._read_trajectory_data(data_index, True)
-        print(f"Returning diagnostics trajectory for {data_index=}")
         return self._data_3[data_index]
 
     def _read_trajectory_data(self, data_index, read_diag_data):
@@ -1377,15 +1375,11 @@ class ResultDymolaBinary(ResultDymola):
         nbr_diag_points    = int(self._data_3_info.shape[0])
         nbr_diag_variables = int(self._data_4_info.shape[0])
 
-        print(f"Now invoking fmi_util.read_diagnostics_trajectory for {data_index=}")
-        print(f"{read_diag_data=}, {self._has_file_pos_data=}, {self._file_pos_model_var=}, {self._file_pos_diag_var=}, {file_position=}")
-        print(f"{sizeof_type=}, {nbr_points=}, {nbr_diag_points=}, {nbr_variables=}, {nbr_diag_variables=}")
         data, self._file_pos_model_var, self._file_pos_diag_var = fmi_util.read_diagnostics_trajectory(
                                                 encode(self._fname), int(read_diag_data), int(self._has_file_pos_data),
                                                 self._file_pos_model_var, self._file_pos_diag_var,
                                                 data_index, file_position, sizeof_type, nbr_points, nbr_diag_points,
                                                 nbr_variables, nbr_diag_variables)
-        print(f"Done with fmi_util.read_diagnostics_trajectory {self._file_pos_model_var=}, {self._file_pos_diag_var=}")
         self._has_file_pos_data = True
 
         return data
@@ -1400,11 +1394,10 @@ class ResultDymolaBinary(ResultDymola):
         diag_time_vector = self._get_diagnostics_trajectory(0)
         time_vector      = self._read_trajectory_data(0, False)
         data             = self._read_trajectory_data(data_index, False)
-        print("DEBUG: Attempting to interpolate")
+
         f = scipy.interpolate.interp1d(time_vector, data, fill_value="extrapolate")
 
         self._data_2[data_index] = f(diag_time_vector)
-        print("DEBUG: Returning interpolated data")
         return self._data_2[data_index]
 
     def _get_description(self):
@@ -1496,7 +1489,6 @@ class ResultDymolaBinary(ResultDymola):
 
         factor, data_index, data_mat = self._map_index_to_data_properties(name)
 
-        print(f"DEBUG: Proceeding with {data_mat=}, {data_index=}")
         if data_mat == 1:
             return Trajectory(
                 self.data_1[0, start_index:stop_index], factor*self.data_1[data_index, start_index:stop_index])
@@ -1575,9 +1567,7 @@ class ResultDymolaBinary(ResultDymola):
             stop_index = len(time) + start_index
 
         for name in names:
-            print(f"DEBUG: Calling _get_variable_data_as_trajectory for {name=}")
             trajectories.append(self._get_variable_data_as_trajectory(name, time, start_index, stop_index))
-            print(f"DEBUG: Finished adding Trajectory for {name}")
 
         new_start_index = start_index + len(time) if len(trajectories) > 0 else None
         return trajectories, new_start_index
@@ -2694,17 +2684,19 @@ class ResultHandlerBinaryFile(ResultHandler):
             self._data_4_header = self._data_header("data_4", self._nof_diag_vars, 0, "double")
             self.__write_header(self._data_4_header, "data_4")
 
+        self.nbr_points = 0
+
         #Record the position so that we can later modify the number of result points stored
         self.data_2_header_position = self._file.tell()
         self._len_vars_ref =  len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref)+1
         self._data_2_header = self._data_header("data_2", self._len_vars_ref, 1, "double")
+        self._data_2_header["ncols"] = self.nbr_points
         self.__write_header(self._data_2_header, "data_2")
         self.data_2_header_end_position = self._file.tell()
 
         self.real_var_ref = np.array(sorted_vars_real_vref)
         self.int_var_ref  = np.array(sorted_vars_int_vref)
         self.bool_var_ref = np.array(sorted_vars_bool_vref)
-        self.nbr_points = 0
         self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref, self._with_diagnostics)
 
         if self._with_diagnostics:
