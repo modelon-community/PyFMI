@@ -4997,7 +4997,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef list valid_categories
 
         if logging_on:
-            self.callbacks.log_level = FMIL.jm_log_level_warning
+            self.callbacks.log_level = FMIL.jm_log_level_all
             log = 1
         else:
             self.callbacks.log_level = FMIL.jm_log_level_nothing
