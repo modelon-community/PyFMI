@@ -827,6 +827,7 @@ cdef extern from 'fmilib.h':
     char * fmi2_import_get_variable_description(fmi2_import_variable_t *)
     char * fmi2_import_get_model_identifier_CS(fmi2_import_t *)
     char * fmi2_import_get_log_category(fmi2_import_t *, size_t)
+    char * fmi2_import_get_log_category_description(fmi2_import_t *, size_t)
     char * fmi2_import_get_last_error(fmi2_import_t *)
     char * fmi2_import_get_enum_type_item_description(fmi2_import_enumeration_typedef_t *, unsigned int)
     fmi2_value_reference_t fmi2_import_get_variable_vr(fmi2_import_variable_t *)
