@@ -1926,12 +1926,10 @@ class TestResultDymolaBinary:
             result_handler.simulation_start(diag_params, diag_vars)
         else:
             result_handler.simulation_start()
-        print(0, fmu.time, fmu.get('J4.phi'))
-        fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
 
+        fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
         result_handler.integration_point()
 
-        print(1, fmu.time, fmu.get('J4.phi'))
         fmu.time += 0.01
         fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
 
@@ -1953,13 +1951,13 @@ class TestResultDymolaBinary:
                     diag_vars['@Diagnostics.step_time'] = (h, 'Step time') # arbitrary test value
                     result_handler.diagnostics_point(np.array([val[0] for val in diag_vars.values()], dtype=float))
 
-                print(counter + 2, fmu.time, fmu.get('J4.phi'))
                 counter += 1
                 fmu.time += h
                 fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
-            print(f"{start_index=}")
+
             trajectories, start_index = rdb.get_variables_data(vars_to_test, start_index, u(start_index))
             data_to_return[i] = [t.x for t in trajectories]
+
         assert data_to_return, "Something went wrong, no test data was generated"
         return data_to_return
 
