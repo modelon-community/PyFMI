@@ -1416,8 +1416,6 @@ class ResultDymolaBinary(ResultDymola):
         if data_index in self._data_2:
             return self._data_2[data_index]
 
-        """
-        """
         diag_time_vector = self._get_diagnostics_trajectory(0, start_index, stop_index)
         time_vector      = self._read_trajectory_data(0, False, start_index, stop_index)
         data             = self._read_trajectory_data(data_index, False, start_index, stop_index)
