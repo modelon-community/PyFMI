@@ -1864,7 +1864,7 @@ class TestResultDymolaBinary:
         )
 
     def _test_get_variables_data(self, dynamic_diagnostics: bool, nbr_of_calls: int, diag_data_ratio: int,
-                                 vars_to_test: list, u: callable) -> dict:
+                                 vars_to_test: list, u: callable, result_file_name: str) -> dict:
         """
             Simulates a dummy FMU and generates data for get_variables_data.
 
@@ -1885,6 +1885,9 @@ class TestResultDymolaBinary:
             u : callable
                 Function to determine the stop index for retrieving variable data.
 
+            result_file_name: str
+                Name of the result file.
+
             Returns:
             -------
             dict
@@ -1902,7 +1905,7 @@ class TestResultDymolaBinary:
         opts = fmu.simulate_options()
         opts["result_handling"] = "binary"
         opts["result_handler"] = result_handler
-        opts["result_file_name"] = "TestFile.mat"
+        opts["result_file_name"] = result_file_name
         opts["dynamic_diagnostics"] = dynamic_diagnostics
         opts["logging"] = opts["dynamic_diagnostics"]
 
@@ -1965,7 +1968,7 @@ class TestResultDymolaBinary:
     def test_get_variables_data_values0(self):
         """ Verifing values from get_variables_data. """
         vars_to_test = ['J4.phi']
-        test_data_sets = self._test_get_variables_data(False, 3, None, vars_to_test, lambda x: None)
+        test_data_sets = self._test_get_variables_data(False, 3, None, vars_to_test, lambda x: None, "TestFile00.mat")
 
         reference_data = {
             0: [1.00000000, 0.99875026, 0.98877108, 0.96891242, 0.93937271, 0.90044710],
@@ -1980,7 +1983,7 @@ class TestResultDymolaBinary:
     def test_get_variables_data_values1(self):
         """ Verifing values from get_variables_data, with dynamic_diagnostics = True. """
         vars_to_test = ['time', 'J4.phi', '@Diagnostics.step_time', '@Diagnostics.nbr_steps']
-        test_data_sets = self._test_get_variables_data(True, 5, 3, vars_to_test, lambda x: None)
+        test_data_sets = self._test_get_variables_data(True, 5, 3, vars_to_test, lambda x: None, "TestFile01.mat")
 
         reference_data = {
             0: [ 1.00000000,  0.99875026,  0.93937271],
@@ -1999,7 +2002,7 @@ class TestResultDymolaBinary:
     def test_get_variables_data_values2(self):
         """ Verifing values from get_variables_data, retrieving partial trajectories. """
         vars_to_test = ['time', 'J4.phi']
-        test_data_sets = self._test_get_variables_data(False, 5, None, vars_to_test, lambda x: x + 1)
+        test_data_sets = self._test_get_variables_data(False, 5, None, vars_to_test, lambda x: x + 1, "TestFile02.mat")
 
         reference_data = {
             0: [1],
@@ -2015,7 +2018,7 @@ class TestResultDymolaBinary:
     def test_get_variables_data_values3(self):
         """ Verifing values from get_variables_data, and only asking for diagnostic variables. """
         vars_to_test = ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
-        test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: None)
+        test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: None, "TestFile03.mat")
 
         reference_data = {
             '@Diagnostics.step_time' : {
@@ -2041,7 +2044,7 @@ class TestResultDymolaBinary:
     def test_get_variables_data_values4(self):
         """ Verifing values from get_variables_data, partial trajectories and checking both time and diagnostic data."""
         vars_to_test = ['time', '@Diagnostics.nbr_steps']
-        test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: x + 2)
+        test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: x + 2, "TestFile04.mat")
 
         reference_data = {
             'time' : {
