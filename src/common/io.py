@@ -1265,7 +1265,6 @@ class ResultDymolaBinary(ResultDymola):
             delayed  = DelayedVariableLoad(f, chars_as_strings=False)
             self.raw = delayed.get_variables(variable_names = data_sections)
         self._mtime = os.path.getmtime(self._fname)
-
         self._data_2_info = self.raw["data_2"]
         self._data_2 = {}
 
@@ -2741,6 +2740,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._make_diagnostics_consistent()
 
     def _make_consistent(self):
+        """ TODO Requires documentation. """
         f = self._file
 
         #Get current position
@@ -2758,7 +2758,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         f.seek(file_pos)
 
     def _make_diagnostics_consistent(self):
-        """ Similar to _make_consistent, but for diagnostics data. """
+        """ TODO Requires documentation. """
         f = self._file
 
         #Get current position

@@ -1937,7 +1937,6 @@ class TestResultDymolaBinary:
         fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
 
         rdb = ResultDymolaBinary(opts["result_file_name"], allow_file_updates=True)
-
         nbr_of_calls = nbr_of_calls
         diag_data_ratio = diag_data_ratio
         counter = 0
@@ -1948,6 +1947,7 @@ class TestResultDymolaBinary:
 
         data_to_return = {}
         for i in range(nbr_of_calls):
+            time.sleep(0.1) # without this the tests fail on Linux, should look into a proper way of solving this
             for j in range(nbr_of_points):
                 result_handler.integration_point()
                 if opts["dynamic_diagnostics"] and counter%diag_data_ratio==0:
