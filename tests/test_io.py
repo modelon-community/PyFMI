@@ -1766,6 +1766,7 @@ class TestResultDymolaBinary:
 
         nbr_of_calls = 10
         counter = 0
+        np.random.seed(0)
         diag_data_ratio = np.random.randint(2, 5) # random for testing purpose
         start_index = 0
 
@@ -1800,7 +1801,7 @@ class TestResultDymolaBinary:
 
     @testattr(stddist = True)
     def test_get_variables_data_0(self):
-        """ Test default with get_variables_data. """
+        """ Test that get_variables_data work with reading/writing without any specific options. """
         self._get_variables_data_helper(
             dynamic_diagnostics = False,
             update_start_index = False,
@@ -1810,7 +1811,7 @@ class TestResultDymolaBinary:
 
     @testattr(stddist = True)
     def test_get_variables_data_1(self):
-        """ Test get_variables_data while updating start_index. """
+        """ Test that get_variables_data work with reading/writing while updating start_index. """
         self._get_variables_data_helper(
             dynamic_diagnostics = False,
             update_start_index = True,
@@ -1820,7 +1821,7 @@ class TestResultDymolaBinary:
 
     @testattr(stddist = True)
     def test_get_variables_data_2(self):
-        """ Test get_variables_data when dynamic_diagnostics is True. """
+        """ Test that get_variables_data work with reading/writing when dynamic_diagnostics is True. """
         self._get_variables_data_helper(
             dynamic_diagnostics = True,
             update_start_index = False,
@@ -1830,14 +1831,15 @@ class TestResultDymolaBinary:
 
     @testattr(stddist = True)
     def test_get_variables_data_3(self):
-        """ Test get_variables_data when dynamic_diagnostics is True and updating start_index. """
+        """ Test that get_variables_data work with reading/writing
+            when dynamic_diagnostics is True and updating start_index.
+        """
         self._get_variables_data_helper(
             dynamic_diagnostics = True,
             update_start_index = True,
             only_diagnostics_data = False,
             favor_diagnostics_data = False
         )
-
 
     @testattr(stddist = True)
     def test_get_variables_data_4(self):
@@ -1864,7 +1866,7 @@ class TestResultDymolaBinary:
         )
 
     def _test_get_variables_data(self, dynamic_diagnostics: bool, nbr_of_calls: int, diag_data_ratio: int,
-                                 vars_to_test: list, u: callable, result_file_name: str) -> dict:
+                                 vars_to_test: list, stop_index_function: callable, result_file_name: str) -> dict:
         """
             Simulates a dummy FMU and generates data for get_variables_data.
 
@@ -1882,7 +1884,7 @@ class TestResultDymolaBinary:
             vars_to_test : list
                 Variables to retrieve data from during the simulation.
 
-            u : callable
+            stop_index_function : callable
                 Function to determine the stop index for retrieving variable data.
 
             result_file_name: str

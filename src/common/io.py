@@ -1339,7 +1339,7 @@ class ResultDymolaBinary(ResultDymola):
             nbr_variables  = self._data_2_info["nbr_variables"]
 
             # Account for sub-sets of data
-            if start_index is not None and start_index > 0:
+            if start_index > 0:
                 new_file_position = file_position + start_index*sizeof_type*nbr_variables
                 new_nbr_points = nbr_points - start_index
             else:
@@ -1348,7 +1348,7 @@ class ResultDymolaBinary(ResultDymola):
 
             if stop_index is not None and stop_index > 0:
                 new_nbr_points = stop_index
-                if start_index is not None and start_index > 0:
+                if start_index > 0:
                     new_nbr_points -= start_index
 
             self._data_2[data_index] = fmi_util.read_trajectory(
