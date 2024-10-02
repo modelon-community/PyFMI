@@ -30,20 +30,6 @@ import os.path
 import sys
 import time
 
-def testattr(**kwargs):
-    """Add attributes to a test function/method/class.
-    
-    This function is needed to be able to add
-      @attr(slow = True)
-    for functions.
-    
-    """
-    def wrap(func):
-        func.__dict__.update(kwargs)
-        return func
-    return wrap
-
-
 try:
     curr_dir = os.path.dirname(os.path.abspath(__file__))
     _fpath=os.path.join(curr_dir,'version.txt')
