@@ -15,81 +15,78 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import pytest
 import os
+import pytest
 
 from pyfmi.fmi import FMUModelME2
 from pyfmi.fmi_coupled import CoupledFMUModelME2
 import pyfmi.fmi as fmi
-from pyfmi.tests.test_util import Dummy_FMUModelME2
+from pyfmi.test_util import Dummy_FMUModelME2
 
-assimulo_installed = True
 try:
     import assimulo
 except ImportError:
-    assimulo_installed = False
+    pass
 
 file_path = os.path.dirname(os.path.abspath(__file__))
-
 me2_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0")
 
-if assimulo_installed:
-    class Test_CoupledFMUModelME2_Simulation:
-        def test_linear_example(self):
-            model_sub_1 = Dummy_FMUModelME2([], os.path.join(me2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
-            model_sub_2 = Dummy_FMUModelME2([], os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
+@pytest.mark.assimulo
+class Test_CoupledFMUModelME2_Simulation:
+    def test_linear_example(self):
+        model_sub_1 = Dummy_FMUModelME2([], os.path.join(me2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
+        model_sub_2 = Dummy_FMUModelME2([], os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
 
-            def sub1(*args, **kwargs):
-                u1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("u1")], evaluate = False)
-                a1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("a1")], evaluate = False)
-                b1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("b1")], evaluate = False)
-                c1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("c1")], evaluate = False)
-                d1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("d1")], evaluate = False)
-                x1 = model_sub_1.continuous_states[0]
-                model_sub_1.set_real([model_sub_1.get_variable_valueref("y1")], c1*x1+d1*u1)
-                model_sub_1.set_real([model_sub_1.get_variable_valueref("x1")], [x1])
-                return a1*x1+b1*u1
-            
-            def sub2(*args, **kwargs):
-                u2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("u2")], evaluate = False)
-                a2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("a2")], evaluate = False)
-                b2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("b2")], evaluate = False)
-                c2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("c2")], evaluate = False)
-                d2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("d2")], evaluate = False)
-                x2 = model_sub_2.continuous_states[0]
-                model_sub_2.set_real([model_sub_2.get_variable_valueref("y2")], c2*x2+d2*u2)
-                model_sub_2.set_real([model_sub_2.get_variable_valueref("x2")], [x2])
-                return a2*x2+b2*u2
-            
-            model_sub_1.get_derivatives = sub1
-            model_sub_2.get_derivatives = sub2
-            
-            models = [("First", model_sub_1), ("Second", model_sub_2)]
-            connections = [(model_sub_1,"y1",model_sub_2,"u2"),
-                           (model_sub_2,"y2",model_sub_1,"u1")]
-            
-            coupled = CoupledFMUModelME2(models, connections=connections)
+        def sub1(*args, **kwargs):
+            u1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("u1")], evaluate = False)
+            a1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("a1")], evaluate = False)
+            b1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("b1")], evaluate = False)
+            c1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("c1")], evaluate = False)
+            d1 = model_sub_1.get_real([model_sub_1.get_variable_valueref("d1")], evaluate = False)
+            x1 = model_sub_1.continuous_states[0]
+            model_sub_1.set_real([model_sub_1.get_variable_valueref("y1")], c1*x1+d1*u1)
+            model_sub_1.set_real([model_sub_1.get_variable_valueref("x1")], [x1])
+            return a1*x1+b1*u1
+        
+        def sub2(*args, **kwargs):
+            u2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("u2")], evaluate = False)
+            a2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("a2")], evaluate = False)
+            b2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("b2")], evaluate = False)
+            c2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("c2")], evaluate = False)
+            d2 = model_sub_2.get_real([model_sub_2.get_variable_valueref("d2")], evaluate = False)
+            x2 = model_sub_2.continuous_states[0]
+            model_sub_2.set_real([model_sub_2.get_variable_valueref("y2")], c2*x2+d2*u2)
+            model_sub_2.set_real([model_sub_2.get_variable_valueref("x2")], [x2])
+            return a2*x2+b2*u2
+        
+        model_sub_1.get_derivatives = sub1
+        model_sub_2.get_derivatives = sub2
+        
+        models = [("First", model_sub_1), ("Second", model_sub_2)]
+        connections = [(model_sub_1,"y1",model_sub_2,"u2"),
+                        (model_sub_2,"y2",model_sub_1,"u1")]
+        
+        coupled = CoupledFMUModelME2(models, connections=connections)
 
-            opts = {"CVode_options": {"rtol":1e-6, "atol":1e-6}, "ncp":0}
+        opts = {"CVode_options": {"rtol":1e-6, "atol":1e-6}, "ncp":0}
 
-            res = coupled.simulate(options=opts)
+        res = coupled.simulate(options=opts)
 
-            assert res.final("First.x1") == pytest.approx(0.08597302307099872)
-            assert res.final("Second.x2") == pytest.approx(0.0083923348082567)
-            assert res.initial("First.x1") == pytest.approx(1.0)
-            assert res.initial("Second.x2") == pytest.approx(1.0)
-            
-            assert res.final("First.u1") == pytest.approx(-0.25909975860402856)
-            assert res.final("Second.u2") == pytest.approx(-0.0011806893910324295)
-            assert res.initial("First.u1") == pytest.approx(-17.736842105263158)
-            assert res.initial("Second.u2") == pytest.approx(-14.73684210526316)
+        assert res.final("First.x1") == pytest.approx(0.08597302307099872)
+        assert res.final("Second.x2") == pytest.approx(0.0083923348082567)
+        assert res.initial("First.x1") == pytest.approx(1.0)
+        assert res.initial("Second.x2") == pytest.approx(1.0)
+        
+        assert res.final("First.u1") == pytest.approx(-0.25909975860402856)
+        assert res.final("Second.u2") == pytest.approx(-0.0011806893910324295)
+        assert res.initial("First.u1") == pytest.approx(-17.736842105263158)
+        assert res.initial("Second.u2") == pytest.approx(-14.73684210526316)
         
 
 class Test_CoupledFMUModelME2:
     def test_reversed_connections(self):
         model_sub_1 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
         model_sub_2 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
-        model_full  = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.FullSystem.fmu"), _connect_dll=False)
         
         models = [("First", model_sub_1), ("Second", model_sub_2)]
         connections = [(model_sub_2,"y1",model_sub_1,"u2"),
@@ -107,7 +104,6 @@ class Test_CoupledFMUModelME2:
     def test_inputs_list(self):
         model_sub_1 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
         model_sub_2 = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.SubSystem2.fmu"), _connect_dll=False)
-        model_full  = FMUModelME2(os.path.join(me2_xml_path, "LinearStability.FullSystem.fmu"), _connect_dll=False)
         
         models = [("First", model_sub_1), ("Second", model_sub_2)]
         connections = [(model_sub_1,"y1",model_sub_2,"u2"),
@@ -156,7 +152,6 @@ class Test_CoupledFMUModelME2:
             CoupledFMUModelME2(models, connections)
         
         models = [("First", model_cc_1), ("Second", model_cc_2)]
-        coupled = CoupledFMUModelME2(models, connections)
         
         connections = [("k")]
         with pytest.raises(fmi.FMUException):

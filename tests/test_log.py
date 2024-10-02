@@ -19,7 +19,7 @@ import os
 
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
-from pyfmi.tests.test_util import Dummy_FMUModelME2
+from pyfmi.test_util import Dummy_FMUModelME2
 from pyfmi.fmi_util import decode
 
 import numpy as np
@@ -163,7 +163,6 @@ class Test_Log:
         """ Test that a truncated log still contains valid XML."""
         # XXX: There currently is no FMU is linux binaries running on Ubuntu 20+ (libgfortran issues)
         # XXX: This is not a very good test, since it largely tests the mocked implementation, but better than nothing
-        file_path = os.path.dirname(os.path.abspath(__file__))
         fmu_name = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu")
 
         # 1. Simulate + determine log size that corresponds to a truncation (resulting in invalid XML)
@@ -209,7 +208,6 @@ class Test_Log:
 
     def test_resume_logging_on_increased_max_log_size(self):
         """Test that logging will resume when increasing max log size & previously exceeding the maximal size."""
-        file_path = os.path.dirname(os.path.abspath(__file__))
         fmu_name = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu")
 
         fmu = Dummy_FMUModelME2([], fmu_name, _connect_dll=False)

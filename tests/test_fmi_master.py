@@ -23,12 +23,11 @@ import re
 
 from pyfmi import Master
 from pyfmi.fmi import FMUException, FMUModelCS2, FMUModelME2
-from pyfmi.tests.test_util import Dummy_FMUModelCS2
+from pyfmi.test_util import Dummy_FMUModelCS2
 from pyfmi.common.io import ResultHandler, ResultSizeError
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 
 file_path = os.path.dirname(os.path.abspath(__file__))
-
 cs2_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0")
 me2_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0")
 
@@ -167,11 +166,10 @@ class Test_Master:
         opts = {"result_handling":"memory"}
         self._basic_simulation(opts)
 
-    @testattr(stddist = True)
     def test_basic_simulation_max_result_size(self):
         opts = {"result_max_size":10000}
 
-        with nose.tools.assert_raises(ResultSizeError):
+        with pytest.raises(ResultSizeError):
             self._basic_simulation(opts)
     
     def test_basic_simulation_mat_file_naming(self):
@@ -457,29 +455,20 @@ class Test_Master:
         models, connections = self._load_basic_simulation()
         test_values = [1/2, 1/3, "0.5", False]
 
-        # TODO: tidy up with pytest
         expected_substr = "Option 'result_downsampling_factor' must be an integer,"
+        ## TODO: Pytest parametrization
         for value in test_values:
-            try:
+            with pytest.raises(Exception, match = expected_substr):
                 self._sim_basic_simulation(models, connections, {'result_downsampling_factor': value})
-                error_raised = False
-            except FMUException as e:
-                error_raised = True
-                assert expected_substr in str(e), f"Error was {str(e)}, expected substring {expected_substr}"
-            assert error_raised
-        
-    # TODO: Test case that supports storing FMU states required
+    
+    @pytest.mark.skipif(True, reason = "Error controlled simulation only supported if storing FMU states are available.")
     def test_error_controlled_with_downsampling(self):
         models, connections = self._load_basic_simulation()
         uptate_options = {'result_downsampling_factor': 2,
                           'error_controlled': True}
-        # TODO: Tidy up with pytest
         msg = "Result downsampling not supported for error controlled simulation, no downsampling will be performed."
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("default")
+        with pytest.warns(UserWarning, match = msg):
             self._sim_basic_simulation(models, connections, uptate_options)
-            # there will be some other warnings from FMU loading
-            assert f"UserWarning('{msg}')" in [i.message for i in w]
 
     def test_downsample_result_with_store_step_before_update(self):
         """ Test result_downsampling_factor with store_step_before_update. """

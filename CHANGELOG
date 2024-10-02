@@ -8,6 +8,10 @@
     * Added option to limit the size of the result ("result_max_size"), default set to 2GB.
     * Added method ResultDymolaBinary.get_variables_data. Included some minor refactorization.
       The new method allows for retrieving partial trajectories, and multiple trajectories at once.
+    * Changed testing framework from `nose` to `pytest`.
+    * Removed tests from the PyFMI installation.
+    * Moved test files from src/pyfmi/tests/... to tests/files/...
+    * Moved test_util.* from src/pyfmi/tests to src/pyfmi
 
 --- PyFMI-2.14.0 ---
     * Updated the error message displayed when loading FMUs with needsExecutionTool set to True.

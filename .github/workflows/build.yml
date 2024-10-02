@@ -57,7 +57,4 @@ jobs:
     - name: Build
       run: python3 setup.py install --user --fmil-home=/usr
     - name: Test
-      run: |
-        rm src/pyfmi/__init__.py
-        cp -rv src/pyfmi/tests/files tests
-        pytest --verbose tests/
+      run: pytest 

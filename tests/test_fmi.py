@@ -28,7 +28,7 @@ from pyfmi.fmi import FMUException, InvalidOptionException, InvalidXMLException,
 import pyfmi.fmi as fmi
 from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg, AssimuloFMIAlgOptions, \
                                         PYFMI_JACOBIAN_LIMIT, PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT
-from pyfmi.tests.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2, get_examples_folder
+from pyfmi.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2, get_examples_folder
 from pyfmi.common.io import ResultHandler
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 from pyfmi.common.core import create_temp_dir
@@ -44,11 +44,10 @@ class NoSolveAlg(AssimuloFMIAlg):
         pass
 
 
-assimulo_installed = True
 try:
     import assimulo
 except ImportError:
-    assimulo_installed = False
+    pass
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -72,107 +71,107 @@ def _helper_unzipped_fmu_exception_invalid_dir(fmu_loader):
         with pytest.raises(FMUException, match = err_msg):
             fmu = fmu_loader(temp_dir, allow_unzipped_fmu = True)
 
-if assimulo_installed:
-    class Test_FMUModelME1_Simulation:
-        def test_simulate_with_debug_option_no_state(self):
-            """ Verify that an instance of CVodeDebugInformation is created """
-            model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NoState.Example1.fmu"), _connect_dll=False)
+pytest.mark.assimulo
+class Test_FMUModelME1_Simulation:
+    def test_simulate_with_debug_option_no_state(self):
+        """ Verify that an instance of CVodeDebugInformation is created """
+        model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NoState.Example1.fmu"), _connect_dll=False)
 
-            opts=model.simulate_options()
-            opts["logging"] = True
-            opts["result_handling"] = "csv" # set to anything except 'binary'
+        opts=model.simulate_options()
+        opts["logging"] = True
+        opts["result_handling"] = "csv" # set to anything except 'binary'
 
-            #Verify that a simulation is successful
-            res=model.simulate(options=opts)
+        #Verify that a simulation is successful
+        res=model.simulate(options=opts)
 
-            from pyfmi.debug import CVodeDebugInformation
-            debug = CVodeDebugInformation("NoState_Example1_debug.txt")
+        from pyfmi.debug import CVodeDebugInformation
+        debug = CVodeDebugInformation("NoState_Example1_debug.txt")
 
-        def test_no_result(self):
-            model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+    def test_no_result(self):
+        model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
-            opts = model.simulate_options()
-            opts["result_handling"] = None
-            res = model.simulate(options=opts)
+        opts = model.simulate_options()
+        opts["result_handling"] = None
+        res = model.simulate(options=opts)
 
-            with pytest.raises(Exception):
-                res._get_result_data()
+        with pytest.raises(Exception):
+            res._get_result_data()
 
-            model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
-            opts = model.simulate_options()
-            opts["return_result"] = False
-            res = model.simulate(options=opts)
+        opts = model.simulate_options()
+        opts["return_result"] = False
+        res = model.simulate(options=opts)
 
-            with pytest.raises(Exception):
-                res._get_result_data()
+        with pytest.raises(Exception):
+            res._get_result_data()
 
-        def test_custom_result_handler(self):
-            model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+    def test_custom_result_handler(self):
+        model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
-            class A:
-                pass
-            class B(ResultHandler):
-                def get_result(self):
-                    return None
+        class A:
+            pass
+        class B(ResultHandler):
+            def get_result(self):
+                return None
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "hejhej"
-            with pytest.raises(Exception):
-                model.simulate(options=opts)
-            opts["result_handling"] = "custom"
-            with pytest.raises(Exception):
-                model.simulate(options=opts)
-            opts["result_handler"] = A()
-            with pytest.raises(Exception):
-                model.simulate(options=opts)
-            opts["result_handler"] = B()
-            res = model.simulate(options=opts)
+        opts = model.simulate_options()
+        opts["result_handling"] = "hejhej"
+        with pytest.raises(Exception):
+            model.simulate(options=opts)
+        opts["result_handling"] = "custom"
+        with pytest.raises(Exception):
+            model.simulate(options=opts)
+        opts["result_handler"] = A()
+        with pytest.raises(Exception):
+            model.simulate(options=opts)
+        opts["result_handler"] = B()
+        res = model.simulate(options=opts)
 
-        def setup_atol_auto_update_test_base(self):
-            model = Dummy_FMUModelME1([], FMU_PATHS.ME1.nominal_test4, _connect_dll=False)
-            model.override_nominal_continuous_states = False
-            opts = model.simulate_options()
-            opts["return_result"] = False
-            opts["solver"] = "CVode"
-            return model, opts
+    def setup_atol_auto_update_test_base(self):
+        model = Dummy_FMUModelME1([], FMU_PATHS.ME1.nominal_test4, _connect_dll=False)
+        model.override_nominal_continuous_states = False
+        opts = model.simulate_options()
+        opts["return_result"] = False
+        opts["solver"] = "CVode"
+        return model, opts
 
-        def test_atol_auto_update1(self):
-            """
-            Tests that atol automatically gets updated when "atol = factor * pre_init_nominals".
-            """
-            model, opts = self.setup_atol_auto_update_test_base()
+    def test_atol_auto_update1(self):
+        """
+        Tests that atol automatically gets updated when "atol = factor * pre_init_nominals".
+        """
+        model, opts = self.setup_atol_auto_update_test_base()
 
-            opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
-            model.simulate(options=opts, algorithm=NoSolveAlg)
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+        opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+        model.simulate(options=opts, algorithm=NoSolveAlg)
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
 
-        def test_atol_auto_update2(self):
-            """
-            Tests that atol doesn't get auto-updated when heuristic fails.
-            """
-            model, opts = self.setup_atol_auto_update_test_base()
+    def test_atol_auto_update2(self):
+        """
+        Tests that atol doesn't get auto-updated when heuristic fails.
+        """
+        model, opts = self.setup_atol_auto_update_test_base()
 
-            opts["CVode_options"]["atol"] = (0.01 * model.nominal_continuous_states) + [0.01, 0.01]
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
-            model.simulate(options=opts, algorithm=NoSolveAlg)
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
+        opts["CVode_options"]["atol"] = (0.01 * model.nominal_continuous_states) + [0.01, 0.01]
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
+        model.simulate(options=opts, algorithm=NoSolveAlg)
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
 
-        def test_atol_auto_update3(self):
-            """
-            Tests that atol doesn't get auto-updated when nominals are never retrieved.
-            """
-            model, opts = self.setup_atol_auto_update_test_base()
+    def test_atol_auto_update3(self):
+        """
+        Tests that atol doesn't get auto-updated when nominals are never retrieved.
+        """
+        model, opts = self.setup_atol_auto_update_test_base()
 
-            opts["CVode_options"]["atol"] = [0.02, 0.01]
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
-            model.simulate(options=opts, algorithm=NoSolveAlg)
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+        opts["CVode_options"]["atol"] = [0.02, 0.01]
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+        model.simulate(options=opts, algorithm=NoSolveAlg)
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
 
-        # NOTE:
-        # There are more tests for ME2 for auto update of atol, but it should be enough to test
-        # one FMI version for that, because they mainly test algorithm drivers functionality.
+    # NOTE:
+    # There are more tests for ME2 for auto update of atol, but it should be enough to test
+    # one FMI version for that, because they mainly test algorithm drivers functionality.
 
 
 class Test_FMUModelME1:
@@ -703,419 +702,419 @@ class Test_FMUModelCS2:
                 assert expected_substr in str(e), f"Error was {str(e)}, expected substring {expected_substr}"
             assert error_raised
 
-if assimulo_installed:
-    class Test_FMUModelME2_Simulation:
-        def test_basicsens1(self):
-            #Noncompliant FMI test as 'd' is parameter is not supposed to be able to be set during simulation
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BasicSens1.fmu"), _connect_dll=False)
+@pytest.mark.assimulo
+class Test_FMUModelME2_Simulation:
+    def test_basicsens1(self):
+        #Noncompliant FMI test as 'd' is parameter is not supposed to be able to be set during simulation
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BasicSens1.fmu"), _connect_dll=False)
 
-            def f(*args, **kwargs):
-                d = model.values[model.variables["d"].value_reference]
-                x = model.continuous_states[0]
-                model.values[model.variables["der(x)"].value_reference] = d*x
-                return np.array([d*x])
+        def f(*args, **kwargs):
+            d = model.values[model.variables["d"].value_reference]
+            x = model.continuous_states[0]
+            model.values[model.variables["der(x)"].value_reference] = d*x
+            return np.array([d*x])
 
-            model.get_derivatives = f
+        model.get_derivatives = f
 
-            opts = model.simulate_options()
-            opts["sensitivities"] = ["d"]
+        opts = model.simulate_options()
+        opts["sensitivities"] = ["d"]
 
-            res = model.simulate(options=opts)
-            assert res.final('dx/dd') == pytest.approx(0.36789, abs = 1e-3)
+        res = model.simulate(options=opts)
+        assert res.final('dx/dd') == pytest.approx(0.36789, abs = 1e-3)
 
-            assert res.solver.statistics["nsensfcnfcns"] > 0
+        assert res.solver.statistics["nsensfcnfcns"] > 0
 
-        def test_basicsens1dir(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BasicSens1.fmu"), _connect_dll=False)
+    def test_basicsens1dir(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BasicSens1.fmu"), _connect_dll=False)
 
-            caps = model.get_capability_flags()
-            caps["providesDirectionalDerivatives"] = True
-            model.get_capability_flags = lambda : caps
+        caps = model.get_capability_flags()
+        caps["providesDirectionalDerivatives"] = True
+        model.get_capability_flags = lambda : caps
 
-            def f(*args, **kwargs):
-                d = model.values[model.variables["d"].value_reference]
-                x = model.continuous_states[0]
-                model.values[model.variables["der(x)"].value_reference] = d*x
-                return np.array([d*x])
+        def f(*args, **kwargs):
+            d = model.values[model.variables["d"].value_reference]
+            x = model.continuous_states[0]
+            model.values[model.variables["der(x)"].value_reference] = d*x
+            return np.array([d*x])
 
-            def d(*args, **kwargs):
-                if args[0][0] == 40:
-                    return np.array([-1.0])
-                else:
-                    return model.continuous_states
+        def d(*args, **kwargs):
+            if args[0][0] == 40:
+                return np.array([-1.0])
+            else:
+                return model.continuous_states
 
-            model.get_directional_derivative = d
-            model.get_derivatives = f
-            model._provides_directional_derivatives = lambda : True
+        model.get_directional_derivative = d
+        model.get_derivatives = f
+        model._provides_directional_derivatives = lambda : True
 
-            opts = model.simulate_options()
-            opts["sensitivities"] = ["d"]
+        opts = model.simulate_options()
+        opts["sensitivities"] = ["d"]
 
-            res = model.simulate(options=opts)
-            assert res.final('dx/dd') == pytest.approx(0.36789, abs = 1e-3)
+        res = model.simulate(options=opts)
+        assert res.final('dx/dd') == pytest.approx(0.36789, abs = 1e-3)
 
-            assert res.solver.statistics["nsensfcnfcns"] > 0
-            assert res.solver.statistics["nfcnjacs"] == 0
+        assert res.solver.statistics["nsensfcnfcns"] > 0
+        assert res.solver.statistics["nfcnjacs"] == 0
 
-        def test_basicsens2(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BasicSens2.fmu"), _connect_dll=False)
+    def test_basicsens2(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BasicSens2.fmu"), _connect_dll=False)
 
-            caps = model.get_capability_flags()
-            caps["providesDirectionalDerivatives"] = True
-            model.get_capability_flags = lambda : caps
+        caps = model.get_capability_flags()
+        caps["providesDirectionalDerivatives"] = True
+        model.get_capability_flags = lambda : caps
 
-            def f(*args, **kwargs):
-                d = model.values[model.variables["d"].value_reference]
-                x = model.continuous_states[0]
-                model.values[model.variables["der(x)"].value_reference] = d*x
-                return np.array([d*x])
+        def f(*args, **kwargs):
+            d = model.values[model.variables["d"].value_reference]
+            x = model.continuous_states[0]
+            model.values[model.variables["der(x)"].value_reference] = d*x
+            return np.array([d*x])
 
-            def d(*args, **kwargs):
-                if args[0][0] == 40:
-                    return np.array([-1.0])
-                else:
-                    return model.continuous_states
+        def d(*args, **kwargs):
+            if args[0][0] == 40:
+                return np.array([-1.0])
+            else:
+                return model.continuous_states
 
-            model.get_directional_derivative = d
-            model.get_derivatives = f
-            model._provides_directional_derivatives = lambda : True
+        model.get_directional_derivative = d
+        model.get_derivatives = f
+        model._provides_directional_derivatives = lambda : True
 
-            opts = model.simulate_options()
-            opts["sensitivities"] = ["d"]
+        opts = model.simulate_options()
+        opts["sensitivities"] = ["d"]
 
-            res = model.simulate(options=opts)
-            assert res.final('dx/dd') == pytest.approx(0.36789, abs = 1e-3)
+        res = model.simulate(options=opts)
+        assert res.final('dx/dd') == pytest.approx(0.36789, abs = 1e-3)
 
-            assert res.solver.statistics["nsensfcnfcns"] == 0
+        assert res.solver.statistics["nsensfcnfcns"] == 0
 
-        def test_relative_tolerance(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+    def test_relative_tolerance(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
 
-            opts = model.simulate_options()
-            opts["CVode_options"]["rtol"] = 1e-8
+        opts = model.simulate_options()
+        opts["CVode_options"]["rtol"] = 1e-8
 
-            res = model.simulate(options=opts)
+        res = model.simulate(options=opts)
 
-            assert res.options["CVode_options"]["atol"] == 1e-10
+        assert res.options["CVode_options"]["atol"] == 1e-10
 
-        def test_simulate_with_debug_option_no_state(self):
-            """ Verify that an instance of CVodeDebugInformation is created """
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+    def test_simulate_with_debug_option_no_state(self):
+        """ Verify that an instance of CVodeDebugInformation is created """
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
 
-            opts=model.simulate_options()
-            opts["logging"] = True
-            opts["result_handling"] = "csv" # set to anything except 'binary'
+        opts=model.simulate_options()
+        opts["logging"] = True
+        opts["result_handling"] = "csv" # set to anything except 'binary'
 
-            #Verify that a simulation is successful
-            res=model.simulate(options=opts)
+        #Verify that a simulation is successful
+        res=model.simulate(options=opts)
 
-            from pyfmi.debug import CVodeDebugInformation
-            debug = CVodeDebugInformation("NoState_Example1_debug.txt")
+        from pyfmi.debug import CVodeDebugInformation
+        debug = CVodeDebugInformation("NoState_Example1_debug.txt")
 
-        def test_maxord_is_set(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
-            opts = model.simulate_options()
-            opts["solver"] = "CVode"
-            opts["CVode_options"]["maxord"] = 1
+    def test_maxord_is_set(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["solver"] = "CVode"
+        opts["CVode_options"]["maxord"] = 1
 
-            res = model.simulate(final_time=1.5,options=opts)
+        res = model.simulate(final_time=1.5,options=opts)
 
-            assert res.solver.maxord == 1
+        assert res.solver.maxord == 1
 
-        def test_with_jacobian_option(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+    def test_with_jacobian_option(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["solver"] = "CVode"
+        opts["result_handling"] = None
+
+        def run_case(expected, default="Default"):
+            model.reset()
+            res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
+            assert res.options["with_jacobian"] == default, res.options["with_jacobian"]
+            assert res.solver.problem._with_jacobian == expected, res.solver.problem._with_jacobian
+
+        run_case(False)
+
+        model.get_ode_sizes = lambda: (PYFMI_JACOBIAN_LIMIT+1, 0)
+        run_case(True)
+
+        opts["solver"] = "Radau5ODE"
+        run_case(False)
+
+        opts["solver"] = "CVode"
+        opts["with_jacobian"] = False
+        run_case(False, False)
+
+        model.get_ode_sizes = lambda: (PYFMI_JACOBIAN_LIMIT-1, 0)
+        opts["with_jacobian"] = True
+        run_case(True, True)
+
+    def test_sparse_option(self):
+
+        def run_case(expected_jacobian, expected_sparse, fnbr=0, nnz={}, set_sparse=False):
+            class Sparse_FMUModelME2(Dummy_FMUModelME2):
+                def get_derivatives_dependencies(self):
+                    return (nnz, {})
+
+            model = Sparse_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
             opts = model.simulate_options()
             opts["solver"] = "CVode"
             opts["result_handling"] = None
+            if set_sparse:
+                opts["CVode_options"]["linear_solver"] = "SPARSE"
 
-            def run_case(expected, default="Default"):
-                model.reset()
-                res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
-                assert res.options["with_jacobian"] == default, res.options["with_jacobian"]
-                assert res.solver.problem._with_jacobian == expected, res.solver.problem._with_jacobian
+            model.get_ode_sizes = lambda: (fnbr, 0)
 
-            run_case(False)
+            res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
+            assert res.solver.problem._with_jacobian == expected_jacobian, res.solver.problem._with_jacobian
+            assert res.solver.linear_solver == expected_sparse, res.solver.linear_solver
 
-            model.get_ode_sizes = lambda: (PYFMI_JACOBIAN_LIMIT+1, 0)
-            run_case(True)
+        run_case(False, "DENSE")
+        run_case(True, "DENSE",  PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT**2})
+        run_case(True, "SPARSE", PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT})
+        run_case(True, "SPARSE", PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT}, True)
 
-            opts["solver"] = "Radau5ODE"
-            run_case(False)
+    def test_ncp_option(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+        opts = model.simulate_options()
+        assert opts["ncp"] == 500, opts["ncp"]
 
-            opts["solver"] = "CVode"
-            opts["with_jacobian"] = False
-            run_case(False, False)
+    def test_solver_options(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+        opts = model.simulate_options()
 
-            model.get_ode_sizes = lambda: (PYFMI_JACOBIAN_LIMIT-1, 0)
-            opts["with_jacobian"] = True
-            run_case(True, True)
+        try:
+            opts["CVode_options"] = "ShouldFail"
+            raise Exception("Setting an incorrect option should lead to exception being thrown, it wasn't")
+        except UnrecognizedOptionError:
+            pass
 
-        def test_sparse_option(self):
+        opts["CVode_options"] = {"maxh":1.0}
+        assert opts["CVode_options"]["atol"] == "Default", "Default should have been changed: " + opts["CVode_options"]["atol"]
+        assert opts["CVode_options"]["maxh"] == 1.0, "Value should have been changed to 1.0: " + opts["CVode_options"]["maxh"]
 
-            def run_case(expected_jacobian, expected_sparse, fnbr=0, nnz={}, set_sparse=False):
-                class Sparse_FMUModelME2(Dummy_FMUModelME2):
-                    def get_derivatives_dependencies(self):
-                        return (nnz, {})
+    def test_solver_options_using_defaults(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+        opts = model.simulate_options()
 
-                model = Sparse_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
-                opts = model.simulate_options()
-                opts["solver"] = "CVode"
-                opts["result_handling"] = None
-                if set_sparse:
-                    opts["CVode_options"]["linear_solver"] = "SPARSE"
+        opts["CVode_options"] = {"maxh":1.0}
+        assert opts["CVode_options"]["atol"] == "Default", "Default should have been changed: " + opts["CVode_options"]["atol"]
+        assert opts["CVode_options"]["maxh"] == 1.0, "Value should have been changed to 1.0: " + opts["CVode_options"]["maxh"]
 
-                model.get_ode_sizes = lambda: (fnbr, 0)
+        opts["CVode_options"] = {"atol":1e-6} #Defaults should be used together with only the option atol set
+        assert opts["CVode_options"]["atol"] == 1e-6, "Default should have been changed: " + opts["CVode_options"]["atol"]
+        assert opts["CVode_options"]["maxh"] == "Default", "Value should have been default is: " + opts["CVode_options"]["maxh"]
 
-                res = model.simulate(final_time=1.5,options=opts, algorithm=NoSolveAlg)
-                assert res.solver.problem._with_jacobian == expected_jacobian, res.solver.problem._with_jacobian
-                assert res.solver.linear_solver == expected_sparse, res.solver.linear_solver
+    def test_deepcopy_option(self):
+        opts = AssimuloFMIAlgOptions()
+        opts["CVode_options"]["maxh"] = 2.0
 
-            run_case(False, "DENSE")
-            run_case(True, "DENSE",  PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT**2})
-            run_case(True, "SPARSE", PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT})
-            run_case(True, "SPARSE", PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT+1, {"Dep": [1]*PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT}, True)
+        import copy
 
-        def test_ncp_option(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
-            opts = model.simulate_options()
-            assert opts["ncp"] == 500, opts["ncp"]
+        opts_copy = copy.deepcopy(opts)
 
-        def test_solver_options(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
-            opts = model.simulate_options()
+        assert opts["CVode_options"]["maxh"] == opts_copy["CVode_options"]["maxh"], "Deepcopy not working..."
 
-            try:
-                opts["CVode_options"] = "ShouldFail"
-                raise Exception("Setting an incorrect option should lead to exception being thrown, it wasn't")
-            except UnrecognizedOptionError:
-                pass
+    def test_maxh_option(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["result_handling"] = None
 
-            opts["CVode_options"] = {"maxh":1.0}
-            assert opts["CVode_options"]["atol"] == "Default", "Default should have been changed: " + opts["CVode_options"]["atol"]
-            assert opts["CVode_options"]["maxh"] == 1.0, "Value should have been changed to 1.0: " + opts["CVode_options"]["maxh"]
+        def run_case(tstart, tstop, solver, ncp="Default"):
+            model.reset()
 
-        def test_solver_options_using_defaults(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
-            opts = model.simulate_options()
+            opts["solver"] = solver
 
-            opts["CVode_options"] = {"maxh":1.0}
-            assert opts["CVode_options"]["atol"] == "Default", "Default should have been changed: " + opts["CVode_options"]["atol"]
-            assert opts["CVode_options"]["maxh"] == 1.0, "Value should have been changed to 1.0: " + opts["CVode_options"]["maxh"]
+            if ncp != "Default":
+                opts["ncp"] = ncp
 
-            opts["CVode_options"] = {"atol":1e-6} #Defaults should be used together with only the option atol set
-            assert opts["CVode_options"]["atol"] == 1e-6, "Default should have been changed: " + opts["CVode_options"]["atol"]
-            assert opts["CVode_options"]["maxh"] == "Default", "Value should have been default is: " + opts["CVode_options"]["maxh"]
+            if opts["ncp"] == 0:
+                expected = 0.0
+            else:
+                expected = (float(tstop)-float(tstart))/float(opts["ncp"])
 
-        def test_deepcopy_option(self):
-            opts = AssimuloFMIAlgOptions()
-            opts["CVode_options"]["maxh"] = 2.0
+            res = model.simulate(start_time=tstart, final_time=tstop,options=opts, algorithm=NoSolveAlg)
+            assert res.solver.maxh == expected, res.solver.maxh
+            assert res.options[solver+"_options"]["maxh"] == "Default", res.options[solver+"_options"]["maxh"]
 
-            import copy
-
-            opts_copy = copy.deepcopy(opts)
-
-            assert opts["CVode_options"]["maxh"] == opts_copy["CVode_options"]["maxh"], "Deepcopy not working..."
-
-        def test_maxh_option(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
-            opts = model.simulate_options()
-            opts["result_handling"] = None
-
-            def run_case(tstart, tstop, solver, ncp="Default"):
-                model.reset()
-
-                opts["solver"] = solver
-
-                if ncp != "Default":
-                    opts["ncp"] = ncp
-
-                if opts["ncp"] == 0:
-                    expected = 0.0
-                else:
-                    expected = (float(tstop)-float(tstart))/float(opts["ncp"])
-
-                res = model.simulate(start_time=tstart, final_time=tstop,options=opts, algorithm=NoSolveAlg)
-                assert res.solver.maxh == expected, res.solver.maxh
-                assert res.options[solver+"_options"]["maxh"] == "Default", res.options[solver+"_options"]["maxh"]
-
-            run_case(0,1,"CVode")
-            run_case(0,1,"CVode", 0)
-            run_case(0,1,"Radau5ODE")
-            run_case(0,1,"Dopri5")
-            run_case(0,1,"RodasODE")
-            run_case(0,1,"LSODAR")
-            run_case(0,1,"LSODAR")
+        run_case(0,1,"CVode")
+        run_case(0,1,"CVode", 0)
+        run_case(0,1,"Radau5ODE")
+        run_case(0,1,"Dopri5")
+        run_case(0,1,"RodasODE")
+        run_case(0,1,"LSODAR")
+        run_case(0,1,"LSODAR")
+    
+    def test_rtol_auto_update(self):
+        """ Test that default rtol picks up the unbounded attribute. """
+        model = Dummy_FMUModelME2([], FMU_PATHS.ME2.coupled_clutches_modified, _connect_dll=False)
         
-        def test_rtol_auto_update(self):
-            """ Test that default rtol picks up the unbounded attribute. """
-            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.coupled_clutches_modified, _connect_dll=False)
-            
-            res = model.simulate()
+        res = model.simulate()
 
-            # verify appropriate rtol(s)
-            for i, state in enumerate(model.get_states_list().keys()):
-                if res.solver.supports.get('rtol_as_vector', False):
-                    # automatic construction of rtol vector
-                    if model.get_variable_unbounded(state):
-                        assert res.solver.rtol[i] == 0
-                    else:
-                        assert res.solver.rtol[i] > 0
-                else: # no support: scalar rtol
-                    assert isinstance(res.solver.rtol, float)
+        # verify appropriate rtol(s)
+        for i, state in enumerate(model.get_states_list().keys()):
+            if res.solver.supports.get('rtol_as_vector', False):
+                # automatic construction of rtol vector
+                if model.get_variable_unbounded(state):
+                    assert res.solver.rtol[i] == 0
+                else:
+                    assert res.solver.rtol[i] > 0
+            else: # no support: scalar rtol
+                assert isinstance(res.solver.rtol, float)
 
-        def test_rtol_vector_manual_valid(self):
-            """ Tests manual valid rtol vector works; if supported. """
+    def test_rtol_vector_manual_valid(self):
+        """ Tests manual valid rtol vector works; if supported. """
 
-            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
-            
-            opts = model.simulate_options()
-            opts["CVode_options"]["rtol"] = [1e-5, 0.]
+        model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+        
+        opts = model.simulate_options()
+        opts["CVode_options"]["rtol"] = [1e-5, 0.]
+        
+        try:
+            res = model.simulate(options=opts)
+            # solver support
+            assert res.solver.rtol[0] == 1e-5
+            assert res.solver.rtol[1] == 0.
+        except InvalidOptionException as e: # if no solver support
+            assert str(e).startswith("Failed to set the solver option 'rtol'")
+    
+    def test_rtol_vector_manual_size_mismatch(self):
+        """ Tests invalid rtol vector: size mismatch. """
+        model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+        
+        opts = model.simulate_options()
+        opts["CVode_options"]["rtol"] = [1e-5, 0, 1e-5]
+        
+        err_msg = "If the relative tolerance is provided as a vector, it need to be equal to the number of states."
+        with pytest.raises(InvalidOptionException, match = err_msg):
+            model.simulate(options=opts)
+
+    def test_rtol_vector_manual_invalid(self):
+        """ Tests invalid rtol vector: different nonzero values. """
+        
+        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
+
+        opts = model.simulate_options()
+        opts["CVode_options"]["rtol"] = [1e-5, 0, 1e-5, 1e-5, 0, 1e-5,1e-6, 0]
+        
+        err_msg = "If the relative tolerance is provided as a vector, the values need to be equal except for zeros."
+        with pytest.raises(InvalidOptionException, match = err_msg):
+            model.simulate(options=opts)
+
+    def test_rtol_vector_manual_scalar_conversion(self):
+        """ Test automatic scalar conversion of trivial rtol vector. """
+        model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+        
+        opts = model.simulate_options()
+        opts["CVode_options"]["rtol"] = [1e-5, 1e-5]
+        
+        #Verify no exception is raised as the rtol vector should be treated as a scalar
+        res = model.simulate(options=opts)
+        assert res.solver.rtol == 1e-5
+    
+    def test_rtol_vector_unsupported(self):
+        """ Test that rtol as a vector triggers exceptions for unsupported solvers. """
+        model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+        opts = model.simulate_options()
+        opts["result_handling"] = None
+
+        def run_case(solver):
+            model.reset()
+
+            opts["solver"] = solver
+            opts[solver+"_options"]["rtol"] = [1e-5, 0.0]
             
             try:
                 res = model.simulate(options=opts)
-                # solver support
+                # solver support; check tolerances
                 assert res.solver.rtol[0] == 1e-5
-                assert res.solver.rtol[1] == 0.
-            except InvalidOptionException as e: # if no solver support
+                assert res.solver.rtol[1] == 0.0
+            except InvalidOptionException as e:
                 assert str(e).startswith("Failed to set the solver option 'rtol'")
+                return # OK
+
+        run_case("CVode")
+        run_case("Radau5ODE")
+        run_case("Dopri5")
+        run_case("RodasODE")
+        run_case("LSODAR")
+    
+    def setup_atol_auto_update_test_base(self):
+        model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+        model.override_nominal_continuous_states = False
+        opts = model.simulate_options()
+        opts["return_result"] = False
+        opts["solver"] = "CVode"
+        return model, opts
+
+    def test_atol_auto_update1(self):
+        """
+        Tests that atol automatically gets updated when "atol = factor * pre_init_nominals".
+        """
+        model, opts = self.setup_atol_auto_update_test_base()
+
+        opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+        model.simulate(options=opts, algorithm=NoSolveAlg)
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+
+    def test_atol_auto_update2(self):
+        """
+        Tests that atol doesn't get auto-updated when heuristic fails.
+        """
+        model, opts = self.setup_atol_auto_update_test_base()
+
+        opts["CVode_options"]["atol"] = (0.01 * model.nominal_continuous_states) + [0.01, 0.01]
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
+        model.simulate(options=opts, algorithm=NoSolveAlg)
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
+
+    def test_atol_auto_update3(self):
+        """
+        Tests that atol doesn't get auto-updated when nominals are never retrieved.
+        """
+        model, opts = self.setup_atol_auto_update_test_base()
+
+        opts["CVode_options"]["atol"] = [0.02, 0.01]
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+        model.simulate(options=opts, algorithm=NoSolveAlg)
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+
+    def test_atol_auto_update4(self):
+        """
+        Tests that atol is not auto-updated when it's set the "correct" way (post initialization).
+        """
+        model, opts = self.setup_atol_auto_update_test_base()
         
-        def test_rtol_vector_manual_size_mismatch(self):
-            """ Tests invalid rtol vector: size mismatch. """
-            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
-            
-            opts = model.simulate_options()
-            opts["CVode_options"]["rtol"] = [1e-5, 0, 1e-5]
-            
-            err_msg = "If the relative tolerance is provided as a vector, it need to be equal to the number of states."
-            with pytest.raises(InvalidOptionException, match = err_msg):
-                model.simulate(options=opts)
+        model.setup_experiment()
+        model.initialize()
+        opts["initialize"] = False
+        opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+        model.simulate(options=opts, algorithm=NoSolveAlg)
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
 
-        def test_rtol_vector_manual_invalid(self):
-            """ Tests invalid rtol vector: different nonzero values. """
-            
-            model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
-
-            opts = model.simulate_options()
-            opts["CVode_options"]["rtol"] = [1e-5, 0, 1e-5, 1e-5, 0, 1e-5,1e-6, 0]
-            
-            err_msg = "If the relative tolerance is provided as a vector, the values need to be equal except for zeros."
-            with pytest.raises(InvalidOptionException, match = err_msg):
-                model.simulate(options=opts)
-
-        def test_rtol_vector_manual_scalar_conversion(self):
-            """ Test automatic scalar conversion of trivial rtol vector. """
-            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
-            
-            opts = model.simulate_options()
-            opts["CVode_options"]["rtol"] = [1e-5, 1e-5]
-            
-            #Verify no exception is raised as the rtol vector should be treated as a scalar
-            res = model.simulate(options=opts)
-            assert res.solver.rtol == 1e-5
+    def test_atol_auto_update5(self):
+        """
+        Tests that atol is automatically set and depends on rtol.
+        """
+        model, opts = self.setup_atol_auto_update_test_base()
         
-        def test_rtol_vector_unsupported(self):
-            """ Test that rtol as a vector triggers exceptions for unsupported solvers. """
-            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
-            opts = model.simulate_options()
-            opts["result_handling"] = None
+        opts["CVode_options"]["rtol"] = 1e-6
+        model.simulate(options=opts, algorithm=NoSolveAlg)
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [3e-8, 3e-8])
 
-            def run_case(solver):
-                model.reset()
+    def test_atol_auto_update6(self):
+        """
+        Tests that rtol doesn't affect explicitly set atol.
+        """
+        model, opts = self.setup_atol_auto_update_test_base()
 
-                opts["solver"] = solver
-                opts[solver+"_options"]["rtol"] = [1e-5, 0.0]
-                
-                try:
-                    res = model.simulate(options=opts)
-                    # solver support; check tolerances
-                    assert res.solver.rtol[0] == 1e-5
-                    assert res.solver.rtol[1] == 0.0
-                except InvalidOptionException as e:
-                    assert str(e).startswith("Failed to set the solver option 'rtol'")
-                    return # OK
-
-            run_case("CVode")
-            run_case("Radau5ODE")
-            run_case("Dopri5")
-            run_case("RodasODE")
-            run_case("LSODAR")
-        
-        def setup_atol_auto_update_test_base(self):
-            model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
-            model.override_nominal_continuous_states = False
-            opts = model.simulate_options()
-            opts["return_result"] = False
-            opts["solver"] = "CVode"
-            return model, opts
-
-        def test_atol_auto_update1(self):
-            """
-            Tests that atol automatically gets updated when "atol = factor * pre_init_nominals".
-            """
-            model, opts = self.setup_atol_auto_update_test_base()
-
-            opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
-            model.simulate(options=opts, algorithm=NoSolveAlg)
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
-
-        def test_atol_auto_update2(self):
-            """
-            Tests that atol doesn't get auto-updated when heuristic fails.
-            """
-            model, opts = self.setup_atol_auto_update_test_base()
-
-            opts["CVode_options"]["atol"] = (0.01 * model.nominal_continuous_states) + [0.01, 0.01]
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
-            model.simulate(options=opts, algorithm=NoSolveAlg)
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.02])
-
-        def test_atol_auto_update3(self):
-            """
-            Tests that atol doesn't get auto-updated when nominals are never retrieved.
-            """
-            model, opts = self.setup_atol_auto_update_test_base()
-
-            opts["CVode_options"]["atol"] = [0.02, 0.01]
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
-            model.simulate(options=opts, algorithm=NoSolveAlg)
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
-
-        def test_atol_auto_update4(self):
-            """
-            Tests that atol is not auto-updated when it's set the "correct" way (post initialization).
-            """
-            model, opts = self.setup_atol_auto_update_test_base()
-            
-            model.setup_experiment()
-            model.initialize()
-            opts["initialize"] = False
-            opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
-            model.simulate(options=opts, algorithm=NoSolveAlg)
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
-
-        def test_atol_auto_update5(self):
-            """
-            Tests that atol is automatically set and depends on rtol.
-            """
-            model, opts = self.setup_atol_auto_update_test_base()
-            
-            opts["CVode_options"]["rtol"] = 1e-6
-            model.simulate(options=opts, algorithm=NoSolveAlg)
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [3e-8, 3e-8])
-
-        def test_atol_auto_update6(self):
-            """
-            Tests that rtol doesn't affect explicitly set atol.
-            """
-            model, opts = self.setup_atol_auto_update_test_base()
-
-            opts["CVode_options"]["rtol"] = 1e-9
-            opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
-            model.simulate(options=opts, algorithm=NoSolveAlg)
-            np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
+        opts["CVode_options"]["rtol"] = 1e-9
+        opts["CVode_options"]["atol"] = 0.01 * model.nominal_continuous_states
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.02, 0.01])
+        model.simulate(options=opts, algorithm=NoSolveAlg)
+        np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
 
 
 class Test_FMUModelME2:
@@ -1153,17 +1152,17 @@ class Test_FMUModelME2:
         """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelME2. """
         err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
         with pytest.raises(FMUException, match = err_msg):
-            model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu"), _connect_dll=False, allow_unzipped_fmu=True)
+            FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu"), _connect_dll=False, allow_unzipped_fmu=True)
 
     def test_invalid_binary(self):
         err_msg = "The FMU could not be loaded."
         with pytest.raises(InvalidBinaryException, match = err_msg):
-            model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu"), _connect_dll=True)
+            FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu"), _connect_dll=True)
 
     def test_invalid_version(self):
         err_msg = "The FMU version is not supported by this class"
         with pytest.raises(InvalidVersionException, match = err_msg):
-            model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu"), _connect_dll=True)
+            FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu"), _connect_dll=True)
 
     def test_estimate_directional_derivatives_linearstate(self):
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStateSpace.fmu"), _connect_dll=False)

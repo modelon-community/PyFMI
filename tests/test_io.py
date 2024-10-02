@@ -48,15 +48,14 @@ from pyfmi.common.diagnostics import (
 )
 
 import pyfmi.fmi as fmi
-from pyfmi.tests.test_util import Dummy_FMUModelME1, Dummy_FMUModelCS1, Dummy_FMUModelME2, Dummy_FMUModelCS2
+from pyfmi.test_util import Dummy_FMUModelME1, Dummy_FMUModelCS1, Dummy_FMUModelME2, Dummy_FMUModelCS2
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 
-assimulo_installed = True
 try:
     import assimulo
 except ImportError:
-    assimulo_installed = False
+    pass
 
 def _run_negated_alias(model, result_type, result_file_name=""):
     opts = model.simulate_options()
@@ -75,102 +74,102 @@ def _run_negated_alias(model, result_type, result_file_name=""):
     for i in range(len(x)):
         assert x[i] == -y[i]
 
-if assimulo_installed:
-    class TestResultFileText_Simulation:
+@pytest.mark.assimulo
+class TestResultFileText_Simulation:
 
-        def _correct_syntax_after_simulation_failure(self, result_file_name):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+    def _correct_syntax_after_simulation_failure(self, result_file_name):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
 
-            def f(*args, **kwargs):
-                if simple_alias.time > 0.5:
-                    raise Exception
-                return -simple_alias.continuous_states
-
-            simple_alias.get_derivatives = f
-
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "file"
-            opts["solver"] = "ExplicitEuler"
-            opts["result_file_name"]  = result_file_name
-
-            successful_simulation = False
-            try:
-                res = simple_alias.simulate(options=opts)
-                successful_simulation = True #The above simulation should fail...
-            except Exception:
-                pass
-
-            if successful_simulation:
+        def f(*args, **kwargs):
+            if simple_alias.time > 0.5:
                 raise Exception
+            return -simple_alias.continuous_states
 
-            result = ResultDymolaTextual(result_file_name)
+        simple_alias.get_derivatives = f
 
-            x = result.get_variable_data("x").x
-            y = result.get_variable_data("y").x
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "file"
+        opts["solver"] = "ExplicitEuler"
+        opts["result_file_name"]  = result_file_name
 
-            assert len(x) > 2
-
-            for i in range(len(x)):
-                assert x[i] == -y[i]
-
-        def test_correct_file_after_simulation_failure(self):
-            self._correct_syntax_after_simulation_failure("NegatedAlias_result.txt")
-
-        def test_correct_stream_after_simulation_failure(self):
-            stream = StringIO("")
-            self._correct_syntax_after_simulation_failure(stream)
-
-        def test_read_all_variables_using_model_variables(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerFile(simple_alias)
-
+        successful_simulation = False
+        try:
             res = simple_alias.simulate(options=opts)
+            successful_simulation = True #The above simulation should fail...
+        except Exception:
+            pass
 
-            for var in simple_alias.get_model_variables():
-                res[var]
+        if successful_simulation:
+            raise Exception
 
-        def test_read_alias_derivative(self):
-            simple_alias = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
+        result = ResultDymolaTextual(result_file_name)
 
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "file"
+        x = result.get_variable_data("x").x
+        y = result.get_variable_data("y").x
 
-            res = simple_alias.simulate(options=opts)
+        assert len(x) > 2
 
-            derx = res["der(x)"]
-            dery = res["der(y)"]
+        for i in range(len(x)):
+            assert x[i] == -y[i]
 
-            assert len(derx) > 0
-            for i in range(len(derx)):
-                assert derx[i] == dery[i]
+    def test_correct_file_after_simulation_failure(self):
+        self._correct_syntax_after_simulation_failure("NegatedAlias_result.txt")
 
-        def test_no_variables(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
+    def test_correct_stream_after_simulation_failure(self):
+        stream = StringIO("")
+        self._correct_syntax_after_simulation_failure(stream)
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "file"
-            opts["result_file_name"] = "NoMatchingTest.txt"
-            opts["filter"] = "NoMatchingVariables"
+    def test_read_all_variables_using_model_variables(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
 
-            res = model.simulate(options=opts)
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerFile(simple_alias)
 
-            assert 1.0 == pytest.approx(res["time"][-1])
+        res = simple_alias.simulate(options=opts)
 
-        def test_enumeration_file(self):
+        for var in simple_alias.get_model_variables():
+            res[var]
 
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
-            data_type = model.get_variable_data_type("mode")
+    def test_read_alias_derivative(self):
+        simple_alias = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
 
-            assert data_type == fmi.FMI2_ENUMERATION
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "file"
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "file"
+        res = simple_alias.simulate(options=opts)
 
-            res = model.simulate(options=opts)
-            res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
+        derx = res["der(x)"]
+        dery = res["der(y)"]
+
+        assert len(derx) > 0
+        for i in range(len(derx)):
+            assert derx[i] == dery[i]
+
+    def test_no_variables(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
+
+        opts = model.simulate_options()
+        opts["result_handling"] = "file"
+        opts["result_file_name"] = "NoMatchingTest.txt"
+        opts["filter"] = "NoMatchingVariables"
+
+        res = model.simulate(options=opts)
+
+        assert 1.0 == pytest.approx(res["time"][-1])
+
+    def test_enumeration_file(self):
+
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
+        data_type = model.get_variable_data_type("mode")
+
+        assert data_type == fmi.FMI2_ENUMERATION
+
+        opts = model.simulate_options()
+        opts["result_handling"] = "file"
+
+        res = model.simulate(options=opts)
+        res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
 
 class TestResultFileText:
     def _get_description(self, result_file_name):
@@ -343,226 +342,226 @@ class TestResultFileText:
         with pytest.raises(JIOError, match = msg):
             res = ResultDymolaTextual(stream)
 
-if assimulo_installed:
-    class TestResultMemory_Simulation:
-        def test_memory_options_me1(self):
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "memory")
+@pytest.mark.assimulo
+class TestResultMemory_Simulation:
+    def test_memory_options_me1(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "memory")
 
-        def test_memory_options_me2(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "memory")
+    def test_memory_options_me2(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "memory")
 
-        def test_only_parameters(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
+    def test_only_parameters(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "memory"
-            opts["filter"] = "p2"
+        opts = model.simulate_options()
+        opts["result_handling"] = "memory"
+        opts["filter"] = "p2"
 
-            res = model.simulate(options=opts)
+        res = model.simulate(options=opts)
 
-            assert 3.0 == pytest.approx(res["p2"][0])
-            assert not isinstance(res.initial("p2"), np.ndarray)
-            assert not isinstance(res.final("p2"), np.ndarray)
+        assert 3.0 == pytest.approx(res["p2"][0])
+        assert not isinstance(res.initial("p2"), np.ndarray)
+        assert not isinstance(res.final("p2"), np.ndarray)
 
-        def test_no_variables(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
+    def test_no_variables(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "memory"
-            opts["filter"] = "NoMatchingVariables"
+        opts = model.simulate_options()
+        opts["result_handling"] = "memory"
+        opts["filter"] = "NoMatchingVariables"
 
-            res = model.simulate(options=opts)
+        res = model.simulate(options=opts)
 
-            assert 1.0 == pytest.approx(res["time"][-1])
+        assert 1.0 == pytest.approx(res["time"][-1])
 
-        def test_enumeration_memory(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
-            data_type = model.get_variable_data_type("mode")
+    def test_enumeration_memory(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
+        data_type = model.get_variable_data_type("mode")
 
-            assert data_type == fmi.FMI2_ENUMERATION
+        assert data_type == fmi.FMI2_ENUMERATION
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "memory"
+        opts = model.simulate_options()
+        opts["result_handling"] = "memory"
 
-            res = model.simulate(options=opts)
-            res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
+        res = model.simulate(options=opts)
+        res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
 
 class TestResultMemory:
     pass
 
-if assimulo_installed:
-    class TestResultFileBinary_Simulation:
-        def _correct_file_after_simulation_failure(self, result_file_name):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+@pytest.mark.assimulo
+class TestResultFileBinary_Simulation:
+    def _correct_file_after_simulation_failure(self, result_file_name):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
 
-            def f(*args, **kwargs):
-                if simple_alias.time > 0.5:
-                    raise Exception
-                return -simple_alias.continuous_states
-
-            simple_alias.get_derivatives = f
-
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "binary"
-            opts["result_file_name"] = result_file_name
-            opts["solver"] = "ExplicitEuler"
-
-            successful_simulation = False
-            try:
-                res = simple_alias.simulate(options=opts)
-                successful_simulation = True #The above simulation should fail...
-            except Exception:
-                pass
-
-            if successful_simulation:
+        def f(*args, **kwargs):
+            if simple_alias.time > 0.5:
                 raise Exception
+            return -simple_alias.continuous_states
 
-            result = ResultDymolaBinary(result_file_name)
+        simple_alias.get_derivatives = f
 
-            x = result.get_variable_data("x").x
-            y = result.get_variable_data("y").x
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "binary"
+        opts["result_file_name"] = result_file_name
+        opts["solver"] = "ExplicitEuler"
 
-            assert len(x) > 2
-
-            for i in range(len(x)):
-                assert x[i] == -y[i]
-
-
-        def test_work_flow_me2_file(self):
-            self._correct_file_after_simulation_failure("NegatedAlias_result.mat")
-
-        def test_work_flow_me2_stream(self):
-            stream = BytesIO()
-            self._correct_file_after_simulation_failure(stream)
-
-        def _only_parameters(self, result_file_name):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
-
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerBinaryFile(model)
-            opts["filter"] = "p2"
-            opts["result_file_name"] = result_file_name
-
-            res = model.simulate(options=opts)
-
-            assert 3.0 == pytest.approx(res["p2"][0])
-
-        def test_only_parameters_file(self):
-            self._only_parameters("ParameterAlias_result.mat")
-
-        def test_only_parameters_stream(self):
-            stream = BytesIO()
-            self._only_parameters(stream)
-
-        def _no_variables(self, result_file_name):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
-
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerBinaryFile(model)
-            opts["filter"] = "NoMatchingVariables"
-            opts["result_file_name"] = result_file_name
-
-            res = model.simulate(options=opts)
-
-            assert 1.0 == pytest.approx(res["time"][-1])
-
-
-        def test_no_variables_file(self):
-            self._no_variables("ParameterAlias_result.mat")
-
-        def test_no_variables_stream(self):
-            stream = BytesIO()
-            self._no_variables(stream)
-
-        def test_read_alias_derivative(self):
-            simple_alias = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
-
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "binary"
-
+        successful_simulation = False
+        try:
             res = simple_alias.simulate(options=opts)
+            successful_simulation = True #The above simulation should fail...
+        except Exception:
+            pass
 
-            derx = res["der(x)"]
-            dery = res["der(y)"]
+        if successful_simulation:
+            raise Exception
 
-            assert len(derx) > 0
-            for i in range(len(derx)):
-                assert derx[i] == dery[i]
+        result = ResultDymolaBinary(result_file_name)
 
-        def test_enumeration_binary(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
-            data_type = model.get_variable_data_type("mode")
+        x = result.get_variable_data("x").x
+        y = result.get_variable_data("y").x
 
-            assert data_type == fmi.FMI2_ENUMERATION
+        assert len(x) > 2
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerBinaryFile(model)
+        for i in range(len(x)):
+            assert x[i] == -y[i]
 
-            res = model.simulate(options=opts)
-            res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
 
-        def test_integer_start_time(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
+    def test_work_flow_me2_file(self):
+        self._correct_file_after_simulation_failure("NegatedAlias_result.mat")
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "binary"
+    def test_work_flow_me2_stream(self):
+        stream = BytesIO()
+        self._correct_file_after_simulation_failure(stream)
 
-            #Assert that there is no exception when reloading the file
-            res = model.simulate(start_time=0, options=opts)
+    def _only_parameters(self, result_file_name):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-        def test_read_all_variables_using_model_variables(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerBinaryFile(model)
+        opts["filter"] = "p2"
+        opts["result_file_name"] = result_file_name
 
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerBinaryFile(simple_alias)
+        res = model.simulate(options=opts)
 
-            res = simple_alias.simulate(options=opts)
+        assert 3.0 == pytest.approx(res["p2"][0])
 
-            for var in simple_alias.get_model_variables():
-                res[var]
+    def test_only_parameters_file(self):
+        self._only_parameters("ParameterAlias_result.mat")
 
-        def test_variable_alias_custom_handler(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+    def test_only_parameters_stream(self):
+        stream = BytesIO()
+        self._only_parameters(stream)
 
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerBinaryFile(simple_alias)
+    def _no_variables(self, result_file_name):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            res = simple_alias.simulate(options=opts)
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerBinaryFile(model)
+        opts["filter"] = "NoMatchingVariables"
+        opts["result_file_name"] = result_file_name
 
-            # test that res['y'] returns a vector of the same length as the time
-            # vector
-            assert len(res['y']) ==len(res['time']), "Wrong size of result vector."
+        res = model.simulate(options=opts)
 
-            x = res["x"]
-            y = res["y"]
+        assert 1.0 == pytest.approx(res["time"][-1])
 
-            for i in range(len(x)):
-                assert x[i] == -y[i]
 
-        def test_binary_options_me1(self):
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "binary")
+    def test_no_variables_file(self):
+        self._no_variables("ParameterAlias_result.mat")
 
-        def test_binary_options_me2(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "binary")
+    def test_no_variables_stream(self):
+        stream = BytesIO()
+        self._no_variables(stream)
 
-        def test_binary_options_me1_stream(self):
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
-            stream = BytesIO()
-            _run_negated_alias(simple_alias, "binary", stream)
+    def test_read_alias_derivative(self):
+        simple_alias = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
 
-        def test_binary_options_me2_stream(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-            stream = BytesIO()
-            _run_negated_alias(simple_alias, "binary", stream)
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "binary"
+
+        res = simple_alias.simulate(options=opts)
+
+        derx = res["der(x)"]
+        dery = res["der(y)"]
+
+        assert len(derx) > 0
+        for i in range(len(derx)):
+            assert derx[i] == dery[i]
+
+    def test_enumeration_binary(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
+        data_type = model.get_variable_data_type("mode")
+
+        assert data_type == fmi.FMI2_ENUMERATION
+
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerBinaryFile(model)
+
+        res = model.simulate(options=opts)
+        res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
+
+    def test_integer_start_time(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
+
+        opts = model.simulate_options()
+        opts["result_handling"] = "binary"
+
+        #Assert that there is no exception when reloading the file
+        res = model.simulate(start_time=0, options=opts)
+
+    def test_read_all_variables_using_model_variables(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerBinaryFile(simple_alias)
+
+        res = simple_alias.simulate(options=opts)
+
+        for var in simple_alias.get_model_variables():
+            res[var]
+
+    def test_variable_alias_custom_handler(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerBinaryFile(simple_alias)
+
+        res = simple_alias.simulate(options=opts)
+
+        # test that res['y'] returns a vector of the same length as the time
+        # vector
+        assert len(res['y']) ==len(res['time']), "Wrong size of result vector."
+
+        x = res["x"]
+        y = res["y"]
+
+        for i in range(len(x)):
+            assert x[i] == -y[i]
+
+    def test_binary_options_me1(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "binary")
+
+    def test_binary_options_me2(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "binary")
+
+    def test_binary_options_me1_stream(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        stream = BytesIO()
+        _run_negated_alias(simple_alias, "binary", stream)
+
+    def test_binary_options_me2_stream(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        stream = BytesIO()
+        _run_negated_alias(simple_alias, "binary", stream)
 
 class TestResultFileBinary:
     def _get_description_unicode(self, result_file_name):
@@ -1408,83 +1407,84 @@ class TestResultFileBinary:
         test_model._result_file = 123 # arbitrary number, just verify get_last_result_file works
         assert test_model.get_last_result_file() is None, "Expected None but got {}".format(test_model.get_last_result_file())
 
-if assimulo_installed:
-    class TestResultCSVTextual_Simulation:
-        def test_only_parameters(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerCSV(model)
-            opts["filter"] = "p2"
+@pytest.mark.assimulo
+class TestResultCSVTextual_Simulation:
+    def test_only_parameters(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            res = model.simulate(options=opts)
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerCSV(model)
+        opts["filter"] = "p2"
 
-            assert 3.0 == pytest.approx(res["p2"][0])
+        res = model.simulate(options=opts)
 
-        def test_no_variables(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
+        assert 3.0 == pytest.approx(res["p2"][0])
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerCSV(model)
-            opts["filter"] = "NoMatchingVariables"
-            opts["result_file_name"] = "NoMatchingTest.csv"
+    def test_no_variables(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            res = model.simulate(options=opts)
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerCSV(model)
+        opts["filter"] = "NoMatchingVariables"
+        opts["result_file_name"] = "NoMatchingTest.csv"
 
-            assert 1.0 == pytest.approx(res["time"][-1])
+        res = model.simulate(options=opts)
 
-        def test_variable_alias_custom_handler(self):
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        assert 1.0 == pytest.approx(res["time"][-1])
 
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerCSV(simple_alias)
+    def test_variable_alias_custom_handler(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
-            res = simple_alias.simulate(options=opts)
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerCSV(simple_alias)
 
-            # test that res['y'] returns a vector of the same length as the time
-            # vector
-            assert len(res['y']) ==len(res['time']), "Wrong size of result vector."
+        res = simple_alias.simulate(options=opts)
 
-            x = res["x"]
-            y = res["y"]
+        # test that res['y'] returns a vector of the same length as the time
+        # vector
+        assert len(res['y']) ==len(res['time']), "Wrong size of result vector."
 
-            for i in range(len(x)):
-                assert x[i] == -y[i]
+        x = res["x"]
+        y = res["y"]
 
-        def test_csv_options_me1(self):
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "csv")
+        for i in range(len(x)):
+            assert x[i] == -y[i]
 
-        def test_csv_options_me2(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "csv")
+    def test_csv_options_me1(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "csv")
 
-        def test_csv_options_me1_stream(self):
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
-            stream = StringIO()
-            _run_negated_alias(simple_alias, "csv", stream)
+    def test_csv_options_me2(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "csv")
 
-        def test_csv_options_me2(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-            stream = StringIO()
-            _run_negated_alias(simple_alias, "csv", stream)
+    def test_csv_options_me1_stream(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        stream = StringIO()
+        _run_negated_alias(simple_alias, "csv", stream)
 
-        def test_enumeration_csv(self):
+    def test_csv_options_me2(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        stream = StringIO()
+        _run_negated_alias(simple_alias, "csv", stream)
 
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
-            data_type = model.get_variable_data_type("mode")
+    def test_enumeration_csv(self):
 
-            assert data_type == fmi.FMI2_ENUMERATION
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
+        data_type = model.get_variable_data_type("mode")
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerCSV(model)
+        assert data_type == fmi.FMI2_ENUMERATION
 
-            res = model.simulate(options=opts)
-            res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerCSV(model)
+
+        res = model.simulate(options=opts)
+        res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
 
 class TestResultCSVTextual:
 
@@ -1592,7 +1592,7 @@ class TestResultCSVTextual:
 
     def test_csv_options_cs2(self):
         simple_alias = Dummy_FMUModelCS2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "NegatedAlias.fmu"), _connect_dll=False)
-        self._run_negated_alias(self, simple_alias)
+        _run_negated_alias(simple_alias, "csv")
 
 class TestResultDymolaBinary:
 
@@ -1773,9 +1773,8 @@ class TestResultDymolaBinary:
         assert data_to_return, "Something went wrong, no test data was generated"
         return data_to_return
 
-    @testattr(stddist = True)
     def test_get_variables_data_values0(self):
-        """ Verifing values from get_variables_data. """
+        """ Verifying values from get_variables_data. """
         vars_to_test = ['J4.phi']
         test_data_sets = self._test_get_variables_data(False, 3, None, vars_to_test, lambda x: None, "TestFile00.mat")
 
@@ -1788,9 +1787,8 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
-    @testattr(stddist = True)
     def test_get_variables_data_values1(self):
-        """ Verifing values from get_variables_data, with dynamic_diagnostics = True. """
+        """ Verifying values from get_variables_data, with dynamic_diagnostics = True. """
         vars_to_test = ['time', 'J4.phi', '@Diagnostics.step_time', '@Diagnostics.nbr_steps']
         test_data_sets = self._test_get_variables_data(True, 5, 3, vars_to_test, lambda x: None, "TestFile01.mat")
 
@@ -1807,9 +1805,8 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
-    @testattr(stddist = True)
     def test_get_variables_data_values2(self):
-        """ Verifing values from get_variables_data, retrieving partial trajectories. """
+        """ Verifying values from get_variables_data, retrieving partial trajectories. """
         vars_to_test = ['time', 'J4.phi']
         test_data_sets = self._test_get_variables_data(False, 5, None, vars_to_test, lambda x: x + 1, "TestFile02.mat")
 
@@ -1826,7 +1823,7 @@ class TestResultDymolaBinary:
 
     @testattr(stddist = True)
     def test_get_variables_data_values3(self):
-        """ Verifing values from get_variables_data, and only asking for diagnostic variables. """
+        """ Verifying values from get_variables_data, and only asking for diagnostic variables. """
         vars_to_test = ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
         test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: None, "TestFile03.mat")
 
@@ -1853,7 +1850,7 @@ class TestResultDymolaBinary:
 
     @testattr(stddist = True)
     def test_get_variables_data_values4(self):
-        """ Verifing values from get_variables_data, partial trajectories and checking both time and diagnostic data."""
+        """ Verifying values from get_variables_data, partial trajectories and checking both time and diagnostic data."""
         vars_to_test = ['time', '@Diagnostics.nbr_steps']
         test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: x + 2, "TestFile04.mat")
 
@@ -1940,187 +1937,207 @@ class TestResultDymolaBinary:
         assert rdb.get_variables_data([], start_index = 1)[1] == 1
         assert rdb.get_variables_data([], start_index = 5)[1] == 5
 
-if assimulo_installed:
-    class TestFileSizeLimit:
+@pytest.mark.assimulo
+class TestFileSizeLimit:
+    def _setup(self, result_type, result_file_name="", fmi_type="me"):
+        if fmi_type == "me":
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        else:
+            model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
+            
+        opts = model.simulate_options()
+        opts["result_handling"]  = result_type
+        opts["result_file_name"] = result_file_name
 
-        def _setup(self, result_type, result_file_name="", fmi_type="me"):
-            if fmi_type == "me":
-                model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
-            else:
-                model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        return model, opts
 
-            opts = model.simulate_options()
-            opts["result_handling"]  = result_type
-            opts["result_file_name"] = result_file_name
+    def _test_result(self, result_type, result_file_name="", max_size=1e6):
+        model, opts = self._setup(result_type, result_file_name)
 
-            return model, opts
+        opts["result_max_size"] = max_size
 
-        def _test_result(self, result_type, result_file_name="", max_size=1e6):
-            model, opts = self._setup(result_type, result_file_name)
+        #No exception should be raised.
+        res = model.simulate(options=opts)
 
-            opts["result_max_size"] = max_size
+    def _test_result_exception(self, result_type, result_file_name="", fmi_type="me"):
+        model, opts = self._setup(result_type, result_file_name, fmi_type)
 
-            #No exception should be raised.
-            res = model.simulate(options=opts)
+        opts["result_max_size"] = 10
 
-        def _test_result_exception(self, result_type, result_file_name="", fmi_type="me"):
-            model, opts = self._setup(result_type, result_file_name, fmi_type)
+        with pytest.raises(ResultSizeError):
+            model.simulate(options=opts)
 
-            opts["result_max_size"] = 10
+    def _test_result_size_verification(self, result_type, result_file_name="", dynamic_diagnostics=False):
+        """
+        Verifies that the ResultSizeError exception is triggered (due to too large result) and also verifies
+        that the resulting file is within bounds of the set maximum size.
+        """
+        model, opts = self._setup(result_type, result_file_name)
+        model.setup_experiment()
+        model.initialize()
 
-            with pytest.raises(ResultSizeError):
-                model.simulate(options=opts)
+        max_size = 1e6
+        opts["result_max_size"] = max_size
+        opts["dynamic_diagnostics"] = dynamic_diagnostics
+        opts["logging"] = dynamic_diagnostics
+        opts["ncp"] = 0 #Set to zero to circumvent the early size check
+        ncp = 10000
 
-        def _test_result_size_verification(self, result_type, result_file_name="", dynamic_diagnostics=False):
-            """
-            Verifies that the ResultSizeError exception is triggered (due to too large result) and also verifies
-            that the resulting file is within bounds of the set maximum size.
-            """
-            model, opts = self._setup(result_type, result_file_name)
-            model.setup_experiment()
-            model.initialize()
+        result_handler = get_result_handler(model, opts)
 
-            max_size = 1e6
-            opts["result_max_size"] = max_size
-            opts["dynamic_diagnostics"] = dynamic_diagnostics
-            opts["logging"] = dynamic_diagnostics
-            opts["ncp"] = 0 #Set to zero to circumvent the early size check
-            ncp = 10000
+        result_handler.set_options(opts)
+        result_handler.initialize_complete()
 
-            result_handler = get_result_handler(model, opts)
+        if opts["dynamic_diagnostics"]:
+            opts['CVode_options']['rtol'] = 1e-6
+            opts['CVode_options']['atol'] = model.nominal_continuous_states * opts['CVode_options']['rtol']
+            diag_params, diag_vars = setup_diagnostics_variables(model, 0, opts, opts['CVode_options'])
+            result_handler.simulation_start(diag_params, diag_vars)
+        else:
+            result_handler.simulation_start()
 
-            result_handler.set_options(opts)
-            result_handler.initialize_complete()
+        with pytest.raises(ResultSizeError):
+            for _ in range(ncp):
+                result_handler.integration_point()
 
-            if opts["dynamic_diagnostics"]:
-                opts['CVode_options']['rtol'] = 1e-6
-                opts['CVode_options']['atol'] = model.nominal_continuous_states * opts['CVode_options']['rtol']
-                diag_params, diag_vars = setup_diagnostics_variables(model, 0, opts, opts['CVode_options'])
-                result_handler.simulation_start(diag_params, diag_vars)
-            else:
-                result_handler.simulation_start()
+                if opts["dynamic_diagnostics"]:
+                    result_handler.diagnostics_point(np.array([val[0] for val in diag_vars.values()], dtype=float))
 
-            with pytest.raises(ResultSizeError):
-                for _ in range(ncp):
-                    result_handler.integration_point()
+        result_file = model.get_last_result_file()
+        file_size = os.path.getsize(result_file)
 
-                    if opts["dynamic_diagnostics"]:
-                        result_handler.diagnostics_point(np.array([val[0] for val in diag_vars.values()], dtype=float))
+        assert file_size > max_size*0.9 and file_size < max_size*1.1, \
+                "The file size is not within 10% of the given max size"
+    
+    def _test_result_size_early_abort(self, result_type, result_file_name=""):
+        """
+        Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
+        triggered was due to that the ESTIMATE for the result size was too big.
+        """
+        model, opts = self._setup(result_type, result_file_name)
 
-            result_file = model.get_last_result_file()
+        max_size = 1e6
+        opts["result_max_size"] = max_size
+        opts["ncp"] = 10000000
+
+        with pytest.raises(ResultSizeError):
+            model.simulate(options=opts)
+
+        result_file = model.get_last_result_file()
+        if result_file:
             file_size = os.path.getsize(result_file)
 
             assert file_size > max_size*0.9 and file_size < max_size*1.1, \
                    "The file size is not within 10% of the given max size"
 
-        def _test_result_size_early_abort(self, result_type, result_file_name=""):
-            """
-            Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
-            triggered was due to that the ESTIMATE for the result size was too big.
-            """
-            model, opts = self._setup(result_type, result_file_name)
-
-            max_size = 1e6
-            opts["result_max_size"] = max_size
-            opts["ncp"] = 10000000
-
-            with pytest.raises(ResultSizeError):
-                model.simulate(options=opts)
-
-            result_file = model.get_last_result_file()
-            if result_file:
-                file_size = os.path.getsize(result_file)
-
-                assert file_size < max_size*0.1, \
-                        "The file size is not small, no early abort"
-
-        # TODO: Pytest parametrization
+    def _test_result_size_early_abort(self, result_type, result_file_name=""):
         """
-        Binary
+        Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
+        triggered was due to that the ESTIMATE for the result size was too big.
         """
-        def test_binary_file_size_verification_diagnostics(self):
-            """
-            Make sure that the diagnostics variables are also taken into account.
-            """
-            self._test_result_size_verification("binary", dynamic_diagnostics=True)
-            
-        def test_binary_file_size_verification(self):
-            self._test_result_size_verification("binary")
-        
-        def test_binary_file_size_early_abort(self):
-            self._test_result_size_early_abort("binary")
+        model, opts = self._setup(result_type, result_file_name)
 
-        def test_small_size_binary_file(self):
-            self._test_result_exception("binary")
-        
-        def test_small_size_binary_file_cs(self):
-            self._test_result_exception("binary", fmi_type="cs")
-        
-        def test_small_size_binary_file_stream(self):
-            self._test_result_exception("binary", BytesIO())
+        max_size = 1e6
+        opts["result_max_size"] = max_size
+        opts["ncp"] = 10000000
 
-        def test_large_size_binary_file(self):
-            self._test_result("binary")
+        with pytest.raises(ResultSizeError):
+            model.simulate(options=opts)
 
-        def test_large_size_binary_file_stream(self):
-            self._test_result("binary", BytesIO())
+        result_file = model.get_last_result_file()
+        if result_file:
+            file_size = os.path.getsize(result_file)
 
+            assert file_size < max_size*0.1, \
+                    "The file size is not small, no early abort"
+    
+    # TODO: Pytest parametrization
+    """
+    Binary
+    """
+    def test_binary_file_size_verification_diagnostics(self):
         """
-        Text
+        Make sure that the diagnostics variables are also taken into account.
         """
-        def test_text_file_size_verification(self):
-            self._test_result_size_verification("file")
+        self._test_result_size_verification("binary", dynamic_diagnostics=True)
         
-        def test_text_file_size_early_abort(self):
-            self._test_result_size_early_abort("file")
+    def test_binary_file_size_verification(self):
+        self._test_result_size_verification("binary")
+    
+    def test_binary_file_size_early_abort(self):
+        self._test_result_size_early_abort("binary")
 
-        def test_small_size_text_file(self):
-            self._test_result_exception("file")
-        
-        def test_small_size_text_file_stream(self):
-            self._test_result_exception("file", StringIO())
+    def test_small_size_binary_file(self):
+        self._test_result_exception("binary")
+    
+    def test_small_size_binary_file_cs(self):
+        self._test_result_exception("binary", fmi_type="cs")
+    
+    def test_small_size_binary_file_stream(self):
+        self._test_result_exception("binary", BytesIO())
 
-        def test_large_size_text_file(self):
-            self._test_result("file")
+    def test_large_size_binary_file(self):
+        self._test_result("binary")
 
-        def test_large_size_text_file_stream(self):
-            self._test_result("file", StringIO())
+    def test_large_size_binary_file_stream(self):
+        self._test_result("binary", BytesIO())
 
-        """
-        CSV
-        """
-        def test_csv_file_size_verification(self):
-            self._test_result_size_verification("csv")
-        
-        def test_csv_file_size_early_abort(self):
-            self._test_result_size_early_abort("csv")
+    """
+    Text
+    """
+    def test_text_file_size_verification(self):
+        self._test_result_size_verification("file")
+    
+    def test_text_file_size_early_abort(self):
+        self._test_result_size_early_abort("file")
 
-        def test_small_size_csv_file(self):
-            self._test_result_exception("csv")
-        
-        def test_small_size_csv_file_stream(self):
-            self._test_result_exception("csv", StringIO())
+    def test_small_size_text_file(self):
+        self._test_result_exception("file")
+    
+    def test_small_size_text_file_stream(self):
+        self._test_result_exception("file", StringIO())
 
-        def test_large_size_csv_file(self):
-            self._test_result("csv", max_size=10000000)
+    def test_large_size_text_file(self):
+        self._test_result("file")
 
-        def test_large_size_csv_file_stream(self):
-            self._test_result("csv", StringIO(), max_size=10000000)
+    def test_large_size_text_file_stream(self):
+        self._test_result("file", StringIO())
 
-        """
-        Memory
-        """
-        def test_small_size_memory(self):
-            self._test_result_exception("memory")
-        
-        def test_memory_size_early_abort(self):
-            self._test_result_size_early_abort("memory")
-        
-        def test_small_size_memory_stream(self):
-            self._test_result_exception("memory", StringIO())
+    """
+    CSV
+    """
+    def test_csv_file_size_verification(self):
+        self._test_result_size_verification("csv")
+    
+    def test_csv_file_size_early_abort(self):
+        self._test_result_size_early_abort("csv")
 
-        def test_large_size_memory(self):
-            self._test_result("memory")
+    def test_small_size_csv_file(self):
+        self._test_result_exception("csv")
+    
+    def test_small_size_csv_file_stream(self):
+        self._test_result_exception("csv", StringIO())
 
-        def test_large_size_memory_stream(self):
-            self._test_result("memory", StringIO())
+    def test_large_size_csv_file(self):
+        self._test_result("csv", max_size=10000000)
+
+    def test_large_size_csv_file_stream(self):
+        self._test_result("csv", StringIO(), max_size=10000000)
+
+    """
+    Memory
+    """
+    def test_small_size_memory(self):
+        self._test_result_exception("memory")
+    
+    def test_memory_size_early_abort(self):
+        self._test_result_size_early_abort("memory")
+    
+    def test_small_size_memory_stream(self):
+        self._test_result_exception("memory", StringIO())
+
+    def test_large_size_memory(self):
+        self._test_result("memory")
+
+    def test_large_size_memory_stream(self):
+        self._test_result("memory", StringIO())

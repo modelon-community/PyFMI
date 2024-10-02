@@ -24,7 +24,7 @@ cimport pyfmi.fmil_import as FMIL
 from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, FMUModelCS2, FMUModelME2
 
 def get_examples_folder():
-    return os.path.join(os.path.dirname(__file__), '..', 'examples')
+    return os.path.join(os.path.dirname(__file__), 'examples')
 
 cdef class _ForTestingFMUModelME1(FMUModelME1):
     cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx):

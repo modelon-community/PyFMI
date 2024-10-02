@@ -21,7 +21,6 @@ import numpy as np
 from pyfmi.fmi_extended import FMUModelME1Extended
 
 file_path = os.path.dirname(os.path.abspath(__file__))
-
 me1_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0")
 
 class Test_FMUModelME1Extended:

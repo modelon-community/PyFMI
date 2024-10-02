@@ -248,7 +248,7 @@ def check_extensions():
                     compiler_directives={'language_level' : "3str"})
     
     # Test utilities
-    ext_list += cythonize([os.path.join("src", "pyfmi", "tests", "test_util.pyx")], 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "test_util.pyx")], 
                     include_path = incl_path, 
                     compiler_directives={'language_level' : "3str"})
     
@@ -324,15 +324,14 @@ setup(name=NAME,
       classifiers=CLASSIFIERS,
       ext_modules = ext_list,
       package_dir = {'pyfmi':        os.path.join('src', 'pyfmi'),
-                     'pyfmi.common': os.path.join('src', 'common'),
-                     'pyfmi.tests':  'tests'},
+                     'pyfmi.common': os.path.join('src', 'common')
+                    },
       packages=[
         'pyfmi',
         'pyfmi.simulation',
         'pyfmi.examples',
         'pyfmi.common',
         'pyfmi.common.plotting',
-        'pyfmi.tests',
         'pyfmi.common.log'
       ],
       package_data = {'pyfmi': [
@@ -340,17 +339,11 @@ setup(name=NAME,
         'examples/files/FMUs/CS1.0/*',
         'examples/files/FMUs/ME2.0/*',
         'examples/files/FMUs/CS2.0/*',
-        'tests/files/FMUs/XML/ME1.0/*',
-        'tests/files/FMUs/XML/CS1.0/*',
-        'tests/files/FMUs/XML/ME2.0/*',
-        'tests/files/FMUs/XML/CS2.0/*',
-        'tests/files/Results/*',
-        'tests/files/Logs/*',
         'version.txt',
         'LICENSE',
         'CHANGELOG',
-        'util/*'] + extra_package_data,
-        'pyfmi.tests': ['pytest.ini']},
+        'util/*'] + extra_package_data
+        },
       script_args=copy_args
       )
 
