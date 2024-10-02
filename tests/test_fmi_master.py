@@ -469,7 +469,6 @@ class Test_Master:
             assert error_raised
         
     # TODO: Test case that supports storing FMU states required
-    @nose.tools.nottest
     def test_error_controlled_with_downsampling(self):
         models, connections = self._load_basic_simulation()
         uptate_options = {'result_downsampling_factor': 2,
