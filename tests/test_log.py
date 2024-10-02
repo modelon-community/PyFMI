@@ -159,7 +159,6 @@ class Test_Log:
         except AttributeError:
             pass
 
-    @testattr(stddist = True)
     def test_truncated_log_valid_xml(self):
         """ Test that a truncated log still contains valid XML."""
         # XXX: There currently is no FMU is linux binaries running on Ubuntu 20+ (libgfortran issues)
@@ -208,7 +207,6 @@ class Test_Log:
         assert len(final_msg) == 1, "MaximumLogSizeExceeded not found or found multiple times?"
         assert final_msg[0].nodes[0].text == "Maximum log size was exceeded, log is truncated to fully include logging from last CAPI call not exceeding limit."
 
-    @testattr(stddist = True)
     def test_resume_logging_on_increased_max_log_size(self):
         """Test that logging will resume when increasing max log size & previously exceeding the maximal size."""
         file_path = os.path.dirname(os.path.abspath(__file__))
