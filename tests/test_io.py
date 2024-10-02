@@ -1960,7 +1960,7 @@ class TestResultDymolaBinary:
                 fmu.time += h
                 fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
 
-            trajectories, start_index = rdb.get_variables_data(vars_to_test, start_index, u(start_index))
+            trajectories, start_index = rdb.get_variables_data(vars_to_test, start_index, stop_index_function(start_index))
             data_to_return[i] = [t.x for t in trajectories]
 
         assert data_to_return, "Something went wrong, no test data was generated"
