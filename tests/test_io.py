@@ -1694,177 +1694,6 @@ class TestResultCSVTextual:
 
 class TestResultDymolaBinary:
 
-    def _get_variables_data_helper(self,
-        dynamic_diagnostics = False,
-        update_start_index = False,
-        only_diagnostics_data = False,
-        favor_diagnostics_data = False):
-        """
-            Utility function to enable testing of multiple different scenarios.
-            dynamic_diagnostics:
-                To enable/disable the option dynamic diagnostics.
-                Note that the option "logging" is also toggled with this value.
-
-            update_start_index:
-                If enabled, then the value to 'start_index' for ResultDymolaBinary.get_variables_data will be updated
-                after each call to get_variables_data. If disabled, get_variables_data will always be invoked
-                with start_index = 0.
-
-            only_diagnostics_data:
-                To omit calls to method ResultDymolaBinary.integration_point
-
-            favor_diagnostics_data:
-                If enabled, more diagnostics data is generated than 'regular data', i.e. more calls are done to
-                the method ResultDymolaBinary.diagnostics_data than ResultDymolaBinary.integration_point.
-        """
-        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
-            _connect_dll=False)
-
-        result_handler = ResultHandlerBinaryFile(fmu)
-        opts = fmu.simulate_options()
-        opts["result_handling"] = "binary"
-        opts["result_handler"] = result_handler
-        opts["result_file_name"] = "TestFile.mat"
-        opts["dynamic_diagnostics"] = dynamic_diagnostics
-        opts["logging"] = opts["dynamic_diagnostics"]
-
-        # tolerances are required only to invoke 'setup_diagnostics_variables'
-        opts['CVode_options']['rtol'] = 1e-6
-        opts['CVode_options']['atol'] = fmu.nominal_continuous_states * opts['CVode_options']['rtol']
-
-        fmu.setup_experiment()
-        fmu.initialize()
-        opts["initialize"] = False
-
-        diag_params, diag_vars = setup_diagnostics_variables(
-            model = fmu,
-            start_time = 0,
-            options = opts,
-            solver_options = opts['CVode_options'])
-
-        result_handler.set_options(opts) # required in order to call simulation_start()
-        result_handler.initialize_complete()
-        if opts["dynamic_diagnostics"]:
-            result_handler.simulation_start(diag_params, diag_vars)
-        else:
-            result_handler.simulation_start()
-        if not only_diagnostics_data:
-            result_handler.integration_point()
-
-        fmu.time += 0.01
-        fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
-
-        rdb = ResultDymolaBinary(opts["result_file_name"], allow_file_updates=True)
-
-
-        if only_diagnostics_data:
-            vars_to_test = ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
-        else:
-            vars_to_test = ['time', 'J4.phi']
-            if opts['dynamic_diagnostics']:
-                vars_to_test += ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
-
-        nbr_of_calls = 10
-        counter = 0
-        np.random.seed(0)
-        diag_data_ratio = np.random.randint(2, 5) # random for testing purpose
-        start_index = 0
-
-        for i in range(nbr_of_calls):
-
-            nbr_of_points = np.random.randint(1, 20)
-            h = 1/nbr_of_points * 0.1 # "arbitrary" step through time
-
-            for j in range(nbr_of_points):
-
-                if favor_diagnostics_data:
-                    if counter%diag_data_ratio == 0:
-                        if not only_diagnostics_data:
-                            result_handler.integration_point()
-                        result_handler.integration_point()
-                    if opts["dynamic_diagnostics"]:
-                        diag_vars['@Diagnostics.step_time'] = (h, 'Step time') # arbitrary test value
-                        result_handler.diagnostics_point(np.array([val[0] for val in diag_vars.values()], dtype=float))
-                else:
-                    if opts["dynamic_diagnostics"] and counter%diag_data_ratio==0:
-                        diag_vars['@Diagnostics.step_time'] = (h, 'Step time') # arbitrary test value
-                        result_handler.diagnostics_point(np.array([val[0] for val in diag_vars.values()], dtype=float))
-                    if not only_diagnostics_data:
-                        result_handler.integration_point()
-
-                counter += 1
-                fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
-                fmu.time += h
-            trajectories, new_start_index = rdb.get_variables_data(vars_to_test, start_index, None)
-        if update_start_index:
-            start_index = new_start_index
-
-    @testattr(stddist = True)
-    def test_get_variables_data_0(self):
-        """ Test that get_variables_data work with reading/writing without any specific options. """
-        self._get_variables_data_helper(
-            dynamic_diagnostics = False,
-            update_start_index = False,
-            only_diagnostics_data = False,
-            favor_diagnostics_data = False
-        )
-
-    @testattr(stddist = True)
-    def test_get_variables_data_1(self):
-        """ Test that get_variables_data work with reading/writing while updating start_index. """
-        self._get_variables_data_helper(
-            dynamic_diagnostics = False,
-            update_start_index = True,
-            only_diagnostics_data = False,
-            favor_diagnostics_data = False
-        )
-
-    @testattr(stddist = True)
-    def test_get_variables_data_2(self):
-        """ Test that get_variables_data work with reading/writing when dynamic_diagnostics is True. """
-        self._get_variables_data_helper(
-            dynamic_diagnostics = True,
-            update_start_index = False,
-            only_diagnostics_data = False,
-            favor_diagnostics_data = False
-        )
-
-    @testattr(stddist = True)
-    def test_get_variables_data_3(self):
-        """ Test that get_variables_data work with reading/writing
-            when dynamic_diagnostics is True and updating start_index.
-        """
-        self._get_variables_data_helper(
-            dynamic_diagnostics = True,
-            update_start_index = True,
-            only_diagnostics_data = False,
-            favor_diagnostics_data = False
-        )
-
-    @testattr(stddist = True)
-    def test_get_variables_data_4(self):
-        """ Test get_variables_data when dynamic_diagnostics is True, updating start_index and result
-            contains more diagnostics data than regular data.
-        """
-        self._get_variables_data_helper(
-            dynamic_diagnostics = True,
-            update_start_index = True,
-            only_diagnostics_data = False,
-            favor_diagnostics_data = True
-        )
-
-    @testattr(stddist = True)
-    def test_get_variables_data_5(self):
-        """ Test get_variables_data when dynamic_diagnostics is True, updating start_index and result
-            contains only diagnostics data.
-        """
-        self._get_variables_data_helper(
-            dynamic_diagnostics = True,
-            update_start_index = True,
-            only_diagnostics_data = True,
-            favor_diagnostics_data = False # redundant when 'only_diagnostics_data' is True.
-        )
-
     def _test_get_variables_data(self, dynamic_diagnostics: bool, nbr_of_calls: int, diag_data_ratio: int,
                                  vars_to_test: list, stop_index_function: callable, result_file_name: str) -> dict:
         """
@@ -1900,8 +1729,10 @@ class TestResultDymolaBinary:
             AssertionError
                 If no test data is generated.
         """
+
         fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
             _connect_dll=False)
+        f = lambda t : math.sin(5*t + math.pi/2) # function used to set values later on FMU
 
         result_handler = ResultHandlerBinaryFile(fmu)
         opts = fmu.simulate_options()
@@ -1932,11 +1763,11 @@ class TestResultDymolaBinary:
         else:
             result_handler.simulation_start()
 
-        fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+        fmu.set('J4.phi', f(fmu.time)) # arbitrary
         result_handler.integration_point()
 
         fmu.time += 0.01
-        fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+        fmu.set('J4.phi', f(fmu.time)) # arbitrary
 
         rdb = ResultDymolaBinary(opts["result_file_name"], allow_file_updates=True)
         nbr_of_calls = nbr_of_calls
@@ -1958,7 +1789,7 @@ class TestResultDymolaBinary:
 
                 counter += 1
                 fmu.time += h
-                fmu.set('J4.phi', math.sin(5*fmu.time + math.pi/2)) # arbitrary
+                fmu.set('J4.phi', f(fmu.time)) # arbitrary
 
             trajectories, start_index = rdb.get_variables_data(vars_to_test, start_index, stop_index_function(start_index))
             data_to_return[i] = [t.x for t in trajectories]
