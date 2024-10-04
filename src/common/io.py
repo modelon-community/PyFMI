@@ -181,7 +181,10 @@ class ResultDymola:
                                         name + " in data file.")
 
     def _correct_index_for_alias(self, data_index: int) -> tuple[int, int]:
-        """ TODO """
+        """ This function returns a correction for 'data_index' for alias variables.
+            Negative values for data_index implies that it corresponds to an alias variable.
+            The variable which it is aliased for is located in position |data_index| shifted by one.
+        """
         factor = -1 if data_index < 0 else 1
         return factor*data_index - 1, factor
 
@@ -1003,9 +1006,9 @@ class ResultDymolaTextual(ResultDymola):
         data_mat = self.dataInfo[variable_index][0]-1
 
         if data_mat < 0:
-            # Take into account that the 'Time' variable has data matrix index 0
-            # and that 'time' is called 'Time' in Dymola results
-             data_mat = 1 if len(self.data) > 1 else 0
+            # Take into account that the 'Time' variable can be named either 'Time' or 'time'.
+
+            data_mat = 1 if len(self.data) > 1 else 0
 
         return Trajectory(
             self.data[data_mat][:, 0],factor*self.data[data_mat][:, data_index])
@@ -1429,8 +1432,7 @@ class ResultDymolaBinary(ResultDymola):
         data_index, factor = self._correct_index_for_alias(data_index)
 
         if data_mat == 0:
-            # Take into account that the 'Time' variable has data matrix index 0
-            # and that 'time' is called 'Time' in Dymola results
+            # Take into account that the 'Time' variable can be named either 'Time' or 'time'.
             data_mat = 2 if len(self.raw['data_2'])> 0 else 1
 
         return factor, data_index, data_mat
@@ -1538,6 +1540,9 @@ class ResultDymolaBinary(ResultDymola):
             This also implies that stop_index = None or stop_index larger than the number of available data points
             results in retrieving all the available data points from start_index, i.e. as the slice [start_index:].
 
+            Note that (start_index, stop_index) = (None, None) results in the slicing [None:None] which is equivalent to [:].
+
+
             Parameters::
 
                 names --
@@ -1548,6 +1553,9 @@ class ResultDymolaBinary(ResultDymola):
 
                 stop_index --
                     Stopping index for trajectory slicing.
+
+            Raises::
+                ValueError -- If stop_index < start_index.
 
             Returns::
                 Tuple: (List of trajectories, next start index (non-negative))
@@ -1561,6 +1569,9 @@ class ResultDymolaBinary(ResultDymola):
             trajectory which is then sliced, here. Instead we can account for
             start_index and stop_index and reduce the time spent reading unused data points.
         """
+        if isinstance(start_index, int) and isinstance(stop_index, int) and stop_index < start_index:
+            raise ValueError(f"Invalid values for {start_index=} and {stop_index=}, " + \
+                              "'start_index' needs to be less than or equal to 'stop_index'.")
         trajectories = []
 
         # Get the time trajectory
