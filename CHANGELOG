@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 --- Future ---
     * Added method ResultDymolaBinary.get_variables_data. Included some minor refactorization.
+      The new method allows for retrieving partial trajectories, and multiple trajectories at once.
 
 --- PyFMI-2.14.0 ---
     * Updated the error message displayed when loading FMUs with needsExecutionTool set to True.
