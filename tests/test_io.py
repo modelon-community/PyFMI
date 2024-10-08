@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2019-2021 Modelon AB
+# Copyright (C) 2019-2024 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -16,6 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import nose
+import math
 import os
 import numpy as np
 import time
@@ -26,7 +27,7 @@ from pyfmi import testattr
 from pyfmi.fmi import FMUException, FMUModelME2
 from pyfmi.common.io import (ResultHandler, ResultDymolaTextual, ResultDymolaBinary, JIOError,
                              ResultHandlerCSV, ResultCSVTextual, ResultHandlerBinaryFile, ResultHandlerFile)
-from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
+from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, setup_diagnostics_variables
 
 import pyfmi.fmi as fmi
 from pyfmi.tests.test_util import Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
@@ -636,17 +637,17 @@ class TestResultFileBinary:
         res = ResultDymolaBinary('CoupledClutches_result.mat')
 
         assert res.description[res.get_variable_index("J1.phi")] == "Absolute rotation angle of component"
-    
+
     @testattr(stddist = True)
     def test_modified_result_file_data_diagnostics(self):
         """Verify that computed diagnostics can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
         model.setup_experiment()
         model.initialize()
-        
+
         opts = model.simulate_options()
         opts["dynamic_diagnostics"] = True
-        
+
         diagnostics_params = OrderedDict([('@Diagnostics.solver.solver_name.CVode', (1.0, 'Chosen solver.')), ('@Diagnostics.solver.relative_tolerance', (0.0001, 'Relative solver tolerance.')), ('@Diagnostics.solver.absolute_tolerance.clutch1.phi_rel', (1.0000000000000002e-10, 'Absolute solver tolerance for clutch1.phi_rel.')), ('@Diagnostics.solver.absolute_tolerance.clutch1.w_rel', (1.0000000000000002e-06, 'Absolute solver tolerance for clutch1.w_rel.')), ('@Diagnostics.solver.absolute_tolerance.clutch2.phi_rel', (1.0000000000000002e-10, 'Absolute solver tolerance for clutch2.phi_rel.')), ('@Diagnostics.solver.absolute_tolerance.clutch2.w_rel', (1.0000000000000002e-06, 'Absolute solver tolerance for clutch2.w_rel.')), ('@Diagnostics.solver.absolute_tolerance.clutch3.phi_rel', (1.0000000000000002e-10, 'Absolute solver tolerance for clutch3.phi_rel.')), ('@Diagnostics.solver.absolute_tolerance.clutch3.w_rel', (1.0000000000000002e-06, 'Absolute solver tolerance for clutch3.w_rel.')), ('@Diagnostics.solver.absolute_tolerance.J4.phi', (1.0000000000000002e-06, 'Absolute solver tolerance for J4.phi.')), ('@Diagnostics.solver.absolute_tolerance.J4.w', (1.0000000000000002e-06, 'Absolute solver tolerance for J4.w.'))])
         diagnostics_vars   = OrderedDict([('@Diagnostics.step_time', (0.0, 'Step time')), ('@Diagnostics.cpu_time_per_step', (0, 'CPU time per step.')), ('@Diagnostics.solver.solver_order', (0.0, 'Solver order for CVode used in each time step')), ('@Diagnostics.state_errors.clutch1.phi_rel', (0.0, 'State error for clutch1.phi_rel.')), ('@Diagnostics.state_errors.clutch1.w_rel', (0.0, 'State error for clutch1.w_rel.')), ('@Diagnostics.state_errors.clutch2.phi_rel', (0.0, 'State error for clutch2.phi_rel.')), ('@Diagnostics.state_errors.clutch2.w_rel', (0.0, 'State error for clutch2.w_rel.')), ('@Diagnostics.state_errors.clutch3.phi_rel', (0.0, 'State error for clutch3.phi_rel.')), ('@Diagnostics.state_errors.clutch3.w_rel', (0.0, 'State error for clutch3.w_rel.')), ('@Diagnostics.state_errors.J4.phi', (0.0, 'State error for J4.phi.')), ('@Diagnostics.state_errors.J4.w', (0.0, 'State error for J4.w.')), ('@Diagnostics.event_data.event_info.indicator_1', (20.0, 'Value for event indicator 1.')), ('@Diagnostics.event_data.event_info.indicator_2', (0.99999999, 'Value for event indicator 2.')), ('@Diagnostics.event_data.event_info.indicator_3', (0.99999999, 'Value for event indicator 3.')), ('@Diagnostics.event_data.event_info.indicator_4', (-10000000010.0, 'Value for event indicator 4.')), ('@Diagnostics.event_data.event_info.indicator_5', (0.99999999, 'Value for event indicator 5.')), ('@Diagnostics.event_data.event_info.indicator_6', (1.00000001, 'Value for event indicator 6.')), ('@Diagnostics.event_data.event_info.indicator_7', (1.00000001, 'Value for event indicator 7.')), ('@Diagnostics.event_data.event_info.indicator_8', (1.00000001, 'Value for event indicator 8.')), ('@Diagnostics.event_data.event_info.indicator_9', (1.0, 'Value for event indicator 9.')), ('@Diagnostics.event_data.event_info.indicator_10', (0.99999999, 'Value for event indicator 10.')), ('@Diagnostics.event_data.event_info.indicator_11', (-10.0, 'Value for event indicator 11.')), ('@Diagnostics.event_data.event_info.indicator_12', (-1e-08, 'Value for event indicator 12.')), ('@Diagnostics.event_data.event_info.indicator_13', (0.99999999, 'Value for event indicator 13.')), ('@Diagnostics.event_data.event_info.indicator_14', (0.99999999, 'Value for event indicator 14.')), ('@Diagnostics.event_data.event_info.indicator_15', (0.99999999, 'Value for event indicator 15.')), ('@Diagnostics.event_data.event_info.indicator_16', (0.99999999, 'Value for event indicator 16.')), ('@Diagnostics.event_data.event_info.indicator_17', (1.0, 'Value for event indicator 17.')), ('@Diagnostics.event_data.event_info.indicator_18', (1.0, 'Value for event indicator 18.')), ('@Diagnostics.event_data.event_info.indicator_19', (1.00000001, 'Value for event indicator 19.')), ('@Diagnostics.event_data.event_info.indicator_20', (1.00000001, 'Value for event indicator 20.')), ('@Diagnostics.event_data.event_info.indicator_21', (0.99999999, 'Value for event indicator 21.')), ('@Diagnostics.event_data.event_info.indicator_22', (1.00000001, 'Value for event indicator 22.')), ('@Diagnostics.event_data.event_info.indicator_23', (-1e-08, 'Value for event indicator 23.')), ('@Diagnostics.event_data.event_info.indicator_24', (0.99999999, 'Value for event indicator 24.')), ('@Diagnostics.event_data.event_info.indicator_25', (0.99999999, 'Value for event indicator 25.')), ('@Diagnostics.event_data.event_info.indicator_26', (0.99999999, 'Value for event indicator 26.')), ('@Diagnostics.event_data.event_info.indicator_27', (0.99999999, 'Value for event indicator 27.')), ('@Diagnostics.event_data.event_info.indicator_28', (1.00000001, 'Value for event indicator 28.')), ('@Diagnostics.event_data.event_info.indicator_29', (1.00000001, 'Value for event indicator 29.')), ('@Diagnostics.event_data.event_info.indicator_30', (1.00000001, 'Value for event indicator 30.')), ('@Diagnostics.event_data.event_info.indicator_31', (1.00000001, 'Value for event indicator 31.')), ('@Diagnostics.event_data.event_info.indicator_32', (0.99999999, 'Value for event indicator 32.')), ('@Diagnostics.event_data.event_info.indicator_33', (1.00000001, 'Value for event indicator 33.')), ('@Diagnostics.event_data.event_info.state_event_info.index_1', (0.0, 'Zero crossing indicator for event indicator 1')), ('@Diagnostics.event_data.event_info.state_event_info.index_2', (0.0, 'Zero crossing indicator for event indicator 2')), ('@Diagnostics.event_data.event_info.state_event_info.index_3', (0.0, 'Zero crossing indicator for event indicator 3')), ('@Diagnostics.event_data.event_info.state_event_info.index_4', (0.0, 'Zero crossing indicator for event indicator 4')), ('@Diagnostics.event_data.event_info.state_event_info.index_5', (0.0, 'Zero crossing indicator for event indicator 5')), ('@Diagnostics.event_data.event_info.state_event_info.index_6', (0.0, 'Zero crossing indicator for event indicator 6')), ('@Diagnostics.event_data.event_info.state_event_info.index_7', (0.0, 'Zero crossing indicator for event indicator 7')), ('@Diagnostics.event_data.event_info.state_event_info.index_8', (0.0, 'Zero crossing indicator for event indicator 8')), ('@Diagnostics.event_data.event_info.state_event_info.index_9', (0.0, 'Zero crossing indicator for event indicator 9')), ('@Diagnostics.event_data.event_info.state_event_info.index_10', (0.0, 'Zero crossing indicator for event indicator 10')), ('@Diagnostics.event_data.event_info.state_event_info.index_11', (0.0, 'Zero crossing indicator for event indicator 11')), ('@Diagnostics.event_data.event_info.state_event_info.index_12', (0.0, 'Zero crossing indicator for event indicator 12')), ('@Diagnostics.event_data.event_info.state_event_info.index_13', (0.0, 'Zero crossing indicator for event indicator 13')), ('@Diagnostics.event_data.event_info.state_event_info.index_14', (0.0, 'Zero crossing indicator for event indicator 14')), ('@Diagnostics.event_data.event_info.state_event_info.index_15', (0.0, 'Zero crossing indicator for event indicator 15')), ('@Diagnostics.event_data.event_info.state_event_info.index_16', (0.0, 'Zero crossing indicator for event indicator 16')), ('@Diagnostics.event_data.event_info.state_event_info.index_17', (0.0, 'Zero crossing indicator for event indicator 17')), ('@Diagnostics.event_data.event_info.state_event_info.index_18', (0.0, 'Zero crossing indicator for event indicator 18')), ('@Diagnostics.event_data.event_info.state_event_info.index_19', (0.0, 'Zero crossing indicator for event indicator 19')), ('@Diagnostics.event_data.event_info.state_event_info.index_20', (0.0, 'Zero crossing indicator for event indicator 20')), ('@Diagnostics.event_data.event_info.state_event_info.index_21', (0.0, 'Zero crossing indicator for event indicator 21')), ('@Diagnostics.event_data.event_info.state_event_info.index_22', (0.0, 'Zero crossing indicator for event indicator 22')), ('@Diagnostics.event_data.event_info.state_event_info.index_23', (0.0, 'Zero crossing indicator for event indicator 23')), ('@Diagnostics.event_data.event_info.state_event_info.index_24', (0.0, 'Zero crossing indicator for event indicator 24')), ('@Diagnostics.event_data.event_info.state_event_info.index_25', (0.0, 'Zero crossing indicator for event indicator 25')), ('@Diagnostics.event_data.event_info.state_event_info.index_26', (0.0, 'Zero crossing indicator for event indicator 26')), ('@Diagnostics.event_data.event_info.state_event_info.index_27', (0.0, 'Zero crossing indicator for event indicator 27')), ('@Diagnostics.event_data.event_info.state_event_info.index_28', (0.0, 'Zero crossing indicator for event indicator 28')), ('@Diagnostics.event_data.event_info.state_event_info.index_29', (0.0, 'Zero crossing indicator for event indicator 29')), ('@Diagnostics.event_data.event_info.state_event_info.index_30', (0.0, 'Zero crossing indicator for event indicator 30')), ('@Diagnostics.event_data.event_info.state_event_info.index_31', (0.0, 'Zero crossing indicator for event indicator 31')), ('@Diagnostics.event_data.event_info.state_event_info.index_32', (0.0, 'Zero crossing indicator for event indicator 32')), ('@Diagnostics.event_data.event_info.state_event_info.index_33', (0.0, 'Zero crossing indicator for event indicator 33')), ('@Diagnostics.event_data.event_info.event_type', (-1, 'No event=-1, state event=0, time event=1'))])
         diag_data = np.array([ 1.48162531e+00,  8.84345965e-04,  3.00000000e+00,  2.24464314e-04,
@@ -669,36 +670,36 @@ class TestResultFileBinary:
                               0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  0.00000000e+00,
                               0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  0.00000000e+00,
                               0.00000000e+00, -1.00000000e+00])
-  
+
         result_writer = ResultHandlerBinaryFile(model)
         result_writer.set_options(opts)
         result_writer.simulation_start(diagnostics_params, diagnostics_vars)
         result_writer.initialize_complete()
         result_writer.integration_point()
         result_writer.diagnostics_point(diag_data)
-        
+
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
-        
+
         assert len(res.get_variable_data("@Diagnostics.state_errors.clutch1.w_rel").x) == 2, res.get_variable_data("@Diagnostics.state_errors.clutch1.w_rel").x
-        
+
         time.sleep(0.1)
         result_writer.integration_point()
         result_writer.diagnostics_point(diag_data)
         result_writer.diagnostics_point(diag_data)
         result_writer.simulation_end()
-        
+
         assert len(res.get_variable_data("@Diagnostics.state_errors.clutch2.w_rel").x) == 4, res.get_variable_data("@Diagnostics.state_errors.clutch2.w_rel").x
-    
+
     @testattr(stddist = True)
     def test_modified_result_file_data_diagnostics_steps(self):
         """Verify that diagnostics can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
         model.setup_experiment()
         model.initialize()
-        
+
         opts = model.simulate_options()
         opts["dynamic_diagnostics"] = True
-        
+
         diagnostics_params = OrderedDict([('@Diagnostics.solver.solver_name.CVode', (1.0, 'Chosen solver.')), ('@Diagnostics.solver.relative_tolerance', (0.0001, 'Relative solver tolerance.')), ('@Diagnostics.solver.absolute_tolerance.clutch1.phi_rel', (1.0000000000000002e-10, 'Absolute solver tolerance for clutch1.phi_rel.')), ('@Diagnostics.solver.absolute_tolerance.clutch1.w_rel', (1.0000000000000002e-06, 'Absolute solver tolerance for clutch1.w_rel.')), ('@Diagnostics.solver.absolute_tolerance.clutch2.phi_rel', (1.0000000000000002e-10, 'Absolute solver tolerance for clutch2.phi_rel.')), ('@Diagnostics.solver.absolute_tolerance.clutch2.w_rel', (1.0000000000000002e-06, 'Absolute solver tolerance for clutch2.w_rel.')), ('@Diagnostics.solver.absolute_tolerance.clutch3.phi_rel', (1.0000000000000002e-10, 'Absolute solver tolerance for clutch3.phi_rel.')), ('@Diagnostics.solver.absolute_tolerance.clutch3.w_rel', (1.0000000000000002e-06, 'Absolute solver tolerance for clutch3.w_rel.')), ('@Diagnostics.solver.absolute_tolerance.J4.phi', (1.0000000000000002e-06, 'Absolute solver tolerance for J4.phi.')), ('@Diagnostics.solver.absolute_tolerance.J4.w', (1.0000000000000002e-06, 'Absolute solver tolerance for J4.w.'))])
         diagnostics_vars   = OrderedDict([('@Diagnostics.step_time', (0.0, 'Step time')), ('@Diagnostics.cpu_time_per_step', (0, 'CPU time per step.')), ('@Diagnostics.solver.solver_order', (0.0, 'Solver order for CVode used in each time step')), ('@Diagnostics.state_errors.clutch1.phi_rel', (0.0, 'State error for clutch1.phi_rel.')), ('@Diagnostics.state_errors.clutch1.w_rel', (0.0, 'State error for clutch1.w_rel.')), ('@Diagnostics.state_errors.clutch2.phi_rel', (0.0, 'State error for clutch2.phi_rel.')), ('@Diagnostics.state_errors.clutch2.w_rel', (0.0, 'State error for clutch2.w_rel.')), ('@Diagnostics.state_errors.clutch3.phi_rel', (0.0, 'State error for clutch3.phi_rel.')), ('@Diagnostics.state_errors.clutch3.w_rel', (0.0, 'State error for clutch3.w_rel.')), ('@Diagnostics.state_errors.J4.phi', (0.0, 'State error for J4.phi.')), ('@Diagnostics.state_errors.J4.w', (0.0, 'State error for J4.w.')), ('@Diagnostics.event_data.event_info.indicator_1', (20.0, 'Value for event indicator 1.')), ('@Diagnostics.event_data.event_info.indicator_2', (0.99999999, 'Value for event indicator 2.')), ('@Diagnostics.event_data.event_info.indicator_3', (0.99999999, 'Value for event indicator 3.')), ('@Diagnostics.event_data.event_info.indicator_4', (-10000000010.0, 'Value for event indicator 4.')), ('@Diagnostics.event_data.event_info.indicator_5', (0.99999999, 'Value for event indicator 5.')), ('@Diagnostics.event_data.event_info.indicator_6', (1.00000001, 'Value for event indicator 6.')), ('@Diagnostics.event_data.event_info.indicator_7', (1.00000001, 'Value for event indicator 7.')), ('@Diagnostics.event_data.event_info.indicator_8', (1.00000001, 'Value for event indicator 8.')), ('@Diagnostics.event_data.event_info.indicator_9', (1.0, 'Value for event indicator 9.')), ('@Diagnostics.event_data.event_info.indicator_10', (0.99999999, 'Value for event indicator 10.')), ('@Diagnostics.event_data.event_info.indicator_11', (-10.0, 'Value for event indicator 11.')), ('@Diagnostics.event_data.event_info.indicator_12', (-1e-08, 'Value for event indicator 12.')), ('@Diagnostics.event_data.event_info.indicator_13', (0.99999999, 'Value for event indicator 13.')), ('@Diagnostics.event_data.event_info.indicator_14', (0.99999999, 'Value for event indicator 14.')), ('@Diagnostics.event_data.event_info.indicator_15', (0.99999999, 'Value for event indicator 15.')), ('@Diagnostics.event_data.event_info.indicator_16', (0.99999999, 'Value for event indicator 16.')), ('@Diagnostics.event_data.event_info.indicator_17', (1.0, 'Value for event indicator 17.')), ('@Diagnostics.event_data.event_info.indicator_18', (1.0, 'Value for event indicator 18.')), ('@Diagnostics.event_data.event_info.indicator_19', (1.00000001, 'Value for event indicator 19.')), ('@Diagnostics.event_data.event_info.indicator_20', (1.00000001, 'Value for event indicator 20.')), ('@Diagnostics.event_data.event_info.indicator_21', (0.99999999, 'Value for event indicator 21.')), ('@Diagnostics.event_data.event_info.indicator_22', (1.00000001, 'Value for event indicator 22.')), ('@Diagnostics.event_data.event_info.indicator_23', (-1e-08, 'Value for event indicator 23.')), ('@Diagnostics.event_data.event_info.indicator_24', (0.99999999, 'Value for event indicator 24.')), ('@Diagnostics.event_data.event_info.indicator_25', (0.99999999, 'Value for event indicator 25.')), ('@Diagnostics.event_data.event_info.indicator_26', (0.99999999, 'Value for event indicator 26.')), ('@Diagnostics.event_data.event_info.indicator_27', (0.99999999, 'Value for event indicator 27.')), ('@Diagnostics.event_data.event_info.indicator_28', (1.00000001, 'Value for event indicator 28.')), ('@Diagnostics.event_data.event_info.indicator_29', (1.00000001, 'Value for event indicator 29.')), ('@Diagnostics.event_data.event_info.indicator_30', (1.00000001, 'Value for event indicator 30.')), ('@Diagnostics.event_data.event_info.indicator_31', (1.00000001, 'Value for event indicator 31.')), ('@Diagnostics.event_data.event_info.indicator_32', (0.99999999, 'Value for event indicator 32.')), ('@Diagnostics.event_data.event_info.indicator_33', (1.00000001, 'Value for event indicator 33.')), ('@Diagnostics.event_data.event_info.state_event_info.index_1', (0.0, 'Zero crossing indicator for event indicator 1')), ('@Diagnostics.event_data.event_info.state_event_info.index_2', (0.0, 'Zero crossing indicator for event indicator 2')), ('@Diagnostics.event_data.event_info.state_event_info.index_3', (0.0, 'Zero crossing indicator for event indicator 3')), ('@Diagnostics.event_data.event_info.state_event_info.index_4', (0.0, 'Zero crossing indicator for event indicator 4')), ('@Diagnostics.event_data.event_info.state_event_info.index_5', (0.0, 'Zero crossing indicator for event indicator 5')), ('@Diagnostics.event_data.event_info.state_event_info.index_6', (0.0, 'Zero crossing indicator for event indicator 6')), ('@Diagnostics.event_data.event_info.state_event_info.index_7', (0.0, 'Zero crossing indicator for event indicator 7')), ('@Diagnostics.event_data.event_info.state_event_info.index_8', (0.0, 'Zero crossing indicator for event indicator 8')), ('@Diagnostics.event_data.event_info.state_event_info.index_9', (0.0, 'Zero crossing indicator for event indicator 9')), ('@Diagnostics.event_data.event_info.state_event_info.index_10', (0.0, 'Zero crossing indicator for event indicator 10')), ('@Diagnostics.event_data.event_info.state_event_info.index_11', (0.0, 'Zero crossing indicator for event indicator 11')), ('@Diagnostics.event_data.event_info.state_event_info.index_12', (0.0, 'Zero crossing indicator for event indicator 12')), ('@Diagnostics.event_data.event_info.state_event_info.index_13', (0.0, 'Zero crossing indicator for event indicator 13')), ('@Diagnostics.event_data.event_info.state_event_info.index_14', (0.0, 'Zero crossing indicator for event indicator 14')), ('@Diagnostics.event_data.event_info.state_event_info.index_15', (0.0, 'Zero crossing indicator for event indicator 15')), ('@Diagnostics.event_data.event_info.state_event_info.index_16', (0.0, 'Zero crossing indicator for event indicator 16')), ('@Diagnostics.event_data.event_info.state_event_info.index_17', (0.0, 'Zero crossing indicator for event indicator 17')), ('@Diagnostics.event_data.event_info.state_event_info.index_18', (0.0, 'Zero crossing indicator for event indicator 18')), ('@Diagnostics.event_data.event_info.state_event_info.index_19', (0.0, 'Zero crossing indicator for event indicator 19')), ('@Diagnostics.event_data.event_info.state_event_info.index_20', (0.0, 'Zero crossing indicator for event indicator 20')), ('@Diagnostics.event_data.event_info.state_event_info.index_21', (0.0, 'Zero crossing indicator for event indicator 21')), ('@Diagnostics.event_data.event_info.state_event_info.index_22', (0.0, 'Zero crossing indicator for event indicator 22')), ('@Diagnostics.event_data.event_info.state_event_info.index_23', (0.0, 'Zero crossing indicator for event indicator 23')), ('@Diagnostics.event_data.event_info.state_event_info.index_24', (0.0, 'Zero crossing indicator for event indicator 24')), ('@Diagnostics.event_data.event_info.state_event_info.index_25', (0.0, 'Zero crossing indicator for event indicator 25')), ('@Diagnostics.event_data.event_info.state_event_info.index_26', (0.0, 'Zero crossing indicator for event indicator 26')), ('@Diagnostics.event_data.event_info.state_event_info.index_27', (0.0, 'Zero crossing indicator for event indicator 27')), ('@Diagnostics.event_data.event_info.state_event_info.index_28', (0.0, 'Zero crossing indicator for event indicator 28')), ('@Diagnostics.event_data.event_info.state_event_info.index_29', (0.0, 'Zero crossing indicator for event indicator 29')), ('@Diagnostics.event_data.event_info.state_event_info.index_30', (0.0, 'Zero crossing indicator for event indicator 30')), ('@Diagnostics.event_data.event_info.state_event_info.index_31', (0.0, 'Zero crossing indicator for event indicator 31')), ('@Diagnostics.event_data.event_info.state_event_info.index_32', (0.0, 'Zero crossing indicator for event indicator 32')), ('@Diagnostics.event_data.event_info.state_event_info.index_33', (0.0, 'Zero crossing indicator for event indicator 33')), ('@Diagnostics.event_data.event_info.event_type', (-1, 'No event=-1, state event=0, time event=1'))])
         diag_data = np.array([ 1.48162531e+00,  8.84345965e-04,  3.00000000e+00,  2.24464314e-04,
@@ -721,26 +722,26 @@ class TestResultFileBinary:
                               0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  0.00000000e+00,
                               0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  0.00000000e+00,
                               0.00000000e+00, -1.00000000e+00])
-  
+
         result_writer = ResultHandlerBinaryFile(model)
         result_writer.set_options(opts)
         result_writer.simulation_start(diagnostics_params, diagnostics_vars)
         result_writer.initialize_complete()
         result_writer.integration_point()
         result_writer.diagnostics_point(diag_data)
-        
+
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
-        
+
         assert len(res.get_variable_data("@Diagnostics.nbr_steps").x) == 2, res.get_variable_data("@Diagnostics.nbr_steps").x
-        
+
         time.sleep(0.1)
         result_writer.integration_point()
         result_writer.diagnostics_point(diag_data)
         result_writer.diagnostics_point(diag_data)
         result_writer.simulation_end()
-        
+
         assert len(res.get_variable_data("@Diagnostics.nbr_steps").x) == 4, res.get_variable_data("@Diagnostics.nbr_steps").x
-    
+
     @testattr(stddist = True)
     def test_modified_result_file_data_2(self):
         """Verify that continuous trajectories are updated when retrieved from a result file"""
@@ -755,15 +756,15 @@ class TestResultFileBinary:
         result_writer.integration_point()
 
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
-        
+
         assert len(res.get_variable_data("J1.phi").x) == 1, res.get_variable_data("J1.phi").x
-        
+
         time.sleep(0.1)
         result_writer.integration_point()
         result_writer.simulation_end()
-        
+
         assert len(res.get_variable_data("J1.phi").x) == 2, res.get_variable_data("J1.phi").x
-        
+
     @testattr(stddist = True)
     def test_modified_result_file_data_2_different(self):
         """Verify that (different) continuous trajectories are updated when retrieved from a result file"""
@@ -778,15 +779,15 @@ class TestResultFileBinary:
         result_writer.integration_point()
 
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
-        
+
         assert len(res.get_variable_data("J1.phi").x) == 1, res.get_variable_data("J1.phi").x
-        
+
         time.sleep(0.1)
         result_writer.integration_point()
         result_writer.simulation_end()
-        
+
         assert len(res.get_variable_data("J2.phi").x) == 2, res.get_variable_data("J2.phi").x
-    
+
     @testattr(stddist = True)
     def test_modified_result_file_data_1(self):
         """Verify that (different) constants/parameters can be retrieved from an updated result file"""
@@ -801,17 +802,17 @@ class TestResultFileBinary:
         result_writer.integration_point()
 
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
-        
+
         #Assert that no exception is raised
         res.get_variable_data("J1.J")
-        
+
         time.sleep(0.1)
         result_writer.integration_point()
         result_writer.simulation_end()
-        
+
         #Assert that no exception is raised
         res.get_variable_data("J2.J")
-    
+
     @testattr(stddist = True)
     def test_modified_result_file_data_1_delayed(self):
         """Verify that constants/parameters can be retrieved from an updated result file"""
@@ -826,13 +827,13 @@ class TestResultFileBinary:
         result_writer.integration_point()
 
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
-        
+
         result_writer.integration_point()
         result_writer.simulation_end()
-        
+
         #Assert that no exception is raised
         res.get_variable_data("J2.J")
-        
+
     @testattr(stddist = True)
     def test_modified_result_file_time(self):
         """Verify that 'time' can be retrieved from an updated result file"""
@@ -847,12 +848,12 @@ class TestResultFileBinary:
         result_writer.integration_point()
 
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
-        
+
         res.get_variable_data("time")
-        
+
         result_writer.integration_point()
         result_writer.simulation_end()
-        
+
         res.get_variable_data("time")
 
     @testattr(stddist = True)
@@ -1211,7 +1212,7 @@ class TestResultFileBinary:
         bouncingBall = ResultHandlerBinaryFile(model)
         bouncingBall.set_options(opts)
         bouncingBall.simulation_start(diagnostics_params=diagnostics_params, diagnostics_vars=diagnostics_vars)
-        bouncingBall.initialize_complete()
+        bouncingBall.initialize_complete() # TODO should be called before simulation_start
 
         model.time += 0.1
         diag_data[0] += 0.1
@@ -1299,7 +1300,7 @@ class TestResultFileBinary:
         class Foo(ResultHandler):
             def get_result(self):
                 return None
-            
+
         foo_inst = Foo(model)
         opts["result_handler"] = foo_inst
 
@@ -1690,3 +1691,211 @@ class TestResultCSVTextual:
         simple_alias = Dummy_FMUModelCS2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "NegatedAlias.fmu"), _connect_dll=False)
         self._run_negated_alias(self, simple_alias)
     """
+
+class TestResultDymolaBinary:
+
+    def _test_get_variables_data(self, dynamic_diagnostics: bool, nbr_of_calls: int, diag_data_ratio: int,
+                                 vars_to_test: list, stop_index_function: callable, result_file_name: str) -> dict:
+        """
+            Simulates a dummy FMU and generates data for get_variables_data.
+
+            Parameters:
+            ----------
+            dynamic_diagnostics : bool
+                Whether to enable dynamic diagnostics during simulation.
+
+            nbr_of_calls : int
+                Number of simulation calls to perform.
+
+            diag_data_ratio : int
+                Frequency of diagnostic data logging.
+
+            vars_to_test : list
+                Variables to retrieve data from during the simulation.
+
+            stop_index_function : callable
+                Function to determine the stop index for retrieving variable data.
+
+            result_file_name: str
+                Name of the result file.
+
+            Returns:
+            -------
+            dict
+                A dictionary with call indices as keys and lists of trajectory data as values.
+
+            Raises:
+            ------
+            AssertionError
+                If no test data is generated.
+        """
+
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
+            _connect_dll=False)
+        f = lambda t : math.sin(5*t + math.pi/2) # function used to set values later on FMU
+
+        result_handler = ResultHandlerBinaryFile(fmu)
+        opts = fmu.simulate_options()
+        opts["result_handling"] = "binary"
+        opts["result_handler"] = result_handler
+        opts["result_file_name"] = result_file_name
+        opts["dynamic_diagnostics"] = dynamic_diagnostics
+        opts["logging"] = opts["dynamic_diagnostics"]
+
+        # tolerances are required only to invoke 'setup_diagnostics_variables'
+        opts['CVode_options']['rtol'] = 1e-6
+        opts['CVode_options']['atol'] = fmu.nominal_continuous_states * opts['CVode_options']['rtol']
+
+        fmu.setup_experiment()
+        fmu.initialize()
+        opts["initialize"] = False
+
+        diag_params, diag_vars = setup_diagnostics_variables(
+            model = fmu,
+            start_time = 0,
+            options = opts,
+            solver_options = opts['CVode_options'])
+
+        result_handler.set_options(opts) # required in order to call simulation_start()
+        result_handler.initialize_complete()
+        if opts["dynamic_diagnostics"]:
+            result_handler.simulation_start(diag_params, diag_vars)
+        else:
+            result_handler.simulation_start()
+
+        fmu.set('J4.phi', f(fmu.time)) # arbitrary
+        result_handler.integration_point()
+
+        fmu.time += 0.01
+        fmu.set('J4.phi', f(fmu.time)) # arbitrary
+
+        rdb = ResultDymolaBinary(opts["result_file_name"], allow_file_updates=True)
+        nbr_of_calls = nbr_of_calls
+        diag_data_ratio = diag_data_ratio
+        counter = 0
+        start_index = 0
+
+        nbr_of_points = 5
+        h = 1/nbr_of_points * 0.1 # "arbitrary" step through time
+
+        data_to_return = {}
+        for i in range(nbr_of_calls):
+            time.sleep(0.1) # without this the tests fail on Linux, should look into a proper way of solving this
+            for j in range(nbr_of_points):
+                result_handler.integration_point()
+                if opts["dynamic_diagnostics"] and counter%diag_data_ratio==0:
+                    diag_vars['@Diagnostics.step_time'] = (h, 'Step time') # arbitrary test value
+                    result_handler.diagnostics_point(np.array([val[0] for val in diag_vars.values()], dtype=float))
+
+                counter += 1
+                fmu.time += h
+                fmu.set('J4.phi', f(fmu.time)) # arbitrary
+
+            trajectories, start_index = rdb.get_variables_data(vars_to_test, start_index, stop_index_function(start_index))
+            data_to_return[i] = [t.x for t in trajectories]
+
+        assert data_to_return, "Something went wrong, no test data was generated"
+        return data_to_return
+
+    @testattr(stddist = True)
+    def test_get_variables_data_values0(self):
+        """ Verifing values from get_variables_data. """
+        vars_to_test = ['J4.phi']
+        test_data_sets = self._test_get_variables_data(False, 3, None, vars_to_test, lambda x: None, "TestFile00.mat")
+
+        reference_data = {
+            0: [1.00000000, 0.99875026, 0.98877108, 0.96891242, 0.93937271, 0.90044710],
+            1: [0.85252452, 0.79608380, 0.73168887, 0.65998315, 0.58168309],
+            2: [0.49757105, 0.40848744, 0.31532236, 0.21900669, 0.12050277]
+        }
+
+        for index, test_data in test_data_sets.items():
+            np.testing.assert_array_almost_equal(test_data[0], reference_data[index])
+
+    @testattr(stddist = True)
+    def test_get_variables_data_values1(self):
+        """ Verifing values from get_variables_data, with dynamic_diagnostics = True. """
+        vars_to_test = ['time', 'J4.phi', '@Diagnostics.step_time', '@Diagnostics.nbr_steps']
+        test_data_sets = self._test_get_variables_data(True, 5, 3, vars_to_test, lambda x: None, "TestFile01.mat")
+
+        reference_data = {
+            0: [ 1.00000000,  0.99875026,  0.93937271],
+            1: [ 0.7960838,   0.58168309],
+            2: [ 0.31532236],
+            3: [ 0.02079483, -0.27559025],
+            4: [-0.54735767, -0.77023125]
+        }
+
+        # Just verify results for J4.phi here, but we retrieve all four trajectories at once
+        # to see that it works
+        for index, test_data in test_data_sets.items():
+            np.testing.assert_array_almost_equal(test_data[1], reference_data[index])
+
+    @testattr(stddist = True)
+    def test_get_variables_data_values2(self):
+        """ Verifing values from get_variables_data, retrieving partial trajectories. """
+        vars_to_test = ['time', 'J4.phi']
+        test_data_sets = self._test_get_variables_data(False, 5, None, vars_to_test, lambda x: x + 1, "TestFile02.mat")
+
+        reference_data = {
+            0: [1],
+            1: [0.99875026],
+            2: [0.98877108],
+            3: [0.96891242],
+            4: [0.93937271]
+        }
+
+        for index, test_data in test_data_sets.items():
+            np.testing.assert_array_almost_equal(test_data[1], reference_data[index])
+
+    def test_get_variables_data_values3(self):
+        """ Verifing values from get_variables_data, and only asking for diagnostic variables. """
+        vars_to_test = ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
+        test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: None, "TestFile03.mat")
+
+        reference_data = {
+            '@Diagnostics.step_time' : {
+                0: [0.00, 0.02, 0.02, 0.02, 0.02, 0.02], # the first point 0, then 0.02 because of h=1/5 * 0.1
+                1: [0.02, 0.02, 0.02, 0.02, 0.02],
+                2: [0.02, 0.02, 0.02, 0.02, 0.02],
+                3: [0.02, 0.02, 0.02, 0.02, 0.02],
+                4: [0.02, 0.02, 0.02, 0.02, 0.02]
+            },
+            '@Diagnostics.nbr_steps': {
+                0: [ 1.,  2.,  3.,  4.,  5.,  6.],
+                1: [ 7.,  8.,  9., 10., 11.],
+                2: [12., 13., 14., 15., 16.],
+                3: [17., 18., 19., 20., 21.],
+                4: [22., 23., 24., 25., 26.],
+            }
+        }
+
+        for index, test_data in test_data_sets.items():
+            np.testing.assert_array_almost_equal(test_data[0], reference_data['@Diagnostics.step_time'][index])
+            np.testing.assert_array_almost_equal(test_data[1], reference_data['@Diagnostics.nbr_steps'][index])
+
+    def test_get_variables_data_values4(self):
+        """ Verifing values from get_variables_data, partial trajectories and checking both time and diagnostic data."""
+        vars_to_test = ['time', '@Diagnostics.nbr_steps']
+        test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: x + 2, "TestFile04.mat")
+
+        reference_data = {
+            'time' : {
+                0: [0.  , 0.01],
+                1: [0.03, 0.05],
+                2: [0.07, 0.09],
+                3: [0.11, 0.13],
+                4: [0.15, 0.17]
+            },
+            '@Diagnostics.nbr_steps': {
+                0: [1, 2],
+                1: [3, 4],
+                2: [5, 6],
+                3: [7, 8],
+                4: [9, 10],
+            }
+        }
+
+        for index, test_data in test_data_sets.items():
+            np.testing.assert_array_almost_equal(test_data[0], reference_data['time'][index])
+            np.testing.assert_array_almost_equal(test_data[1], reference_data['@Diagnostics.nbr_steps'][index])

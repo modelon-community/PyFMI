@@ -1330,5 +1330,3 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
     FMIL.free(tmp)
 
     return data
-    
-
