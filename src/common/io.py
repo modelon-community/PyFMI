@@ -2570,6 +2570,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         """
         self._file.write(header.tobytes(order="F"))
         self._file.write(name.encode() + b"\0")
+        self._file.flush()
 
     def _write_header(self, name, nbr_rows, nbr_cols, data_type):
         """
