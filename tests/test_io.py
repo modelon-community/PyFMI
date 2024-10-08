@@ -1780,6 +1780,7 @@ class TestResultDymolaBinary:
 
         data_to_return = {}
         for i in range(nbr_of_calls):
+            time.sleep(0.1) # without this the tests fail on Linux, should look into a proper way of solving this
             for j in range(nbr_of_points):
                 result_handler.integration_point()
                 if opts["dynamic_diagnostics"] and counter%diag_data_ratio==0:
