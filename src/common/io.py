@@ -24,6 +24,7 @@ import sys
 import os
 import logging as logging_module
 from functools import reduce
+from typing import Union
 
 import numpy as np
 import scipy
@@ -104,7 +105,7 @@ class ResultHandler:
         pass
 
     def diagnostics_point(self, diag_data = None):
-        """ 
+        """
         Generates a data point for diagnostics data.
         """
         if self.supports.get('dynamic_diagnostics'):
@@ -179,16 +180,19 @@ class ResultDymola:
                 raise VariableNotFoundError("Cannot find variable " +
                                         name + " in data file.")
 
+    def _correct_index_for_alias(self, data_index: int) -> tuple[int, int]:
+        """ This function returns a correction for 'data_index' for alias variables.
+            Negative values for data_index implies that it corresponds to an alias variable.
+            The variable which it is aliased for is located in position |data_index| shifted by one.
+        """
+        factor = -1 if data_index < 0 else 1
+        return factor*data_index - 1, factor
 
-    def _check_if_derivative_variable(self, name):
+    def _check_if_derivative_variable(self, name: str) -> bool:
         """
         Check if a variable is a derivative variable or not.
         """
-        if name.startswith("der(") or name.split(".")[-1].startswith("der("):
-            return True
-        else:
-            return False
-
+        return name.startswith("der(") or name.split(".")[-1].startswith("der(")
 
     def _exhaustive_search_for_derivatives(self, name):
         """
@@ -993,26 +997,21 @@ class ResultDymolaTextual(ResultDymola):
             of the variable.
         """
         if name == 'time' or name== 'Time':
-            varInd = 0
+            variable_index = 0
         else:
-            varInd  = self.get_variable_index(name)
+            variable_index  = self.get_variable_index(name)
 
-        dataInd = self.dataInfo[varInd][1]
-        factor = 1
-        if dataInd < 0:
-            factor = -1
-            dataInd = -dataInd -1
-        else:
-            dataInd = dataInd - 1
-        dataMat = self.dataInfo[varInd][0]-1
+        data_index = self.dataInfo[variable_index][1]
+        data_index, factor = self._correct_index_for_alias(data_index)
+        data_mat = self.dataInfo[variable_index][0]-1
 
-        if dataMat < 0:
-            # Take into account that the 'Time' variable has data matrix index 0
-            # and that 'time' is called 'Time' in Dymola results
-             dataMat = 1 if len(self.data) > 1 else 0
+        if data_mat < 0:
+            # Take into account that the 'Time' variable can be named either 'Time' or 'time'.
+
+            data_mat = 1 if len(self.data) > 1 else 0
 
         return Trajectory(
-            self.data[dataMat][:,0],factor*self.data[dataMat][:,dataInd])
+            self.data[data_mat][:, 0],factor*self.data[data_mat][:, data_index])
 
     def is_variable(self, name):
         """
@@ -1029,12 +1028,12 @@ class ResultDymolaTextual(ResultDymola):
         """
         if name == 'time' or name== 'Time':
             return True
-        varInd  = self.get_variable_index(name)
-        dataMat = self.dataInfo[varInd][0]-1
-        if dataMat<0:
-            dataMat = 0
+        variable_index  = self.get_variable_index(name)
+        data_mat = self.dataInfo[variable_index][0]-1
+        if data_mat<0:
+            data_mat = 0
 
-        if dataMat == 0:
+        if data_mat == 0:
             return False
         else:
             return True
@@ -1052,9 +1051,9 @@ class ResultDymolaTextual(ResultDymola):
 
             True if the result should be negated
         """
-        varInd  = self.get_variable_index(name)
-        dataInd = self.dataInfo[varInd][1]
-        if dataInd<0:
+        variable_index  = self.get_variable_index(name)
+        data_index = self.dataInfo[variable_index][1]
+        if data_index<0:
             return True
         else:
             return False
@@ -1077,18 +1076,12 @@ class ResultDymolaTextual(ResultDymola):
             return 0
 
         if not self.is_variable(name):
-            raise VariableNotTimeVarying("Variable " +
-                                        name + " is not time-varying.")
-        varInd  = self.get_variable_index(name)
-        dataInd = self.dataInfo[varInd][1]
-        factor = 1
-        if dataInd<0:
-            factor = -1
-            dataInd = -dataInd -1
-        else:
-            dataInd = dataInd - 1
+            raise VariableNotTimeVarying("Variable " + name + " is not time-varying.")
+        variable_index  = self.get_variable_index(name)
+        data_index = self.dataInfo[variable_index][1]
+        data_index, _ = self._correct_index_for_alias(data_index)
 
-        return dataInd
+        return data_index
 
     def get_data_matrix(self):
         """
@@ -1192,7 +1185,7 @@ class ResultDymolaBinary(ResultDymola):
                 all at the same time. Only works for files or streams that
                 are based on a file and has attribute name.
                 Default: True (for files)
-                
+
             allow_file_updates --
                 If this is True, file updates (in terms of more
                 data points being added to the result file) is allowed.
@@ -1275,20 +1268,19 @@ class ResultDymolaBinary(ResultDymola):
             delayed  = DelayedVariableLoad(f, chars_as_strings=False)
             self.raw = delayed.get_variables(variable_names = data_sections)
         self._mtime = os.path.getmtime(self._fname)
-            
         self._data_2_info = self.raw["data_2"]
         self._data_2 = {}
-        
+
         if self._contains_diagnostic_data:
             self._data_3_info = self.raw["data_3"]
             self._data_3 = {}
             self._data_4_info = self.raw["data_4"]
-            
+
             self._file_pos_model_var = np.empty(self._data_2_info["nbr_points"], dtype=np.longlong)
             self._file_pos_diag_var = np.empty(self._data_3_info.shape[0], dtype=np.longlong)
-            
+
             self._has_file_pos_data = False
-    
+
     def _verify_file_data(self):
         if self._mtime != os.path.getmtime(self._fname):
             if self._allow_file_updates:
@@ -1337,10 +1329,10 @@ class ResultDymolaBinary(ResultDymola):
 
         return name_dict
 
-    def _get_trajectory(self, data_index):
+    def _get_trajectory(self, data_index, start_index = 0, stop_index = None):
         if isinstance(self._data_2, dict):
             self._verify_file_data()
-            
+
             if data_index in self._data_2:
                 return self._data_2[data_index]
 
@@ -1348,32 +1340,49 @@ class ResultDymolaBinary(ResultDymola):
             sizeof_type    = self._data_2_info["sizeof_type"]
             nbr_points     = self._data_2_info["nbr_points"]
             nbr_variables  = self._data_2_info["nbr_variables"]
-            
-            self._data_2[data_index] = fmi_util.read_trajectory(encode(self._fname), data_index, file_position, sizeof_type, int(nbr_points), int(nbr_variables))
+
+            # Account for sub-sets of data
+            if start_index > 0:
+                new_file_position = file_position + start_index*sizeof_type*nbr_variables
+                new_nbr_points = nbr_points - start_index
+            else:
+                new_file_position = file_position
+                new_nbr_points = nbr_points
+
+            if stop_index is not None and stop_index > 0:
+                new_nbr_points = stop_index
+                if start_index > 0:
+                    new_nbr_points -= start_index
+
+            self._data_2[data_index] = fmi_util.read_trajectory(
+                encode(self._fname),
+                data_index,
+                new_file_position,
+                sizeof_type,
+                int(new_nbr_points),
+                int(nbr_variables)
+            )
 
             return self._data_2[data_index]
         else:
             return self._data_2[data_index,:]
 
-
-    def _get_diagnostics_trajectory(self, data_index):
+    def _get_diagnostics_trajectory(self, data_index, start_index = 0, stop_index = None):
         """ Returns trajectory for the diagnostics variable that corresponds to index 'data_index'. """
         self._verify_file_data()
-        
+
         if data_index in self._data_3:
             return self._data_3[data_index]
-        
-        self._data_3[data_index] = self._read_trajectory_data(data_index, True)
-        
-        return self._data_3[data_index]
+        self._data_3[data_index] = self._read_trajectory_data(data_index, True, start_index, stop_index)
+        return self._data_3[data_index][start_index:stop_index]
 
-    def _read_trajectory_data(self, data_index, read_diag_data):
+    def _read_trajectory_data(self, data_index, read_diag_data, start_index = 0, stop_index = None):
         """ Reads corresponding trajectory data for variable with index 'data_index',
             note that 'read_diag_data' is a boolean used when this function is invoked for
             diagnostic variables.
         """
         self._verify_file_data()
-        
+
         file_position   = int(self._data_2_info["file_position"])
         sizeof_type     = int(self._data_2_info["sizeof_type"])
         nbr_points      = int(self._data_2_info["nbr_points"])
@@ -1382,37 +1391,48 @@ class ResultDymolaBinary(ResultDymola):
         nbr_diag_points    = int(self._data_3_info.shape[0])
         nbr_diag_variables = int(self._data_4_info.shape[0])
 
+        # TODO account for start_index and stop_index
 
         data, self._file_pos_model_var, self._file_pos_diag_var = fmi_util.read_diagnostics_trajectory(
-                                                encode(self._fname), int(read_diag_data), int(self._has_file_pos_data),
-                                                self._file_pos_model_var, self._file_pos_diag_var,
-                                                data_index, file_position, sizeof_type, nbr_points, nbr_diag_points,
-                                                nbr_variables, nbr_diag_variables)
+            encode(self._fname),
+            int(read_diag_data),
+            int(self._has_file_pos_data),
+            self._file_pos_model_var,
+            self._file_pos_diag_var,
+            data_index,
+            file_position,
+            sizeof_type,
+            nbr_points,
+            nbr_diag_points,
+            nbr_variables,
+            nbr_diag_variables
+        )
         self._has_file_pos_data = True
 
         return data
 
-    def _get_interpolated_trajectory(self, data_index):
+    def _get_interpolated_trajectory(self, data_index: int, start_index: int = None, stop_index: int = None) -> Trajectory:
         """ Returns an interpolated trajectory for variable of corresponding index 'data_index'. """
         self._verify_file_data()
-        
+
         if data_index in self._data_2:
             return self._data_2[data_index]
-        
-        diag_time_vector = self._get_diagnostics_trajectory(0)
-        time_vector      = self._read_trajectory_data(0, False)
-        data             = self._read_trajectory_data(data_index, False)
-        
-        f = scipy.interpolate.interp1d(time_vector, data, fill_value="extrapolate")
-        
-        self._data_2[data_index] = f(diag_time_vector)
-        
-        return self._data_2[data_index]
 
+        diag_time_vector = self._get_diagnostics_trajectory(0, start_index, stop_index)
+        time_vector      = self._read_trajectory_data(0, False, start_index, stop_index)
+        data             = self._read_trajectory_data(data_index, False, start_index, stop_index)
+
+        f = scipy.interpolate.interp1d(time_vector, data, fill_value="extrapolate")
+
+        self._data_2[data_index] = f(diag_time_vector)
+        return self._data_2[data_index][start_index:stop_index]
 
     def _get_description(self):
         if not self._description:
-            description = scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["description"])["description"]
+            description = scipy.io.loadmat(
+                self._fname,
+                chars_as_strings = False,
+                variable_names = ["description"])["description"]
             self._description = ["".join(description[:,i]).rstrip() for i in range(np.size(description[0,:]))]
 
         return self._description
@@ -1422,7 +1442,97 @@ class ResultDymolaBinary(ResultDymola):
     Property for accessing the description vector.
     """)
 
-    def get_variable_data(self, name):
+    def _map_index_to_data_properties(self, variable_name: str) -> tuple[int, int, int]:
+        """ Returns the data matrix ID, index and factor for given variable name. """
+
+        variable_index = self.get_variable_index(variable_name)
+        data_mat = self._dataInfo[0][variable_index]
+
+        data_index = self._dataInfo[1][variable_index]
+        data_index, factor = self._correct_index_for_alias(data_index)
+
+        if data_mat == 0:
+            # Take into account that the 'Time' variable can be named either 'Time' or 'time'.
+            data_mat = 2 if len(self.raw['data_2'])> 0 else 1
+
+        return factor, data_index, data_mat
+
+    def _get_variable_data_as_trajectory(self,
+                                         name: str,
+                                         time: Union[Trajectory, None] = None,
+                                         start_index: Union[int, None] = 0,
+                                         stop_index : Union[int, None]= None) -> Trajectory:
+        """
+        Retrieve an instance of Trajectory for a variable with a given name.
+
+        Parameters::
+            name --
+                Name of variable.
+            time --
+                [Optional] An array with time data. If specified, the number of data points
+                          must align with the length of the data for requested variable.
+            start_index --
+                [Optional] An integer to enable retrieving subsets of the full trajectories, starting
+                          from corresponding data at start_index.
+            stop_index --
+                [Optional] An integer to enable retrieving subsets of the full trajectories, ending
+                          at corresponding data at stop_index.
+
+        Returns::
+
+            A Trajectory object containing the time vector and the data vector
+            of the variable.
+        """
+        if isinstance(name, bytes):
+            name = decode(name)
+
+        if time is None:
+            # Get the time trajectory
+            if not self._contains_diagnostic_data:
+                time = self._get_trajectory(0, start_index, stop_index)
+            else:
+                # Since we interpolate data if diagnostics is enabled
+                time = self._get_diagnostics_trajectory(0, start_index, stop_index)
+
+        if name == 'time' or name == 'Time':
+            return Trajectory(time, time)
+        elif self._contains_diagnostic_data and (
+                name in [
+                    DiagnosticsBase.calculated_diagnostics['nbr_events']['name'],
+                    DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name'],
+                    DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name'],
+                    DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']]
+            ):
+            return Trajectory(
+                time, self._calculate_events_and_steps(name)[start_index:stop_index])
+        elif self._contains_diagnostic_data and (
+                f"{DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']}." in name
+            ):
+            return Trajectory(
+                time, self._calculate_nbr_state_limits_step(name)[start_index:stop_index])
+        elif self._contains_diagnostic_data and (
+                name == f'{DIAGNOSTICS_PREFIX}cpu_time'
+            ):
+            return Trajectory(
+                time, self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x[start_index:stop_index])
+
+        factor, data_index, data_mat = self._map_index_to_data_properties(name)
+
+        if data_mat == 1:
+            return Trajectory(
+                self.data_1[0, start_index:stop_index], factor*self.data_1[data_index, start_index:stop_index])
+        elif data_mat == 2 and not self._contains_diagnostic_data:
+            return Trajectory(
+                time, factor*self._get_trajectory(data_index, start_index, stop_index))
+        elif data_mat == 3:
+            return Trajectory(
+                time, self._get_diagnostics_trajectory(data_index+1, start_index, stop_index))
+        else:
+            return Trajectory(
+                time, factor*self._get_interpolated_trajectory(data_index, start_index, stop_index))
+
+
+    def get_variable_data(self, name: str) -> Trajectory:
         """
         Retrieve the data sequence for a variable with a given name.
 
@@ -1436,46 +1546,69 @@ class ResultDymolaBinary(ResultDymola):
             A Trajectory object containing the time vector and the data vector
             of the variable.
         """
-        if isinstance(name, bytes):
-            name = decode(name)
+        return self._get_variable_data_as_trajectory(name)
 
-        if name == 'time' or name== 'Time':
-            varInd = 0
-        elif name in [DiagnosticsBase.calculated_diagnostics['nbr_events']['name'],
-                      DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name'],
-                      DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name'],
-                      DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']]:
-            return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_events_and_steps(name))
-        elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
-             return Trajectory(self._get_diagnostics_trajectory(0), self._calculate_nbr_state_limits_step(name))
-        elif name == f'{DIAGNOSTICS_PREFIX}cpu_time':
-            return Trajectory(self._get_diagnostics_trajectory(0), np.cumsum(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x))
+    def get_variables_data(self,
+                           names: list[str],
+                           start_index: int = 0,
+                           stop_index: Union[int, None] = None
+    ) -> tuple[list[Trajectory], Union[int, None]]:
+        """"
+            Returns multiple trajectories, sliced to index range.
+            Note that start_index and stop_index behaves as indices for slicing, i.e. array[start_index:stop_index].
+            This also implies that stop_index = None or stop_index larger than the number of available data points
+            results in retrieving all the available data points from start_index, i.e. as the slice [start_index:].
+
+            Note that (start_index, stop_index) = (None, None) results in the slicing [None:None] which is equivalent to [:].
+
+
+            Parameters::
+
+                names --
+                    List of variables names for which to fetch trajectories.
+
+                start_index --
+                    Starting index for trajectory slicing.
+
+                stop_index --
+                    Stopping index for trajectory slicing.
+
+            Raises::
+                ValueError -- If stop_index < start_index.
+
+            Returns::
+                Tuple: (List of trajectories, next start index (non-negative))
+        """
+
+        """
+            TODO:
+            For [start_index, stop_index] we can do performance improvements
+            since methods such as _get_trajectory, get_diagnostics_trajectory
+            and _get_interpolated_trajectory always retrieve the full
+            trajectory which is then sliced, here. Instead we can account for
+            start_index and stop_index and reduce the time spent reading unused data points.
+        """
+        if isinstance(start_index, int) and isinstance(stop_index, int) and stop_index < start_index:
+            raise ValueError(f"Invalid values for {start_index=} and {stop_index=}, " + \
+                              "'start_index' needs to be less than or equal to 'stop_index'.")
+        trajectories = []
+
+        # Get the time trajectory
+        if not self._contains_diagnostic_data:
+            time = self._get_trajectory(0, start_index, stop_index)
         else:
-            varInd  = self.get_variable_index(name)
+            # Since we interpolate data if diagnostics is enabled
+            time = self._get_diagnostics_trajectory(0, start_index, stop_index)
 
-        dataInd = self._dataInfo[1][varInd]
-        dataMat = self._dataInfo[0][varInd]
+        # Need to account for data that might be added while we are iterating over 'names' later
+        if stop_index is None:
+            stop_index = len(time) + start_index
 
-        factor = 1
-        if dataInd < 0:
-            factor = -1
-            dataInd = -dataInd -1
-        else:
-            dataInd = dataInd - 1
+        for name in names:
+            trajectories.append(self._get_variable_data_as_trajectory(name, time, start_index, stop_index))
 
-        if dataMat == 0:
-            # Take into account that the 'Time' variable has data matrix index 0
-            # and that 'time' is called 'Time' in Dymola results
-            dataMat = 2 if len(self.raw['data_2'])> 0 else 1
-
-        if dataMat == 1:
-            return Trajectory(self.data_1[0,:],factor*self.data_1[dataInd,:])
-        elif dataMat == 2 and not self._contains_diagnostic_data:
-            return Trajectory(self._get_trajectory(0),factor*self._get_trajectory(dataInd))
-        elif dataMat == 3:
-            return Trajectory(self._get_diagnostics_trajectory(0),self._get_diagnostics_trajectory(dataInd+1))
-        else:
-            return Trajectory(self._get_diagnostics_trajectory(0),factor*self._get_interpolated_trajectory(dataInd))
+        new_start_index = start_index + len(time) if len(trajectories) > 0 else None
+        return trajectories, new_start_index
 
     def _calculate_events_and_steps(self, name):
         if name in self._data_3:
@@ -1551,12 +1684,12 @@ class ResultDymolaBinary(ResultDymola):
             return True
         elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
             return True
-        varInd  = self.get_variable_index(name)
-        dataMat = self._dataInfo[0][varInd]
-        if dataMat<1:
-            dataMat = 1
+        variable_index  = self.get_variable_index(name)
+        data_mat = self._dataInfo[0][variable_index]
+        if data_mat<1:
+            data_mat = 1
 
-        if dataMat == 1:
+        if data_mat == 1:
             return False
         else:
             return True
@@ -1574,9 +1707,9 @@ class ResultDymolaBinary(ResultDymola):
 
             True if the result should be negated
         """
-        varInd  = self.get_variable_index(name)
-        dataInd = self._dataInfo [1][varInd]
-        if dataInd<0:
+        variable_index  = self.get_variable_index(name)
+        data_index = self._dataInfo [1][variable_index]
+        if data_index<0:
             return True
         else:
             return False
@@ -1599,18 +1732,12 @@ class ResultDymolaBinary(ResultDymola):
             return 0
 
         if not self.is_variable(name):
-            raise VariableNotTimeVarying("Variable " +
-                                        name + " is not time-varying.")
-        varInd  = self.get_variable_index(name)
-        dataInd = self._dataInfo[1][varInd]
-        factor = 1
-        if dataInd<0:
-            factor = -1
-            dataInd = -dataInd -1
-        else:
-            dataInd = dataInd - 1
+            raise VariableNotTimeVarying("Variable " + name + " is not time-varying.")
+        variable_index  = self.get_variable_index(name)
+        data_index = self._dataInfo[1][variable_index]
+        data_index, _ = self._correct_index_for_alias(data_index)
 
-        return dataInd
+        return data_index
 
     def get_data_matrix(self):
         """
@@ -2595,17 +2722,19 @@ class ResultHandlerBinaryFile(ResultHandler):
             self._data_4_header = self._data_header("data_4", self._nof_diag_vars, 0, "double")
             self.__write_header(self._data_4_header, "data_4")
 
+        self.nbr_points = 0
+
         #Record the position so that we can later modify the number of result points stored
         self.data_2_header_position = self._file.tell()
         self._len_vars_ref =  len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref)+1
         self._data_2_header = self._data_header("data_2", self._len_vars_ref, 1, "double")
+        self._data_2_header["ncols"] = self.nbr_points
         self.__write_header(self._data_2_header, "data_2")
         self.data_2_header_end_position = self._file.tell()
 
         self.real_var_ref = np.array(sorted_vars_real_vref)
         self.int_var_ref  = np.array(sorted_vars_int_vref)
         self.bool_var_ref = np.array(sorted_vars_bool_vref)
-        self.nbr_points = 0
         self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref, self._with_diagnostics)
 
         if self._with_diagnostics:
@@ -2631,6 +2760,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._make_diagnostics_consistent()
 
     def _make_consistent(self):
+        """ TODO Requires documentation. """
         f = self._file
 
         #Get current position
@@ -2648,7 +2778,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         f.seek(file_pos)
 
     def _make_diagnostics_consistent(self):
-        """ Similar to _make_consistent, but for diagnostics data. """
+        """ TODO Requires documentation. """
         f = self._file
 
         #Get current position
@@ -2697,7 +2827,7 @@ class ResultHandlerBinaryFile(ResultHandler):
 
 def get_result_handler(model, opts):
     result_handler = None
-    
+
     if opts["result_handling"] == "file":
         result_handler = ResultHandlerFile(model)
     elif opts["result_handling"] == "binary":
@@ -2722,5 +2852,5 @@ def get_result_handler(model, opts):
         result_handler = ResultHandlerDummy(model)
     else:
         raise fmi.FMUException("Unknown option to result_handling.")
-    
+
     return result_handler
