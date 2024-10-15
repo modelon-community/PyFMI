@@ -4978,6 +4978,10 @@ cdef class FMUModelBase2(ModelBase):
         """
         Specifies if the debugging should be turned on or off and calls fmi2SetDebugLogging
         for the specified categories, after checking they are valid.
+        TODO: Do we want it that way?
+        Automatically invokes .set_log_level() based on logging_on truth value:
+            - logging_on is True:  .set_log_level(7) -ALL
+            - logging_on is False: .set_log_level(0) - NOTHING
 
         Parameters::
 
@@ -4991,29 +4995,24 @@ cdef class FMUModelBase2(ModelBase):
         Calls the low-level FMI function: fmi2SetDebugLogging
         """
 
-        cdef FMIL.fmi2_boolean_t  log
-        cdef int                  status
-        cdef FMIL.size_t          n_cat = len(categories)
-        cdef list valid_categories
+        cdef FMIL.fmi2_boolean_t log
+        cdef int                 status
+        cdef FMIL.size_t         n_cat = np.size(categories)
+        cdef FMIL.fmi2_string_t* val
 
         if logging_on:
-            self.callbacks.log_level = FMIL.jm_log_level_all
+            self.set_log_level(7) # FMIL.jm_log_level_all
             log = 1
         else:
-            self.callbacks.log_level = FMIL.jm_log_level_nothing
+            self.set_log_level(0) # FMIL.jm_log_level_nothing
             log = 0
 
         self._enable_logging = bool(log)
 
-        if n_cat > 0:
-            valid_categories = self.get_categories()
-
-        cdef FMIL.fmi2_string_t* val = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*n_cat)
-        for i, c in enumerate(categories):
-            if c not in valid_categories:
-                FMIL.free(val)
-                raise FMUException(f"'{c}' is not a valid logging category.")
-            val[i] = <FMIL.fmi2_string_t>c
+        val = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*n_cat)
+        values = [encode(cat) for cat in categories]
+        for i in range(n_cat):
+            val[i] = values[i]
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL.fmi2_import_set_debug_logging(self._fmu, log, n_cat, val)
@@ -5036,7 +5035,7 @@ cdef class FMUModelBase2(ModelBase):
         cdef list categories = []
 
         for i in range(nbr_categories):
-            categories.append(FMIL.fmi2_import_get_log_category(self._fmu, i))
+            categories.append(str(FMIL.fmi2_import_get_log_category(self._fmu, i).decode()))
 
         return categories
 
