@@ -1946,8 +1946,24 @@ if assimulo_installed:
             file_size = os.path.getsize(result_file)
 
             assert file_size > max_size*0.9 and file_size < max_size*1.1, \
-                    "The file size is not within 10% of the given max size"
-        # TODO: Pytest parametrization
+                   "The file size is not within 10% of the given max size"
+        
+        def _test_result_size_early_abort(self, result_type, result_file_name=""):
+            model, opts = self._setup(result_type, result_file_name)
+
+            max_size = 1e6
+            opts["result_max_size"] = max_size
+            opts["ncp"] = 10000000
+
+            with nose.tools.assert_raises(ResultSizeError):
+                res = model.simulate(options=opts)
+
+            result_file = model.get_last_result_file()
+            if result_file:
+                file_size = os.path.getsize(result_file)
+
+                assert file_size < max_size*0.1, \
+                        "The file size is not small, no early abort"
         """
         Binary
         """
@@ -1976,6 +1992,10 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_binary_file_size_verification(self):
             self._test_result_size_verification("binary")
+        
+        @testattr(stddist = True)
+        def test_binary_file_size_early_abort(self):
+            self._test_result_size_early_abort("binary")
 
         @testattr(stddist = True)
         def test_small_size_binary_file(self):
@@ -2003,6 +2023,10 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_text_file_size_verification(self):
             self._test_result_size_verification("file")
+        
+        @testattr(stddist = True)
+        def test_text_file_size_early_abort(self):
+            self._test_result_size_early_abort("file")
 
         @testattr(stddist = True)
         def test_small_size_text_file(self):
@@ -2026,6 +2050,10 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_csv_file_size_verification(self):
             self._test_result_size_verification("csv")
+        
+        @testattr(stddist = True)
+        def test_csv_file_size_early_abort(self):
+            self._test_result_size_early_abort("csv")
 
         @testattr(stddist = True)
         def test_small_size_csv_file(self):
