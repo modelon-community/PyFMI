@@ -1754,6 +1754,10 @@ class ResultDymolaBinary(ResultDymola):
         return self._data_2
 
 class ResultHandlerMemory(ResultHandler):
+    def __init__(self, model, delimiter=";"):
+        super().__init__(model)
+        self.supports['result_max_size']     = True
+        
     def simulation_start(self):
         """
         This method is called before the simulation has started and before
@@ -1833,6 +1837,7 @@ class ResultHandlerMemory(ResultHandler):
 class ResultHandlerCSV(ResultHandler):
     def __init__(self, model, delimiter=";"):
         super().__init__(model)
+        self.supports['result_max_size']     = True
         self.delimiter = delimiter
         self._current_file_size = 0
 
@@ -2022,6 +2027,7 @@ class ResultHandlerFile(ResultHandler):
     """
     def __init__(self, model):
         super().__init__(model)
+        self.supports['result_max_size']     = True
         self._current_file_size = 0
 
     def initialize_complete(self):
@@ -2541,6 +2547,7 @@ class ResultHandlerBinaryFile(ResultHandler):
     def __init__(self, model):
         super().__init__(model)
         self.supports['dynamic_diagnostics'] = True
+        self.supports['result_max_size']     = True
         self.data_2_header_end_position = 0
 
     def _data_header(self, name, nbr_rows, nbr_cols, data_type):
