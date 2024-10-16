@@ -12,11 +12,11 @@
     * Added option to limit the size of the result ("result_max_size"), default set to 2GB.
     * Added method ResultDymolaBinary.get_variables_data. Included some minor refactorization.
       The new method allows for retrieving partial trajectories, and multiple trajectories at once.
-
---- PyFMI-2.14.x ---
-    * "FMUModelBase2.get_categories()" and "FMUModelBase2.set_debug_logging()" now operate on lists of strings instead of bytes.
+    * Deprecated "get_categories" function for "FMUModelBase2" and "CoupledFMUModelBase", use "get_log_categories" instead.
+    * Added function "get_log_category_descriptions" to "FMUModelBase2" and "CoupledFMUModelBase" for retreiving log category descriptions.
+    * "FMUModelBase2.get_log_categories()" and "FMUModelBase2.set_debug_logging()" now operate on lists of strings instead of bytes.
     * Calling "FMUModelBase2.set_debug_logging()" with "logging_on = True" will set the FMU log level to 7 (ALL).
-    * Removed error check that log categories set via "FMUModelBase2.set_debug_logging()" are in "FMUModelBase2.get_categories()".
+    * Removed error check that log categories set via "FMUModelBase2.set_debug_logging()" are exposed log categories.
 
 --- PyFMI-2.14.0 ---
     * Updated the error message displayed when loading FMUs with needsExecutionTool set to True.

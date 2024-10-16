@@ -30,6 +30,7 @@ import os
 import logging
 import fnmatch
 import re
+import warnings
 from collections import OrderedDict
 cimport cython
 from io import UnsupportedOperation
@@ -4980,7 +4981,7 @@ cdef class FMUModelBase2(ModelBase):
         for the specified categories, after checking they are valid.
         TODO: Do we want it that way?
         Automatically invokes .set_log_level() based on logging_on truth value:
-            - logging_on is True:  .set_log_level(7) -ALL
+            - logging_on is True:  .set_log_level(7) - ALL
             - logging_on is False: .set_log_level(0) - NOTHING
 
         Parameters::
@@ -4989,7 +4990,7 @@ cdef class FMUModelBase2(ModelBase):
                 Boolean value.
 
             categories --
-                List of categories to log, call get_categories() for list of categories.
+                List of categories to log, call get_log_categories() for list of categories.
                 Default: [] (all categories)
 
         Calls the low-level FMI function: fmi2SetDebugLogging
@@ -5023,9 +5024,10 @@ cdef class FMUModelBase2(ModelBase):
         if status != 0:
             raise FMUException('Failed to set the debugging option.')
 
-    def get_categories(self):
+    def get_log_categories(self):
         """
-        Method used to retrieve the logging categories.
+        Method used to retrieve the logging categories. 
+        Use 'get_log_category_descriptions' to get the corresponding descriptions.
 
         Returns::
 
@@ -5038,6 +5040,35 @@ cdef class FMUModelBase2(ModelBase):
             categories.append(str(FMIL.fmi2_import_get_log_category(self._fmu, i).decode()))
 
         return categories
+
+    def get_categories(self):
+        """
+        [DEPRECATED] Method used to retrieve the logging categories.
+        Use 'get_log_categories' instead
+
+        Returns::
+
+            A list with the categories available for logging.
+        """
+        warnings.warn("'get_categories' is deprecated and will be replaced by 'get_log_categories' soon.", DeprecationWarning)
+        return self.get_log_categories()
+
+    def get_log_category_descriptions(self):
+        """
+        Method used to retrieve the logging category descriptions.
+        Use 'get_log_categories' to retreive the corresponding categories.
+
+        Returns::
+
+            A list with the category descriptions available for logging.
+        """
+        cdef FMIL.size_t i, nbr_categories = FMIL.fmi2_import_get_log_categories_num(self._fmu)
+        cdef list descriptions = []
+
+        for i in range(nbr_categories):
+            descriptions.append(str(FMIL.fmi2_import_get_log_category_description(self._fmu, i).decode()))
+
+        return descriptions
 
     def get_variable_nominal(self, variable_name=None, valueref=None, _override_erroneous_nominal=True):
         """
