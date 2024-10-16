@@ -18,6 +18,7 @@
 # distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
 
 import time
+import warnings
 import numpy as np
 cimport numpy as np
 
@@ -1777,7 +1778,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
                 Boolean value.
 
             categories --
-                List of categories to log, call get_categories() for list of categories.
+                List of categories to log, call get_log_categories() for list of categories.
                 Default: [] (all categories)
 
         Calls the low-level FMI function: fmi2SetDebuggLogging
@@ -1785,9 +1786,10 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         for model in self.models:
             model.set_debug_logging(logging_on, categories)
 
-    def get_categories(self):
+    def get_log_categories(self):
         """
         Method used to retrieve the logging categories.
+        Use 'get_log_category_descriptions' to get the corresponding descriptions.
 
         Returns::
         
@@ -1795,9 +1797,36 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         """
         categories = []
         for model in self.models:
-            categories.append(model.get_categories())
+            categories.append(model.get_log_categories())
             
         return categories
+
+    def get_categories(self):
+        """
+        [DEPRECATED] Method used to retrieve the logging categories.
+        Use 'get_log_categories' instead
+
+        Returns::
+        
+            A list with the categories available for logging.
+        """
+        warnings.warn("'get_categories' is deprecated and will be replaced by 'get_log_categories' soon.", DeprecationWarning)
+        return self.get_log_categories()
+
+    def get_log_category_descriptions(self):
+        """
+        Method used to retrieve the logging category descriptions.
+        Use 'get_log_categories' to retreive the corresponding categories.
+
+        Returns::
+
+            A list with the category descriptions available for logging.
+        """
+        descriptions = []
+        for model in self.models:
+            descriptions.append(model.get_log_category_descriptions())
+            
+        return descriptions
 
 cdef class CoupledFMUModelME2(CoupledFMUModelBase):
     """
