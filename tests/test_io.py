@@ -1942,11 +1942,11 @@ if assimulo_installed:
                 res = model.simulate(options=opts)
 
             result_file = model.get_last_result_file()
-            if result_file:
-                file_size = os.path.getsize(result_file)
+            
+            file_size = os.path.getsize(result_file)
 
-                assert file_size > max_size*0.9 and file_size < max_size*1.1, \
-                        "The file size is not within 10% of the given max size"
+            assert file_size > max_size*0.9 and file_size < max_size*1.1, \
+                    "The file size is not within 10% of the given max size"
         # TODO: Pytest parametrization
         """
         Binary

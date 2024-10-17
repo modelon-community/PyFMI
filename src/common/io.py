@@ -1804,16 +1804,14 @@ class ResultHandlerMemory(ResultHandler):
         if solver and self.options["sensitivities"]:
             self.param_sol += [np.array(solver.interpolate_sensitivity(model.time, 0)).flatten()]
         
-        try:
+        max_size = self.options.get("result_max_size", None)
+        if max_size is not None:
             current_size = sys.getsizeof(self.time_sol) + sys.getsizeof(self.real_sol) + \
-                           sys.getsizeof(self.int_sol)  + sys.getsizeof(self.bool_sol) + \
-                           sys.getsizeof(self.param_sol)
+                            sys.getsizeof(self.int_sol)  + sys.getsizeof(self.bool_sol) + \
+                            sys.getsizeof(self.param_sol)
             
-            if current_size > self.options["result_max_size"]:
-                #Make the file consistent
+            if current_size > max_size:
                 raise ResultSizeError("Maximum size of the result file reached. To change the maximum allowed result file size, please use the option 'result_max_size'")
-        except KeyError:
-            pass
 
     def get_result(self):
         """
@@ -1995,13 +1993,12 @@ class ResultHandlerCSV(ResultHandler):
             self._write(self.const_str)
             self._write(cont_str[:-1]+"\n")
 
-        try:
-            if self._current_file_size > self.options["result_max_size"]:
-                #Make the file consistent
-                self.simulation_end()
-                raise ResultSizeError("Maximum size of the result file reached. To change the maximum allowed result file size, please use the option 'result_max_size'")
-        except KeyError:
-            pass
+        max_size = self.options.get("result_max_size", None)
+        if max_size is not None and self._current_file_size > max_size:
+            #Make the file consistent
+            self.simulation_end()
+            raise ResultSizeError("Maximum size of the result file reached. To change the maximum allowed result file size, please use the option 'result_max_size'")
+
 
     def simulation_end(self):
         """
@@ -2426,13 +2423,10 @@ class ResultHandlerFile(ResultHandler):
         #Update number of points
         self.nbr_points+=1
 
-        try:
-            if self._current_file_size > self.options["result_max_size"]:
-                #Make the file consistent
-                self.simulation_end()
-                raise ResultSizeError("Maximum size of the result file reached. To change the maximum allowed result file size, please use the option 'result_max_size'")
-        except KeyError:
-            pass
+        max_size = self.options.get("result_max_size", None)
+        if max_size is not None and self._current_file_size > max_size:
+            self.simulation_end()
+            raise ResultSizeError("Maximum size of the result file reached. To change the maximum allowed result file size, please use the option 'result_max_size'")
 
     def simulation_end(self):
         """
@@ -2762,6 +2756,14 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._make_consistent(diag=True)
 
     def _make_consistent(self, diag=False):
+        """
+        This method makes sure that the result file is always consistent, meaning that it is
+        always possible to load the result file in the result class. The method makes the 
+        result file consistent by going back in the result file and updates the final time
+        as well as the number of result points in the file in specific locations of the 
+        result file. In the end, it puts the file pointer back to the end of the file (which
+        allows further writing of new result points)
+        """
         f = self._file
 
         #Get current position
@@ -2783,11 +2785,9 @@ class ResultHandlerBinaryFile(ResultHandler):
         #Reset file pointer
         f.seek(file_pos)
 
-        try:
-            if file_pos > self.options["result_max_size"]:
-                raise ResultSizeError("Maximum size of the result file reached. To change the maximum allowed result file size, please use the option 'result_max_size'")
-        except KeyError:
-            pass
+        max_size = self.options.get("result_max_size", None)
+        if max_size is not None and file_pos > max_size:
+            raise ResultSizeError("Maximum size of the result file reached. To change the maximum allowed result file size, please use the option 'result_max_size'")
 
     def simulation_end(self):
         """

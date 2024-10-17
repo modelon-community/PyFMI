@@ -135,7 +135,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             Maximum size of the stored result (in bytes). This is not a hard limit, the
             actual size will be slightly larger to account for that the result need to
             be consistent.
-            Default: 2GB
+            Default: 1024**3*2 (2GB)
 
         return_result --
             Determines if the simulation result should be returned or
@@ -820,7 +820,7 @@ class FMICSAlgOptions(OptionBase):
             Maximum size of the stored result (in bytes). This is not a hard limit, the
             actual size will be slightly larger to account for that the result need to
             be consistent.
-            Default: 2GB
+            Default: 1024**3*2 (2GB)
 
         return_result --
             Determines if the simulation result should be returned or
