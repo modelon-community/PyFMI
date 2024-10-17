@@ -1756,7 +1756,7 @@ class ResultDymolaBinary(ResultDymola):
 class ResultHandlerMemory(ResultHandler):
     def __init__(self, model, delimiter=";"):
         super().__init__(model)
-        self.supports['result_max_size']     = True
+        self.supports['result_max_size'] = True
         
     def simulation_start(self):
         """
@@ -1837,7 +1837,7 @@ class ResultHandlerMemory(ResultHandler):
 class ResultHandlerCSV(ResultHandler):
     def __init__(self, model, delimiter=";"):
         super().__init__(model)
-        self.supports['result_max_size']     = True
+        self.supports['result_max_size'] = True
         self.delimiter = delimiter
         self._current_file_size = 0
 
@@ -2027,7 +2027,7 @@ class ResultHandlerFile(ResultHandler):
     """
     def __init__(self, model):
         super().__init__(model)
-        self.supports['result_max_size']     = True
+        self.supports['result_max_size'] = True
         self._current_file_size = 0
 
     def initialize_complete(self):
@@ -2514,7 +2514,7 @@ class VariableNotTimeVarying(JIOError):
 
 class ResultSizeError(JIOError):
     """
-    Exception that is thrown when the result size is too big.
+    Exception that is raised when a set maximum result size is exceeded.
     """
 
 def robust_float(value):
@@ -2839,7 +2839,7 @@ def get_result_handler(model, opts):
     else:
         raise fmi.FMUException("Unknown option to result_handling.")
     
-    if ("result_max_size" in opts and opts["result_max_size"] > 0) and not result_handler.supports["result_max_size"]:
-        logging_module.warning("The chosen result handler do not support limiting the result size. Ignoring option 'result_max_size'.")
+    if (opts.get("result_max_size", 0) > 0) and not result_handler.supports["result_max_size"]:
+        logging_module.warning("The chosen result handler does not support limiting the result size. Ignoring option 'result_max_size'.")
 
     return result_handler
