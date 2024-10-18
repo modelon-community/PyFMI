@@ -23,7 +23,7 @@ import warnings
 from pyfmi import testattr, Master
 from pyfmi.fmi import FMUException, FMUModelCS2, FMUModelME2
 from pyfmi.tests.test_util import Dummy_FMUModelCS2
-from pyfmi.common.io import ResultHandler
+from pyfmi.common.io import ResultHandler, ResultSizeError
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 
 file_path = os.path.dirname(os.path.abspath(__file__))
@@ -171,6 +171,13 @@ class Test_Master:
     def test_basic_simulation_memory(self):
         opts = {"result_handling":"memory"}
         self._basic_simulation(opts)
+
+    @testattr(stddist = True)
+    def test_basic_simulation_max_result_size(self):
+        opts = {"result_max_size":10000}
+
+        with nose.tools.assert_raises(ResultSizeError):
+            self._basic_simulation(opts)
     
     @testattr(stddist = True)
     def test_basic_simulation_mat_file_naming(self):

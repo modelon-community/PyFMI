@@ -25,7 +25,7 @@ from collections import OrderedDict
 
 from pyfmi import testattr
 from pyfmi.fmi import FMUException, FMUModelME2
-from pyfmi.common.io import (ResultHandler, ResultDymolaTextual, ResultDymolaBinary, JIOError,
+from pyfmi.common.io import (ResultHandler, ResultDymolaTextual, ResultDymolaBinary, JIOError, ResultSizeError,
                              ResultHandlerCSV, ResultCSVTextual, ResultHandlerBinaryFile, ResultHandlerFile)
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, setup_diagnostics_variables
 
@@ -1899,3 +1899,165 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data[0], reference_data['time'][index])
             np.testing.assert_array_almost_equal(test_data[1], reference_data['@Diagnostics.nbr_steps'][index])
+
+if assimulo_installed:
+    class TestFileSizeLimit:
+
+        def _setup(self, result_type, result_file_name="", fmi_type="me"):
+            if fmi_type == "me":
+                model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+            else:
+                model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
+                
+            opts = model.simulate_options()
+            opts["result_handling"]  = result_type
+            opts["result_file_name"] = result_file_name
+
+            return model, opts
+
+        def _test_result(self, result_type, result_file_name="", max_size=1e6):
+            model, opts = self._setup(result_type, result_file_name)
+
+            opts["result_max_size"] = max_size
+
+            #No exception should be raised.
+            res = model.simulate(options=opts)
+
+        def _test_result_exception(self, result_type, result_file_name="", fmi_type="me"):
+            model, opts = self._setup(result_type, result_file_name, fmi_type)
+
+            opts["result_max_size"] = 10
+
+            with nose.tools.assert_raises(ResultSizeError):
+                res = model.simulate(options=opts)
+
+        def _test_result_size_verification(self, result_type, result_file_name=""):
+            model, opts = self._setup(result_type, result_file_name)
+
+            max_size = 1e6
+            opts["result_max_size"] = max_size
+            opts["ncp"] = 10000
+
+            with nose.tools.assert_raises(ResultSizeError):
+                res = model.simulate(options=opts)
+
+            result_file = model.get_last_result_file()
+            
+            file_size = os.path.getsize(result_file)
+
+            assert file_size > max_size*0.9 and file_size < max_size*1.1, \
+                    "The file size is not within 10% of the given max size"
+        # TODO: Pytest parametrization
+        """
+        Binary
+        """
+        @testattr(stddist = True)
+        def test_binary_file_size_verification_diagnostics(self):
+            """
+            Make sure that the diagnostics variables are also taken into account.
+            """
+            model, opts = self._setup("binary")
+
+            max_size = 1e6
+            opts["result_max_size"] = max_size
+            opts["dynamic_diagnostics"] = True
+            opts["ncp"] = 10000
+
+            with nose.tools.assert_raises(ResultSizeError):
+                res = model.simulate(options=opts)
+
+            result_file = model.get_last_result_file()
+            
+            file_size = os.path.getsize(result_file)
+
+            assert file_size > max_size*0.9 and file_size < max_size*1.1, \
+                    "The file size is not within 10% of the given max size"
+            
+        @testattr(stddist = True)
+        def test_binary_file_size_verification(self):
+            self._test_result_size_verification("binary")
+
+        @testattr(stddist = True)
+        def test_small_size_binary_file(self):
+            self._test_result_exception("binary")
+        
+        @testattr(stddist = True)
+        def test_small_size_binary_file_cs(self):
+            self._test_result_exception("binary", fmi_type="cs")
+        
+        @testattr(stddist = True)
+        def test_small_size_binary_file_stream(self):
+            self._test_result_exception("binary", BytesIO())
+
+        @testattr(stddist = True)
+        def test_large_size_binary_file(self):
+            self._test_result("binary")
+
+        @testattr(stddist = True)
+        def test_large_size_binary_file_stream(self):
+            self._test_result("binary", BytesIO())
+
+        """
+        Text
+        """
+        @testattr(stddist = True)
+        def test_text_file_size_verification(self):
+            self._test_result_size_verification("file")
+
+        @testattr(stddist = True)
+        def test_small_size_text_file(self):
+            self._test_result_exception("file")
+        
+        @testattr(stddist = True)
+        def test_small_size_text_file_stream(self):
+            self._test_result_exception("file", StringIO())
+
+        @testattr(stddist = True)
+        def test_large_size_text_file(self):
+            self._test_result("file")
+
+        @testattr(stddist = True)
+        def test_large_size_text_file_stream(self):
+            self._test_result("file", StringIO())
+
+        """
+        CSV
+        """
+        @testattr(stddist = True)
+        def test_csv_file_size_verification(self):
+            self._test_result_size_verification("csv")
+
+        @testattr(stddist = True)
+        def test_small_size_csv_file(self):
+            self._test_result_exception("csv")
+        
+        @testattr(stddist = True)
+        def test_small_size_csv_file_stream(self):
+            self._test_result_exception("csv", StringIO())
+
+        @testattr(stddist = True)
+        def test_large_size_csv_file(self):
+            self._test_result("csv", max_size=10000000)
+
+        @testattr(stddist = True)
+        def test_large_size_csv_file_stream(self):
+            self._test_result("csv", StringIO(), max_size=10000000)
+
+        """
+        Memory
+        """
+        @testattr(stddist = True)
+        def test_small_size_memory(self):
+            self._test_result_exception("memory")
+        
+        @testattr(stddist = True)
+        def test_small_size_memory_stream(self):
+            self._test_result_exception("memory", StringIO())
+
+        @testattr(stddist = True)
+        def test_large_size_memory(self):
+            self._test_result("memory")
+
+        @testattr(stddist = True)
+        def test_large_size_memory_stream(self):
+            self._test_result("memory", StringIO())

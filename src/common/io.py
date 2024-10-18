@@ -77,7 +77,8 @@ class ResultHandler:
     def __init__(self, model = None):
         self.model = model
         ## Which capabilities are supported
-        self.supports = {"dynamic_diagnostics": False}
+        self.supports = {"dynamic_diagnostics": False,
+                         "result_max_size": False}
 
     def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
         """
@@ -122,7 +123,7 @@ class ResultHandler:
         Options are the options dictionary provided to the simulation
         method.
         """
-        pass
+        self.options = options
 
     def get_result(self):
         """
@@ -1753,6 +1754,10 @@ class ResultDymolaBinary(ResultDymola):
         return self._data_2
 
 class ResultHandlerMemory(ResultHandler):
+    def __init__(self, model, delimiter=";"):
+        super().__init__(model)
+        self.supports['result_max_size'] = True
+        
     def simulation_start(self):
         """
         This method is called before the simulation has started and before
@@ -1798,13 +1803,18 @@ class ResultHandlerMemory(ResultHandler):
         #Sets the parameters, if any
         if solver and self.options["sensitivities"]:
             self.param_sol += [np.array(solver.interpolate_sensitivity(model.time, 0)).flatten()]
-
-    def simulation_end(self):
-        """
-        The finalize method can be used to for instance close the file.
-        ANd this method is called after the simulation has completed.
-        """
-        pass
+        
+        max_size = self.options.get("result_max_size", None)
+        if max_size is not None:
+            current_size = sys.getsizeof(self.time_sol) + sys.getsizeof(self.real_sol) + \
+                            sys.getsizeof(self.int_sol)  + sys.getsizeof(self.bool_sol) + \
+                            sys.getsizeof(self.param_sol)
+            
+            if current_size > max_size:
+                raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
+                                  "To change the maximum allowed result size, please use the option " 
+                                  "'result_max_size', consider reducing the number of communication "
+                                  "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
 
     def get_result(self):
         """
@@ -1825,17 +1835,16 @@ class ResultHandlerMemory(ResultHandler):
 
         return ResultStorageMemory(self.model, data, [self.real_var_ref,self.int_var_ref,self.bool_var_ref], self.vars)
 
-    def set_options(self, options):
-        """
-        Options are the options dictionary provided to the simulation
-        method.
-        """
-        self.options = options
-
 class ResultHandlerCSV(ResultHandler):
     def __init__(self, model, delimiter=";"):
         super().__init__(model)
+        self.supports['result_max_size'] = True
         self.delimiter = delimiter
+        self._current_file_size = 0
+
+    def _write(self, msg):
+        self._current_file_size = self._current_file_size+len(msg)
+        self._file.write(msg)
 
     def initialize_complete(self):
         pass
@@ -1924,7 +1933,7 @@ class ResultHandlerCSV(ResultHandler):
                 raise fmi.FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports writing to through the 'write' method.")
             f = self.file_name #assume it is a stream
             self.file_open = False
-
+        self._file = f
 
         if delimiter == ",":
             name_str = '"time"'
@@ -1935,7 +1944,7 @@ class ResultHandlerCSV(ResultHandler):
             for name in const_name_real+const_name_int+const_name_bool+cont_name_real+cont_name_int+cont_name_bool:
                 name_str += delimiter+name
 
-        f.write(name_str+"\n")
+        self._write(name_str+"\n")
 
         const_val_real    = model.get_real(const_valref_real)
         const_val_int     = model.get_integer(const_valref_int)
@@ -1948,12 +1957,7 @@ class ResultHandlerCSV(ResultHandler):
             const_str += "%.14E"%(const_alias_int[i]*val)+delimiter
         for i,val in enumerate(const_val_bool):
             const_str += "%.14E"%(const_alias_bool[i]*val)+delimiter
-
-        #for val in np.append(const_val_real,np.append(const_val_int,const_val_boolean)):
-        #    const_str += "%.14E"%val+delimiter
         self.const_str = const_str
-
-        self._file = f
 
         self.cont_valref_real = cont_valref_real
         self.cont_alias_real  = np.array(cont_alias_real)
@@ -1964,19 +1968,8 @@ class ResultHandlerCSV(ResultHandler):
 
     def integration_point(self, solver = None):
         """
-        Writes the current status of the model to file. If the header has not
-        been written previously it is written now. If data is specified it is
-        written instead of the current status.
-
-        Parameters::
-
-                data --
-                    A one dimensional array of variable trajectory data. data
-                    should consist of information about the status in the order
-                    specified by FMUModel*.save_time_point()
-                    Default: None
+        Writes the current status of the model to file.
         """
-        f = self._file
         model = self.model
         delimiter = self.delimiter
 
@@ -1993,22 +1986,29 @@ class ResultHandlerCSV(ResultHandler):
             cont_str += "%.14E%s"%(val,delimiter)
 
         if len(cont_str) == 0 and len(self.const_str) == 0:
-            f.write("%.14E"%(t))
+            self._write("%.14E"%(t))
         else:
-            f.write("%.14E%s"%(t,delimiter))
+            self._write("%.14E%s"%(t,delimiter))
 
         if len(cont_str) == 0:
-            f.write(self.const_str[:-1]+"\n")
+            self._write(self.const_str[:-1]+"\n")
         else:
-            f.write(self.const_str)
-            f.write(cont_str[:-1]+"\n")
+            self._write(self.const_str)
+            self._write(cont_str[:-1]+"\n")
+
+        max_size = self.options.get("result_max_size", None)
+        if max_size is not None and self._current_file_size > max_size:
+            #Make the file consistent
+            self.simulation_end()
+            raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
+                                  "To change the maximum allowed result size, please use the option " 
+                                  "'result_max_size', consider reducing the number of communication "
+                                  "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
 
 
     def simulation_end(self):
         """
-        Finalize the writing by filling in the blanks in the created file. The
-        blanks consists of the number of points and the final time (in data set
-        1). Also closes the file.
+        Finalize the writing by closing the file.
         """
         #If open, finalize and close
         if self.file_open:
@@ -2023,18 +2023,16 @@ class ResultHandlerCSV(ResultHandler):
         """
         return ResultCSVTextual(self.file_name, self.delimiter)
 
-    def set_options(self, options):
-        """
-        Options are the options dictionary provided to the simulation
-        method.
-        """
-        self.options = options
-
 class ResultHandlerFile(ResultHandler):
     """
     Export an optimization or simulation result to file in Dymola's result file
     format.
     """
+    def __init__(self, model):
+        super().__init__(model)
+        self.supports['result_max_size'] = True
+        self._current_file_size = 0
+
     def initialize_complete(self):
         pass
 
@@ -2076,13 +2074,14 @@ class ResultHandlerFile(ResultHandler):
             f = self.file_name #assume it is a stream
             self._is_stream = True
         self.file_open = True
+        self._file = f
 
         # Write header
-        f.write('#1\n')
-        f.write('char Aclass(3,11)\n')
-        f.write('Atrajectory\n')
-        f.write('1.1\n')
-        f.write('\n')
+        self._write('#1\n')
+        self._write('char Aclass(3,11)\n')
+        self._write('Atrajectory\n')
+        self._write('1.1\n')
+        self._write('\n')
 
         # all lists that we need for later
         vrefs_alias = []
@@ -2216,15 +2215,15 @@ class ResultHandlerFile(ResultHandler):
             if (len(desc)>max_desc_length):
                 max_desc_length = len(desc)
 
-        f.write('char name(%d,%d)\n' % (num_vars+len(names_sens)+1, max_name_length))
-        f.write('time\n')
+        self._write('char name(%d,%d)\n' % (num_vars+len(names_sens)+1, max_name_length))
+        self._write('time\n')
 
         for name in names:
-            f.write(name[1] +'\n')
+            self._write(name[1] +'\n')
         for name in names_sens:
-            f.write(name + '\n')
+            self._write(name + '\n')
 
-        f.write('\n')
+        self._write('\n')
 
         if not opts["result_store_variable_description"]:
             max_desc_length = 0
@@ -2232,21 +2231,21 @@ class ResultHandlerFile(ResultHandler):
             descs_sens      = ["" for d in descs_sens]
 
         # Write descriptions
-        f.write('char description(%d,%d)\n' % (num_vars+len(names_sens) + 1, max_desc_length))
-        f.write('Time in [s]\n')
+        self._write('char description(%d,%d)\n' % (num_vars+len(names_sens) + 1, max_desc_length))
+        self._write('Time in [s]\n')
 
         # Loop over all variables, not only those with a description
         for desc in descriptions:
-            f.write(desc[1] +'\n')
+            self._write(desc[1] +'\n')
         for desc in descs_sens:
-            f.write(desc + '\n')
+            self._write(desc + '\n')
 
-        f.write('\n')
+        self._write('\n')
 
         # Write data meta information
 
-        f.write('int dataInfo(%d,%d)\n' % (num_vars+len(names_sens) + 1, 4))
-        f.write('0 1 0 -1 # time\n')
+        self._write('int dataInfo(%d,%d)\n' % (num_vars+len(names_sens) + 1, 4))
+        self._write('0 1 0 -1 # time\n')
 
         lst_real_cont = dict(zip(self.real_var_ref,range(len(self.real_var_ref))))
         lst_int_cont  = dict(zip(self.int_var_ref,[len(self.real_var_ref)+x for x in range(len(self.int_var_ref))]))
@@ -2320,36 +2319,36 @@ class ResultHandlerFile(ResultHandler):
                 if datatable1:
                     #cnt_1 += 1
                     #n_parameters += 1
-                    f.write('1 %d 0 -1 # ' % cnt_1 + name[1]+'\n')
+                    self._write('1 %d 0 -1 # ' % cnt_1 + name[1]+'\n')
                     #datatable1 = True
                 else:
                     #cnt_2 += 1
                     #valueref_of_continuous_states.append(
                     #    list_of_continuous_states[name[0]])
-                    f.write('2 %d 0 -1 # ' % cnt_2 + name[1] +'\n')
+                    self._write('2 %d 0 -1 # ' % cnt_2 + name[1] +'\n')
                     #datatable1 = False
 
             elif aliases[i][1] == 1: # alias
                 if datatable1:
-                    f.write('1 %d 0 -1 # ' % cnt_1 + name[1]+'\n')
+                    self._write('1 %d 0 -1 # ' % cnt_1 + name[1]+'\n')
                 else:
-                    f.write('2 %d 0 -1 # ' % cnt_2 + name[1] +'\n')
+                    self._write('2 %d 0 -1 # ' % cnt_2 + name[1] +'\n')
             else:
                 if datatable1:
-                    f.write('1 -%d 0 -1 # ' % cnt_1 + name[1]+'\n')
+                    self._write('1 -%d 0 -1 # ' % cnt_1 + name[1]+'\n')
                 else:
-                    f.write('2 -%d 0 -1 # ' % cnt_2 + name[1] +'\n')
+                    self._write('2 -%d 0 -1 # ' % cnt_2 + name[1] +'\n')
         for i, name in enumerate(names_sens):
             cnt_2 += 1
-            f.write('2 %d 0 -1 # ' % cnt_2 + name +'\n')
+            self._write('2 %d 0 -1 # ' % cnt_2 + name +'\n')
 
 
-        f.write('\n')
+        self._write('\n')
 
         # Write data
         # Write data set 1
-        f.write('float data_1(%d,%d)\n' % (2, n_parameters + 1))
-        f.write("%.14E" % self.model.time)
+        self._write('float data_1(%d,%d)\n' % (2, n_parameters + 1))
+        self._write("%.14E" % self.model.time)
         str_text = ''
 
         # write constants and parameters
@@ -2366,30 +2365,31 @@ class ResultHandlerFile(ResultHandler):
                     " %.14E" % (float(
                         self.model.get_boolean([vref])[0])))
 
-        f.write(str_text)
-        f.write('\n')
+        self._write(str_text)
+        self._write('\n')
         self._point_last_t = f.tell()
-        f.write("%s" % ' '*28)
-        f.write(str_text)
+        self._write("%s" % ' '*28)
+        self._write(str_text)
 
-        f.write('\n\n')
+        self._write('\n\n')
 
         self._nvariables = len(valueref_of_continuous_states)+1
         self._nvariables_sens = len(names_sens)
 
 
-        f.write('float data_2(')
+        self._write('float data_2(')
         self._point_npoints = f.tell()
-        f.write(' '*(14+4+14))
-        f.write('\n')
+        self._write(' '*(14+4+14))
+        self._write('\n')
 
-        #f.write('%s,%d)\n' % (' '*14, self._nvariables))
-
-        self._file = f
         self._data_order  = np.array(valueref_of_continuous_states)
         self.real_var_ref = np.array(self.real_var_ref)
         self.int_var_ref  = np.array(self.int_var_ref)
         self.bool_var_ref = np.array(self.bool_var_ref)
+    
+    def _write(self, msg):
+        self._current_file_size = self._current_file_size+len(msg)
+        self._file.write(msg)
 
     def integration_point(self, solver = None):#parameter_data=[]):
         """
@@ -2405,7 +2405,6 @@ class ResultHandlerFile(ResultHandler):
                     specified by FMUModel*.save_time_point()
                     Default: None
         """
-        f = self._file
         data_order = self._data_order
         model = self.model
 
@@ -2425,10 +2424,18 @@ class ResultHandlerFile(ResultHandler):
             for j in range(len(parameter_data)):
                 str_text = str_text + (" %.14E" % (parameter_data[j]))
 
-        f.write(str_text+'\n')
+        self._write(str_text+'\n')
 
         #Update number of points
         self.nbr_points+=1
+
+        max_size = self.options.get("result_max_size", None)
+        if max_size is not None and self._current_file_size > max_size:
+            self.simulation_end()
+            raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
+                                  "To change the maximum allowed result size, please use the option " 
+                                  "'result_max_size', consider reducing the number of communication "
+                                  "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
 
     def simulation_end(self):
         """
@@ -2447,7 +2454,6 @@ class ResultHandlerFile(ResultHandler):
 
             f.seek(self._point_npoints)
             f.write('%d,%d)' % (self.nbr_points, self._nvariables+self._nvariables_sens))
-            #f.write('%d'%self._npoints)
 
             if self._is_stream: #Seek relative to file end to allowed for string streams
                 f.seek(0, os.SEEK_END)
@@ -2466,13 +2472,6 @@ class ResultHandlerFile(ResultHandler):
         subclass of ResultBase.
         """
         return ResultDymolaTextual(self.file_name if not self._is_stream else self._file)
-
-    def set_options(self, options):
-        """
-        Options are the options dictionary provided to the simulation
-        method.
-        """
-        self.options = options
 
 class ResultHandlerDummy(ResultHandler):
     def get_result(self):
@@ -2516,6 +2515,11 @@ class VariableNotTimeVarying(JIOError):
     """
     pass
 
+class ResultSizeError(JIOError):
+    """
+    Exception that is raised when a set maximum result size is exceeded.
+    """
+
 def robust_float(value):
     """
     Function for robust handling of float values such as INF and NAN.
@@ -2546,6 +2550,7 @@ class ResultHandlerBinaryFile(ResultHandler):
     def __init__(self, model):
         super().__init__(model)
         self.supports['dynamic_diagnostics'] = True
+        self.supports['result_max_size']     = True
         self.data_2_header_end_position = 0
 
     def _data_header(self, name, nbr_rows, nbr_cols, data_type):
@@ -2757,10 +2762,17 @@ class ResultHandlerBinaryFile(ResultHandler):
         """ Generates a data point for diagnostics data by invoking the util function save_diagnostics_point. """
         self.dump_data_internal.save_diagnostics_point(diag_data)
         self.nbr_diag_points += 1
-        self._make_diagnostics_consistent()
+        self._make_consistent(diag=True)
 
-    def _make_consistent(self):
-        """ TODO Requires documentation. """
+    def _make_consistent(self, diag=False):
+        """
+        This method makes sure that the result file is always consistent, meaning that it is
+        always possible to load the result file in the result class. The method makes the 
+        result file consistent by going back in the result file and updates the final time
+        as well as the number of result points in the file in specific locations of the 
+        result file. In the end, it puts the file pointer back to the end of the file (which
+        allows further writing of new result points)
+        """
         f = self._file
 
         #Get current position
@@ -2770,30 +2782,24 @@ class ResultHandlerBinaryFile(ResultHandler):
         t = np.array([float(self.model.time)])
         self.dump_data(t)
 
-        f.seek(self.data_2_header_position)
-        self._data_2_header["ncols"] = self.nbr_points
-        self.__write_header(self._data_2_header, "data_2")
+        if not diag:
+            f.seek(self.data_2_header_position)
+            self._data_2_header["ncols"] = self.nbr_points
+            self.__write_header(self._data_2_header, "data_2")
+        else:
+            f.seek(self.data_3_header_position)
+            self._data_3_header["mrows"] = self.nbr_diag_points
+            self.__write_header(self._data_3_header, "data_3")
 
         #Reset file pointer
         f.seek(file_pos)
 
-    def _make_diagnostics_consistent(self):
-        """ TODO Requires documentation. """
-        f = self._file
-
-        #Get current position
-        file_pos = f.tell()
-
-        f.seek(self.data_1_header_position)
-        t = np.array([float(self.model.time)])
-        self.dump_data(t)
-
-        f.seek(self.data_3_header_position)
-        self._data_3_header["mrows"] = self.nbr_diag_points
-        self.__write_header(self._data_3_header, "data_3")
-
-        #Reset file pointer
-        f.seek(file_pos)
+        max_size = self.options.get("result_max_size", None)
+        if max_size is not None and file_pos > max_size:
+            raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
+                                  "To change the maximum allowed result size, please use the option " 
+                                  "'result_max_size', consider reducing the number of communication "
+                                  "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
 
     def simulation_end(self):
         """
@@ -2816,14 +2822,6 @@ class ResultHandlerBinaryFile(ResultHandler):
         subclass of ResultBase.
         """
         return ResultDymolaBinary(self.file_name)
-
-    def set_options(self, options):
-        """
-        Options are the options dictionary provided to the simulation
-        method.
-        """
-        self.options = options
-
 
 def get_result_handler(model, opts):
     result_handler = None
@@ -2852,5 +2850,8 @@ def get_result_handler(model, opts):
         result_handler = ResultHandlerDummy(model)
     else:
         raise fmi.FMUException("Unknown option to result_handling.")
+    
+    if (opts.get("result_max_size", 0) > 0) and not result_handler.supports["result_max_size"]:
+        logging_module.warning("The chosen result handler does not support limiting the result size. Ignoring option 'result_max_size'.")
 
     return result_handler
