@@ -1952,6 +1952,28 @@ if assimulo_installed:
         Binary
         """
         @testattr(stddist = True)
+        def test_binary_file_size_verification_diagnostics(self):
+            """
+            Make sure that the diagnostics variables are also taken into account.
+            """
+            model, opts = self._setup("binary")
+
+            max_size = 1e6
+            opts["result_max_size"] = max_size
+            opts["dynamic_diagnostics"] = True
+            opts["ncp"] = 10000
+
+            with nose.tools.assert_raises(ResultSizeError):
+                res = model.simulate(options=opts)
+
+            result_file = model.get_last_result_file()
+            
+            file_size = os.path.getsize(result_file)
+
+            assert file_size > max_size*0.9 and file_size < max_size*1.1, \
+                    "The file size is not within 10% of the given max size"
+            
+        @testattr(stddist = True)
         def test_binary_file_size_verification(self):
             self._test_result_size_verification("binary")
 

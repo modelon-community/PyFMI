@@ -1813,7 +1813,7 @@ class ResultHandlerMemory(ResultHandler):
             if current_size > max_size:
                 raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
                                   "To change the maximum allowed result size, please use the option " 
-                                  "'result_max_size' or consider reducing the number of communication "
+                                  "'result_max_size', consider reducing the number of communication "
                                   "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
 
     def get_result(self):
@@ -2002,7 +2002,7 @@ class ResultHandlerCSV(ResultHandler):
             self.simulation_end()
             raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
                                   "To change the maximum allowed result size, please use the option " 
-                                  "'result_max_size' or consider reducing the number of communication "
+                                  "'result_max_size', consider reducing the number of communication "
                                   "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
 
 
@@ -2434,7 +2434,7 @@ class ResultHandlerFile(ResultHandler):
             self.simulation_end()
             raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
                                   "To change the maximum allowed result size, please use the option " 
-                                  "'result_max_size' or consider reducing the number of communication "
+                                  "'result_max_size', consider reducing the number of communication "
                                   "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
 
     def simulation_end(self):
@@ -2798,7 +2798,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         if max_size is not None and file_pos > max_size:
             raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
                                   "To change the maximum allowed result size, please use the option " 
-                                  "'result_max_size' or consider reducing the number of communication "
+                                  "'result_max_size', consider reducing the number of communication "
                                   "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
 
     def simulation_end(self):
