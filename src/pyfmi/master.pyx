@@ -278,6 +278,12 @@ class MasterAlgOptions(OptionBase):
             model as 'key' and the name of the file as 'value' in the
             dict.
             Default: Model name + "_result." + filetype
+        
+        result_max_size --
+            Maximum size of the stored result (in bytes). This is not a hard limit, the
+            actual size will be slightly larger to account for that the result need to
+            be consistent. Note that the maximum size is per result file.
+            Default: 1024**3*2 (2GB)
 
         result_handling --
             Specifies how the result should be handled. Either stored to
@@ -352,6 +358,7 @@ class MasterAlgOptions(OptionBase):
         "result_file_name"    : dict((model,None) for model in master.models),
         "result_handling"     : "binary",
         "result_handler"      : None,
+        "result_max_size"     : 1024**3*2,
         "linear_correction"   : False,
         "error_controlled"    : False if master.support_storing_fmu_states else False,
         "logging"             : False,
@@ -1211,7 +1218,8 @@ cdef class Master:
                     local_opts["result_file_name"] = opts["result_file_name"][model]
             except KeyError:
                 raise fmi.FMUException("Incorrect definition of the result file name option. No result file name found for model %s"%model.get_identifier())
-                
+            
+            local_opts["result_max_size"] = opts["result_max_size"]
             local_opts["filter"] = opts["filter"][model]
             
             result_object.set_options(local_opts)
