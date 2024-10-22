@@ -41,6 +41,7 @@ from pyfmi.common import encode, decode
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, DiagnosticsBase
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
+NCP_LARGE = 5000
 
 class Trajectory:
     """
@@ -1795,6 +1796,7 @@ class ResultHandlerMemory(ResultHandler):
         """
         model = self.model
 
+        previous_size = 0
         if self._first_point:
             previous_size = sys.getsizeof(self.time_sol) + sys.getsizeof(self.real_sol) + \
                            sys.getsizeof(self.int_sol)  + sys.getsizeof(self.bool_sol) + \
@@ -1815,21 +1817,9 @@ class ResultHandlerMemory(ResultHandler):
             current_size = sys.getsizeof(self.time_sol) + sys.getsizeof(self.real_sol) + \
                            sys.getsizeof(self.int_sol)  + sys.getsizeof(self.bool_sol) + \
                            sys.getsizeof(self.param_sol)
-            if self._first_point:
-                point_size = current_size - previous_size
-                estimate = self.options["ncp"]*point_size + previous_size
-                if estimate > self.options["result_max_size"]:
-                    msg = "The result is estimated to exceed the allowed maximum size (limit: %g GB, estimate: %g GB). "%(max_size/1024**3, estimate/1024**3)
-                    if self.options["ncp"] > 5000:
-                        msg = msg + "The number of result points is large (%d), consider reducing the number of points. "%self.options["ncp"]
-                    raise ResultSizeError(msg + "To change the maximum allowed result file size, please use the option 'result_max_size'")
-                self._first_point = False
             
-            if current_size > max_size:
-                raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
-                                  "To change the maximum allowed result size, please use the option " 
-                                  "'result_max_size' or consider reducing the number of communication "
-                                  "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
+            verify_result_size(self._first_point, current_size, previous_size, max_size, self.options["ncp"], self.model.time)
+            self._first_point = False
 
     def get_result(self):
         """
@@ -2014,27 +2004,9 @@ class ResultHandlerCSV(ResultHandler):
             self._write(cont_str[:-1]+"\n")
 
         max_size = self.options.get("result_max_size", None)
-
         if max_size is not None:
-            if self._first_point:
-                point_size = self._current_file_size - previous_size
-                estimate = self.options["ncp"]*point_size + previous_size
-
-                if estimate > max_size:
-                    msg = "The result is estimated to exceed the allowed maximum size (limit: %g GB, estimate: %g GB). "%(max_size/1024**3, estimate/1024**3)
-                    if self.options["ncp"] > 5000:
-                        msg = msg + "The number of result points is large (%d), consider reducing the number of points. "%self.options["ncp"]
-                    raise ResultSizeError(msg + "To change the maximum allowed result file size, please use the option 'result_max_size'")
-                self._first_point = False
-
-            if self._current_file_size > max_size:
-                #Make the file consistent
-                self.simulation_end()
-                raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
-                                    "To change the maximum allowed result size, please use the option " 
-                                    "'result_max_size' or consider reducing the number of communication "
-                                    "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
-
+            verify_result_size(self._first_point, self._current_file_size, previous_size, max_size, self.options["ncp"], self.model.time)
+            self._first_point = False
 
     def simulation_end(self):
         """
@@ -2463,23 +2435,8 @@ class ResultHandlerFile(ResultHandler):
 
         max_size = self.options.get("result_max_size", None)
         if max_size is not None:
-            
-            if self._first_point:
-                point_size = self._current_file_size - previous_size
-                estimate = self.options["ncp"]*point_size + previous_size
-                if estimate > max_size:
-                    msg = "The result is estimated to exceed the allowed maximum size (limit: %g GB, estimate: %g GB). "%(max_size/1024**3, estimate/1024**3)
-                    if self.options["ncp"] > 5000:
-                        msg = msg + "The number of result points is large (%d), consider reducing the number of points. "%self.options["ncp"]
-                    raise ResultSizeError(msg + "To change the maximum allowed result file size, please use the option 'result_max_size'")
-                self._first_point = False
-
-            if self._current_file_size > max_size:
-                self.simulation_end()
-                raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
-                                    "To change the maximum allowed result size, please use the option " 
-                                    "'result_max_size' or consider reducing the number of communication "
-                                    "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
+            verify_result_size(self._first_point, self._current_file_size, previous_size, max_size, self.options["ncp"], self.model.time)
+            self._first_point = False
 
     def simulation_end(self):
         """
@@ -2846,20 +2803,10 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         max_size = self.options.get("result_max_size", None)
         if max_size is not None:
+            verify_result_size(self._first_point, file_pos, file_pos-self._size_point, max_size, self.options["ncp"], self.model.time)
+            #We can go in here before we've stored a full result point (due to storing diagnostic points). So check that a point has been fully stored
             if self._first_point and self._size_point > 0:
-                estimate = self.options["ncp"]*self._size_point + self.data_2_header_position
-                if estimate > max_size:
-                    msg = "The result is estimated to exceed the allowed maximum size (limit: %g GB, estimate: %g GB). "%(max_size/1024**3, estimate/1024**3)
-                    if self.options["ncp"] > 5000:
-                        msg = msg + "The number of result points is large (%d), consider reducing the number of points. "%self.options["ncp"]
-                    raise ResultSizeError(msg + "To change the maximum allowed result size, please use the option 'result_max_size'")
                 self._first_point = False
-
-            if file_pos > max_size:
-                raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
-                                  "To change the maximum allowed result size, please use the option " 
-                                  "'result_max_size' or consider reducing the number of communication "
-                                  "points alternatively the number of variables to store result for."%(max_size/1024**3, self.model.time))
 
     def simulation_end(self):
         """
@@ -2882,6 +2829,22 @@ class ResultHandlerBinaryFile(ResultHandler):
         subclass of ResultBase.
         """
         return ResultDymolaBinary(self.file_name)
+
+def verify_result_size(first_point, current_size, previous_size, max_size, ncp, time):
+    if first_point:
+        point_size = current_size - previous_size
+        estimate = ncp*point_size + previous_size
+        if estimate > max_size:
+            msg = "The result is estimated to exceed the allowed maximum size (limit: %g GB, estimate: %g GB). "%(max_size/1024**3, estimate/1024**3)
+            if ncp > NCP_LARGE:
+                msg = msg + "The number of result points is large (%d), consider reducing the number of points. "%ncp
+            raise ResultSizeError(msg + "To change the maximum allowed result file size, please use the option 'result_max_size'")
+
+    if current_size > max_size:
+        raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
+                            "To change the maximum allowed result size, please use the option " 
+                            "'result_max_size' or consider reducing the number of communication "
+                            "points alternatively the number of variables to store result for."%(max_size/1024**3, time))
 
 def get_result_handler(model, opts):
     result_handler = None

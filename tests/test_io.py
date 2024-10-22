@@ -1933,6 +1933,10 @@ if assimulo_installed:
                 res = model.simulate(options=opts)
 
         def _test_result_size_verification(self, result_type, result_file_name="", dynamic_diagnostics=False):
+            """
+            Verifies that the ResultSizeError exception is triggered (due to too large result) and also verifies
+            that the resulting file is within bounds of the set maximum size.
+            """
             model, opts = self._setup(result_type, result_file_name)
             model.setup_experiment()
             model.initialize()
@@ -1971,6 +1975,10 @@ if assimulo_installed:
                    "The file size is not within 10% of the given max size"
         
         def _test_result_size_early_abort(self, result_type, result_file_name=""):
+            """
+            Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
+            triggered was due to that the ESTIMATE for the result size was too big.
+            """
             model, opts = self._setup(result_type, result_file_name)
 
             max_size = 1e6
@@ -1986,6 +1994,8 @@ if assimulo_installed:
 
                 assert file_size < max_size*0.1, \
                         "The file size is not small, no early abort"
+        
+        # TODO: Pytest parametrization
         """
         Binary
         """
