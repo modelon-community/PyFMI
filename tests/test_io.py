@@ -27,6 +27,7 @@ from pyfmi import testattr
 from pyfmi.fmi import FMUException, FMUModelME2
 from pyfmi.common.io import (ResultHandler, ResultDymolaTextual, ResultDymolaBinary, JIOError, ResultSizeError,
                              ResultHandlerCSV, ResultCSVTextual, ResultHandlerBinaryFile, ResultHandlerFile)
+from pyfmi.common.io import get_result_handler
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, setup_diagnostics_variables
 
 import pyfmi.fmi as fmi
@@ -1931,18 +1932,40 @@ if assimulo_installed:
             with nose.tools.assert_raises(ResultSizeError):
                 res = model.simulate(options=opts)
 
-        def _test_result_size_verification(self, result_type, result_file_name=""):
+        def _test_result_size_verification(self, result_type, result_file_name="", dynamic_diagnostics=False):
             model, opts = self._setup(result_type, result_file_name)
+            model.setup_experiment()
+            model.initialize()
 
             max_size = 1e6
             opts["result_max_size"] = max_size
-            opts["ncp"] = 10000
+            opts["dynamic_diagnostics"] = dynamic_diagnostics
+            opts["logging"] = dynamic_diagnostics
+            opts["ncp"] = 0 #Set to zero to circumvent the early size check
+            ncp = 10000
+
+            result_handler = get_result_handler(model, opts)
+
+            result_handler.set_options(opts)
+            result_handler.initialize_complete()
+
+            if opts["dynamic_diagnostics"]:
+                opts['CVode_options']['rtol'] = 1e-6
+                opts['CVode_options']['atol'] = model.nominal_continuous_states * opts['CVode_options']['rtol']
+                diag_params, diag_vars = setup_diagnostics_variables(model, 0, opts, opts['CVode_options'])
+                print(diag_params)
+                result_handler.simulation_start(diag_params, diag_vars)
+            else:
+                result_handler.simulation_start()
 
             with nose.tools.assert_raises(ResultSizeError):
-                res = model.simulate(options=opts)
+                for i in range(ncp):
+                    result_handler.integration_point()
+
+                    if opts["dynamic_diagnostics"]:
+                        result_handler.diagnostics_point(np.array([val[0] for val in diag_vars.values()], dtype=float))
 
             result_file = model.get_last_result_file()
-            
             file_size = os.path.getsize(result_file)
 
             assert file_size > max_size*0.9 and file_size < max_size*1.1, \
@@ -1972,22 +1995,7 @@ if assimulo_installed:
             """
             Make sure that the diagnostics variables are also taken into account.
             """
-            model, opts = self._setup("binary")
-
-            max_size = 1e6
-            opts["result_max_size"] = max_size
-            opts["dynamic_diagnostics"] = True
-            opts["ncp"] = 10000
-
-            with nose.tools.assert_raises(ResultSizeError):
-                res = model.simulate(options=opts)
-
-            result_file = model.get_last_result_file()
-            
-            file_size = os.path.getsize(result_file)
-
-            assert file_size > max_size*0.9 and file_size < max_size*1.1, \
-                    "The file size is not within 10% of the given max size"
+            self._test_result_size_verification("binary", dynamic_diagnostics=True)
             
         @testattr(stddist = True)
         def test_binary_file_size_verification(self):
@@ -2077,6 +2085,10 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_small_size_memory(self):
             self._test_result_exception("memory")
+        
+        @testattr(stddist = True)
+        def test_memory_size_early_abort(self):
+            self._test_result_size_early_abort("memory")
         
         @testattr(stddist = True)
         def test_small_size_memory_stream(self):
