@@ -1953,7 +1953,6 @@ if assimulo_installed:
                 opts['CVode_options']['rtol'] = 1e-6
                 opts['CVode_options']['atol'] = model.nominal_continuous_states * opts['CVode_options']['rtol']
                 diag_params, diag_vars = setup_diagnostics_variables(model, 0, opts, opts['CVode_options'])
-                print(diag_params)
                 result_handler.simulation_start(diag_params, diag_vars)
             else:
                 result_handler.simulation_start()
