@@ -1,5 +1,6 @@
 --- CHANGELOG ---
 --- Future ---
+    * Added prediction of the size of the result to get early feedback if it will reach the limit or not.
     * Added option to limit the size of the result ("result_max_size"), default set to 2GB.
     * Added method ResultDymolaBinary.get_variables_data. Included some minor refactorization.
       The new method allows for retrieving partial trajectories, and multiple trajectories at once.
