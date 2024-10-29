@@ -2,10 +2,12 @@
 name: Bug report
 about: Create a report to help us improve
 title: ''
-labels: ''
+labels: bug
 assignees: ''
 
 ---
+
+Please make sure to check the issue tracker for existing issues!
 
 **Describe the bug**
 A clear and concise description of what the bug is.
