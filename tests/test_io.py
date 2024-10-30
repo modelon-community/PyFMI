@@ -1793,7 +1793,7 @@ class TestResultDymolaBinary:
                 fmu.set('J4.phi', f(fmu.time)) # arbitrary
 
             trajectories, start_index = rdb.get_variables_data(vars_to_test, start_index, stop_index_function(start_index))
-            data_to_return[i] = [t.x for t in trajectories]
+            data_to_return[i] = trajectories.copy()
 
         assert data_to_return, "Something went wrong, no test data was generated"
         return data_to_return
@@ -1811,7 +1811,7 @@ class TestResultDymolaBinary:
         }
 
         for index, test_data in test_data_sets.items():
-            np.testing.assert_array_almost_equal(test_data[0], reference_data[index])
+            np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
     @testattr(stddist = True)
     def test_get_variables_data_values1(self):
@@ -1830,7 +1830,7 @@ class TestResultDymolaBinary:
         # Just verify results for J4.phi here, but we retrieve all four trajectories at once
         # to see that it works
         for index, test_data in test_data_sets.items():
-            np.testing.assert_array_almost_equal(test_data[1], reference_data[index])
+            np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
     @testattr(stddist = True)
     def test_get_variables_data_values2(self):
@@ -1847,7 +1847,7 @@ class TestResultDymolaBinary:
         }
 
         for index, test_data in test_data_sets.items():
-            np.testing.assert_array_almost_equal(test_data[1], reference_data[index])
+            np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
     def test_get_variables_data_values3(self):
         """ Verifing values from get_variables_data, and only asking for diagnostic variables. """
@@ -1872,8 +1872,8 @@ class TestResultDymolaBinary:
         }
 
         for index, test_data in test_data_sets.items():
-            np.testing.assert_array_almost_equal(test_data[0], reference_data['@Diagnostics.step_time'][index])
-            np.testing.assert_array_almost_equal(test_data[1], reference_data['@Diagnostics.nbr_steps'][index])
+            np.testing.assert_array_almost_equal(test_data['@Diagnostics.step_time'].x, reference_data['@Diagnostics.step_time'][index])
+            np.testing.assert_array_almost_equal(test_data['@Diagnostics.nbr_steps'].x, reference_data['@Diagnostics.nbr_steps'][index])
 
     def test_get_variables_data_values4(self):
         """ Verifing values from get_variables_data, partial trajectories and checking both time and diagnostic data."""
@@ -1898,8 +1898,8 @@ class TestResultDymolaBinary:
         }
 
         for index, test_data in test_data_sets.items():
-            np.testing.assert_array_almost_equal(test_data[0], reference_data['time'][index])
-            np.testing.assert_array_almost_equal(test_data[1], reference_data['@Diagnostics.nbr_steps'][index])
+            np.testing.assert_array_almost_equal(test_data['time'].x, reference_data['time'][index])
+            np.testing.assert_array_almost_equal(test_data['@Diagnostics.nbr_steps'].x, reference_data['@Diagnostics.nbr_steps'][index])
 
 if assimulo_installed:
     class TestFileSizeLimit:
@@ -1909,7 +1909,7 @@ if assimulo_installed:
                 model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
             else:
                 model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
-                
+
             opts = model.simulate_options()
             opts["result_handling"]  = result_type
             opts["result_file_name"] = result_file_name
@@ -1973,7 +1973,7 @@ if assimulo_installed:
 
             assert file_size > max_size*0.9 and file_size < max_size*1.1, \
                    "The file size is not within 10% of the given max size"
-        
+
         def _test_result_size_early_abort(self, result_type, result_file_name=""):
             """
             Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
@@ -1994,7 +1994,7 @@ if assimulo_installed:
 
                 assert file_size < max_size*0.1, \
                         "The file size is not small, no early abort"
-        
+
         # TODO: Pytest parametrization
         """
         Binary
@@ -2005,11 +2005,11 @@ if assimulo_installed:
             Make sure that the diagnostics variables are also taken into account.
             """
             self._test_result_size_verification("binary", dynamic_diagnostics=True)
-            
+
         @testattr(stddist = True)
         def test_binary_file_size_verification(self):
             self._test_result_size_verification("binary")
-        
+
         @testattr(stddist = True)
         def test_binary_file_size_early_abort(self):
             self._test_result_size_early_abort("binary")
@@ -2017,11 +2017,11 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_small_size_binary_file(self):
             self._test_result_exception("binary")
-        
+
         @testattr(stddist = True)
         def test_small_size_binary_file_cs(self):
             self._test_result_exception("binary", fmi_type="cs")
-        
+
         @testattr(stddist = True)
         def test_small_size_binary_file_stream(self):
             self._test_result_exception("binary", BytesIO())
@@ -2040,7 +2040,7 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_text_file_size_verification(self):
             self._test_result_size_verification("file")
-        
+
         @testattr(stddist = True)
         def test_text_file_size_early_abort(self):
             self._test_result_size_early_abort("file")
@@ -2048,7 +2048,7 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_small_size_text_file(self):
             self._test_result_exception("file")
-        
+
         @testattr(stddist = True)
         def test_small_size_text_file_stream(self):
             self._test_result_exception("file", StringIO())
@@ -2067,7 +2067,7 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_csv_file_size_verification(self):
             self._test_result_size_verification("csv")
-        
+
         @testattr(stddist = True)
         def test_csv_file_size_early_abort(self):
             self._test_result_size_early_abort("csv")
@@ -2075,7 +2075,7 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_small_size_csv_file(self):
             self._test_result_exception("csv")
-        
+
         @testattr(stddist = True)
         def test_small_size_csv_file_stream(self):
             self._test_result_exception("csv", StringIO())
@@ -2094,11 +2094,11 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_small_size_memory(self):
             self._test_result_exception("memory")
-        
+
         @testattr(stddist = True)
         def test_memory_size_early_abort(self):
             self._test_result_size_early_abort("memory")
-        
+
         @testattr(stddist = True)
         def test_small_size_memory_stream(self):
             self._test_result_exception("memory", StringIO())

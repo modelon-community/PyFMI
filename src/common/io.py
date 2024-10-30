@@ -1595,33 +1595,16 @@ class ResultDymolaBinary(ResultDymola):
                               "'start_index' needs to be less than or equal to 'stop_index'.")
         trajectories = {}
 
-        # First we need to check that start_index and stop_index are within a valid range of [0, <number of data points> -1]
-        # Another way to do it is to use data_2_info and data_3_info but then we also need to invoke verify_file_data,
-        # unclear what is the most efficient approach for now.
-        if not self._contains_diagnostic_data:
-            time = self._get_trajectory(0, 0, None)
-        else:
-            # Since we interpolate data if diagnostics is enabled
-            time = self._get_diagnostics_trajectory(0, 0, None)
-
-        max_valid_index = len(time) - 1 # -1 since we we have a 0-index based system
-        if start_index > max_valid_index:
-            raise InvalidIndexError(
-                f"Input 'start_index'={start_index} needs to be less than the number of available data points: {max_valid_index}")
-
-        if stop_index and stop_index > max_valid_index: # since stop_index is Default None
-            raise InvalidIndexError(
-                f"Input 'stop_index'={stop_index} needs to be less than the number of available data points: {max_valid_index}")
-
-        # Need to account for data that might be added we are retrieving the trajectories
-        if stop_index is None:
-            stop_index = max_valid_index
-
-        # Now get the correct time trajectory where we account for the start and stop index.
+        # Get the corresponding time trajectory
         if not self._contains_diagnostic_data:
             time = self._get_trajectory(0, start_index, stop_index)
         else:
+            # Since we interpolate data if diagnostics is enabled
             time = self._get_diagnostics_trajectory(0, start_index, stop_index)
+
+        # Need to account for data that might be added while we are iterating over 'names' later
+        if stop_index is None:
+            stop_index = len(time) + start_index
 
         for name in names:
             trajectories[name] = self._get_variable_data_as_trajectory(name, time, start_index, stop_index)
