@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2010-2021 Modelon AB
+# Copyright (C) 2010-2024 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -1554,15 +1554,13 @@ class ResultDymolaBinary(ResultDymola):
                            names: list[str],
                            start_index: int = 0,
                            stop_index: Union[int, None] = None
-    ) -> tuple[list[Trajectory], Union[int, None]]:
+    ) -> tuple[dict[str, Trajectory], Union[int, None]]:
         """"
-            Returns multiple trajectories, sliced to index range.
-            Note that start_index and stop_index behaves as indices for slicing, i.e. array[start_index:stop_index].
-            This also implies that stop_index = None or stop_index larger than the number of available data points
-            results in retrieving all the available data points from start_index, i.e. as the slice [start_index:].
-
-            Note that (start_index, stop_index) = (None, None) results in the slicing [None:None] which is equivalent to [:].
-
+            Returns trajectories for each variable in 'names' with lengths adjusted for the
+            interval [start_index, stop_index], i.e. partial trajectories.
+            This requires that 'start_index' and 'stop_index' are within the
+            range of [0, <number of available data points> - 1].
+            By default, start_index = 0 and stop_index = None, which implies that the full trajectory is returned.
 
             Parameters::
 
@@ -1570,16 +1568,18 @@ class ResultDymolaBinary(ResultDymola):
                     List of variables names for which to fetch trajectories.
 
                 start_index --
-                    Starting index for trajectory slicing.
+                    The index from where the trajectory data starts from.
 
                 stop_index --
-                    Stopping index for trajectory slicing.
+                    The index from where the trajectory data ends. If stop_index is set to None,
+                    it implies that all data in the slice [start_index:] is returned.
 
             Raises::
-                ValueError -- If stop_index < start_index.
+                ValueError                        -- If stop_index < start_index.
+                pyfmi.common.io.InvalidIndexError -- If start_index or stop_index are larger than the number of available data points.
 
             Returns::
-                Tuple: (List of trajectories, next start index (non-negative))
+                Tuple: (dict of trajectories with keys corresponding to variable names, next start index (non-negative))
         """
 
         """
@@ -1593,21 +1593,38 @@ class ResultDymolaBinary(ResultDymola):
         if isinstance(start_index, int) and isinstance(stop_index, int) and stop_index < start_index:
             raise ValueError(f"Invalid values for {start_index=} and {stop_index=}, " + \
                               "'start_index' needs to be less than or equal to 'stop_index'.")
-        trajectories = []
+        trajectories = {}
 
-        # Get the time trajectory
+        # First we need to check that start_index and stop_index are within a valid range of [0, <number of data points> -1]
+        # Another way to do it is to use data_2_info and data_3_info but then we also need to invoke verify_file_data,
+        # unclear what is the most efficient approach for now.
+        if not self._contains_diagnostic_data:
+            time = self._get_trajectory(0, 0, None)
+        else:
+            # Since we interpolate data if diagnostics is enabled
+            time = self._get_diagnostics_trajectory(0, 0, None)
+
+        max_valid_index = len(time) - 1 # -1 since we we have a 0-index based system
+        if start_index > max_valid_index:
+            raise InvalidIndexError(
+                f"Input 'start_index'={start_index} needs to be less than the number of available data points: {max_valid_index}")
+
+        if stop_index and stop_index > max_valid_index: # since stop_index is Default None
+            raise InvalidIndexError(
+                f"Input 'stop_index'={stop_index} needs to be less than the number of available data points: {max_valid_index}")
+
+        # Need to account for data that might be added we are retrieving the trajectories
+        if stop_index is None:
+            stop_index = max_valid_index
+
+        # Now get the correct time trajectory where we account for the start and stop index.
         if not self._contains_diagnostic_data:
             time = self._get_trajectory(0, start_index, stop_index)
         else:
-            # Since we interpolate data if diagnostics is enabled
             time = self._get_diagnostics_trajectory(0, start_index, stop_index)
 
-        # Need to account for data that might be added while we are iterating over 'names' later
-        if stop_index is None:
-            stop_index = len(time) + start_index
-
         for name in names:
-            trajectories.append(self._get_variable_data_as_trajectory(name, time, start_index, stop_index))
+            trajectories[name] = self._get_variable_data_as_trajectory(name, time, start_index, stop_index)
 
         new_start_index = start_index + len(time) if len(trajectories) > 0 else None
         return trajectories, new_start_index
@@ -1759,7 +1776,7 @@ class ResultHandlerMemory(ResultHandler):
         super().__init__(model)
         self.supports['result_max_size'] = True
         self._first_point = True
-        
+
     def simulation_start(self):
         """
         This method is called before the simulation has started and before
@@ -1811,13 +1828,13 @@ class ResultHandlerMemory(ResultHandler):
         #Sets the parameters, if any
         if solver and self.options["sensitivities"]:
             self.param_sol += [np.array(solver.interpolate_sensitivity(model.time, 0)).flatten()]
-        
+
         max_size = self.options.get("result_max_size", None)
         if max_size is not None:
             current_size = sys.getsizeof(self.time_sol) + sys.getsizeof(self.real_sol) + \
                            sys.getsizeof(self.int_sol)  + sys.getsizeof(self.bool_sol) + \
                            sys.getsizeof(self.param_sol)
-            
+
             verify_result_size(self._first_point, current_size, previous_size, max_size, self.options["ncp"], self.model.time)
             self._first_point = False
 
@@ -2389,7 +2406,7 @@ class ResultHandlerFile(ResultHandler):
         self.real_var_ref = np.array(self.real_var_ref)
         self.int_var_ref  = np.array(self.int_var_ref)
         self.bool_var_ref = np.array(self.bool_var_ref)
-    
+
     def _write(self, msg):
         self._current_file_size = self._current_file_size+len(msg)
         self._file.write(msg)
@@ -2520,6 +2537,9 @@ class ResultSizeError(JIOError):
     """
     Exception that is raised when a set maximum result size is exceeded.
     """
+
+class InvalidIndexError(JIOError):
+    """ Exception that is raised when indices for variable trajectories are invalid. """
 
 def robust_float(value):
     """
@@ -2767,16 +2787,16 @@ class ResultHandlerBinaryFile(ResultHandler):
 
     def diagnostics_point(self, diag_data):
         """ Generates a data point for diagnostics data by invoking the util function save_diagnostics_point. """
-        self.dump_data_internal.save_diagnostics_point(diag_data)    
+        self.dump_data_internal.save_diagnostics_point(diag_data)
         self.nbr_diag_points += 1
         self._make_consistent(diag=True)
 
     def _make_consistent(self, diag=False):
         """
         This method makes sure that the result file is always consistent, meaning that it is
-        always possible to load the result file in the result class. The method makes the 
+        always possible to load the result file in the result class. The method makes the
         result file consistent by going back in the result file and updates the final time
-        as well as the number of result points in the file in specific locations of the 
+        as well as the number of result points in the file in specific locations of the
         result file. In the end, it puts the file pointer back to the end of the file (which
         allows further writing of new result points)
         """
@@ -2841,8 +2861,8 @@ def verify_result_size(first_point, current_size, previous_size, max_size, ncp, 
             raise ResultSizeError(msg + "To change the maximum allowed result file size, please use the option 'result_max_size'")
 
     if current_size > max_size:
-        raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. " 
-                            "To change the maximum allowed result size, please use the option " 
+        raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. "
+                            "To change the maximum allowed result size, please use the option "
                             "'result_max_size' or consider reducing the number of communication "
                             "points alternatively the number of variables to store result for."%(max_size/1024**3, time))
 
@@ -2873,7 +2893,7 @@ def get_result_handler(model, opts):
         result_handler = ResultHandlerDummy(model)
     else:
         raise fmi.FMUException("Unknown option to result_handling.")
-    
+
     if (opts.get("result_max_size", 0) > 0) and not result_handler.supports["result_max_size"]:
         logging_module.warning("The chosen result handler does not support limiting the result size. Ignoring option 'result_max_size'.")
 
