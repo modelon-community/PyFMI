@@ -1344,17 +1344,10 @@ class ResultDymolaBinary(ResultDymola):
             nbr_variables  = self._data_2_info["nbr_variables"]
 
             # Account for sub-sets of data
-            if start_index > 0:
-                new_file_position = file_position + start_index*sizeof_type*nbr_variables
-                new_nbr_points = nbr_points - start_index
-            else:
-                new_file_position = file_position
-                new_nbr_points = nbr_points
-
-            if stop_index is not None and stop_index > 0:
-                new_nbr_points = stop_index
-                if start_index > 0:
-                    new_nbr_points -= start_index
+            start_index = max(0, start_index)
+            stop_index = max(0, nbr_points if stop_index is None else min(nbr_points, stop_index))
+            new_file_position = file_position + start_index*sizeof_type*nbr_variables
+            new_nbr_points = stop_index - start_index
 
             self._data_2[data_index] = fmi_util.read_trajectory(
                 encode(self._fname),
@@ -1558,8 +1551,12 @@ class ResultDymolaBinary(ResultDymola):
         """"
             Returns trajectories for each variable in 'names' with lengths adjusted for the
             interval [start_index, stop_index], i.e. partial trajectories.
-            This requires that 'start_index' and 'stop_index' are within the
-            range of [0, <number of available data points> - 1].
+            Improper values for start_index and stop_index that are out of bounds are automatically corrected,
+            such that:
+                Negative values are always adjusted to 0 or larger.
+                Out of bounds for stop_index is adjusted for the number of available data points, as an example
+                if you set start_index = 0, stop_index = 5 but there are only 3 data points available,
+                then this function returns 3 data_points.
             By default, start_index = 0 and stop_index = None, which implies that the full trajectory is returned.
 
             Parameters::
@@ -1576,7 +1573,6 @@ class ResultDymolaBinary(ResultDymola):
 
             Raises::
                 ValueError                        -- If stop_index < start_index.
-                pyfmi.common.io.InvalidIndexError -- If start_index or stop_index are larger than the number of available data points.
 
             Returns::
                 Tuple: (dict of trajectories with keys corresponding to variable names, next start index (non-negative))
