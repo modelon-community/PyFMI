@@ -2532,9 +2532,6 @@ class ResultSizeError(JIOError):
     Exception that is raised when a set maximum result size is exceeded.
     """
 
-class InvalidIndexError(JIOError):
-    """ Exception that is raised when indices for variable trajectories are invalid. """
-
 def robust_float(value):
     """
     Function for robust handling of float values such as INF and NAN.
