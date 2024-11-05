@@ -1849,6 +1849,7 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
+    @testattr(stddist = True)
     def test_get_variables_data_values3(self):
         """ Verifing values from get_variables_data, and only asking for diagnostic variables. """
         vars_to_test = ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
@@ -1875,6 +1876,7 @@ class TestResultDymolaBinary:
             np.testing.assert_array_almost_equal(test_data['@Diagnostics.step_time'].x, reference_data['@Diagnostics.step_time'][index])
             np.testing.assert_array_almost_equal(test_data['@Diagnostics.nbr_steps'].x, reference_data['@Diagnostics.nbr_steps'][index])
 
+    @testattr(stddist = True)
     def test_get_variables_data_values4(self):
         """ Verifing values from get_variables_data, partial trajectories and checking both time and diagnostic data."""
         vars_to_test = ['time', '@Diagnostics.nbr_steps']
@@ -1900,6 +1902,33 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data['time'].x, reference_data['time'][index])
             np.testing.assert_array_almost_equal(test_data['@Diagnostics.nbr_steps'].x, reference_data['@Diagnostics.nbr_steps'][index])
+
+    @testattr(stddist = True)
+    def test_stop_index_near_bounds(self):
+        """ Verify that we get expected results near the end of the result file, including
+            stop_index out of range.
+        """
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
+        res = fmu.simulate()
+        assert len(res['h']) == 501
+
+        rdb = ResultDymolaBinary(fmu.get_last_result_file(), allow_file_updates = True)
+        np.testing.assert_array_almost_equal(
+            (rdb.get_variables_data(['h'], 495, 496)[0]['h'].x),
+            np.array([0.37268813]))
+        np.testing.assert_array_almost_equal(
+            (rdb.get_variables_data(['h'], 495, 500)[0]['h'].x),
+            np.array([0.37268813, 0.37194424, 0.37120184, 0.37046092, 0.36972148]))
+
+        np.testing.assert_array_almost_equal(
+            (rdb.get_variables_data(['h'], 495, 499)[0]['h'].x),
+            np.array([0.37268813, 0.37194424, 0.37120184, 0.37046092]))
+        np.testing.assert_array_almost_equal(
+            (rdb.get_variables_data(['h'], 495, 501)[0]['h'].x),
+            np.array([0.37268813, 0.37194424, 0.37120184, 0.37046092, 0.36972148, 0.36898351]))
+        np.testing.assert_array_almost_equal(
+            (rdb.get_variables_data(['h'], 495, 502)[0]['h'].x),
+            np.array([0.37268813, 0.37194424, 0.37120184, 0.37046092, 0.36972148, 0.36898351]))
 
 if assimulo_installed:
     class TestFileSizeLimit:
