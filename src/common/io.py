@@ -1343,7 +1343,6 @@ class ResultDymolaBinary(ResultDymola):
             index_in_cache = data_index in self._data_2
             partial_cache_ok = self._can_use_partial_cache(start_index, stop_index)
             if (index_in_cache and not self._allow_file_updates) or (index_in_cache and partial_cache_ok):
-                print(f"Doing an early return")
                 return self._data_2[data_index]
 
             file_position  = self._data_2_info["file_position"]
@@ -1352,12 +1351,10 @@ class ResultDymolaBinary(ResultDymola):
             nbr_variables  = self._data_2_info["nbr_variables"]
 
             # Account for sub-sets of data
-            print(f"{start_index=}, {stop_index=}")
             start_index = max(0, start_index)
             stop_index = max(0, nbr_points if stop_index is None else min(nbr_points, stop_index))
             new_file_position = file_position + start_index*sizeof_type*nbr_variables
             new_nbr_points = stop_index - start_index
-            print(f"{start_index=}, {stop_index=}, {new_nbr_points=}")
 
             self._data_2[data_index] = fmi_util.read_trajectory(
                 encode(self._fname),
