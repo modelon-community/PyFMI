@@ -1332,8 +1332,8 @@ class ResultDymolaBinary(ResultDymola):
 
         return name_dict
 
-    def _can_use_partial_cache(self, start_index, stop_index):
-        """ Checks if start_index and stop_oindex are equal to the last cached indices. """
+    def _can_use_partial_cache(self, start_index: int, stop_index: Union[int, None]):
+        """ Checks if start_index and stop_index are equal to the last cached indices. """
         return self._allow_file_updates and (self._last_set_of_indices == (start_index, stop_index))
 
     def _get_trajectory(self, data_index, start_index = 0, stop_index = None):
@@ -1373,10 +1373,12 @@ class ResultDymolaBinary(ResultDymola):
         """ Returns trajectory for the diagnostics variable that corresponds to index 'data_index'. """
         self._verify_file_data()
 
-        if data_index in self._data_3:
+        index_in_cache = data_index in self._data_3
+        partial_cache_ok = self._can_use_partial_cache(start_index, stop_index)
+        if (index_in_cache and not self._allow_file_updates) or (index_in_cache and partial_cache_ok):
             return self._data_3[data_index]
-        self._data_3[data_index] = self._read_trajectory_data(data_index, True, start_index, stop_index)
-        return self._data_3[data_index][start_index:stop_index]
+        self._data_3[data_index] = self._read_trajectory_data(data_index, True, start_index, stop_index)[start_index:stop_index]
+        return self._data_3[data_index]
 
     def _read_trajectory_data(self, data_index, read_diag_data, start_index = 0, stop_index = None):
         """ Reads corresponding trajectory data for variable with index 'data_index',
@@ -1413,11 +1415,13 @@ class ResultDymolaBinary(ResultDymola):
 
         return data
 
-    def _get_interpolated_trajectory(self, data_index: int, start_index: int = None, stop_index: int = None) -> Trajectory:
+    def _get_interpolated_trajectory(self, data_index: int, start_index: int = 0, stop_index: int = None) -> Trajectory:
         """ Returns an interpolated trajectory for variable of corresponding index 'data_index'. """
         self._verify_file_data()
 
-        if data_index in self._data_2:
+        index_in_cache = data_index in self._data_2
+        partial_cache_ok = self._can_use_partial_cache(start_index, stop_index)
+        if (index_in_cache and not self._allow_file_updates) or (index_in_cache and partial_cache_ok):
             return self._data_2[data_index]
 
         diag_time_vector = self._get_diagnostics_trajectory(0, start_index, stop_index)
@@ -1426,8 +1430,9 @@ class ResultDymolaBinary(ResultDymola):
 
         f = scipy.interpolate.interp1d(time_vector, data, fill_value="extrapolate")
 
+        # note that we dont need to slice here because diag_time_vector is already sliced accordingly
         self._data_2[data_index] = f(diag_time_vector)
-        return self._data_2[data_index][start_index:stop_index]
+        return self._data_2[data_index]
 
     def _get_description(self):
         if not self._description:
