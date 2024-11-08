@@ -1619,7 +1619,11 @@ class ResultDymolaBinary(ResultDymola):
         for name in names:
             trajectories[name] = self._get_variable_data_as_trajectory(name, time, start_index, stop_index)
 
-        new_start_index = stop_index if len(trajectories) > 0 else None
+        largest_trajectory_length = -1
+        for v, t in trajectories.items():
+            largest_trajectory_length = max(largest_trajectory_length, len(t.x))
+        new_start_index = start_index + largest_trajectory_length if len(trajectories) > 0 else None
+
         self._last_set_of_indices = (start_index, stop_index) # update them before we exit
         return trajectories, new_start_index
 

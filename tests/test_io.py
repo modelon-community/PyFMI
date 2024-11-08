@@ -1930,6 +1930,30 @@ class TestResultDymolaBinary:
             (rdb.get_variables_data(['h'], 495, 502)[0]['h'].x),
             np.array([0.37268813, 0.37194424, 0.37120184, 0.37046092, 0.36972148, 0.36898351]))
 
+
+    @testattr(stddist = True)
+    def test_trajectory_lengths(self):
+        """ Verify lengths of trajectories are expected for a bunch of different inputs. """
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
+        res = fmu.simulate()
+        assert len(res['h']) == 501
+        rdb = ResultDymolaBinary(fmu.get_last_result_file(), allow_file_updates = True)
+        assert len(rdb.get_variables_data(['h'], 495, 496)[0]['h'].x) == 1
+        assert len(rdb.get_variables_data(['h'], 495, 500)[0]['h'].x) == 5
+        assert len(rdb.get_variables_data(['h'], 495, 499)[0]['h'].x) == 4
+        assert len(rdb.get_variables_data(['h'], 495, 501)[0]['h'].x) == 6
+        assert len(rdb.get_variables_data(['h'], 495, 502)[0]['h'].x) == 6
+        # a couple of repeated values to verify the cache is not being used
+        assert len(rdb.get_variables_data(['h'], 0, None)[0]['h'].x) == 501
+        assert len(rdb.get_variables_data(['h'], 0, 5)[0]['h'].x) == 5
+        assert len(rdb.get_variables_data(['h'], 0, None)[0]['h'].x) == 501
+        assert len(rdb.get_variables_data(['h'], 0, 5)[0]['h'].x) == 5
+        assert len(rdb.get_variables_data(['h'], 0, 5)[0]['h'].x) == 5
+
+        assert len(rdb.get_variables_data(['h'], 5, 15)[0]['h'].x) == 10
+        assert len(rdb.get_variables_data(['h'], 0, 550)[0]['h'].x) == 501
+        assert len(rdb.get_variables_data(['h'], 0, 10000)[0]['h'].x) == 501
+
 if assimulo_installed:
     class TestFileSizeLimit:
 
