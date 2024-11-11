@@ -1954,6 +1954,12 @@ class TestResultDymolaBinary:
         assert len(rdb.get_variables_data(['h'], 0, 550)[0]['h'].x) == 501
         assert len(rdb.get_variables_data(['h'], 0, 10000)[0]['h'].x) == 501
 
+        # test different scenarios of start_index out of bounds
+        assert len(rdb.get_variables_data(['h'], 501, 502)[0]['h'].x) == 0
+        assert len(rdb.get_variables_data(['h'], 501, None)[0]['h'].x) == 0
+        assert len(rdb.get_variables_data(['h'], 501)[0]['h'].x) == 0
+        assert len(rdb.get_variables_data(['h'], 1234567)[0]['h'].x) == 0
+
 if assimulo_installed:
     class TestFileSizeLimit:
 

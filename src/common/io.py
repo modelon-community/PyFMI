@@ -1354,6 +1354,9 @@ class ResultDymolaBinary(ResultDymola):
             start_index = max(0, start_index)
             stop_index = max(0, nbr_points if stop_index is None else min(nbr_points, stop_index))
             new_file_position = file_position + start_index*sizeof_type*nbr_variables
+            # Finally when stop_index = None, we can end up with start > stop,
+            # therefore we need to use min(start, stop)
+            start_index = min(start_index, stop_index)
             new_nbr_points = stop_index - start_index
 
             self._data_2[data_index] = fmi_util.read_trajectory(
@@ -1601,7 +1604,6 @@ class ResultDymolaBinary(ResultDymola):
         if isinstance(start_index, int) and isinstance(stop_index, int) and stop_index < start_index:
             raise ValueError(f"Invalid values for {start_index=} and {stop_index=}, " + \
                               "'start_index' needs to be less than or equal to 'stop_index'.")
-
 
         trajectories = {}
 
