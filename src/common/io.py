@@ -1569,9 +1569,15 @@ class ResultDymolaBinary(ResultDymola):
             Improper values for start_index and stop_index that are out of bounds are automatically corrected,
             such that:
                 Negative values are always adjusted to 0 or larger.
-                Out of bounds for stop_index is adjusted for the number of available data points, as an example
-                if you set start_index = 0, stop_index = 5 but there are only 3 data points available,
-                then this function returns 3 data_points.
+                Out of bounds for stop_index is adjusted for the number of available data points, example:
+                If start_index = 0, stop_index = 5 and there are only 3 data points available,
+                then returned trajectories are of length 3.
+                If start_index is larger than or equal to the number of available data points, empty trajectories
+                are returned, i.e. trajectories of length 0.
+            Note that trajectories for parameters are always of length 2 if indices 0 and 1 are
+            part of the requested trajectory since they reflect the values of before and after initialization.
+            Therefore if you request a trajectory for a parameter with start_index>=2, returned trajectory is empty.
+
             By default, start_index = 0 and stop_index = None, which implies that the full trajectory is returned.
 
             Parameters::
@@ -1614,9 +1620,9 @@ class ResultDymolaBinary(ResultDymola):
             # Since we interpolate data if diagnostics is enabled
             time = self._get_diagnostics_trajectory(0, start_index, stop_index)
 
-        # Need to account for data that might be added while we are iterating over 'names' later
-        if stop_index is None:
-            stop_index = len(time) + start_index
+        # If stop_index > number of data points, and data gets added while we are iterating
+        # then we might get trajectories of unequal lengths. Therefore ensure we set stop_index here accordingly.
+        stop_index = min(len(time) + start_index, float('inf') if stop_index is None else stop_index)
 
         for name in names:
             trajectories[name] = self._get_variable_data_as_trajectory(name, time, start_index, stop_index)
@@ -1624,7 +1630,7 @@ class ResultDymolaBinary(ResultDymola):
         largest_trajectory_length = -1
         for v, t in trajectories.items():
             largest_trajectory_length = max(largest_trajectory_length, len(t.x))
-        new_start_index = start_index + largest_trajectory_length if trajectories else None
+        new_start_index = (start_index + largest_trajectory_length) if trajectories else start_index
 
         self._last_set_of_indices = (start_index, stop_index) # update them before we exit
         return trajectories, new_start_index

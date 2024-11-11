@@ -1960,6 +1960,11 @@ class TestResultDymolaBinary:
         assert len(rdb.get_variables_data(['h'], 501)[0]['h'].x) == 0
         assert len(rdb.get_variables_data(['h'], 1234567)[0]['h'].x) == 0
 
+        # Verify next_start_index also for no variables is equal to start_index
+        assert rdb.get_variables_data([], start_index = 0)[1] == 0
+        assert rdb.get_variables_data([], start_index = 1)[1] == 1
+        assert rdb.get_variables_data([], start_index = 5)[1] == 5
+
 if assimulo_installed:
     class TestFileSizeLimit:
 
