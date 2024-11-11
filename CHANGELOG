@@ -1,12 +1,17 @@
 --- CHANGELOG ---
+--- Future ---
+    * Changed custom result handling for the Master algorithm to instead use a single ResultHandler for each model.
+      A dictionary of the form {model: ResultHandler} needs to be supplied to the option.
+    * Added prediction of the size of the result to get early feedback if it will reach the limit or not.
+    * Added option to limit the size of the result ("result_max_size"), default set to 2GB.
+    * Added method ResultDymolaBinary.get_variables_data. Included some minor refactorization.
+      The new method allows for retrieving partial trajectories, and multiple trajectories at once.
 
 --- PyFMI-2.14.0 ---
     * Updated the error message displayed when loading FMUs with needsExecutionTool set to True.
     * Loading unzipped FMUs now also works with relative paths.
     * Enabled setting logging categories in FMI2 via "set_debug_logging".
     * XML Logs exceeding maximal size will now be truncated to start/end of the last CAPI call which did not exceed the maximal log size.
-    * Changed custom result handling for the Master algorithm to instead use a single ResultHandler for each model.
-      A dictionary of the form {model: ResultHandler} needs to be supplied to the option.
 
 --- PyFMI-2.13.1 ---
     * Numpy 2.x support
@@ -19,13 +24,13 @@
     * Removed utilities related to the obsolete FMUX model interface.
     * Removed no longer required dependency on lxml.
     * Unified result handling and allowed the master algorithm to use all available result handlers
-    * Added new option "result_downsampling_factor" for simulation of CS-FMUs, including the Master algorithm. 
+    * Added new option "result_downsampling_factor" for simulation of CS-FMUs, including the Master algorithm.
       Solution will only be stored every "result_downsampling_factor"-nth communication point.
 
 --- PyFMI-2.11.0 ---
     * Refactored result handling for dynamic_diagnostics. It is now possible use dynamic_diagnostics with a custom result handler.
     * Migrated some diagnostics functionality into a new file: src/common/diagnostics.py. This should be seamless.
-    * pyfmi.common.diagnostics_prefix has been moved to pyfmi.common.diagnostics as DIAGNOSTICS_PREFIX. 
+    * pyfmi.common.diagnostics_prefix has been moved to pyfmi.common.diagnostics as DIAGNOSTICS_PREFIX.
 
 --- PyFMI-2.10.4 ---
     * Added 'result_handling' = None as option, deprecated 'none'.
@@ -72,7 +77,7 @@
 --- PyFMI-2.9.7 ---
     * Added an argument to ResultDymolaBinary to allow for reading updated
       data from the loaded file.
-    * Added option "synchronize_simulation" to allow for synchronizing 
+    * Added option "synchronize_simulation" to allow for synchronizing
       simulation with (scaled) real-time.
 
 --- PyFMI-2.9.6 ---
