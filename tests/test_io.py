@@ -24,11 +24,30 @@ from io import StringIO, BytesIO
 from collections import OrderedDict
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUException, FMUModelME2
-from pyfmi.common.io import (ResultHandler, ResultDymolaTextual, ResultDymolaBinary, JIOError, ResultSizeError,
-                             ResultHandlerCSV, ResultCSVTextual, ResultHandlerBinaryFile, ResultHandlerFile)
-from pyfmi.common.io import get_result_handler
-from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, setup_diagnostics_variables
+from pyfmi.fmi import (
+    FMUException,
+    FMUModelME2,
+    FMI2_PARAMETER,
+    FMI2_CONSTANT,
+    FMI2_LOCAL
+)
+from pyfmi.common.io import (
+    ResultHandler,
+    ResultDymolaTextual,
+    ResultDymolaBinary,
+    JIOError,
+    ResultSizeError,
+    ResultHandlerCSV,
+    ResultCSVTextual,
+    ResultHandlerBinaryFile,
+    ResultHandlerFile,
+    Trajectory,
+    get_result_handler
+)
+from pyfmi.common.diagnostics import (
+    DIAGNOSTICS_PREFIX,
+    setup_diagnostics_variables
+)
 
 import pyfmi.fmi as fmi
 from pyfmi.tests.test_util import Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
@@ -1694,6 +1713,80 @@ class TestResultCSVTextual:
     """
 
 class TestResultDymolaBinary:
+
+    def test_next_start_index(self):
+        """
+            Test that calculation of the next start index works as expected.
+
+            This test sets up a dummy FMU and dummy trajectories since we need
+            trajectories of uneven lengths.
+
+        """
+        # Begin by setting up minimal required environment in order to perform the test
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
+            _connect_dll=False)
+
+        result_handler = ResultHandlerBinaryFile(fmu)
+
+        opts = fmu.simulate_options()
+        opts["result_handling"] = "binary"
+        opts["result_handler"] = result_handler
+
+        fmu.setup_experiment()
+        fmu.initialize()
+        opts["initialize"] = False
+
+        result_handler.set_options(opts) # required in order to call simulation_start()
+        result_handler.initialize_complete()
+        result_handler.simulation_start()
+
+        fmu.set('J4.phi', 1) # arbitrary
+        result_handler.integration_point()
+        rdb = ResultDymolaBinary(fmu.get_last_result_file(), allow_file_updates=True)
+
+        # Actual test starts below
+        vars_to_test = [
+            'J1.J',             # this is a parameter
+            'clutch1.Backward'  # this is a constant
+        ]
+
+        # if this is not True, then the rest of test does not hold
+        assert vars_to_test[0] in result_handler.model.get_model_variables(causality = FMI2_PARAMETER).keys()
+        assert vars_to_test[1] in result_handler.model.get_model_variables(variability = FMI2_CONSTANT).keys()
+        assert 'J4.phi' in result_handler.model.states.keys()
+
+
+        for v in vars_to_test:
+            trajectories1 = {
+                'J4.phi': Trajectory(np.array([]), np.array([])),
+                v: Trajectory(np.array([0]), np.array([1]))
+            }
+
+            trajectories2 = {
+                'J4.phi': Trajectory(np.array([0]), np.array([1])),
+                v: Trajectory(np.array([0, 1]), np.array([1, 1]))
+            }
+
+            trajectories3 = {
+                'J4.phi': Trajectory(np.array([0]), np.array([1])),
+                v: Trajectory(np.array([0]), np.array([1]))
+            }
+
+            trajectories4 = {
+                'J4.phi': Trajectory(np.array([0, 1]), np.array([1, 1])),
+                v: Trajectory(np.array([0]), np.array([1]))
+            }
+
+            trajectories5 = {
+                'J4.phi': Trajectory(np.array([0, 1, 2]), np.array([1, 1, 1])),
+                v: Trajectory(np.array([0]), np.array([1]))
+            }
+
+            assert rdb._find_max_trajectory_length(trajectories1) == 0
+            assert rdb._find_max_trajectory_length(trajectories2) == 1
+            assert rdb._find_max_trajectory_length(trajectories3) == 1
+            assert rdb._find_max_trajectory_length(trajectories4) == 2
+            assert rdb._find_max_trajectory_length(trajectories5) == 3
 
     def _test_get_variables_data(self, dynamic_diagnostics: bool, nbr_of_calls: int, diag_data_ratio: int,
                                  vars_to_test: list, stop_index_function: callable, result_file_name: str) -> dict:

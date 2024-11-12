@@ -1630,13 +1630,23 @@ class ResultDymolaBinary(ResultDymola):
         for name in names:
             trajectories[name] = self._get_variable_data_as_trajectory(name, time, start_index, stop_index)
 
-        largest_trajectory_length = -1
-        for v, t in trajectories.items():
-            largest_trajectory_length = max(largest_trajectory_length, len(t.x))
+        largest_trajectory_length = self._find_max_trajectory_length(trajectories)
         new_start_index = (start_index + largest_trajectory_length) if trajectories else start_index
 
         self._last_set_of_indices = (start_index, stop_index) # update them before we exit
         return trajectories, new_start_index
+
+    def _find_max_trajectory_length(self, trajectories):
+        """
+            Given a dict of trajectories, find the length of the largest trajectory
+            among the set of continuous variables. We disregard parameters/constants since they are not stored
+            with the same amount of data points as trajectories for continuous variables.
+        """
+        length = 0
+        for var_name, trajectory in trajectories.items():
+            if self.is_variable(var_name): # since we only consider continuous variables
+                length = max(length, len(trajectory.x))
+        return length
 
     def _calculate_events_and_steps(self, name):
         if name in self._data_3:
@@ -1712,15 +1722,13 @@ class ResultDymolaBinary(ResultDymola):
             return True
         elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
             return True
+
         variable_index  = self.get_variable_index(name)
         data_mat = self._dataInfo[0][variable_index]
-        if data_mat<1:
+        if data_mat < 1:
             data_mat = 1
 
-        if data_mat == 1:
-            return False
-        else:
-            return True
+        return data_mat != 1
 
     def is_negated(self, name):
         """
