@@ -1622,7 +1622,10 @@ class ResultDymolaBinary(ResultDymola):
 
         # If stop_index > number of data points, and data gets added while we are iterating
         # then we might get trajectories of unequal lengths. Therefore ensure we set stop_index here accordingly.
-        stop_index = min(len(time) + start_index, float('inf') if stop_index is None else stop_index)
+        if stop_index is None:
+            stop_index = len(time) + start_index
+        else:
+            stop_index = min(len(time) + start_index, stop_index)
 
         for name in names:
             trajectories[name] = self._get_variable_data_as_trajectory(name, time, start_index, stop_index)
