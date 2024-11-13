@@ -1166,6 +1166,12 @@ class DelayedVariableLoad(MatFile4Reader):
             remaining_bytes *= 2
         next_position = self.mat_stream.tell() + remaining_bytes
         return hdr, next_position
+class ResultBinaryMat(ResultDymolaBinary):
+    """ 
+        This class will replace ResultDymolaBinary.
+        The recommendation is to use this class over ResultDymolaBinary going forward.
+    """
+    pass
 
 class ResultDymolaBinary(ResultDymola):
     """
