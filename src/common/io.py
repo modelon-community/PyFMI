@@ -1642,11 +1642,7 @@ class ResultDymolaBinary(ResultDymola):
             among the set of continuous variables. We disregard parameters/constants since they are not stored
             with the same amount of data points as trajectories for continuous variables.
         """
-        length = 0
-        for var_name, trajectory in trajectories.items():
-            if self.is_variable(var_name): # since we only consider continuous variables
-                length = max(length, len(trajectory.x))
-        return length
+        return max([0] + [len(t.x) for v, t in trajectories.items() if self.is_variable(v)])
 
     def _calculate_events_and_steps(self, name):
         if name in self._data_3:
