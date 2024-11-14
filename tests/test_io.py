@@ -1821,7 +1821,6 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
-    @testattr(stddist = True)
     def test_get_variables_data_values3(self):
         """ Verifying values from get_variables_data, and only asking for diagnostic variables. """
         vars_to_test = ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
@@ -1848,7 +1847,6 @@ class TestResultDymolaBinary:
             np.testing.assert_array_almost_equal(test_data['@Diagnostics.step_time'].x, reference_data['@Diagnostics.step_time'][index])
             np.testing.assert_array_almost_equal(test_data['@Diagnostics.nbr_steps'].x, reference_data['@Diagnostics.nbr_steps'][index])
 
-    @testattr(stddist = True)
     def test_get_variables_data_values4(self):
         """ Verifying values from get_variables_data, partial trajectories and checking both time and diagnostic data."""
         vars_to_test = ['time', '@Diagnostics.nbr_steps']
@@ -1875,7 +1873,6 @@ class TestResultDymolaBinary:
             np.testing.assert_array_almost_equal(test_data['time'].x, reference_data['time'][index])
             np.testing.assert_array_almost_equal(test_data['@Diagnostics.nbr_steps'].x, reference_data['@Diagnostics.nbr_steps'][index])
 
-    @testattr(stddist = True)
     def test_stop_index_near_bounds(self):
         """ Verify that we get expected results near the end of the result file, including
             stop_index out of range.
@@ -1903,7 +1900,6 @@ class TestResultDymolaBinary:
             np.array([0.37268813, 0.37194424, 0.37120184, 0.37046092, 0.36972148, 0.36898351]))
 
 
-    @testattr(stddist = True)
     def test_trajectory_lengths(self):
         """ Verify lengths of trajectories are expected for a bunch of different inputs. """
         fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
