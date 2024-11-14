@@ -2,6 +2,14 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.15.0 ---
+    * Changed custom result handling for the Master algorithm to instead use a single ResultHandler for each model.
+      A dictionary of the form {model: ResultHandler} needs to be supplied to the option.
+    * Added prediction of the size of the result to get early feedback if it will reach the limit or not.
+    * Added option to limit the size of the result ("result_max_size"), default set to 2GB.
+    * Added method ResultDymolaBinary.get_variables_data. Included some minor refactorization.
+      The new method allows for retrieving partial trajectories, and multiple trajectories at once.
+
 --- PyFMI-2.14.0 ---
     * Updated the error message displayed when loading FMUs with needsExecutionTool set to True.
     * Loading unzipped FMUs now also works with relative paths.
