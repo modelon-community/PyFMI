@@ -692,7 +692,7 @@ cdef class ModelBase:
 
         if self._additional_logger:
             self._additional_logger(module, log_level, message)
-        
+
         if self._max_log_size_msg_sent:
             return
 
@@ -4583,7 +4583,7 @@ cdef class FMUModelBase2(ModelBase):
 
         if nref == 0: ## get_string([])
             return []
-        
+
         cdef FMIL.fmi2_string_t* output_value = <FMIL.fmi2_string_t*>FMIL.malloc(sizeof(FMIL.fmi2_string_t)*nref)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -4977,7 +4977,7 @@ cdef class FMUModelBase2(ModelBase):
     def set_debug_logging(self, logging_on, categories = []):
         """
         Specifies if the debugging should be turned on or off and calls fmi2SetDebugLogging
-        for the specified categories, after checking they are valid. 
+        for the specified categories, after checking they are valid.
 
         Parameters::
 
@@ -5827,7 +5827,7 @@ cdef class FMUModelBase2(ModelBase):
         relative_quantity = FMIL.fmi2_import_get_real_variable_relative_quantity(real_variable)
 
         return relative_quantity == FMI2_TRUE
-    
+
     cpdef get_variable_unbounded(self, variable_name):
         """
         Get the unbounded attribute of a real variable.
@@ -7853,7 +7853,7 @@ cdef class FMUModelME2(FMUModelBase2):
         Deallocate memory allocated
         """
         self._invoked_dealloc = 1
-        
+
         if self._initialized_fmu == 1:
             FMIL.fmi2_import_terminate(self._fmu)
 
@@ -9067,8 +9067,8 @@ cdef class LogHandler:
         pass
 
 cdef class LogHandlerDefault(LogHandler):
-    """Default LogHandler that uses checkpoints around FMI CAPI calls to 
-    ensure logs are truncated at checkpoints. For FMUs generating XML during 
+    """Default LogHandler that uses checkpoints around FMI CAPI calls to
+    ensure logs are truncated at checkpoints. For FMUs generating XML during
     CAPI calls, this ensures valid XML. """
     def __init__(self, max_log_size):
         super().__init__(max_log_size)

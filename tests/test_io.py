@@ -24,11 +24,30 @@ from io import StringIO, BytesIO
 from collections import OrderedDict
 
 from pyfmi import testattr
-from pyfmi.fmi import FMUException, FMUModelME2
-from pyfmi.common.io import (ResultHandler, ResultDymolaTextual, ResultDymolaBinary, JIOError, ResultSizeError,
-                             ResultHandlerCSV, ResultCSVTextual, ResultHandlerBinaryFile, ResultHandlerFile)
-from pyfmi.common.io import get_result_handler
-from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, setup_diagnostics_variables
+from pyfmi.fmi import (
+    FMUException,
+    FMUModelME2,
+    FMI2_PARAMETER,
+    FMI2_CONSTANT,
+    FMI2_LOCAL
+)
+from pyfmi.common.io import (
+    ResultHandler,
+    ResultDymolaTextual,
+    ResultDymolaBinary,
+    JIOError,
+    ResultSizeError,
+    ResultHandlerCSV,
+    ResultCSVTextual,
+    ResultHandlerBinaryFile,
+    ResultHandlerFile,
+    Trajectory,
+    get_result_handler
+)
+from pyfmi.common.diagnostics import (
+    DIAGNOSTICS_PREFIX,
+    setup_diagnostics_variables
+)
 
 import pyfmi.fmi as fmi
 from pyfmi.tests.test_util import Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
@@ -1695,6 +1714,80 @@ class TestResultCSVTextual:
 
 class TestResultDymolaBinary:
 
+    def test_next_start_index(self):
+        """
+            Test that calculation of the next start index works as expected.
+
+            This test sets up a dummy FMU and dummy trajectories since we need
+            trajectories of uneven lengths.
+
+        """
+        # Begin by setting up minimal required environment in order to perform the test
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
+            _connect_dll=False)
+
+        result_handler = ResultHandlerBinaryFile(fmu)
+
+        opts = fmu.simulate_options()
+        opts["result_handling"] = "binary"
+        opts["result_handler"] = result_handler
+
+        fmu.setup_experiment()
+        fmu.initialize()
+        opts["initialize"] = False
+
+        result_handler.set_options(opts) # required in order to call simulation_start()
+        result_handler.initialize_complete()
+        result_handler.simulation_start()
+
+        fmu.set('J4.phi', 1) # arbitrary
+        result_handler.integration_point()
+        rdb = ResultDymolaBinary(fmu.get_last_result_file(), allow_file_updates=True)
+
+        # Actual test starts below
+        vars_to_test = [
+            'J1.J',             # this is a parameter
+            'clutch1.Backward'  # this is a constant
+        ]
+
+        # if this is not True, then the rest of test does not hold
+        assert vars_to_test[0] in result_handler.model.get_model_variables(causality = FMI2_PARAMETER).keys()
+        assert vars_to_test[1] in result_handler.model.get_model_variables(variability = FMI2_CONSTANT).keys()
+        assert 'J4.phi' in result_handler.model.states.keys()
+
+
+        for v in vars_to_test:
+            trajectories1 = {
+                'J4.phi': Trajectory(np.array([]), np.array([])),
+                v: Trajectory(np.array([0]), np.array([1]))
+            }
+
+            trajectories2 = {
+                'J4.phi': Trajectory(np.array([0]), np.array([1])),
+                v: Trajectory(np.array([0, 1]), np.array([1, 1]))
+            }
+
+            trajectories3 = {
+                'J4.phi': Trajectory(np.array([0]), np.array([1])),
+                v: Trajectory(np.array([0]), np.array([1]))
+            }
+
+            trajectories4 = {
+                'J4.phi': Trajectory(np.array([0, 1]), np.array([1, 1])),
+                v: Trajectory(np.array([0]), np.array([1]))
+            }
+
+            trajectories5 = {
+                'J4.phi': Trajectory(np.array([0, 1, 2]), np.array([1, 1, 1])),
+                v: Trajectory(np.array([0]), np.array([1]))
+            }
+
+            assert rdb._find_max_trajectory_length(trajectories1) == 0
+            assert rdb._find_max_trajectory_length(trajectories2) == 1
+            assert rdb._find_max_trajectory_length(trajectories3) == 1
+            assert rdb._find_max_trajectory_length(trajectories4) == 2
+            assert rdb._find_max_trajectory_length(trajectories5) == 3
+
     def _test_get_variables_data(self, dynamic_diagnostics: bool, nbr_of_calls: int, diag_data_ratio: int,
                                  vars_to_test: list, stop_index_function: callable, result_file_name: str) -> dict:
         """
@@ -1793,7 +1886,7 @@ class TestResultDymolaBinary:
                 fmu.set('J4.phi', f(fmu.time)) # arbitrary
 
             trajectories, start_index = rdb.get_variables_data(vars_to_test, start_index, stop_index_function(start_index))
-            data_to_return[i] = [t.x for t in trajectories]
+            data_to_return[i] = trajectories.copy()
 
         assert data_to_return, "Something went wrong, no test data was generated"
         return data_to_return
@@ -1811,7 +1904,7 @@ class TestResultDymolaBinary:
         }
 
         for index, test_data in test_data_sets.items():
-            np.testing.assert_array_almost_equal(test_data[0], reference_data[index])
+            np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
     @testattr(stddist = True)
     def test_get_variables_data_values1(self):
@@ -1830,7 +1923,7 @@ class TestResultDymolaBinary:
         # Just verify results for J4.phi here, but we retrieve all four trajectories at once
         # to see that it works
         for index, test_data in test_data_sets.items():
-            np.testing.assert_array_almost_equal(test_data[1], reference_data[index])
+            np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
     @testattr(stddist = True)
     def test_get_variables_data_values2(self):
@@ -1847,8 +1940,9 @@ class TestResultDymolaBinary:
         }
 
         for index, test_data in test_data_sets.items():
-            np.testing.assert_array_almost_equal(test_data[1], reference_data[index])
+            np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
+    @testattr(stddist = True)
     def test_get_variables_data_values3(self):
         """ Verifing values from get_variables_data, and only asking for diagnostic variables. """
         vars_to_test = ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
@@ -1872,9 +1966,10 @@ class TestResultDymolaBinary:
         }
 
         for index, test_data in test_data_sets.items():
-            np.testing.assert_array_almost_equal(test_data[0], reference_data['@Diagnostics.step_time'][index])
-            np.testing.assert_array_almost_equal(test_data[1], reference_data['@Diagnostics.nbr_steps'][index])
+            np.testing.assert_array_almost_equal(test_data['@Diagnostics.step_time'].x, reference_data['@Diagnostics.step_time'][index])
+            np.testing.assert_array_almost_equal(test_data['@Diagnostics.nbr_steps'].x, reference_data['@Diagnostics.nbr_steps'][index])
 
+    @testattr(stddist = True)
     def test_get_variables_data_values4(self):
         """ Verifing values from get_variables_data, partial trajectories and checking both time and diagnostic data."""
         vars_to_test = ['time', '@Diagnostics.nbr_steps']
@@ -1898,8 +1993,70 @@ class TestResultDymolaBinary:
         }
 
         for index, test_data in test_data_sets.items():
-            np.testing.assert_array_almost_equal(test_data[0], reference_data['time'][index])
-            np.testing.assert_array_almost_equal(test_data[1], reference_data['@Diagnostics.nbr_steps'][index])
+            np.testing.assert_array_almost_equal(test_data['time'].x, reference_data['time'][index])
+            np.testing.assert_array_almost_equal(test_data['@Diagnostics.nbr_steps'].x, reference_data['@Diagnostics.nbr_steps'][index])
+
+    @testattr(stddist = True)
+    def test_stop_index_near_bounds(self):
+        """ Verify that we get expected results near the end of the result file, including
+            stop_index out of range.
+        """
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
+        res = fmu.simulate()
+        assert len(res['h']) == 501
+
+        rdb = ResultDymolaBinary(fmu.get_last_result_file(), allow_file_updates = True)
+        np.testing.assert_array_almost_equal(
+            (rdb.get_variables_data(['h'], 495, 496)[0]['h'].x),
+            np.array([0.37268813]))
+        np.testing.assert_array_almost_equal(
+            (rdb.get_variables_data(['h'], 495, 500)[0]['h'].x),
+            np.array([0.37268813, 0.37194424, 0.37120184, 0.37046092, 0.36972148]))
+
+        np.testing.assert_array_almost_equal(
+            (rdb.get_variables_data(['h'], 495, 499)[0]['h'].x),
+            np.array([0.37268813, 0.37194424, 0.37120184, 0.37046092]))
+        np.testing.assert_array_almost_equal(
+            (rdb.get_variables_data(['h'], 495, 501)[0]['h'].x),
+            np.array([0.37268813, 0.37194424, 0.37120184, 0.37046092, 0.36972148, 0.36898351]))
+        np.testing.assert_array_almost_equal(
+            (rdb.get_variables_data(['h'], 495, 502)[0]['h'].x),
+            np.array([0.37268813, 0.37194424, 0.37120184, 0.37046092, 0.36972148, 0.36898351]))
+
+
+    @testattr(stddist = True)
+    def test_trajectory_lengths(self):
+        """ Verify lengths of trajectories are expected for a bunch of different inputs. """
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
+        res = fmu.simulate()
+        assert len(res['h']) == 501
+        rdb = ResultDymolaBinary(fmu.get_last_result_file(), allow_file_updates = True)
+        assert len(rdb.get_variables_data(['h'], 495, 496)[0]['h'].x) == 1
+        assert len(rdb.get_variables_data(['h'], 495, 500)[0]['h'].x) == 5
+        assert len(rdb.get_variables_data(['h'], 495, 499)[0]['h'].x) == 4
+        assert len(rdb.get_variables_data(['h'], 495, 501)[0]['h'].x) == 6
+        assert len(rdb.get_variables_data(['h'], 495, 502)[0]['h'].x) == 6
+        # a couple of repeated values to verify the cache is not being used
+        assert len(rdb.get_variables_data(['h'], 0, None)[0]['h'].x) == 501
+        assert len(rdb.get_variables_data(['h'], 0, 5)[0]['h'].x) == 5
+        assert len(rdb.get_variables_data(['h'], 0, None)[0]['h'].x) == 501
+        assert len(rdb.get_variables_data(['h'], 0, 5)[0]['h'].x) == 5
+        assert len(rdb.get_variables_data(['h'], 0, 5)[0]['h'].x) == 5
+
+        assert len(rdb.get_variables_data(['h'], 5, 15)[0]['h'].x) == 10
+        assert len(rdb.get_variables_data(['h'], 0, 550)[0]['h'].x) == 501
+        assert len(rdb.get_variables_data(['h'], 0, 10000)[0]['h'].x) == 501
+
+        # test different scenarios of start_index out of bounds
+        assert len(rdb.get_variables_data(['h'], 501, 502)[0]['h'].x) == 0
+        assert len(rdb.get_variables_data(['h'], 501, None)[0]['h'].x) == 0
+        assert len(rdb.get_variables_data(['h'], 501)[0]['h'].x) == 0
+        assert len(rdb.get_variables_data(['h'], 1234567)[0]['h'].x) == 0
+
+        # Verify next_start_index also for no variables is equal to start_index
+        assert rdb.get_variables_data([], start_index = 0)[1] == 0
+        assert rdb.get_variables_data([], start_index = 1)[1] == 1
+        assert rdb.get_variables_data([], start_index = 5)[1] == 5
 
 if assimulo_installed:
     class TestFileSizeLimit:
@@ -1909,7 +2066,7 @@ if assimulo_installed:
                 model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
             else:
                 model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
-                
+
             opts = model.simulate_options()
             opts["result_handling"]  = result_type
             opts["result_file_name"] = result_file_name
@@ -1973,7 +2130,7 @@ if assimulo_installed:
 
             assert file_size > max_size*0.9 and file_size < max_size*1.1, \
                    "The file size is not within 10% of the given max size"
-        
+
         def _test_result_size_early_abort(self, result_type, result_file_name=""):
             """
             Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
@@ -1994,7 +2151,7 @@ if assimulo_installed:
 
                 assert file_size < max_size*0.1, \
                         "The file size is not small, no early abort"
-        
+
         # TODO: Pytest parametrization
         """
         Binary
@@ -2005,11 +2162,11 @@ if assimulo_installed:
             Make sure that the diagnostics variables are also taken into account.
             """
             self._test_result_size_verification("binary", dynamic_diagnostics=True)
-            
+
         @testattr(stddist = True)
         def test_binary_file_size_verification(self):
             self._test_result_size_verification("binary")
-        
+
         @testattr(stddist = True)
         def test_binary_file_size_early_abort(self):
             self._test_result_size_early_abort("binary")
@@ -2017,11 +2174,11 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_small_size_binary_file(self):
             self._test_result_exception("binary")
-        
+
         @testattr(stddist = True)
         def test_small_size_binary_file_cs(self):
             self._test_result_exception("binary", fmi_type="cs")
-        
+
         @testattr(stddist = True)
         def test_small_size_binary_file_stream(self):
             self._test_result_exception("binary", BytesIO())
@@ -2040,7 +2197,7 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_text_file_size_verification(self):
             self._test_result_size_verification("file")
-        
+
         @testattr(stddist = True)
         def test_text_file_size_early_abort(self):
             self._test_result_size_early_abort("file")
@@ -2048,7 +2205,7 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_small_size_text_file(self):
             self._test_result_exception("file")
-        
+
         @testattr(stddist = True)
         def test_small_size_text_file_stream(self):
             self._test_result_exception("file", StringIO())
@@ -2067,7 +2224,7 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_csv_file_size_verification(self):
             self._test_result_size_verification("csv")
-        
+
         @testattr(stddist = True)
         def test_csv_file_size_early_abort(self):
             self._test_result_size_early_abort("csv")
@@ -2075,7 +2232,7 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_small_size_csv_file(self):
             self._test_result_exception("csv")
-        
+
         @testattr(stddist = True)
         def test_small_size_csv_file_stream(self):
             self._test_result_exception("csv", StringIO())
@@ -2094,11 +2251,11 @@ if assimulo_installed:
         @testattr(stddist = True)
         def test_small_size_memory(self):
             self._test_result_exception("memory")
-        
+
         @testattr(stddist = True)
         def test_memory_size_early_abort(self):
             self._test_result_size_early_abort("memory")
-        
+
         @testattr(stddist = True)
         def test_small_size_memory_stream(self):
             self._test_result_exception("memory", StringIO())
