@@ -55,6 +55,7 @@ file_path = os.path.dirname(os.path.abspath(__file__))
 try:
     import assimulo
 except ImportError:
+    # XXX: Accept import failure due to conditional test execution
     pass
 
 def _run_negated_alias(model, result_type, result_file_name=""):
