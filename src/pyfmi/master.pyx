@@ -782,7 +782,7 @@ cdef class Master:
             index_end = index_start + self.models_dict[model]["local_output_len"]
             local_output_vref_array = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
             for i, index in enumerate(range(index_start, index_end)):
-                y[index] = local_output_vref_array[i]
+                y[index] = local_output_vref_array[i].item()
         return y.reshape(-1,1)
     
     cpdef np.ndarray get_connection_outputs_discrete(self):
@@ -794,7 +794,7 @@ cdef class Master:
             index_end = index_start + self.models_dict[model]["local_output_discrete_len"]
             local_output_discrete = model.get(self.models_dict[model]["local_output_discrete"])
             for i, index in enumerate(range(index_start, index_end)):
-                y[index] = local_output_discrete[i]
+                y[index] = local_output_discrete[i].item()
         return y.reshape(-1,1)
         
     cpdef np.ndarray _get_derivatives(self):
@@ -810,7 +810,7 @@ cdef class Master:
             index_end = index_start + self.models_dict[model]["local_derivative_len"]
             local_derivative_vref_array = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_derivative_vref_array"])
             for i, index in enumerate(range(index_start, index_end)):
-                xd[index] = local_derivative_vref_array[i]
+                xd[index] = local_derivative_vref_array[i].item()
 
         return xd.reshape(-1,1)
     
@@ -819,7 +819,7 @@ cdef class Master:
         ytmp = model.get(np.array(self.models_dict[model]["local_output_discrete"])[mask])
         for i, flag in enumerate(mask):
             if flag:
-                yout[i+self.models_dict[model]["global_index_outputs_discrete"]] = ytmp[j]
+                yout[i+self.models_dict[model]["global_index_outputs_discrete"]] = ytmp[j].item()
                 j = j + 1
                 
     cpdef np.ndarray get_specific_connection_outputs(self, model, np.ndarray mask, np.ndarray yout):
@@ -827,7 +827,7 @@ cdef class Master:
         cdef np.ndarray ytmp = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"][mask])
         for i, flag in enumerate(mask):
             if flag:
-                yout[i+self.models_dict[model]["global_index_outputs"]] = ytmp[j]
+                yout[i+self.models_dict[model]["global_index_outputs"]] = ytmp[j].item()
                 j = j + 1
         
     cpdef get_connection_derivatives(self, np.ndarray y_cur):
@@ -1847,5 +1847,3 @@ cdef class Master:
                 last_has_outputs = has_outputs
         """
         return order, blocks,compressed_blocks
-        
-        

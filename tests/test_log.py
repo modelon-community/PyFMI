@@ -17,10 +17,9 @@
 
 import os
 
-from pyfmi import testattr
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
-from pyfmi.tests.test_util import Dummy_FMUModelME2
+from pyfmi.test_util import Dummy_FMUModelME2
 from pyfmi.fmi_util import decode
 
 import numpy as np
@@ -28,8 +27,6 @@ file_path = os.path.dirname(os.path.abspath(__file__))
 logs = os.path.join(file_path, "files", "Logs")
 
 class Test_Log:
-    
-    @testattr(stddist = True)
     def test_decode_bytes(self):
         """
         Verifies that malformed strings are still accepted and don't cause exceptions
@@ -41,7 +38,6 @@ class Test_Log:
         assert s_string == '[WARNING][FMU status:Warning]           <ModelicaError category="warning"><value name="msg">"�\x15"</value></ModelicaError>', s_string
         
 
-    @testattr(stddist = True)
     def test_extract_log(self):
         extract_xml_log("Tmp1.xml", os.path.join(logs, "CoupledClutches_log.txt"), modulename = 'Model')
 
@@ -51,14 +47,12 @@ class Test_Log:
 
         assert "<JMIRuntime node with 3 subnodes, and named subnodes ['build_date', 'build_time']>" == str(log.nodes[1]), "Got: " + str(log.nodes[1])
 
-    @testattr(stddist = True)
     def test_extract_log_exception(self):
         try:
             extract_xml_log("Tmp2", os.path.join(logs, "CoupledClutches_log_.txt"), modulename = 'Model')
         except FileNotFoundError:
             pass
 
-    @testattr(stddist = True)
     def test_extract_log_cs(self):
         extract_xml_log("Tmp3.xml", os.path.join(logs, "CoupledClutches_CS_log.txt"), modulename = 'Slave')
 
@@ -68,7 +62,6 @@ class Test_Log:
 
         assert "<JMIRuntime node with 3 subnodes, and named subnodes ['build_date', 'build_time']>" == str(log.nodes[1]), "Got: " + str(log.nodes[1])
 
-    @testattr(stddist = True)
     def test_extract_log_wrong_modulename(self):
         extract_xml_log("Tmp4.xml", os.path.join(logs, "CoupledClutches_CS_log.txt"), modulename = 'Test')
 
@@ -100,7 +93,6 @@ class Test_Log:
         np.testing.assert_equal(len(res['time']), len(res['h']), "Expected time and h to be of equal length but they weren't!")
         return res
 
-    @testattr(stddist = True)
     def test_logging_option_CVode(self):
         res = self._test_logging_different_solver("CVode")
         t = res['time']
@@ -110,30 +102,25 @@ class Test_Log:
         assert (f'{DIAGNOSTICS_PREFIX}state_errors.h' in res.keys()), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should be part of result variables!"
 
 
-    @testattr(stddist = True)
     def test_logging_option_Radau5ODE(self):
         res = self._test_logging_different_solver("Radau5ODE")
         event_type = list(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'])
         assert event_type.count(-1) == len(event_type), "Expected no events to have happened!"
         assert (f'{DIAGNOSTICS_PREFIX}state_errors.h' in res.keys()), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should be part of result variables!"
 
-    @testattr(stddist = True)
     def test_logging_option_ImplicitEuler(self):
         res = self._test_logging_different_solver("ImplicitEuler")
-        assert not (f'{DIAGNOSTICS_PREFIX}state_errors.h' in res.keys()), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should not be part of result variables!"
+        assert f'{DIAGNOSTICS_PREFIX}state_errors.h' not in res.keys(), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should not be part of result variables!"
 
-    @testattr(stddist = True)
     def test_logging_option_ExplicitEuler(self):
         res = self._test_logging_different_solver("ExplicitEuler")
-        assert not (f'{DIAGNOSTICS_PREFIX}state_errors.h' in res.keys()), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should not be part of result variables!"
+        assert f'{DIAGNOSTICS_PREFIX}state_errors.h' not in res.keys(), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should not be part of result variables!"
 
-    @testattr(stddist = True)
     def test_logging_option_LSODAR(self):
         res = self._test_logging_different_solver("LSODAR")
         event_type = list(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'])
         assert event_type.count(-1) == len(event_type), "Expected no events to have happened, but event_type contains: {}!".format(event_type)
 
-    @testattr(stddist = True)
     def test_calculated_diagnostic(self):
          res = self._test_logging_different_solver("CVode")
          np.testing.assert_equal(len(res['time']), len(res[f'{DIAGNOSTICS_PREFIX}nbr_steps']),
@@ -148,14 +135,12 @@ class Test_Log:
             "Expected time and Diagnostics.nbr_state_limits_step.h to be of equal length but they weren't!")
 
 
-    @testattr(stddist = True)
     def test_extract_boolean_value(self):
         log = parse_xml_log(os.path.join(logs, "boolean_log.xml"))
         eis = log.find("EventInfo")
         for ei in eis:
             assert isinstance(ei.time_event_info, bool), "Expected ei.time_event_info to be bool"
 
-    @testattr(stddist = True)
     def test_hasattr_works(self):
         """
         Tests that 'hasattr' works on the log nodes.
@@ -174,12 +159,10 @@ class Test_Log:
         except AttributeError:
             pass
 
-    @testattr(stddist = True)
     def test_truncated_log_valid_xml(self):
         """ Test that a truncated log still contains valid XML."""
         # XXX: There currently is no FMU is linux binaries running on Ubuntu 20+ (libgfortran issues)
         # XXX: This is not a very good test, since it largely tests the mocked implementation, but better than nothing
-        file_path = os.path.dirname(os.path.abspath(__file__))
         fmu_name = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu")
 
         # 1. Simulate + determine log size that corresponds to a truncation (resulting in invalid XML)
@@ -223,10 +206,8 @@ class Test_Log:
         assert len(final_msg) == 1, "MaximumLogSizeExceeded not found or found multiple times?"
         assert final_msg[0].nodes[0].text == "Maximum log size was exceeded, log is truncated to fully include logging from last CAPI call not exceeding limit."
 
-    @testattr(stddist = True)
     def test_resume_logging_on_increased_max_log_size(self):
         """Test that logging will resume when increasing max log size & previously exceeding the maximal size."""
-        file_path = os.path.dirname(os.path.abspath(__file__))
         fmu_name = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Bouncing_Ball.fmu")
 
         fmu = Dummy_FMUModelME2([], fmu_name, _connect_dll=False)

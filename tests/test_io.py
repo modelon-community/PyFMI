@@ -15,21 +15,19 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import nose
-import math
+import pytest
 import os
 import numpy as np
 import time
+import math
 from io import StringIO, BytesIO
 from collections import OrderedDict
 
-from pyfmi import testattr
 from pyfmi.fmi import (
     FMUException,
     FMUModelME2,
     FMI2_PARAMETER,
     FMI2_CONSTANT,
-    FMI2_LOCAL
 )
 from pyfmi.common.io import (
     ResultHandler,
@@ -50,15 +48,15 @@ from pyfmi.common.diagnostics import (
 )
 
 import pyfmi.fmi as fmi
-from pyfmi.tests.test_util import Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2
+from pyfmi.test_util import Dummy_FMUModelME1, Dummy_FMUModelCS1, Dummy_FMUModelME2, Dummy_FMUModelCS2
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 
-assimulo_installed = True
 try:
     import assimulo
 except ImportError:
-    assimulo_installed = False
+    # XXX: Accept import failure due to conditional test execution
+    pass
 
 def _run_negated_alias(model, result_type, result_file_name=""):
     opts = model.simulate_options()
@@ -69,120 +67,112 @@ def _run_negated_alias(model, result_type, result_file_name=""):
 
     # test that res['y'] returns a vector of the same length as the time
     # vector
-    nose.tools.assert_equal(len(res['y']),len(res['time']),
-        "Wrong size of result vector.")
+    assert len(res['y']) ==len(res['time']), "Wrong size of result vector."
 
     x = res["x"]
     y = res["y"]
 
     for i in range(len(x)):
-        nose.tools.assert_equal(x[i], -y[i])
+        assert x[i] == -y[i]
 
-if assimulo_installed:
-    class TestResultFileText_Simulation:
+@pytest.mark.assimulo
+class TestResultFileText_Simulation:
 
-        def _correct_syntax_after_simulation_failure(self, result_file_name):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+    def _correct_syntax_after_simulation_failure(self, result_file_name):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
 
-            def f(*args, **kwargs):
-                if simple_alias.time > 0.5:
-                    raise Exception
-                return -simple_alias.continuous_states
-
-            simple_alias.get_derivatives = f
-
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "file"
-            opts["solver"] = "ExplicitEuler"
-            opts["result_file_name"]  = result_file_name
-
-            successful_simulation = False
-            try:
-                res = simple_alias.simulate(options=opts)
-                successful_simulation = True #The above simulation should fail...
-            except Exception:
-                pass
-
-            if successful_simulation:
+        def f(*args, **kwargs):
+            if simple_alias.time > 0.5:
                 raise Exception
+            return -simple_alias.continuous_states
 
-            result = ResultDymolaTextual(result_file_name)
+        simple_alias.get_derivatives = f
 
-            x = result.get_variable_data("x").x
-            y = result.get_variable_data("y").x
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "file"
+        opts["solver"] = "ExplicitEuler"
+        opts["result_file_name"]  = result_file_name
 
-            assert len(x) > 2
-
-            for i in range(len(x)):
-                nose.tools.assert_equal(x[i], -y[i])
-
-        @testattr(stddist = True)
-        def test_correct_file_after_simulation_failure(self):
-            self._correct_syntax_after_simulation_failure("NegatedAlias_result.txt")
-
-        @testattr(stddist = True)
-        def test_correct_stream_after_simulation_failure(self):
-            stream = StringIO("")
-            self._correct_syntax_after_simulation_failure(stream)
-
-        @testattr(stddist = True)
-        def test_read_all_variables_using_model_variables(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerFile(simple_alias)
-
+        successful_simulation = False
+        try:
             res = simple_alias.simulate(options=opts)
+            successful_simulation = True #The above simulation should fail...
+        except Exception:
+            pass
 
-            for var in simple_alias.get_model_variables():
-                res[var]
+        if successful_simulation:
+            raise Exception
 
-        @testattr(stddist = True)
-        def test_read_alias_derivative(self):
-            simple_alias = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
+        result = ResultDymolaTextual(result_file_name)
 
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "file"
+        x = result.get_variable_data("x").x
+        y = result.get_variable_data("y").x
 
-            res = simple_alias.simulate(options=opts)
+        assert len(x) > 2
 
-            derx = res["der(x)"]
-            dery = res["der(y)"]
+        for i in range(len(x)):
+            assert x[i] == -y[i]
 
-            for i in range(len(derx)):
-                nose.tools.assert_equal(derx[i], dery[i])
+    def test_correct_file_after_simulation_failure(self):
+        self._correct_syntax_after_simulation_failure("NegatedAlias_result.txt")
 
-        @testattr(stddist = True)
-        def test_no_variables(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
+    def test_correct_stream_after_simulation_failure(self):
+        stream = StringIO("")
+        self._correct_syntax_after_simulation_failure(stream)
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "file"
-            opts["result_file_name"] = "NoMatchingTest.txt"
-            opts["filter"] = "NoMatchingVariables"
+    def test_read_all_variables_using_model_variables(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
 
-            res = model.simulate(options=opts)
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerFile(simple_alias)
 
-            nose.tools.assert_almost_equal(1.0, res["time"][-1])
+        res = simple_alias.simulate(options=opts)
 
-        @testattr(stddist = True)
-        def test_enumeration_file(self):
+        for var in simple_alias.get_model_variables():
+            res[var]
 
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
-            data_type = model.get_variable_data_type("mode")
+    def test_read_alias_derivative(self):
+        simple_alias = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
 
-            assert data_type == fmi.FMI2_ENUMERATION
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "file"
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "file"
+        res = simple_alias.simulate(options=opts)
 
-            res = model.simulate(options=opts)
-            res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
+        derx = res["der(x)"]
+        dery = res["der(y)"]
+
+        assert len(derx) > 0
+        for i in range(len(derx)):
+            assert derx[i] == dery[i]
+
+    def test_no_variables(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
+
+        opts = model.simulate_options()
+        opts["result_handling"] = "file"
+        opts["result_file_name"] = "NoMatchingTest.txt"
+        opts["filter"] = "NoMatchingVariables"
+
+        res = model.simulate(options=opts)
+
+        assert 1.0 == pytest.approx(res["time"][-1])
+
+    def test_enumeration_file(self):
+
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
+        data_type = model.get_variable_data_type("mode")
+
+        assert data_type == fmi.FMI2_ENUMERATION
+
+        opts = model.simulate_options()
+        opts["result_handling"] = "file"
+
+        res = model.simulate(options=opts)
+        res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
 
 class TestResultFileText:
-
-
     def _get_description(self, result_file_name):
         model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
         model.initialize()
@@ -200,16 +190,13 @@ class TestResultFileText:
 
         assert res.description[res.get_variable_index("J1.phi")] == "Absolute rotation angle of component"
 
-    @testattr(stddist = True)
     def test_get_description_file(self):
         self._get_description('CoupledClutches_result.txt')
 
-    @testattr(stddist = True)
     def test_get_description_stream(self):
         stream = StringIO()
         self._get_description(stream)
 
-    @testattr(stddist = True)
     def test_description_not_stored(self):
         model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
         model.initialize()
@@ -246,11 +233,9 @@ class TestResultFileText:
 
         assert desc == u"Test symbols '' ‘’"
 
-    @testattr(stddist = True)
     def _get_description_unicode_file(self):
         self._get_description_unicode('Description_result.txt')
 
-    @testattr(stddist = True)
     def _get_description_unicode_stream(self):
         stream = StringIO()
         self._get_description_unicode(stream)
@@ -276,14 +261,12 @@ class TestResultFileText:
         derh = res.get_variable_data('der(h)')
         g = res.get_variable_data('g')
 
-        nose.tools.assert_almost_equal(h.x, 1.000000, 5)
-        nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
+        assert h.x == pytest.approx(1.000000, abs = 1e-5)
+        assert derh.x == pytest.approx(0.000000, abs = 1e-5)
 
-    @testattr(stddist = True)
     def test_work_flow_me1_file(self):
         self._work_flow_me1('bouncingBall_result.txt')
 
-    @testattr(stddist = True)
     def test_work_flow_me1_stream(self):
         stream = StringIO()
         self._work_flow_me1(stream)
@@ -310,19 +293,16 @@ class TestResultFileText:
         derh = res.get_variable_data('der(h)')
         g = res.get_variable_data('g')
 
-        nose.tools.assert_almost_equal(h.x, 1.000000, 5)
-        nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
+        assert h.x == pytest.approx(1.000000, abs = 1e-5)
+        assert derh.x == pytest.approx(0.000000, abs = 1e-5)
 
-    @testattr(stddist = True)
     def test_work_flow_me2_file(self):
         self._work_flow_me2('bouncingBall_result.txt')
 
-    @testattr(stddist = True)
     def test_work_flow_me2_stream(self):
         stream = StringIO()
         self._work_flow_me2(stream)
 
-    @testattr(stddist = True)
     def test_work_flow_me2_stream2(self):
         """ Verify exception when using ResultHandlerFile with a stream that doesnt support 'seek'. """
         class A:
@@ -330,10 +310,9 @@ class TestResultFileText:
                 pass
         stream = A()
         msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write' and 'seek'."
-        with nose.tools.assert_raises_regex(FMUException, msg):
+        with pytest.raises(FMUException, match = msg):
             self._work_flow_me2(stream)
 
-    @testattr(stddist = True)
     def test_work_flow_me2_stream3(self):
         """ Verify exception when using ResultHandlerFile with a stream that doesnt support 'write'. """
         class A:
@@ -341,10 +320,9 @@ class TestResultFileText:
                 pass
         stream = A()
         msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write' and 'seek'."
-        with nose.tools.assert_raises_regex(FMUException, msg):
+        with pytest.raises(FMUException, match = msg):
             self._work_flow_me2(stream)
 
-    @testattr(stddist = True)
     def test_constructor_invalid_stream1(self):
         """ Verify exception is raised for ResultDymolaTextual if fname argument is a stream not supporting 'readline'. """
         class A:
@@ -352,10 +330,9 @@ class TestResultFileText:
                 pass
         stream = A()
         msg = "Given stream needs to support 'readline' and 'seek' in order to retrieve the results."
-        with nose.tools.assert_raises_regex(JIOError, msg):
+        with pytest.raises(JIOError, match = msg):
             res = ResultDymolaTextual(stream)
 
-    @testattr(stddist = True)
     def test_constructor_invalid_stream2(self):
         """ Verify exception is raised for ResultDymolaTextual if fname argument is a stream not supporting 'seek'. """
         class A:
@@ -363,255 +340,231 @@ class TestResultFileText:
                 pass
         stream = A()
         msg = "Given stream needs to support 'readline' and 'seek' in order to retrieve the results."
-        with nose.tools.assert_raises_regex(JIOError, msg):
+        with pytest.raises(JIOError, match = msg):
             res = ResultDymolaTextual(stream)
 
-if assimulo_installed:
-    class TestResultMemory_Simulation:
-        @testattr(stddist = True)
-        def test_memory_options_me1(self):
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "memory")
+@pytest.mark.assimulo
+class TestResultMemory_Simulation:
+    def test_memory_options_me1(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "memory")
 
-        @testattr(stddist = True)
-        def test_memory_options_me2(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "memory")
+    def test_memory_options_me2(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "memory")
 
-        @testattr(stddist = True)
-        def test_only_parameters(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
+    def test_only_parameters(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "memory"
-            opts["filter"] = "p2"
+        opts = model.simulate_options()
+        opts["result_handling"] = "memory"
+        opts["filter"] = "p2"
 
-            res = model.simulate(options=opts)
+        res = model.simulate(options=opts)
 
-            nose.tools.assert_almost_equal(3.0, res["p2"][0])
-            assert not isinstance(res.initial("p2"), np.ndarray)
-            assert not isinstance(res.final("p2"), np.ndarray)
+        assert 3.0 == pytest.approx(res["p2"][0])
+        assert not isinstance(res.initial("p2"), np.ndarray)
+        assert not isinstance(res.final("p2"), np.ndarray)
 
-        @testattr(stddist = True)
-        def test_no_variables(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
+    def test_no_variables(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "memory"
-            opts["filter"] = "NoMatchingVariables"
+        opts = model.simulate_options()
+        opts["result_handling"] = "memory"
+        opts["filter"] = "NoMatchingVariables"
 
-            res = model.simulate(options=opts)
+        res = model.simulate(options=opts)
 
-            nose.tools.assert_almost_equal(1.0, res["time"][-1])
+        assert 1.0 == pytest.approx(res["time"][-1])
 
-        @testattr(stddist = True)
-        def test_enumeration_memory(self):
+    def test_enumeration_memory(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
+        data_type = model.get_variable_data_type("mode")
 
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
-            data_type = model.get_variable_data_type("mode")
+        assert data_type == fmi.FMI2_ENUMERATION
 
-            assert data_type == fmi.FMI2_ENUMERATION
+        opts = model.simulate_options()
+        opts["result_handling"] = "memory"
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "memory"
-
-            res = model.simulate(options=opts)
-            res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
+        res = model.simulate(options=opts)
+        res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
 
 class TestResultMemory:
     pass
 
-if assimulo_installed:
-    class TestResultFileBinary_Simulation:
+@pytest.mark.assimulo
+class TestResultFileBinary_Simulation:
+    def _correct_file_after_simulation_failure(self, result_file_name):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
 
-        def _correct_file_after_simulation_failure(self, result_file_name):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-
-            def f(*args, **kwargs):
-                if simple_alias.time > 0.5:
-                    raise Exception
-                return -simple_alias.continuous_states
-
-            simple_alias.get_derivatives = f
-
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "binary"
-            opts["result_file_name"] = result_file_name
-            opts["solver"] = "ExplicitEuler"
-
-            successful_simulation = False
-            try:
-                res = simple_alias.simulate(options=opts)
-                successful_simulation = True #The above simulation should fail...
-            except Exception:
-                pass
-
-            if successful_simulation:
+        def f(*args, **kwargs):
+            if simple_alias.time > 0.5:
                 raise Exception
+            return -simple_alias.continuous_states
 
-            result = ResultDymolaBinary(result_file_name)
+        simple_alias.get_derivatives = f
 
-            x = result.get_variable_data("x").x
-            y = result.get_variable_data("y").x
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "binary"
+        opts["result_file_name"] = result_file_name
+        opts["solver"] = "ExplicitEuler"
 
-            assert len(x) > 2
-
-            for i in range(len(x)):
-                nose.tools.assert_equal(x[i], -y[i])
-
-
-        @testattr(stddist = True)
-        def test_work_flow_me2_file(self):
-            self._correct_file_after_simulation_failure("NegatedAlias_result.mat")
-
-        @testattr(stddist = True)
-        def test_work_flow_me2_stream(self):
-            stream = BytesIO()
-            self._correct_file_after_simulation_failure(stream)
-
-        def _only_parameters(self, result_file_name):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
-
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerBinaryFile(model)
-            opts["filter"] = "p2"
-            opts["result_file_name"] = result_file_name
-
-            res = model.simulate(options=opts)
-
-            nose.tools.assert_almost_equal(3.0, res["p2"][0])
-
-        @testattr(stddist = True)
-        def test_only_parameters_file(self):
-            self._only_parameters("ParameterAlias_result.mat")
-
-        @testattr(stddist = True)
-        def test_only_parameters_stream(self):
-            stream = BytesIO()
-            self._only_parameters(stream)
-
-        def _no_variables(self, result_file_name):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
-
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerBinaryFile(model)
-            opts["filter"] = "NoMatchingVariables"
-            opts["result_file_name"] = result_file_name
-
-            res = model.simulate(options=opts)
-
-            nose.tools.assert_almost_equal(1.0, res["time"][-1])
-
-
-        @testattr(stddist = True)
-        def test_no_variables_file(self):
-            self._no_variables("ParameterAlias_result.mat")
-
-        @testattr(stddist = True)
-        def test_no_variables_stream(self):
-            stream = BytesIO()
-            self._no_variables(stream)
-
-        @testattr(stddist = True)
-        def test_read_alias_derivative(self):
-            simple_alias = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
-
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "binary"
-
+        successful_simulation = False
+        try:
             res = simple_alias.simulate(options=opts)
+            successful_simulation = True #The above simulation should fail...
+        except Exception:
+            pass
 
-            derx = res["der(x)"]
-            dery = res["der(y)"]
+        if successful_simulation:
+            raise Exception
 
-            for i in range(len(derx)):
-                nose.tools.assert_equal(derx[i], dery[i])
+        result = ResultDymolaBinary(result_file_name)
 
-        @testattr(stddist = True)
-        def test_enumeration_binary(self):
+        x = result.get_variable_data("x").x
+        y = result.get_variable_data("y").x
 
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
-            data_type = model.get_variable_data_type("mode")
+        assert len(x) > 2
 
-            assert data_type == fmi.FMI2_ENUMERATION
+        for i in range(len(x)):
+            assert x[i] == -y[i]
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerBinaryFile(model)
 
-            res = model.simulate(options=opts)
-            res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
+    def test_work_flow_me2_file(self):
+        self._correct_file_after_simulation_failure("NegatedAlias_result.mat")
 
-        @testattr(stddist = True)
-        def test_integer_start_time(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
+    def test_work_flow_me2_stream(self):
+        stream = BytesIO()
+        self._correct_file_after_simulation_failure(stream)
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "binary"
+    def _only_parameters(self, result_file_name):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            #Assert that there is no exception when reloading the file
-            res = model.simulate(start_time=0, options=opts)
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerBinaryFile(model)
+        opts["filter"] = "p2"
+        opts["result_file_name"] = result_file_name
 
-        @testattr(stddist = True)
-        def test_read_all_variables_using_model_variables(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        res = model.simulate(options=opts)
 
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerBinaryFile(simple_alias)
+        assert 3.0 == pytest.approx(res["p2"][0])
 
-            res = simple_alias.simulate(options=opts)
+    def test_only_parameters_file(self):
+        self._only_parameters("ParameterAlias_result.mat")
 
-            for var in simple_alias.get_model_variables():
-                res[var]
+    def test_only_parameters_stream(self):
+        stream = BytesIO()
+        self._only_parameters(stream)
 
-        @testattr(stddist = True)
-        def test_variable_alias_custom_handler(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+    def _no_variables(self, result_file_name):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerBinaryFile(simple_alias)
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerBinaryFile(model)
+        opts["filter"] = "NoMatchingVariables"
+        opts["result_file_name"] = result_file_name
 
-            res = simple_alias.simulate(options=opts)
+        res = model.simulate(options=opts)
 
-            # test that res['y'] returns a vector of the same length as the time
-            # vector
-            nose.tools.assert_equal(len(res['y']),len(res['time']),
-                "Wrong size of result vector.")
+        assert 1.0 == pytest.approx(res["time"][-1])
 
-            x = res["x"]
-            y = res["y"]
 
-            for i in range(len(x)):
-                nose.tools.assert_equal(x[i], -y[i])
+    def test_no_variables_file(self):
+        self._no_variables("ParameterAlias_result.mat")
 
-        @testattr(stddist = True)
-        def test_binary_options_me1(self):
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "binary")
+    def test_no_variables_stream(self):
+        stream = BytesIO()
+        self._no_variables(stream)
 
-        @testattr(stddist = True)
-        def test_binary_options_me2(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "binary")
+    def test_read_alias_derivative(self):
+        simple_alias = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
 
-        @testattr(stddist = True)
-        def test_binary_options_me1_stream(self):
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
-            stream = BytesIO()
-            _run_negated_alias(simple_alias, "binary", stream)
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "binary"
 
-        @testattr(stddist = True)
-        def test_binary_options_me2_stream(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-            stream = BytesIO()
-            _run_negated_alias(simple_alias, "binary", stream)
+        res = simple_alias.simulate(options=opts)
+
+        derx = res["der(x)"]
+        dery = res["der(y)"]
+
+        assert len(derx) > 0
+        for i in range(len(derx)):
+            assert derx[i] == dery[i]
+
+    def test_enumeration_binary(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
+        data_type = model.get_variable_data_type("mode")
+
+        assert data_type == fmi.FMI2_ENUMERATION
+
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerBinaryFile(model)
+
+        res = model.simulate(options=opts)
+        res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
+
+    def test_integer_start_time(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Alias.fmu"), _connect_dll=False)
+
+        opts = model.simulate_options()
+        opts["result_handling"] = "binary"
+
+        #Assert that there is no exception when reloading the file
+        res = model.simulate(start_time=0, options=opts)
+
+    def test_read_all_variables_using_model_variables(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerBinaryFile(simple_alias)
+
+        res = simple_alias.simulate(options=opts)
+
+        for var in simple_alias.get_model_variables():
+            res[var]
+
+    def test_variable_alias_custom_handler(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerBinaryFile(simple_alias)
+
+        res = simple_alias.simulate(options=opts)
+
+        # test that res['y'] returns a vector of the same length as the time
+        # vector
+        assert len(res['y']) ==len(res['time']), "Wrong size of result vector."
+
+        x = res["x"]
+        y = res["y"]
+
+        for i in range(len(x)):
+            assert x[i] == -y[i]
+
+    def test_binary_options_me1(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "binary")
+
+    def test_binary_options_me2(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "binary")
+
+    def test_binary_options_me1_stream(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        stream = BytesIO()
+        _run_negated_alias(simple_alias, "binary", stream)
+
+    def test_binary_options_me2_stream(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        stream = BytesIO()
+        _run_negated_alias(simple_alias, "binary", stream)
 
 class TestResultFileBinary:
-
     def _get_description_unicode(self, result_file_name):
         model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "Description.fmu"), _connect_dll=False)
         model.initialize()
@@ -633,16 +586,13 @@ class TestResultFileBinary:
 
         assert desc == u"Test symbols '' ‘’"
 
-    @testattr(stddist = True)
     def test_get_description_unicode_file(self):
         self._get_description_unicode('Description_result.mat')
 
-    @testattr(stddist = True)
     def test_get_description_unicode_stream(self):
         stream = BytesIO()
         self._get_description_unicode(stream)
 
-    @testattr(stddist = True)
     def test_get_description(self):
         model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
         model.initialize()
@@ -657,8 +607,7 @@ class TestResultFileBinary:
         res = ResultDymolaBinary('CoupledClutches_result.mat')
 
         assert res.description[res.get_variable_index("J1.phi")] == "Absolute rotation angle of component"
-
-    @testattr(stddist = True)
+    
     def test_modified_result_file_data_diagnostics(self):
         """Verify that computed diagnostics can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -709,8 +658,7 @@ class TestResultFileBinary:
         result_writer.simulation_end()
 
         assert len(res.get_variable_data("@Diagnostics.state_errors.clutch2.w_rel").x) == 4, res.get_variable_data("@Diagnostics.state_errors.clutch2.w_rel").x
-
-    @testattr(stddist = True)
+    
     def test_modified_result_file_data_diagnostics_steps(self):
         """Verify that diagnostics can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -761,8 +709,7 @@ class TestResultFileBinary:
         result_writer.simulation_end()
 
         assert len(res.get_variable_data("@Diagnostics.nbr_steps").x) == 4, res.get_variable_data("@Diagnostics.nbr_steps").x
-
-    @testattr(stddist = True)
+    
     def test_modified_result_file_data_2(self):
         """Verify that continuous trajectories are updated when retrieved from a result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -784,8 +731,7 @@ class TestResultFileBinary:
         result_writer.simulation_end()
 
         assert len(res.get_variable_data("J1.phi").x) == 2, res.get_variable_data("J1.phi").x
-
-    @testattr(stddist = True)
+        
     def test_modified_result_file_data_2_different(self):
         """Verify that (different) continuous trajectories are updated when retrieved from a result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -807,8 +753,7 @@ class TestResultFileBinary:
         result_writer.simulation_end()
 
         assert len(res.get_variable_data("J2.phi").x) == 2, res.get_variable_data("J2.phi").x
-
-    @testattr(stddist = True)
+    
     def test_modified_result_file_data_1(self):
         """Verify that (different) constants/parameters can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -832,8 +777,7 @@ class TestResultFileBinary:
 
         #Assert that no exception is raised
         res.get_variable_data("J2.J")
-
-    @testattr(stddist = True)
+    
     def test_modified_result_file_data_1_delayed(self):
         """Verify that constants/parameters can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -853,8 +797,7 @@ class TestResultFileBinary:
 
         #Assert that no exception is raised
         res.get_variable_data("J2.J")
-
-    @testattr(stddist = True)
+        
     def test_modified_result_file_time(self):
         """Verify that 'time' can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -876,7 +819,6 @@ class TestResultFileBinary:
 
         res.get_variable_data("time")
 
-    @testattr(stddist = True)
     def test_description_not_stored(self):
         model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
         model.initialize()
@@ -895,7 +837,6 @@ class TestResultFileBinary:
 
         assert res.description[res.get_variable_index("J1.phi")] == "", "Description is not empty, " + res.description[res.get_variable_index("J1.phi")]
 
-    @testattr(stddist = True)
     def test_overwriting_results(self):
         model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
         model.initialize()
@@ -922,9 +863,9 @@ class TestResultFileBinary:
         result_writer.integration_point()
         result_writer.simulation_end()
 
-        nose.tools.assert_raises(JIOError,res.get_variable_data, "J1.phi")
+        with pytest.raises(JIOError):
+            res.get_variable_data("J1.phi")
 
-    @testattr(stddist = True)
     def test_read_all_variables(self):
         res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
 
@@ -933,7 +874,6 @@ class TestResultFileBinary:
         for var in res.name:
             res.get_variable_data(var)
 
-    @testattr(stddist = True)
     def test_data_matrix_delayed_loading(self):
         res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), delayed_trajectory_loading=True)
 
@@ -944,7 +884,6 @@ class TestResultFileBinary:
         assert nbr_continuous_variables == 68, "Number of variables is incorrect, should be 68"
         assert nbr_points == 502, "Number of points is incorrect, should be 502"
 
-    @testattr(stddist = True)
     def test_data_matrix_loading(self):
         res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), delayed_trajectory_loading=False)
 
@@ -955,7 +894,6 @@ class TestResultFileBinary:
         assert nbr_continuous_variables == 68, "Number of variables is incorrect, should be 68"
         assert nbr_points == 502, "Number of points is incorrect, should be 502"
 
-    @testattr(stddist = True)
     def test_read_all_variables_from_stream(self):
 
         with open(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), "rb") as f:
@@ -966,7 +904,6 @@ class TestResultFileBinary:
             for var in res.name:
                 res.get_variable_data(var)
 
-    @testattr(stddist = True)
     def test_compare_all_variables_from_stream(self):
         res_file = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
 
@@ -982,7 +919,6 @@ class TestResultFileBinary:
 
                 np.testing.assert_array_equal(x_file.x, x_stream.x, err_msg="Mismatch in array values for var=%s"%var)
 
-    @testattr(stddist = True)
     def test_on_demand_loading_32_bits(self):
         res_demand = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
         res_all = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
@@ -990,7 +926,6 @@ class TestResultFileBinary:
         t_all = res_all.get_variable_data('time').x
         np.testing.assert_array_equal(t_demand, t_all, "On demand loaded result and all loaded does not contain equal result.")
 
-    @testattr(stddist = True)
     def test_work_flow_me1(self):
         model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         model.initialize()
@@ -1009,10 +944,9 @@ class TestResultFileBinary:
         derh = res.get_variable_data('der(h)')
         g = res.get_variable_data('g')
 
-        nose.tools.assert_almost_equal(h.x, 1.000000, 5)
-        nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
+        assert h.x == pytest.approx(1.000000, abs = 1e-5)
+        assert derh.x == pytest.approx(0.000000, abs = 1e-5)
 
-    @testattr(stddist = True)
     def test_many_variables_long_descriptions(self):
         """
         Tests that large FMUs with lots of variables and huge length of descriptions gives
@@ -1024,9 +958,9 @@ class TestResultFileBinary:
         res = ResultHandlerBinaryFile(model)
 
         res.set_options(model.simulate_options())
-        nose.tools.assert_raises(FMUException,res.simulation_start)
+        with pytest.raises(FMUException):
+            res.simulation_start()
 
-    @testattr(stddist = True)
     def test_work_flow_me2(self):
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
         model.setup_experiment()
@@ -1046,8 +980,8 @@ class TestResultFileBinary:
         derh = res.get_variable_data('der(h)')
         g = res.get_variable_data('g')
 
-        nose.tools.assert_almost_equal(h.x[0], 1.000000, 5)
-        nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5)
+        assert h.x[0] == pytest.approx(1.000000, abs = 1e-5)
+        assert derh.x[0] == pytest.approx(0.000000, abs = 1e-5)
 
     def _work_flow_me2_aborted(self, result_file_name):
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
@@ -1074,34 +1008,30 @@ class TestResultFileBinary:
         h = res.get_variable_data('h')
         derh = res.get_variable_data('der(h)')
 
-        nose.tools.assert_almost_equal(h.x[0], 1.000000, 5, msg="Incorrect initial value for 'h', should be 1.0")
-        nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5, msg="Incorrect  value for 'derh', should be 0.0")
-        nose.tools.assert_almost_equal(h.x[1], 1.000000, 5, msg="Incorrect value for 'h', should be 1.0")
-        nose.tools.assert_almost_equal(derh.x[1], 0.000000, 5, msg="Incorrect value for 'derh', should be 0.0")
-        nose.tools.assert_almost_equal(h.x[2], 1.000000, 5, msg="Incorrect value for 'h', should be 1.0")
-        nose.tools.assert_almost_equal(derh.x[2], 0.000000, 5, msg="Incorrect value for 'derh', should be 0.0")
+        assert h.x[0] == pytest.approx(1.000000, abs = 1e-5), "Incorrect initial value for 'h', should be 1.0"
+        assert derh.x[0] == pytest.approx(0.000000, abs = 1e-5), "Incorrect  value for 'derh', should be 0.0"
+        assert h.x[1] == pytest.approx(1.000000, abs = 1e-5), "Incorrect value for 'h', should be 1.0"
+        assert derh.x[1] == pytest.approx(0.000000, abs = 1e-5), "Incorrect value for 'derh', should be 0.0"
+        assert h.x[2] == pytest.approx(1.000000, abs = 1e-5), "Incorrect value for 'h', should be 1.0"
+        assert derh.x[2] == pytest.approx(0.000000, abs = 1e-5), "Incorrect value for 'derh', should be 0.0"
 
-    @testattr(stddist = True)
     def test_work_flow_me2_aborted_file(self):
         self._work_flow_me2_aborted('bouncingBall_result.mat')
 
-    @testattr(stddist = True)
     def test_work_flow_me2_aborted_stream(self):
         """ Verify expected workflow for ME2 aborted simulation using byte stream. """
         stream = BytesIO()
         self._work_flow_me2_aborted(stream)
 
-    @testattr(stddist = True)
     def test_work_flow_me2_aborted_stream2(self):
         """ Verify exception when using ResultHandlerBinaryFile with a stream that doesnt support anything. """
         class A:
             pass
         stream = A()
         msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'."
-        with nose.tools.assert_raises_regex(FMUException, msg):
+        with pytest.raises(FMUException, match = msg):
             self._work_flow_me2_aborted(stream)
 
-    @testattr(stddist = True)
     def test_work_flow_me2_aborted_stream3(self):
         """ Verify exception when using ResultHandlerBinaryFile with a stream that doesnt support 'seek'. """
         class A:
@@ -1111,10 +1041,9 @@ class TestResultFileBinary:
                 pass
         stream = A()
         msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'."
-        with nose.tools.assert_raises_regex(FMUException, msg):
+        with pytest.raises(FMUException, match = msg):
             self._work_flow_me2_aborted(stream)
 
-    @testattr(stddist = True)
     def test_work_flow_me2_aborted_stream4(self):
         """ Verify exception when using ResultHandlerBinaryFile with a stream that doesnt support 'tell'. """
         class A:
@@ -1124,10 +1053,9 @@ class TestResultFileBinary:
                 pass
         stream = A()
         msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'."
-        with nose.tools.assert_raises_regex(FMUException, msg):
+        with pytest.raises(FMUException, match = msg):
             self._work_flow_me2_aborted(stream)
 
-    @testattr(stddist = True)
     def test_work_flow_me2_aborted_stream5(self):
         """ Verify exception when using ResultHandlerBinaryFile with a stream that doesnt support 'write'. """
         class A:
@@ -1137,10 +1065,9 @@ class TestResultFileBinary:
                 pass
         stream = A()
         msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'."
-        with nose.tools.assert_raises_regex(FMUException, msg):
+        with pytest.raises(FMUException, match = msg):
             self._work_flow_me2_aborted(stream)
 
-    @testattr(stddist = True)
     def test_filter_no_variables(self):
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
         model.setup_experiment()
@@ -1161,14 +1088,12 @@ class TestResultFileBinary:
         res = ResultDymolaBinary('bouncingBall_result.mat')
 
         t = res.get_variable_data('time')
-        nose.tools.assert_almost_equal(t.x[-1], 1.000000, 5)
+        assert t.x[-1] == pytest.approx(1.000000, abs = 1e-5)
 
-    @testattr(stddist = True)
     def test_binary_options_cs2(self):
         simple_alias = Dummy_FMUModelCS2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "NegatedAlias.fmu"), _connect_dll=False)
         _run_negated_alias(simple_alias, "binary")
 
-    @testattr(stddist = True)
     def test_binary_options_cs2_stream(self):
         simple_alias = Dummy_FMUModelCS2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "NegatedAlias.fmu"), _connect_dll=False)
         stream = BytesIO()
@@ -1181,7 +1106,6 @@ class TestResultFileBinary:
         elif fmu_type == 'me1':
             return Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
 
-    @testattr(stddist = True)
     def test_exception_simulation_start(self):
         """ Verify exception is raised if simulation_start is invoked without arguments. """
         model = self._get_bouncing_ball_dummy()
@@ -1192,9 +1116,9 @@ class TestResultFileBinary:
 
         bouncingBall = ResultHandlerBinaryFile(model)
         bouncingBall.set_options(opts)
-        msg = r"Unable to start simulation. The following keyword argument\(s\) are empty:"
-        msg += r" 'diagnostics\_params' and 'diagnostics\_vars'."
-        with nose.tools.assert_raises_regex(FMUException, msg):
+        msg = "Unable to start simulation. The following keyword argument\(s\) are empty:"
+        msg += " 'diagnostics\_params' and 'diagnostics\_vars'."
+        with pytest.raises(FMUException, match = msg):
             bouncingBall.simulation_start()
 
     def _get_diagnostics_cancelled_sim(self, result_file_name):
@@ -1265,23 +1189,20 @@ class TestResultFileBinary:
         ev_ind = res.get_variable_data(DIAGNOSTICS_PREFIX+'event_info.state_event_info.index_1').x
 
         # Verify
-        nose.tools.assert_almost_equal(h.x[0], 1.000000, 5, msg="Incorrect initial value for 'h', should be 1.0")
-        nose.tools.assert_almost_equal(derh.x[0], 0.000000, 5, msg="Incorrect  value for 'derh', should be 0.0")
+        assert h.x[0] == pytest.approx(1.000000, abs = 1e-5), "Incorrect initial value for 'h', should be 1.0"
+        assert derh.x[0] == pytest.approx(0.000000, abs = 1e-5), "Incorrect  value for 'derh', should be 0.0"
         np.testing.assert_array_equal(ev_ind, np.array([0., 0., 0., 0., 1., 0.]))
 
-    @testattr(stddist = True)
     def test_diagnostics_data_cancelled_simulation_mat_file(self):
         """ Verify that we can retrieve data and diagnostics data after cancelled sim using matfile. """
         self._get_diagnostics_cancelled_sim("TestCancelledSim.mat")
 
-    @testattr(stddist = True)
     def test_diagnostics_data_cancelled_simulation_file_stream(self):
         """ Verify that we can retrieve data and diagnostics data after cancelled sim using filestream. """
         test_file_stream = open('myfilestream.txt', 'wb')
         self._get_diagnostics_cancelled_sim(test_file_stream)
 
 
-    @testattr(stddist = True)
     def test_debug_file_not_generated_when_dynamic_diagnostics_is_true(self):
         """ Verify that the debug file is not created when option dynamic_diagnostics is true. """
         model = self._get_bouncing_ball_dummy()
@@ -1292,10 +1213,8 @@ class TestResultFileBinary:
             os.remove(potential_debug_file)
 
         model.simulate(options = opts)
-        nose.tools.assert_false(os.path.isfile(potential_debug_file),
-                                "Test failed, file {} exists after simulation".format(potential_debug_file))
+        assert not os.path.isfile(potential_debug_file), "Test failed, file {} exists after simulation".format(potential_debug_file)
 
-    @testattr(stddist = True)
     def test_exception_dynamic_diagnostics_and_non_binary_result_handling(self):
         """ Verify that an exception is raised if dynamic_diagnostics is True and result_handling is not binary. """
         model = self._get_bouncing_ball_dummy()
@@ -1305,10 +1224,9 @@ class TestResultFileBinary:
 
         err_msg = ("The chosen result_handler does not support dynamic_diagnostics."
                    " Try using e.g., ResultHandlerBinaryFile.")
-        with nose.tools.assert_raises_regex(fmi.InvalidOptionException, err_msg):
+        with pytest.raises(fmi.InvalidOptionException, match = err_msg):
             model.simulate(options = opts)
 
-    @testattr(stddist = True)
     def test_exception_dynamic_diagnostics_and_non_binary_result_handling1(self):
         """ Verify that an exception is raised if dynamic diagnostics is True and result_handling is custom
         and does not support dynamic_diagnostics. """
@@ -1324,14 +1242,13 @@ class TestResultFileBinary:
         foo_inst = Foo(model)
         opts["result_handler"] = foo_inst
 
-        nose.tools.assert_false(foo_inst.supports.get('dynamic_diagnostics'))
+        assert not foo_inst.supports.get('dynamic_diagnostics')
 
         err_msg = ("The chosen result_handler does not support dynamic_diagnostics."
                    " Try using e.g., ResultHandlerBinaryFile.")
-        with nose.tools.assert_raises_regex(fmi.InvalidOptionException, err_msg):
+        with pytest.raises(fmi.InvalidOptionException, match = err_msg):
             model.simulate(options = opts)
 
-    @testattr(stddist = True)
     def test_exception_dynamic_diagnostics_and_non_binary_result_handling2(self):
         """ Verify that exception is raised if dynamic diagnostics is True and result_handling is custom and valid class. """
         model = self._get_bouncing_ball_dummy()
@@ -1350,9 +1267,8 @@ class TestResultFileBinary:
             exception_msg = str(e)
             raise e
         # In case error did not stop the test run
-        nose.tools.assert_true(no_error, "Error occurred: {}".format(exception_msg))
+        assert no_error, "Error occurred: {}".format(exception_msg)
 
-    @testattr(stddist = True)
     def test_custom_result_handler_dynamic_diagnostics(self):
         """ Test dynamic diagnostics with a custom results handler that supports it. """
         model = self._get_bouncing_ball_dummy()
@@ -1377,9 +1293,8 @@ class TestResultFileBinary:
         opts["result_handler"] = res_handler
         model.simulate(options = opts)
 
-        nose.tools.assert_true(res_handler.diagnostics_point_called, msg = "diagnostics_point function was never called.")
+        assert res_handler.diagnostics_point_called, "diagnostics_point function was never called."
 
-    @testattr(stddist = True)
     def test_result_handler_supports_dynamic_diagnostics(self):
         """ Test dynamic diagnostics with a custom results handler that supports it, but lacks actual implementation. """
         model = self._get_bouncing_ball_dummy()
@@ -1400,7 +1315,8 @@ class TestResultFileBinary:
 
         res_handler = ResultDynDiag()
         opts["result_handler"] = res_handler
-        nose.tools.assert_raises(NotImplementedError, model.simulate, options = opts)
+        with pytest.raises(NotImplementedError):
+            model.simulate(options = opts)
 
     def _test_no_debug_file(self, fmu_type):
         model = self._get_bouncing_ball_dummy(fmu_type=fmu_type)
@@ -1413,15 +1329,12 @@ class TestResultFileBinary:
 
         model.simulate(options = opts)
 
-        nose.tools.assert_false(os.path.isfile(expected_debug_file),
-                                msg = f"file {expected_debug_file} found.")
+        assert not os.path.isfile(expected_debug_file), f"file {expected_debug_file} found."
 
-    @testattr(stddist = True)
     def test_debug_file_not_generated_me1(self):
         """ Verify that the debug file is not generated by enabling logging (ME1). """
         self._test_no_debug_file(fmu_type = 'me1')
 
-    @testattr(stddist = True)
     def test_debug_file_not_generated_me2(self):
         """ Verify that the debug file is not generated by enabling logging (ME2). """
         self._test_no_debug_file(fmu_type = 'me2')
@@ -1445,19 +1358,16 @@ class TestResultFileBinary:
         # Verify
         with open(expected_debug_file, 'r') as f:
             line = f.readline()
-        nose.tools.assert_false(test_str in line, "Test failed, found '{}' in '{}'".format(test_str, line))
+        assert not test_str in line, "Test failed, found '{}' in '{}'".format(test_str, line)
 
-    @testattr(stddist = True)
     def test_debug_file_opened_in_write_mode_me1(self):
         """ Verify that the debug file is opened in write mode if it already did exist (ME1). """
         self._test_debug_file_opening(fmu_type = 'me1')
 
-    @testattr(stddist = True)
     def test_debug_file_opened_in_write_mode_me2(self):
         """ Verify that the debug file is opened in write mode if it already did exist (ME2). """
         self._test_debug_file_opening(fmu_type = 'me1')
 
-    @testattr(stddist = True)
     def test_diagnostics_numerical_values(self):
         """ Verify that we get the expected values for some diagnostics. """
         model = self._get_bouncing_ball_dummy()
@@ -1472,128 +1382,113 @@ class TestResultFileBinary:
         expected_solver_order[0] = 0.0
         np.testing.assert_array_equal(res[f'{DIAGNOSTICS_PREFIX}solver.solver_order'], expected_solver_order)
 
-    @testattr(stddist = True)
     def test_get_last_result_file0(self):
         """ Verify get_last_result_file seems to point at the correct file. """
         test_model = self._get_bouncing_ball_dummy()
         file_name = "testname.mat"
         test_model._result_file = file_name
-        nose.tools.assert_equal(test_model.get_last_result_file().split(os.sep)[-1], file_name,
-                                "Unable to find {} in string {}".format(file_name, test_model.get_last_result_file()))
+        assert test_model.get_last_result_file().split(os.sep)[-1] == file_name, "Unable to find {} in string {}".format(file_name, test_model.get_last_result_file())
 
-    @testattr(stddist = True)
     def test_get_last_result_file1(self):
         """ Verify get_last_result_file returns an absolute path. """
         test_model = self._get_bouncing_ball_dummy()
         file_name = "testname.mat"
         test_model._result_file = file_name
-        nose.tools.assert_true(os.path.isabs(test_model.get_last_result_file()), "Expected abspath but got {}".format(test_model.get_last_result_file()))
+        assert os.path.isabs(test_model.get_last_result_file()), "Expected abspath but got {}".format(test_model.get_last_result_file())
 
-    @testattr(stddist = True)
     def test_get_last_result_file2(self):
         """ Verify get_last_result_file doesnt cause exception if the result file is not yet set. """
         test_model = self._get_bouncing_ball_dummy()
         test_model._result_file = None
-        nose.tools.assert_true(test_model.get_last_result_file() is None, "Expected None but got {}".format(test_model.get_last_result_file()))
+        assert test_model.get_last_result_file() is None, "Expected None but got {}".format(test_model.get_last_result_file())
 
-    @testattr(stddist = True)
     def test_get_last_result_file3(self):
         """ Verify get_last_result_file doesnt cause exception if the result file is not set correctly. """
         test_model = self._get_bouncing_ball_dummy()
         test_model._result_file = 123 # arbitrary number, just verify get_last_result_file works
-        nose.tools.assert_true(test_model.get_last_result_file() is None, "Expected None but got {}".format(test_model.get_last_result_file()))
+        assert test_model.get_last_result_file() is None, "Expected None but got {}".format(test_model.get_last_result_file())
 
-if assimulo_installed:
-    class TestResultCSVTextual_Simulation:
-        @testattr(stddist = True)
-        def test_only_parameters(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerCSV(model)
-            opts["filter"] = "p2"
+@pytest.mark.assimulo
+class TestResultCSVTextual_Simulation:
+    def test_only_parameters(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            res = model.simulate(options=opts)
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerCSV(model)
+        opts["filter"] = "p2"
 
-            nose.tools.assert_almost_equal(3.0, res["p2"][0])
+        res = model.simulate(options=opts)
 
-        @testattr(stddist = True)
-        def test_no_variables(self):
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
+        assert 3.0 == pytest.approx(res["p2"][0])
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerCSV(model)
-            opts["filter"] = "NoMatchingVariables"
-            opts["result_file_name"] = "NoMatchingTest.csv"
+    def test_no_variables(self):
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "ParameterAlias.fmu"), _connect_dll=False)
 
-            res = model.simulate(options=opts)
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerCSV(model)
+        opts["filter"] = "NoMatchingVariables"
+        opts["result_file_name"] = "NoMatchingTest.csv"
 
-            nose.tools.assert_almost_equal(1.0, res["time"][-1])
+        res = model.simulate(options=opts)
 
-        @testattr(stddist = True)
-        def test_variable_alias_custom_handler(self):
+        assert 1.0 == pytest.approx(res["time"][-1])
 
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+    def test_variable_alias_custom_handler(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
 
-            opts = simple_alias.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerCSV(simple_alias)
+        opts = simple_alias.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerCSV(simple_alias)
 
-            res = simple_alias.simulate(options=opts)
+        res = simple_alias.simulate(options=opts)
 
-            # test that res['y'] returns a vector of the same length as the time
-            # vector
-            nose.tools.assert_equal(len(res['y']),len(res['time']),
-                "Wrong size of result vector.")
+        # test that res['y'] returns a vector of the same length as the time
+        # vector
+        assert len(res['y']) ==len(res['time']), "Wrong size of result vector."
 
-            x = res["x"]
-            y = res["y"]
+        x = res["x"]
+        y = res["y"]
 
-            for i in range(len(x)):
-                nose.tools.assert_equal(x[i], -y[i])
+        for i in range(len(x)):
+            assert x[i] == -y[i]
 
-        @testattr(stddist = True)
-        def test_csv_options_me1(self):
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "csv")
+    def test_csv_options_me1(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "csv")
 
-        @testattr(stddist = True)
-        def test_csv_options_me2(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-            _run_negated_alias(simple_alias, "csv")
+    def test_csv_options_me2(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        _run_negated_alias(simple_alias, "csv")
 
-        @testattr(stddist = True)
-        def test_csv_options_me1_stream(self):
-            simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
-            stream = StringIO()
-            _run_negated_alias(simple_alias, "csv", stream)
+    def test_csv_options_me1_stream(self):
+        simple_alias = Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll=False)
+        stream = StringIO()
+        _run_negated_alias(simple_alias, "csv", stream)
 
-        @testattr(stddist = True)
-        def test_csv_options_me2(self):
-            simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
-            stream = StringIO()
-            _run_negated_alias(simple_alias, "csv", stream)
+    def test_csv_options_me2(self):
+        simple_alias = Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll=False)
+        stream = StringIO()
+        _run_negated_alias(simple_alias, "csv", stream)
 
-        @testattr(stddist = True)
-        def test_enumeration_csv(self):
+    def test_enumeration_csv(self):
 
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
-            data_type = model.get_variable_data_type("mode")
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Friction2.fmu"), _connect_dll=False)
+        data_type = model.get_variable_data_type("mode")
 
-            assert data_type == fmi.FMI2_ENUMERATION
+        assert data_type == fmi.FMI2_ENUMERATION
 
-            opts = model.simulate_options()
-            opts["result_handling"] = "custom"
-            opts["result_handler"] = ResultHandlerCSV(model)
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"] = ResultHandlerCSV(model)
 
-            res = model.simulate(options=opts)
-            res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
+        res = model.simulate(options=opts)
+        res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
 
 class TestResultCSVTextual:
 
-    @testattr(stddist = True)
     def test_constructor_invalid_stream1(self):
         """ Verify exception is raised for ResultCSVTextual if filename argument is a stream not supporting 'readline'. """
         class A:
@@ -1601,10 +1496,9 @@ class TestResultCSVTextual:
                 pass
         stream = A()
         msg = "Given stream needs to support 'readline' and 'seek' in order to retrieve the results."
-        with nose.tools.assert_raises_regex(JIOError, msg):
+        with pytest.raises(JIOError, match = msg):
             res = ResultCSVTextual(stream)
 
-    @testattr(stddist = True)
     def test_constructor_invalid_stream2(self):
         """ Verify exception is raised for ResultCSVTextual if filename argument is a stream not supporting 'seek'. """
         class A:
@@ -1612,10 +1506,9 @@ class TestResultCSVTextual:
                 pass
         stream = A()
         msg = "Given stream needs to support 'readline' and 'seek' in order to retrieve the results."
-        with nose.tools.assert_raises_regex(JIOError, msg):
+        with pytest.raises(JIOError, match = msg):
             res = ResultCSVTextual(stream)
 
-    @testattr(stddist = True)
     def test_delimiter(self):
 
         res = ResultCSVTextual(os.path.join(file_path, 'files', 'Results', 'TestCSV.csv'), delimiter=",")
@@ -1624,7 +1517,6 @@ class TestResultCSVTextual:
 
         assert x.x[-1] == 1
 
-    @testattr(stddist = True)
     def _work_flow_me1(self, result_file_name):
         model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         model.initialize()
@@ -1645,14 +1537,12 @@ class TestResultCSVTextual:
         derh = res.get_variable_data('der(h)')
         g = res.get_variable_data('g')
 
-        nose.tools.assert_almost_equal(h.x, 1.000000, 5)
-        nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
+        assert h.x == pytest.approx(1.000000, abs = 1e-5)
+        assert derh.x == pytest.approx(0.000000, abs = 1e-5)
 
-    @testattr(stddist = True)
     def test_work_flow_me1_file(self):
         self._work_flow_me1('bouncingBall_result.csv')
 
-    @testattr(stddist = True)
     def test_work_flow_me1_stream(self):
         stream = StringIO()
         self._work_flow_me1(stream)
@@ -1677,40 +1567,33 @@ class TestResultCSVTextual:
         derh = res.get_variable_data('der(h)')
         g = res.get_variable_data('g')
 
-        nose.tools.assert_almost_equal(h.x, 1.000000, 5)
-        nose.tools.assert_almost_equal(derh.x, 0.000000, 5)
+        assert h.x == pytest.approx(1.000000, abs = 1e-5)
+        assert derh.x == pytest.approx(0.000000, abs = 1e-5)
 
 
-    @testattr(stddist = True)
     def test_work_flow_me2_file(self):
         self._work_flow_me2('bouncingBall_result.csv')
 
-    @testattr(stddist = True)
     def test_work_flow_me2_stream(self):
         stream = StringIO()
         self._work_flow_me2(stream)
 
-    @testattr(stddist = True)
     def test_work_flow_me2_stream2(self):
         """ Verify exception when using ResultHandlerCSV with a stream that doesnt support 'write'. """
         class A:
             pass
         stream = A() # send in something that is not a string
         msg = "Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports writing to through the 'write' method."
-        with nose.tools.assert_raises_regex(FMUException, msg):
+        with pytest.raises(FMUException, match = msg):
             self._work_flow_me2(stream)
 
-    """
-    @testattr(stddist = True)
     def test_csv_options_cs1(self):
         simple_alias = Dummy_FMUModelCS1([40], os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "NegatedAlias.fmu"), _connect_dll=False)
-        self._run_negated_alias(self, simple_alias)
+        _run_negated_alias(simple_alias, "csv")
 
-    @testattr(stddist = True)
     def test_csv_options_cs2(self):
         simple_alias = Dummy_FMUModelCS2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "NegatedAlias.fmu"), _connect_dll=False)
-        self._run_negated_alias(self, simple_alias)
-    """
+        _run_negated_alias(simple_alias, "csv")
 
 class TestResultDymolaBinary:
 
@@ -1891,9 +1774,8 @@ class TestResultDymolaBinary:
         assert data_to_return, "Something went wrong, no test data was generated"
         return data_to_return
 
-    @testattr(stddist = True)
     def test_get_variables_data_values0(self):
-        """ Verifing values from get_variables_data. """
+        """ Verifying values from get_variables_data. """
         vars_to_test = ['J4.phi']
         test_data_sets = self._test_get_variables_data(False, 3, None, vars_to_test, lambda x: None, "TestFile00.mat")
 
@@ -1906,9 +1788,8 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
-    @testattr(stddist = True)
     def test_get_variables_data_values1(self):
-        """ Verifing values from get_variables_data, with dynamic_diagnostics = True. """
+        """ Verifying values from get_variables_data, with dynamic_diagnostics = True. """
         vars_to_test = ['time', 'J4.phi', '@Diagnostics.step_time', '@Diagnostics.nbr_steps']
         test_data_sets = self._test_get_variables_data(True, 5, 3, vars_to_test, lambda x: None, "TestFile01.mat")
 
@@ -1925,9 +1806,8 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
-    @testattr(stddist = True)
     def test_get_variables_data_values2(self):
-        """ Verifing values from get_variables_data, retrieving partial trajectories. """
+        """ Verifying values from get_variables_data, retrieving partial trajectories. """
         vars_to_test = ['time', 'J4.phi']
         test_data_sets = self._test_get_variables_data(False, 5, None, vars_to_test, lambda x: x + 1, "TestFile02.mat")
 
@@ -1942,9 +1822,8 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
-    @testattr(stddist = True)
     def test_get_variables_data_values3(self):
-        """ Verifing values from get_variables_data, and only asking for diagnostic variables. """
+        """ Verifying values from get_variables_data, and only asking for diagnostic variables. """
         vars_to_test = ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
         test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: None, "TestFile03.mat")
 
@@ -1969,9 +1848,8 @@ class TestResultDymolaBinary:
             np.testing.assert_array_almost_equal(test_data['@Diagnostics.step_time'].x, reference_data['@Diagnostics.step_time'][index])
             np.testing.assert_array_almost_equal(test_data['@Diagnostics.nbr_steps'].x, reference_data['@Diagnostics.nbr_steps'][index])
 
-    @testattr(stddist = True)
     def test_get_variables_data_values4(self):
-        """ Verifing values from get_variables_data, partial trajectories and checking both time and diagnostic data."""
+        """ Verifying values from get_variables_data, partial trajectories and checking both time and diagnostic data."""
         vars_to_test = ['time', '@Diagnostics.nbr_steps']
         test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: x + 2, "TestFile04.mat")
 
@@ -1996,7 +1874,6 @@ class TestResultDymolaBinary:
             np.testing.assert_array_almost_equal(test_data['time'].x, reference_data['time'][index])
             np.testing.assert_array_almost_equal(test_data['@Diagnostics.nbr_steps'].x, reference_data['@Diagnostics.nbr_steps'][index])
 
-    @testattr(stddist = True)
     def test_stop_index_near_bounds(self):
         """ Verify that we get expected results near the end of the result file, including
             stop_index out of range.
@@ -2024,7 +1901,6 @@ class TestResultDymolaBinary:
             np.array([0.37268813, 0.37194424, 0.37120184, 0.37046092, 0.36972148, 0.36898351]))
 
 
-    @testattr(stddist = True)
     def test_trajectory_lengths(self):
         """ Verify lengths of trajectories are expected for a bunch of different inputs. """
         fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
@@ -2058,212 +1934,207 @@ class TestResultDymolaBinary:
         assert rdb.get_variables_data([], start_index = 1)[1] == 1
         assert rdb.get_variables_data([], start_index = 5)[1] == 5
 
-if assimulo_installed:
-    class TestFileSizeLimit:
+@pytest.mark.assimulo
+class TestFileSizeLimit:
+    def _setup(self, result_type, result_file_name="", fmi_type="me"):
+        if fmi_type == "me":
+            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        else:
+            model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
+            
+        opts = model.simulate_options()
+        opts["result_handling"]  = result_type
+        opts["result_file_name"] = result_file_name
 
-        def _setup(self, result_type, result_file_name="", fmi_type="me"):
-            if fmi_type == "me":
-                model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
-            else:
-                model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        return model, opts
 
-            opts = model.simulate_options()
-            opts["result_handling"]  = result_type
-            opts["result_file_name"] = result_file_name
+    def _test_result(self, result_type, result_file_name="", max_size=1e6):
+        model, opts = self._setup(result_type, result_file_name)
 
-            return model, opts
+        opts["result_max_size"] = max_size
 
-        def _test_result(self, result_type, result_file_name="", max_size=1e6):
-            model, opts = self._setup(result_type, result_file_name)
+        #No exception should be raised.
+        res = model.simulate(options=opts)
 
-            opts["result_max_size"] = max_size
+    def _test_result_exception(self, result_type, result_file_name="", fmi_type="me"):
+        model, opts = self._setup(result_type, result_file_name, fmi_type)
 
-            #No exception should be raised.
-            res = model.simulate(options=opts)
+        opts["result_max_size"] = 10
 
-        def _test_result_exception(self, result_type, result_file_name="", fmi_type="me"):
-            model, opts = self._setup(result_type, result_file_name, fmi_type)
+        with pytest.raises(ResultSizeError):
+            model.simulate(options=opts)
 
-            opts["result_max_size"] = 10
+    def _test_result_size_verification(self, result_type, result_file_name="", dynamic_diagnostics=False):
+        """
+        Verifies that the ResultSizeError exception is triggered (due to too large result) and also verifies
+        that the resulting file is within bounds of the set maximum size.
+        """
+        model, opts = self._setup(result_type, result_file_name)
+        model.setup_experiment()
+        model.initialize()
 
-            with nose.tools.assert_raises(ResultSizeError):
-                res = model.simulate(options=opts)
+        max_size = 1e6
+        opts["result_max_size"] = max_size
+        opts["dynamic_diagnostics"] = dynamic_diagnostics
+        opts["logging"] = dynamic_diagnostics
+        opts["ncp"] = 0 #Set to zero to circumvent the early size check
+        ncp = 10000
 
-        def _test_result_size_verification(self, result_type, result_file_name="", dynamic_diagnostics=False):
-            """
-            Verifies that the ResultSizeError exception is triggered (due to too large result) and also verifies
-            that the resulting file is within bounds of the set maximum size.
-            """
-            model, opts = self._setup(result_type, result_file_name)
-            model.setup_experiment()
-            model.initialize()
+        result_handler = get_result_handler(model, opts)
 
-            max_size = 1e6
-            opts["result_max_size"] = max_size
-            opts["dynamic_diagnostics"] = dynamic_diagnostics
-            opts["logging"] = dynamic_diagnostics
-            opts["ncp"] = 0 #Set to zero to circumvent the early size check
-            ncp = 10000
+        result_handler.set_options(opts)
+        result_handler.initialize_complete()
 
-            result_handler = get_result_handler(model, opts)
+        if opts["dynamic_diagnostics"]:
+            opts['CVode_options']['rtol'] = 1e-6
+            opts['CVode_options']['atol'] = model.nominal_continuous_states * opts['CVode_options']['rtol']
+            diag_params, diag_vars = setup_diagnostics_variables(model, 0, opts, opts['CVode_options'])
+            result_handler.simulation_start(diag_params, diag_vars)
+        else:
+            result_handler.simulation_start()
 
-            result_handler.set_options(opts)
-            result_handler.initialize_complete()
+        with pytest.raises(ResultSizeError):
+            for _ in range(ncp):
+                result_handler.integration_point()
 
-            if opts["dynamic_diagnostics"]:
-                opts['CVode_options']['rtol'] = 1e-6
-                opts['CVode_options']['atol'] = model.nominal_continuous_states * opts['CVode_options']['rtol']
-                diag_params, diag_vars = setup_diagnostics_variables(model, 0, opts, opts['CVode_options'])
-                result_handler.simulation_start(diag_params, diag_vars)
-            else:
-                result_handler.simulation_start()
+                if opts["dynamic_diagnostics"]:
+                    result_handler.diagnostics_point(np.array([val[0] for val in diag_vars.values()], dtype=float))
 
-            with nose.tools.assert_raises(ResultSizeError):
-                for i in range(ncp):
-                    result_handler.integration_point()
+        result_file = model.get_last_result_file()
+        file_size = os.path.getsize(result_file)
 
-                    if opts["dynamic_diagnostics"]:
-                        result_handler.diagnostics_point(np.array([val[0] for val in diag_vars.values()], dtype=float))
+        assert file_size > max_size*0.9 and file_size < max_size*1.1, \
+                "The file size is not within 10% of the given max size"
+    
+    def _test_result_size_early_abort(self, result_type, result_file_name=""):
+        """
+        Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
+        triggered was due to that the ESTIMATE for the result size was too big.
+        """
+        model, opts = self._setup(result_type, result_file_name)
 
-            result_file = model.get_last_result_file()
+        max_size = 1e6
+        opts["result_max_size"] = max_size
+        opts["ncp"] = 10000000
+
+        with pytest.raises(ResultSizeError):
+            model.simulate(options=opts)
+
+        result_file = model.get_last_result_file()
+        if result_file:
             file_size = os.path.getsize(result_file)
 
             assert file_size > max_size*0.9 and file_size < max_size*1.1, \
                    "The file size is not within 10% of the given max size"
 
-        def _test_result_size_early_abort(self, result_type, result_file_name=""):
-            """
-            Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
-            triggered was due to that the ESTIMATE for the result size was too big.
-            """
-            model, opts = self._setup(result_type, result_file_name)
-
-            max_size = 1e6
-            opts["result_max_size"] = max_size
-            opts["ncp"] = 10000000
-
-            with nose.tools.assert_raises(ResultSizeError):
-                res = model.simulate(options=opts)
-
-            result_file = model.get_last_result_file()
-            if result_file:
-                file_size = os.path.getsize(result_file)
-
-                assert file_size < max_size*0.1, \
-                        "The file size is not small, no early abort"
-
-        # TODO: Pytest parametrization
+    def _test_result_size_early_abort(self, result_type, result_file_name=""):
         """
-        Binary
+        Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
+        triggered was due to that the ESTIMATE for the result size was too big.
         """
-        @testattr(stddist = True)
-        def test_binary_file_size_verification_diagnostics(self):
-            """
-            Make sure that the diagnostics variables are also taken into account.
-            """
-            self._test_result_size_verification("binary", dynamic_diagnostics=True)
+        model, opts = self._setup(result_type, result_file_name)
 
-        @testattr(stddist = True)
-        def test_binary_file_size_verification(self):
-            self._test_result_size_verification("binary")
+        max_size = 1e6
+        opts["result_max_size"] = max_size
+        opts["ncp"] = 10000000
 
-        @testattr(stddist = True)
-        def test_binary_file_size_early_abort(self):
-            self._test_result_size_early_abort("binary")
+        with pytest.raises(ResultSizeError):
+            model.simulate(options=opts)
 
-        @testattr(stddist = True)
-        def test_small_size_binary_file(self):
-            self._test_result_exception("binary")
+        result_file = model.get_last_result_file()
+        if result_file:
+            file_size = os.path.getsize(result_file)
 
-        @testattr(stddist = True)
-        def test_small_size_binary_file_cs(self):
-            self._test_result_exception("binary", fmi_type="cs")
-
-        @testattr(stddist = True)
-        def test_small_size_binary_file_stream(self):
-            self._test_result_exception("binary", BytesIO())
-
-        @testattr(stddist = True)
-        def test_large_size_binary_file(self):
-            self._test_result("binary")
-
-        @testattr(stddist = True)
-        def test_large_size_binary_file_stream(self):
-            self._test_result("binary", BytesIO())
-
+            assert file_size < max_size*0.1, \
+                    "The file size is not small, no early abort"
+    
+    # TODO: Pytest parametrization
+    """
+    Binary
+    """
+    def test_binary_file_size_verification_diagnostics(self):
         """
-        Text
+        Make sure that the diagnostics variables are also taken into account.
         """
-        @testattr(stddist = True)
-        def test_text_file_size_verification(self):
-            self._test_result_size_verification("file")
+        self._test_result_size_verification("binary", dynamic_diagnostics=True)
+        
+    def test_binary_file_size_verification(self):
+        self._test_result_size_verification("binary")
+    
+    def test_binary_file_size_early_abort(self):
+        self._test_result_size_early_abort("binary")
 
-        @testattr(stddist = True)
-        def test_text_file_size_early_abort(self):
-            self._test_result_size_early_abort("file")
+    def test_small_size_binary_file(self):
+        self._test_result_exception("binary")
+    
+    def test_small_size_binary_file_cs(self):
+        self._test_result_exception("binary", fmi_type="cs")
+    
+    def test_small_size_binary_file_stream(self):
+        self._test_result_exception("binary", BytesIO())
 
-        @testattr(stddist = True)
-        def test_small_size_text_file(self):
-            self._test_result_exception("file")
+    def test_large_size_binary_file(self):
+        self._test_result("binary")
 
-        @testattr(stddist = True)
-        def test_small_size_text_file_stream(self):
-            self._test_result_exception("file", StringIO())
+    def test_large_size_binary_file_stream(self):
+        self._test_result("binary", BytesIO())
 
-        @testattr(stddist = True)
-        def test_large_size_text_file(self):
-            self._test_result("file")
+    """
+    Text
+    """
+    def test_text_file_size_verification(self):
+        self._test_result_size_verification("file")
+    
+    def test_text_file_size_early_abort(self):
+        self._test_result_size_early_abort("file")
 
-        @testattr(stddist = True)
-        def test_large_size_text_file_stream(self):
-            self._test_result("file", StringIO())
+    def test_small_size_text_file(self):
+        self._test_result_exception("file")
+    
+    def test_small_size_text_file_stream(self):
+        self._test_result_exception("file", StringIO())
 
-        """
-        CSV
-        """
-        @testattr(stddist = True)
-        def test_csv_file_size_verification(self):
-            self._test_result_size_verification("csv")
+    def test_large_size_text_file(self):
+        self._test_result("file")
 
-        @testattr(stddist = True)
-        def test_csv_file_size_early_abort(self):
-            self._test_result_size_early_abort("csv")
+    def test_large_size_text_file_stream(self):
+        self._test_result("file", StringIO())
 
-        @testattr(stddist = True)
-        def test_small_size_csv_file(self):
-            self._test_result_exception("csv")
+    """
+    CSV
+    """
+    def test_csv_file_size_verification(self):
+        self._test_result_size_verification("csv")
+    
+    def test_csv_file_size_early_abort(self):
+        self._test_result_size_early_abort("csv")
 
-        @testattr(stddist = True)
-        def test_small_size_csv_file_stream(self):
-            self._test_result_exception("csv", StringIO())
+    def test_small_size_csv_file(self):
+        self._test_result_exception("csv")
+    
+    def test_small_size_csv_file_stream(self):
+        self._test_result_exception("csv", StringIO())
 
-        @testattr(stddist = True)
-        def test_large_size_csv_file(self):
-            self._test_result("csv", max_size=10000000)
+    def test_large_size_csv_file(self):
+        self._test_result("csv", max_size=10000000)
 
-        @testattr(stddist = True)
-        def test_large_size_csv_file_stream(self):
-            self._test_result("csv", StringIO(), max_size=10000000)
+    def test_large_size_csv_file_stream(self):
+        self._test_result("csv", StringIO(), max_size=10000000)
 
-        """
-        Memory
-        """
-        @testattr(stddist = True)
-        def test_small_size_memory(self):
-            self._test_result_exception("memory")
+    """
+    Memory
+    """
+    def test_small_size_memory(self):
+        self._test_result_exception("memory")
+    
+    def test_memory_size_early_abort(self):
+        self._test_result_size_early_abort("memory")
+    
+    def test_small_size_memory_stream(self):
+        self._test_result_exception("memory", StringIO())
 
-        @testattr(stddist = True)
-        def test_memory_size_early_abort(self):
-            self._test_result_size_early_abort("memory")
+    def test_large_size_memory(self):
+        self._test_result("memory")
 
-        @testattr(stddist = True)
-        def test_small_size_memory_stream(self):
-            self._test_result_exception("memory", StringIO())
-
-        @testattr(stddist = True)
-        def test_large_size_memory(self):
-            self._test_result("memory")
-
-        @testattr(stddist = True)
-        def test_large_size_memory_stream(self):
-            self._test_result("memory", StringIO())
+    def test_large_size_memory_stream(self):
+        self._test_result("memory", StringIO())

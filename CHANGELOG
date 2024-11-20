@@ -1,5 +1,9 @@
 --- CHANGELOG ---
 --- Future ---
+    * Changed testing framework from `nose` to `pytest`.
+    * Removed tests from the PyFMI installation.
+    * Moved test files from src/pyfmi/tests/... to tests/files/...
+    * Moved test_util.* from src/pyfmi/tests to src/pyfmi
 
 --- PyFMI-2.15.0 ---
     * Changed custom result handling for the Master algorithm to instead use a single ResultHandler for each model.
