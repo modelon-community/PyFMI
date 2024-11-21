@@ -1784,6 +1784,13 @@ class ResultDymolaBinary(ResultDymola):
             return scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["data_2"])["data_2"]
         return self._data_2
 
+class ResultBinaryMat(ResultDymolaBinary):
+    """ 
+        This class will replace ResultDymolaBinary.
+        The recommendation is to use this class over ResultDymolaBinary going forward.
+    """
+    pass
+
 class ResultHandlerMemory(ResultHandler):
     def __init__(self, model, delimiter=";"):
         super().__init__(model)
