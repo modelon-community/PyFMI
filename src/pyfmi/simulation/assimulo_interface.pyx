@@ -845,6 +845,23 @@ cdef class FMIODE2(cExplicit_Problem):
             Jac = A
             
         if self._logging:
+            # Logging the actual computed jacobian
+            jac_tag = "JacobianMatrix"
+            # opening
+            self._model.append_log_message("Model", 6, preface + "\t<%s>"%jac_tag)
+            jac_row_tag = "JacobianRow"
+            for i, row in enumerate(Jac.todense()):
+                jac_row_msg = ""
+                jac_row_msg += preface + '\t\t<%s row_index="%i">'%(jac_row_tag, i)
+                # str(row) = "[val val val ...\n val val val ...]
+                jac_row_msg += ", ".join(str(row).replace("[", "").replace("]", "").split()) 
+                jac_row_msg += "</%s>"%jac_row_tag
+                self._model.append_log_message("Model", 6, jac_row_msg)
+
+            # closing
+            self._model.append_log_message("Model", 6, preface + f"\t</%s>"%jac_tag)
+
+            # closing tags
             msg = preface + '</%s>'%(solver_info_tag)
             self._model.append_log_message("Model", 4, msg)
 
