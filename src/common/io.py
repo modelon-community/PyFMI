@@ -25,6 +25,7 @@ import os
 import logging as logging_module
 from functools import reduce
 from typing import Union
+from shutil import disk_usage
 
 import numpy as np
 import scipy
@@ -42,6 +43,15 @@ from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, DiagnosticsBase
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
 NCP_LARGE = 5000
+DISK_PROTECTION = 50*1024**2 #50mb
+
+#Get the available disk space at a given local path (minus 50mb to make sure we do not run out of space)
+def get_available_disk_space(local_path):
+    try:
+        free_space = disk_usage(local_path).free - DISK_PROTECTION
+    except (FileNotFoundError, TypeError):
+        free_space = sys.maxsize
+    return free_space
 
 class Trajectory:
     """
@@ -1848,7 +1858,7 @@ class ResultHandlerMemory(ResultHandler):
                            sys.getsizeof(self.int_sol)  + sys.getsizeof(self.bool_sol) + \
                            sys.getsizeof(self.param_sol)
 
-            verify_result_size(self._first_point, current_size, previous_size, max_size, self.options["ncp"], self.model.time)
+            verify_result_size("", self._first_point, current_size, previous_size, max_size, self.options["ncp"], self.model.time)
             self._first_point = False
 
     def get_result(self):
@@ -2035,7 +2045,7 @@ class ResultHandlerCSV(ResultHandler):
 
         max_size = self.options.get("result_max_size", None)
         if max_size is not None:
-            verify_result_size(self._first_point, self._current_file_size, previous_size, max_size, self.options["ncp"], self.model.time)
+            verify_result_size(self.file_name, self._first_point, self._current_file_size, previous_size, max_size, self.options["ncp"], self.model.time)
             self._first_point = False
 
     def simulation_end(self):
@@ -2465,7 +2475,7 @@ class ResultHandlerFile(ResultHandler):
 
         max_size = self.options.get("result_max_size", None)
         if max_size is not None:
-            verify_result_size(self._first_point, self._current_file_size, previous_size, max_size, self.options["ncp"], self.model.time)
+            verify_result_size(self.file_name, self._first_point, self._current_file_size, previous_size, max_size, self.options["ncp"], self.model.time)
             self._first_point = False
 
     def simulation_end(self):
@@ -2833,7 +2843,7 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         max_size = self.options.get("result_max_size", None)
         if max_size is not None:
-            verify_result_size(self._first_point, file_pos, file_pos-self._size_point, max_size, self.options["ncp"], self.model.time)
+            verify_result_size(self.file_name, self._first_point, file_pos, file_pos-self._size_point, max_size, self.options["ncp"], self.model.time)
             #We can go in here before we've stored a full result point (due to storing diagnostic points). So check that a point has been fully stored
             if self._first_point and self._size_point > 0:
                 self._first_point = False
@@ -2860,12 +2870,21 @@ class ResultHandlerBinaryFile(ResultHandler):
         """
         return ResultDymolaBinary(self.file_name)
 
-def verify_result_size(first_point, current_size, previous_size, max_size, ncp, time):
+def verify_result_size(file_name, first_point, current_size, previous_size, max_size, ncp, time):
+    free_space = get_available_disk_space(file_name)
+    
     if first_point:
         point_size = current_size - previous_size
         estimate = ncp*point_size + previous_size
+
+        msg = ""
         if estimate > max_size:
-            msg = "The result is estimated to exceed the allowed maximum size (limit: %g GB, estimate: %g GB). "%(max_size/1024**3, estimate/1024**3)
+            msg = msg + "The result is estimated to exceed the allowed maximum size (limit: %g GB, estimate: %g GB). "%(max_size/1024**3, estimate/1024**3)
+        
+        if estimate > free_space:
+            msg = msg + "The result is estimated to exceed the available disk space (available: %g GB, estimate: %g GB). "%(free_space/1024**3, estimate/1024**3)
+        
+        if msg != "":
             if ncp > NCP_LARGE:
                 msg = msg + "The number of result points is large (%d), consider reducing the number of points. "%ncp
             raise ResultSizeError(msg + "To change the maximum allowed result file size, please use the option 'result_max_size'")
@@ -2875,6 +2894,9 @@ def verify_result_size(first_point, current_size, previous_size, max_size, ncp, 
                             "To change the maximum allowed result size, please use the option "
                             "'result_max_size' or consider reducing the number of communication "
                             "points alternatively the number of variables to store result for."%(max_size/1024**3, time))
+
+    if free_space <= 0:
+        raise ResultSizeError("Not enough disk space to continue to save the result at time t=%g."%time)
 
 def get_result_handler(model, opts):
     result_handler = None
