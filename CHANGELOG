@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- Future ---
+    * Added verification against the available free disk space when storing the result on disk (i.e. a protection
+      against running out of disk space).
     * Changed testing framework from `nose` to `pytest`.
     * Removed tests from the PyFMI installation.
     * Moved test files from src/pyfmi/tests/... to tests/files/...
