@@ -45,10 +45,18 @@ SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
 NCP_LARGE = 5000
 DISK_PROTECTION = 50*1024**2 #50mb
 
-#Get the available disk space at a given local path (minus 50mb to make sure we do not run out of space)
 def get_available_disk_space(local_path):
+    """
+    Get the available disk space at a given local path. If the local path does not exists, it returns a very large
+    value (max of size_t). Furthermore, 50mb is subtracted from the available free space and the reason for doing
+    so is that running out of disk space can lead to any number of bad things and by making sure that there is at
+    least some available disk left will lead to a controlled environment where the user can take appropriate
+    actions.
+    """
     try:
         free_space = disk_usage(local_path).free - DISK_PROTECTION
+
+    #If the user is saving to a stream or something else than a file - catch it here and return a large value.
     except (FileNotFoundError, TypeError):
         free_space = sys.maxsize
     return free_space
