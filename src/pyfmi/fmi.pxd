@@ -51,7 +51,7 @@ cdef class ScalarVariable:
     """
     cdef object _name
     cdef FMIL.fmi1_value_reference_t _value_reference
-    cdef object _description #A characater pointer but we need an own reference and this is sufficient
+    cdef object _description #A character pointer but we need an own reference and this is sufficient
     cdef FMIL.fmi1_base_type_enu_t _type
     cdef FMIL.fmi1_variability_enu_t _variability
     cdef FMIL.fmi1_causality_enu_t _causality

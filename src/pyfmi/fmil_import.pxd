@@ -136,7 +136,8 @@ cdef extern from 'fmilib.h':
         fmi_version_unknown_enu = 0
         fmi_version_1_enu = 1
         fmi_version_2_0_enu = 2
-        fmi_version_unsupported_enu = 3
+        fmi_version_3_0_enu = 3
+        fmi_version_unsupported_enu = 4
 
     cdef enum fmi1_causality_enu_t:
         fmi1_causality_enu_input = 0

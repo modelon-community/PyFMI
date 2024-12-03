@@ -214,7 +214,10 @@ def check_extensions():
         ext_list[-1].extra_compile_args = ["-O2", "-fno-strict-aliasing"]
         ext_list[-1].extra_link_args = extra_link_flags
     """
-    incl_path = [".", "src", os.path.join("src", "pyfmi")]
+    incl_path = [".", 
+                 "src", 
+                 os.path.join("src", "pyfmi"), 
+                 os.path.join("src", "pyfmi", "fmi3")]
     #FMI PYX
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi.pyx")], 
                     include_path = incl_path,
@@ -249,6 +252,11 @@ def check_extensions():
     
     # Test utilities
     ext_list += cythonize([os.path.join("src", "pyfmi", "test_util.pyx")], 
+                    include_path = incl_path, 
+                    compiler_directives={'language_level' : "3str"})
+
+    # FMI3
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi3", "fmi3.pyx")], 
                     include_path = incl_path, 
                     compiler_directives={'language_level' : "3str"})
     

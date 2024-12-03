@@ -40,6 +40,10 @@ cimport numpy as np
 from numpy cimport PyArray_DATA
 
 cimport pyfmi.fmil_import as FMIL
+cimport pyfmi.fmi3.fmil3_import as FMIL3
+
+# TODO: This looks a bit stupid
+from pyfmi.fmi3.fmi3 cimport FMUModelCS3, FMUModelME3
 
 from pyfmi.common.core import create_temp_dir
 
@@ -8783,8 +8787,10 @@ def load_fmu(fmu, log_file_name = "", kind = 'auto',
     cdef FMIL.fmi_version_enu_t         version
     cdef FMIL.fmi1_import_t*            fmu_1 = NULL
     cdef FMIL.fmi2_import_t*            fmu_2 = NULL
+    cdef FMIL3.fmi3_import_t*           fmu_3 = NULL
     cdef FMIL.fmi1_fmu_kind_enu_t       fmu_1_kind
     cdef FMIL.fmi2_fmu_kind_enu_t       fmu_2_kind
+    cdef FMIL3.fmi3_fmu_kind_enu_t      fmu_3_kind
     cdef list                           log_data = []
 
     #Variables for deallocation
@@ -8795,6 +8801,7 @@ def load_fmu(fmu, log_file_name = "", kind = 'auto',
     check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path)
 
     #Check that kind-argument is well-defined
+    # TODO: FMI3: SE
     if not kind.lower() == 'auto':
         if (kind.upper() != 'ME' and kind.upper() != 'CS'):
             raise FMUException('Input-argument "kind" can only be "ME", "CS" or "auto" (default) and not: ' + kind)
@@ -8838,7 +8845,7 @@ def load_fmu(fmu, log_file_name = "", kind = 'auto',
             _handle_load_fmu_exception(fmu, log_data)
             raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. Enable logging for possibly more information.")
 
-    if version > 2:
+    if version >= FMIL.fmi_version_unsupported_enu:
         #Delete the context
         last_error = FMIL.jm_get_last_error(&callbacks)
         FMIL.fmi_import_free_context(context)
@@ -8873,10 +8880,10 @@ def load_fmu(fmu, log_file_name = "", kind = 'auto',
 
         #Compare fmu_kind with input-specified kind
         if fmu_1_kind == FMI_ME and kind.upper() != 'CS':
-            model=FMUModelME1(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+            model=FMUModelME1(fmu, log_file_name,log_level, _unzipped_dir = fmu_temp_dir,
                               allow_unzipped_fmu = allow_unzipped_fmu)
         elif (fmu_1_kind == FMI_CS_STANDALONE or fmu_1_kind == FMI_CS_TOOL) and kind.upper() != 'ME':
-            model=FMUModelCS1(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+            model=FMUModelCS1(fmu, log_file_name,log_level, _unzipped_dir = fmu_temp_dir,
                               allow_unzipped_fmu = allow_unzipped_fmu)
         else:
             FMIL.fmi1_import_free(fmu_1)
@@ -8922,18 +8929,18 @@ def load_fmu(fmu, log_file_name = "", kind = 'auto',
         #FMU kind is known
         if kind.lower() == 'auto':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs:
-                model = FMUModelCS2(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                model = FMUModelCS2(fmu, log_file_name,log_level, _unzipped_dir = fmu_temp_dir,
                                     allow_unzipped_fmu = allow_unzipped_fmu)
             elif fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                model = FMUModelME2(fmu, log_file_name,log_level, _unzipped_dir = fmu_temp_dir,
                                     allow_unzipped_fmu = allow_unzipped_fmu)
         elif kind.upper() == 'CS':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_cs or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelCS2(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                model = FMUModelCS2(fmu, log_file_name,log_level, _unzipped_dir = fmu_temp_dir,
                                     allow_unzipped_fmu = allow_unzipped_fmu)
         elif kind.upper() == 'ME':
             if fmu_2_kind == FMIL.fmi2_fmu_kind_me or fmu_2_kind == FMIL.fmi2_fmu_kind_me_and_cs:
-                model = FMUModelME2(fmu, log_file_name,log_level, _unzipped_dir=fmu_temp_dir,
+                model = FMUModelME2(fmu, log_file_name,log_level, _unzipped_dir = fmu_temp_dir,
                                     allow_unzipped_fmu = allow_unzipped_fmu)
 
         #Could not match FMU kind with input-specified kind
@@ -8943,7 +8950,65 @@ def load_fmu(fmu, log_file_name = "", kind = 'auto',
             if not allow_unzipped_fmu:
                 FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
             _handle_load_fmu_exception(fmu, log_data)
-            raise FMUException("FMU is a {} and not a {}".format(decode(FMIL.fmi2_fmu_kind_to_string(fmu_2_kind)),  decode(kind.upper())))
+            raise FMUException("FMU is a {} and not a {}".format(decode(FMIL.fmi2_fmu_kind_to_string(fmu_2_kind)), decode(kind.upper())))
+
+    elif version == FMIL.fmi_version_3_0_enu:
+        #Check fmu-kind and compare with input-specified kind
+        fmu_3 = FMIL3.fmi3_import_parse_xml(context, fmu_temp_dir, NULL)
+
+        if fmu_3 is NULL:
+            #Delete the context
+            last_error = FMIL.jm_get_last_error(&callbacks)
+            FMIL.fmi_import_free_context(context)
+            if not allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            if callbacks.log_level >= FMIL.jm_log_level_error:
+                _handle_load_fmu_exception(fmu, log_data)
+                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+decode(last_error))
+            else:
+                _handle_load_fmu_exception(fmu, log_data)
+                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible nore information.")
+
+        fmu_3_kind = FMIL3.fmi3_import_get_fmu_kind(fmu_3)
+
+        #FMU kind is unknown
+        if fmu_3_kind == FMIL3.fmi3_fmu_kind_unknown:
+            last_error = FMIL.jm_get_last_error(&callbacks)
+            FMIL3.fmi3_import_free(fmu_3)
+            FMIL.fmi_import_free_context(context)
+            if not allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            if callbacks.log_level >= FMIL.jm_log_level_error:
+                _handle_load_fmu_exception(fmu, log_data)
+                raise FMUException("The FMU kind could not be determined. "+decode(last_error))
+            else:
+                _handle_load_fmu_exception(fmu, log_data)
+                raise FMUException("The FMU kind could not be determined. Enable logging for possibly more information.")
+
+        #FMU kind is known
+        if kind.lower() == 'auto':
+            if fmu_3_kind & FMIL3.fmi3_fmu_kind_me:
+                model = FMUModelME3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
+                                          allow_unzipped_fmu = allow_unzipped_fmu)
+            elif fmu_3_kind & FMIL3.fmi3_fmu_kind_cs:
+                model = FMUModelCS3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
+                                          allow_unzipped_fmu = allow_unzipped_fmu)
+            # TODO: else: SE
+        elif kind.upper() == 'CS':
+            model = FMUModelCS3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
+                                      allow_unzipped_fmu = allow_unzipped_fmu)
+        elif kind.upper() == 'ME':
+            model = FMUModelME3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
+                                      allow_unzipped_fmu = allow_unzipped_fmu)
+
+        #Could not match FMU kind with input-specified kind
+        if model is None:
+            FMIL3.fmi3_import_free(fmu_3)
+            FMIL.fmi_import_free_context(context)
+            if not allow_unzipped_fmu:
+                FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+            _handle_load_fmu_exception(fmu, log_data)
+            raise FMUException("FMU is a {} and not a {}".format(decode(FMIL3.fmi3_fmu_kind_to_string(fmu_3_kind)), decode(kind.upper())))
 
     else:
         #This else-statement ensures that the variables "context" and "version" are defined before proceeding
@@ -8968,6 +9033,11 @@ def load_fmu(fmu, log_file_name = "", kind = 'auto',
 
     if version == FMIL.fmi_version_2_0_enu:
         FMIL.fmi2_import_free(fmu_2)
+        FMIL.fmi_import_free_context(context)
+        #FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+
+    if version == FMIL.fmi_version_3_0_enu:
+        FMIL3.fmi3_import_free(fmu_3)
         FMIL.fmi_import_free_context(context)
         #FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
 
