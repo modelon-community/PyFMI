@@ -2,6 +2,14 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.16.0 ---
+    * Added verification against the available free disk space when storing the result on disk (i.e. a protection
+      against running out of disk space).
+    * Changed testing framework from `nose` to `pytest`.
+    * Removed tests from the PyFMI installation.
+    * Moved test files from src/pyfmi/tests/... to tests/files/...
+    * Moved test_util.* from src/pyfmi/tests to src/pyfmi
+
 --- PyFMI-2.15.0 ---
     * Changed custom result handling for the Master algorithm to instead use a single ResultHandler for each model.
       A dictionary of the form {model: ResultHandler} needs to be supplied to the option.

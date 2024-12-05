@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- Future ---
+
+--- PyFMI-2.16.0 ---
     * Added verification against the available free disk space when storing the result on disk (i.e. a protection
       against running out of disk space).
     * Changed testing framework from `nose` to `pytest`.
