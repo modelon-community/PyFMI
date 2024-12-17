@@ -1574,6 +1574,8 @@ class ResultDymolaBinary(ResultDymola):
             A Trajectory object containing the time vector and the data vector
             of the variable.
         """
+        # prevent caching interference with 'get_variables_data'
+        self._last_set_of_indices = (None, None)
         return self._get_variable_data_as_trajectory(name)
 
     def get_variables_data(self,
