@@ -1116,8 +1116,8 @@ class TestResultFileBinary:
 
         bouncingBall = ResultHandlerBinaryFile(model)
         bouncingBall.set_options(opts)
-        msg = "Unable to start simulation. The following keyword argument\(s\) are empty:"
-        msg += " 'diagnostics\_params' and 'diagnostics\_vars'."
+        msg = r"Unable to start simulation. The following keyword argument\(s\) are empty:"
+        msg += r" 'diagnostics\_params' and 'diagnostics\_vars'."
         with pytest.raises(FMUException, match = msg):
             bouncingBall.simulation_start()
 
@@ -1933,6 +1933,24 @@ class TestResultDymolaBinary:
         assert rdb.get_variables_data([], start_index = 0)[1] == 0
         assert rdb.get_variables_data([], start_index = 1)[1] == 1
         assert rdb.get_variables_data([], start_index = 5)[1] == 5
+
+    def test_mixes_get_variable_s_data(self):
+        """Test there are no issues when mixing calls of get_variable_data and get_variables_data."""
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
+        ncp = 500
+        fmu.simulate(options = {"ncp": ncp})
+        rdb = ResultDymolaBinary(fmu.get_last_result_file(), allow_file_updates = True)
+
+        vars = ["time"]
+        start_index, stop_index = 0, 5
+        
+        partial_1, _ = rdb.get_variables_data(vars, start_index, stop_index)
+        full_traj = rdb.get_variable_data(vars[0])
+        partial_2, _ = rdb.get_variables_data(vars, start_index, stop_index)
+
+        assert len(partial_1[vars[0]].x) == (stop_index - start_index)
+        assert len(full_traj.x) == (ncp + 1)
+        assert len(partial_2[vars[0]].x) == (stop_index - start_index)
 
 @pytest.mark.assimulo
 class TestFileSizeLimit:
