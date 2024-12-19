@@ -2,6 +2,9 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.16.1 ---
+    * Fixed an issue with `get_variables_data` returning full trajectories when mixed with `get_variable_data` calls.
+
 --- PyFMI-2.16.0 ---
     * Added verification against the available free disk space when storing the result on disk (i.e. a protection
       against running out of disk space).
