@@ -167,7 +167,7 @@ class FMIODE(Explicit_Problem):
         self._logging = logging
 
         ## If result handler support is available, logging turns into dynamic_diagnostics
-        self._logging_as_dynamic_diagnostics = self._logging and result_handler.supports.get("dynamic_diagnostics")
+        self._logging_as_dynamic_diagnostics = self._logging and result_handler.supports.get("dynamic_diagnostics", False)
 
         #Stores the first time point
         #[r,i,b] = self._model.save_time_point()
@@ -634,7 +634,7 @@ cdef class FMIODE2(cExplicit_Problem):
         self._with_jacobian = with_jacobian
 
         ## If result handler support is available, logging turns into dynamic_diagnostics
-        self._logging_as_dynamic_diagnostics = self._logging and result_handler.supports.get("dynamic_diagnostics")
+        self._logging_as_dynamic_diagnostics = self._logging and result_handler.supports.get("dynamic_diagnostics", False)
         self._number_of_diagnostics_variables = number_of_diagnostics_variables
 
         self.jac_use = False

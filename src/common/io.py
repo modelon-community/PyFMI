@@ -128,7 +128,7 @@ class ResultHandler:
         """
         Generates a data point for diagnostics data.
         """
-        if self.supports.get('dynamic_diagnostics'):
+        if self.supports.get('dynamic_diagnostics', False):
             raise NotImplementedError
 
     def simulation_end(self):
@@ -2936,7 +2936,7 @@ def get_result_handler(model, opts):
     else:
         raise fmi.FMUException("Unknown option to result_handling.")
 
-    if (opts.get("result_max_size", 0) > 0) and not result_handler.supports["result_max_size"]:
+    if (opts.get("result_max_size", 0) > 0) and not result_handler.supports.get("result_max_size", False):
         logging_module.warning("The chosen result handler does not support limiting the result size. Ignoring option 'result_max_size'.")
 
     return result_handler
