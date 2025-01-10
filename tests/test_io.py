@@ -2197,4 +2197,4 @@ class TestCustomResultHandlerMissingSupport:
 
         msg = "The chosen result_handler does not support dynamic_diagnostics. Try using e.g., ResultHandlerBinaryFile."
         with pytest.raises(InvalidOptionException, match = re.escape(msg)):
-            model.simulate(options = opts) # missing get_result implementation
+            model.simulate(options = opts)
