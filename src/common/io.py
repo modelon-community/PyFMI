@@ -95,7 +95,8 @@ class ResultStorage:
 class ResultHandler:
     def __init__(self, model = None):
         self.model = model
-        ## Which capabilities are supported
+        # Dictionary of support capabilities 
+        # should be UPDATED, not REPLACED, for stating supported capabilities
         self.supports = {"dynamic_diagnostics": False,
                          "result_max_size": False}
 
