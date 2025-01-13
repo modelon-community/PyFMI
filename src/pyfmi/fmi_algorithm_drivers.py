@@ -357,7 +357,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         self._set_absolute_tolerance_options()
 
         number_of_diagnostics_variables = 0
-        if self.result_handler.supports.get('dynamic_diagnostics'):
+        if self.result_handler.supports.get('dynamic_diagnostics', False):
             _diagnostics_params, _diagnostics_vars = setup_diagnostics_variables(model = self.model,
                                                                                  start_time = self.start_time,
                                                                                  options = self.options,
@@ -377,7 +377,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         self.timings["initializing_fmu"] = time_end - time_start - time_res_init
         time_start = time_end
 
-        if self.result_handler.supports.get('dynamic_diagnostics'):
+        if self.result_handler.supports.get('dynamic_diagnostics', False):
             self.result_handler.simulation_start(_diagnostics_params, _diagnostics_vars)
         else:
             self.result_handler.simulation_start()
@@ -512,13 +512,13 @@ class AssimuloFMIAlg(AlgorithmBase):
         if self.options["dynamic_diagnostics"]:
             ## Result handler must have supports['dynamic_diagnostics'] = True
             ## e.g., result_handling = 'binary' = ResultHandlerBinaryFile
-            if not self.result_handler.supports.get('dynamic_diagnostics'):
+            if not self.result_handler.supports.get('dynamic_diagnostics', False):
                 err_msg = ("The chosen result_handler does not support dynamic_diagnostics."
                            " Try using e.g., ResultHandlerBinaryFile.")
                 raise fmi.InvalidOptionException(err_msg)
             self.options['logging'] = True
         elif self.options['logging']:
-            if self.result_handler.supports.get('dynamic_diagnostics'):
+            if self.result_handler.supports.get('dynamic_diagnostics', False):
                 self.options["dynamic_diagnostics"] = True
 
         # solver options

@@ -20,6 +20,7 @@ import os
 import numpy as np
 import time
 import math
+import re
 from io import StringIO, BytesIO
 from collections import OrderedDict
 
@@ -28,6 +29,7 @@ from pyfmi.fmi import (
     FMUModelME2,
     FMI2_PARAMETER,
     FMI2_CONSTANT,
+    InvalidOptionException
 )
 from pyfmi.common.io import (
     ResultHandler,
@@ -2156,3 +2158,43 @@ class TestFileSizeLimit:
 
     def test_large_size_memory_stream(self):
         self._test_result("memory", StringIO())
+
+
+class ResultHandlerCustomNoSupport(ResultHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.supports = {} # Don't do that (the dictionary should be UPDATED, not REPLACED)
+
+class TestCustomResultHandlerMissingSupport:
+    """Test that ResultHandlers fail gracefully, even if one overwrites the supports attribute."""
+    # caplog = pytest.LogCaptureFixture
+    def test_limit_result_size(self, caplog):
+        """Test limiting the result size when support is missing."""
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"]  = ResultHandlerCustomNoSupport(model)
+        opts["result_file_name"]  = "res.mat"
+        opts["result_max_size"] = 1000
+
+        with pytest.raises(NotImplementedError):
+            model.simulate(options = opts) # missing get_result implementation
+
+        msg = "The chosen result handler does not support limiting the result size. Ignoring option 'result_max_size'."
+        assert msg in caplog.text
+
+    def test_dynamic_diags(self):
+        """Test simulation with DynamicDiagnostics."""
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        
+        opts = model.simulate_options()
+        opts["result_handling"] = "custom"
+        opts["result_handler"]  = ResultHandlerCustomNoSupport(model)
+        opts["result_file_name"]  = "res.mat"
+        opts["result_max_size"] = 0
+        opts["dynamic_diagnostics"] = True
+
+        msg = "The chosen result_handler does not support dynamic_diagnostics. Try using e.g., ResultHandlerBinaryFile."
+        with pytest.raises(InvalidOptionException, match = re.escape(msg)):
+            model.simulate(options = opts)
