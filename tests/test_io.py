@@ -2163,7 +2163,7 @@ class TestFileSizeLimit:
 class ResultHandlerCustomNoSupport(ResultHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.supports = {} # Don't do that
+        self.supports = {} # Don't do that (the dictionary should be UPDATED, not REPLACED)
 
 class TestCustomResultHandlerMissingSupport:
     """Test that ResultHandlers fail gracefully, even if one overwrites the supports attribute."""
