@@ -210,13 +210,13 @@ class Test_FMUModelME1:
         err_msg = "The FMU could not be loaded."
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu")
         with pytest.raises(InvalidBinaryException, match = err_msg):
-            model = FMUModelME1(fmu, _connect_dll=True)
+            FMUModelME1(fmu, _connect_dll=True)
 
     def test_invalid_version(self):
         err_msg = "This class only supports FMI 1.0"
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu")
         with pytest.raises(InvalidVersionException, match = err_msg):
-            model = FMUModelME1(fmu, _connect_dll=True)
+            FMUModelME1(fmu, _connect_dll=True)
 
     def test_get_time_varying_variables(self):
         model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu"), _connect_dll=False)
@@ -1117,6 +1117,16 @@ class Test_FMUModelME2_Simulation:
         model.simulate(options=opts, algorithm=NoSolveAlg)
         np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
 
+    def test_dynamic_diagnostics_scalar_atol(self):
+        """Test scalar atol + dynamic_diagnostics."""
+        model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
+
+        opts = model.simulate_options()
+        solver = "CVode"
+        opts[f"{solver}_options"]["atol"] = 1e-4
+        opts["dynamic_diagnostics"] = True
+
+        model.simulate(options = opts)
 
 class Test_FMUModelME2:
     def test_unzipped_fmu_exception_invalid_dir(self):
