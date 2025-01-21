@@ -1117,13 +1117,14 @@ class Test_FMUModelME2_Simulation:
         model.simulate(options=opts, algorithm=NoSolveAlg)
         np.testing.assert_allclose(opts["CVode_options"]["atol"], [0.03, 0.03])
 
-    def test_dynamic_diagnostics_scalar_atol(self):
+    @pytest.mark.parametrize("atol", [1e-4, [1e-4], np.array([1e-4])])
+    def test_dynamic_diagnostics_scalar_atol(self, atol):
         """Test scalar atol + dynamic_diagnostics."""
         model = Dummy_FMUModelME2([], FMU_PATHS.ME2.nominal_test4, _connect_dll=False)
 
         opts = model.simulate_options()
         solver = "CVode"
-        opts[f"{solver}_options"]["atol"] = 1e-4
+        opts[f"{solver}_options"]["atol"] = atol
         opts["dynamic_diagnostics"] = True
 
         model.simulate(options = opts)
