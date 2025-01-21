@@ -19,6 +19,8 @@
 ## This file contains various components for the 'dynamics_diagnostics' options
 
 from pyfmi.fmi import FMUModelME2
+import numpy as np
+import numbers
 
 DIAGNOSTICS_PREFIX = '@Diagnostics.'
 
@@ -62,6 +64,17 @@ def setup_diagnostics_variables(model, start_time, options, solver_options):
             atol = solver_options.get('atol', None)
             if (rtol is None) or (atol is None):
                 rtol, atol = model.get_tolerances()
+            
+            # is atol is scalar, convert to list
+            if isinstance(atol, numbers.Number): 
+                atol = [atol]*len(states_list)
+            # atol is "pseudoscalar", array/list with single entry; 
+            if np.size(atol) == 1:
+                # distinction here is need since e.g., np.array(1.) does not support indexing
+                if isinstance(atol, np.ndarray):
+                    atol = [atol.item()]*len(states_list)
+                else: # general iterable, e.g., list
+                    atol = [atol[0]]*len(states_list)
                 
             _diagnostics_params[f"{DIAGNOSTICS_PREFIX}solver.relative_tolerance"] = (rtol, "Relative solver tolerance.")
 
