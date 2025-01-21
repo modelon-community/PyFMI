@@ -163,21 +163,24 @@ for x in sys.argv[1:]:
 if not incdirs:
     raise Exception("FMI Library cannot be found. Please specify its location, either using the flag to the setup script '--fmil-home' or specify it using the environment variable FMIL_HOME.")
 
-#Check to see if FMILIB_SHARED exists and if so copy it
 if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
+
+    #Check to see if FMILIB_SHARED exists and if so copy it, otherwise raise exception
     if sys.platform.startswith("win"):
         try:
-            for dir_name in [libdirs, bindirs]:
-                for file_name in os.listdir(dir_name):
-                    full_path = os.path.join(dir_name, file_name)
+            dirs_to_search = [libdirs, bindirs]
+            while dirs_to_search:
+                path_to_dir = os.path.abspath(dirs_to_search.pop())
+                for file_name in os.listdir(path_to_dir):
+                    full_path = os.path.join(path_to_dir, file_name)
                     if "fmilib_shared" in file_name and not file_name.endswith(".a"):
-                        shutil.copy2(full_path, os.path.join(".", "src", "pyfmi"))
-                        fmilib_shared = os.path.join(".", "src", "pyfmi", file_name)
+                        fmilib_shared = shutil.copy2(full_path, os.path.join(".", "src", "pyfmi"))
+                        dirs_to_search = None
                         break
         except FileNotFoundError:
             raise FileNotFoundError(f"The FMI Library binary cannot be found at path: {os.path.join(libdirs)}")
-        else:
-            raise Exception(f"Could not find FMILibrary at either location:\n\t{libdirs}\n\t{bindirs}")
+        if not fmilib_shared:
+            raise Exception(f"Could not find shared lib 'fmilib_shared' at either location:\n\t{libdirs}\n\t{bindirs}")
 
         if copy_gcc_lib:
             path_gcc_lib = ctypes.util.find_library("libgcc_s_dw2-1.dll")
