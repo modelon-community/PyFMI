@@ -2,6 +2,14 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.16.2 ---
+    * Increased robustness of getting the `supports` attribute from ResultHandlers.
+    * Fixed an Exception when using `dynamic_diagnostics` and scalar `atol`.
+    * Updated FMIL used in GitHub workflows to version 3.0a4, updated setup.py to account for changes in FMIL.
+
+--- PyFMI-2.16.1 ---
+    * Fixed an issue with `get_variables_data` returning full trajectories when mixed with `get_variable_data` calls.
+
 --- PyFMI-2.16.0 ---
     * Added verification against the available free disk space when storing the result on disk (i.e. a protection
       against running out of disk space).
