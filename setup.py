@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2014-2024 Modelon AB
@@ -50,22 +50,22 @@ CLASSIFIERS = [ 'Programming Language :: Python',
                 'Operating System :: Unix']
 
 LONG_DESCRIPTION = """
-PyFMI is a package for loading and interacting with Functional Mock-Up 
-Units (FMUs), which are compiled dynamic models compliant with the 
-Functional Mock-Up Interface (FMI), see 
+PyFMI is a package for loading and interacting with Functional Mock-Up
+Units (FMUs), which are compiled dynamic models compliant with the
+Functional Mock-Up Interface (FMI), see
 https://www.fmi-standard.org/ for more information. PyFMI
 is based on FMI Library, see https://github.com/modelon-community/fmi-library .
 
-FMI is a standard that enables tool independent exchange of dynamic 
-models on binary format. Several industrial simulation platforms 
-supports export of FMUs, including, Impact, Dymola, OpenModelica 
-and SimulationX, see https://www.fmi-standard.org/tools 
-for a complete list. PyFMI offers a Python interface for interacting 
-with FMUs and enables for example loading of FMU models, setting of 
+FMI is a standard that enables tool independent exchange of dynamic
+models on binary format. Several industrial simulation platforms
+supports export of FMUs, including, Impact, Dymola, OpenModelica
+and SimulationX, see https://www.fmi-standard.org/tools
+for a complete list. PyFMI offers a Python interface for interacting
+with FMUs and enables for example loading of FMU models, setting of
 model parameters and evaluation of model equations.
 
-Using PyFMI together with the Python 
-simulation package `Assimulo <http://pypi.python.org/pypi/Assimulo>`_ 
+Using PyFMI together with the Python
+simulation package `Assimulo <http://pypi.python.org/pypi/Assimulo>`_
 adds industrial grade simulation capabilities of FMUs to Python.
 
 Requirements:
@@ -93,10 +93,12 @@ fmil_home = os.getenv("FMIL_HOME")
 if fmil_home: #Check for environment variable that specifies FMIL
     incdirs = os.path.join(fmil_home, 'include')
     libdirs = os.path.join(fmil_home, 'lib')
+    bindirs = os.path.join(fmil_home, 'bin')
 else:
     incdirs = ""
     libdirs = ""
-    
+    bindirs = ""
+
 static = False
 debug_flag = False
 fmilib_shared = ""
@@ -119,6 +121,7 @@ for x in sys.argv[1:]:
     if not x.find('--fmil-home'):
         incdirs = os.path.join(x[12:],'include')
         libdirs = os.path.join(x[12:],'lib')
+        bindirs = os.path.join(x[12:],'bin')
         copy_args.remove(x)
     if not x.find('--copy-libgcc'):
         if x[14:].upper() == "TRUE":
@@ -156,25 +159,26 @@ for x in sys.argv[1:]:
         else:
             debug_flag = False
         copy_args.remove(x)
-    
+
 if not incdirs:
     raise Exception("FMI Library cannot be found. Please specify its location, either using the flag to the setup script '--fmil-home' or specify it using the environment variable FMIL_HOME.")
 
-#Check to see if FMILIB_SHARED exists and if so copy it
 if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
+
+    #Check to see if FMILIB_SHARED exists and if so copy it, otherwise raise exception
     if sys.platform.startswith("win"):
-        try:
-            files = os.listdir(os.path.join(libdirs))
-        except Exception:
-            raise Exception("The FMI Library binary cannot be found at path: "+str(os.path.join(libdirs)))
-        for file in files:
-            if "fmilib_shared" in file and not file.endswith("a"):
-                shutil.copy2(os.path.join(libdirs,file),os.path.join(".","src","pyfmi"))
-                fmilib_shared = os.path.join(".","src","pyfmi",file)
-                break
-        else:
-            raise Exception("Could not find FMILibrary at: %s"%libdirs)
-            
+        dirs_to_search = [libdirs, bindirs]
+        while dirs_to_search:
+            path_to_dir = os.path.abspath(dirs_to_search.pop())
+            for file_name in os.listdir(path_to_dir):
+                full_path = os.path.join(path_to_dir, file_name)
+                if "fmilib_shared" in file_name and not file_name.endswith(".a"):
+                    fmilib_shared = shutil.copy2(full_path, os.path.join(".", "src", "pyfmi"))
+                    dirs_to_search = None
+                    break
+        if not fmilib_shared:
+            raise Exception(f"Could not find shared library 'fmilib_shared' at either location:\n\t{libdirs}\n\t{bindirs}")
+
         if copy_gcc_lib:
             path_gcc_lib = ctypes.util.find_library("libgcc_s_dw2-1.dll")
             if path_gcc_lib is not None:
@@ -183,16 +187,16 @@ if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
 
 if no_msvcr:
     # prevent the MSVCR* being added to the DLLs passed to the linker
-    def msvc_runtime_library_mod(): 
+    def msvc_runtime_library_mod():
         return None
-    
+
     import numpy.distutils
     numpy.distutils.misc_util.msvc_runtime_library = msvc_runtime_library_mod
 
 def check_extensions():
     ext_list = []
     extra_link_flags = []
-    
+
     if static:
         extra_link_flags.append(static_link_gcc)
 
@@ -201,12 +205,12 @@ def check_extensions():
 
     #COMMON PYX
     """
-    ext_list = cythonize([os.path.join("src", "common", "core.pyx")], 
+    ext_list = cythonize([os.path.join("src", "common", "core.pyx")],
                     include_path=[".","src",os.path.join("src", "common")],
                     include_dirs=[N.get_include()],pyrex_gdb=debug)
-    
+
     ext_list[-1].include_dirs = [N.get_include(), "src",os.path.join("src", "common"), incdirs]
-        
+
     if debug:
         ext_list[-1].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
         ext_list[-1].extra_link_args = extra_link_flags
@@ -216,68 +220,68 @@ def check_extensions():
     """
     incl_path = [".", "src", os.path.join("src", "pyfmi")]
     #FMI PYX
-    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi.pyx")], 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
-    
+
     #FMI UTIL
-    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_util.pyx")], 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_util.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
-    
+
     #FMI Extended PYX
-    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_extended.pyx")], 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_extended.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
-                    
+
     #FMI Coupled PYX
-    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_coupled.pyx")], 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_coupled.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
-    
+
     #Simulation interface PYX
-    ext_list += cythonize([os.path.join("src", "pyfmi", "simulation", "assimulo_interface.pyx")], 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "simulation", "assimulo_interface.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
-                    
+
     #MASTER PYX
     compile_time_env = {'WITH_OPENMP': with_openmp}
-    ext_list += cythonize([os.path.join("src", "pyfmi", "master.pyx")], 
-                    include_path = incl_path, 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "master.pyx")],
+                    include_path = incl_path,
                     compile_time_env=compile_time_env,
                     compiler_directives={'language_level' : "3str"})
-    
+
     # Test utilities
-    ext_list += cythonize([os.path.join("src", "pyfmi", "test_util.pyx")], 
-                    include_path = incl_path, 
+    ext_list += cythonize([os.path.join("src", "pyfmi", "test_util.pyx")],
+                    include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
-    
+
     for i in range(len(ext_list)):
-        
+
         ext_list[i].include_dirs = [np.get_include(), "src", os.path.join("src", "pyfmi"), incdirs]
         ext_list[i].library_dirs = [libdirs]
         ext_list[i].language = "c"
         ext_list[i].libraries = ["fmilib_shared"] if sys.platform.startswith("win") else ["fmilib"] #If windows shared, else static
-        
+
         if debug_flag:
             ext_list[i].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
         else:
             ext_list[i].extra_compile_args = ["-O2", "-fno-strict-aliasing"]
-        
+
         if force_32bit:
             ext_list[i].extra_compile_args.append(flag_32bit)
-            
+
         if extra_c_flags:
             flags = extra_c_flags.split(' ')
             for f in flags:
                 ext_list[i].extra_compile_args.append(f)
-        
+
         ext_list[i].extra_link_args = extra_link_flags
-        
+
         if with_openmp:
             ext_list[i].extra_link_args.append("-fopenmp")
             ext_list[i].extra_compile_args.append("-fopenmp")
-        
+
         ext_list[i].cython_directives = {"language_level": 3}
 
     return ext_list
@@ -302,7 +306,7 @@ else:# If it does not, check if the file exists and if not, create the file!
         with open(version_txt, 'w') as f:
             f.write(VERSION+'\n')
             f.write("unknown")
-            
+
 try:
     shutil.copy2('LICENSE', os.path.join('src', 'pyfmi', 'LICENSE'))
     shutil.copy2('CHANGELOG', os.path.join('src', 'pyfmi', 'CHANGELOG'))
