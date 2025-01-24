@@ -43,7 +43,9 @@ from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, DiagnosticsBase
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
 NCP_LARGE = 5000
-DISK_PROTECTION = 50*1024**2 #50mb
+MB_FACTOR = 1e6 # 1024**2 = MiB
+GB_FACTOR = 1e9 # 1024**3 = GiB
+DISK_PROTECTION = 50*MB_FACTOR # 50MB
 
 def get_available_disk_space(local_path):
     """
@@ -2890,10 +2892,10 @@ def verify_result_size(file_name, first_point, current_size, previous_size, max_
 
         msg = ""
         if estimate > max_size:
-            msg = msg + "The result is estimated to exceed the allowed maximum size (limit: %g GB, estimate: %g GB). "%(max_size/1024**3, estimate/1024**3)
+            msg = msg + "The result is estimated to exceed the allowed maximum size (limit: %g GB, estimate: %g GB). "%(max_size/GB_FACTOR, estimate/GB_FACTOR)
         
         if estimate > free_space:
-            msg = msg + "The result is estimated to exceed the available disk space (available: %g GB, estimate: %g GB). "%(free_space/1024**3, estimate/1024**3)
+            msg = msg + "The result is estimated to exceed the available disk space (available: %g GB, estimate: %g GB). "%(free_space/GB_FACTOR, estimate/GB_FACTOR)
         
         if msg != "":
             if ncp > NCP_LARGE:
@@ -2904,7 +2906,7 @@ def verify_result_size(file_name, first_point, current_size, previous_size, max_
         raise ResultSizeError("Maximum size of the result reached (limit: %g GB) at time t=%g. "
                             "To change the maximum allowed result size, please use the option "
                             "'result_max_size' or consider reducing the number of communication "
-                            "points alternatively the number of variables to store result for."%(max_size/1024**3, time))
+                            "points alternatively the number of variables to store result for."%(max_size/GB_FACTOR, time))
 
     if free_space <= 0:
         raise ResultSizeError("Not enough disk space to continue to save the result at time t=%g."%time)
