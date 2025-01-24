@@ -283,7 +283,7 @@ class MasterAlgOptions(OptionBase):
             Maximum size of the stored result (in bytes). This is not a hard limit, the
             actual size will be slightly larger to account for that the result need to
             be consistent. Note that the maximum size is per result file.
-            Default: 1024**3*2 (2GB)
+            Default: 2e9 (2GB)
 
         result_handling --
             Specifies how the result should be handled. Either stored to
@@ -358,7 +358,7 @@ class MasterAlgOptions(OptionBase):
         "result_file_name"    : dict((model,None) for model in master.models),
         "result_handling"     : "binary",
         "result_handler"      : None,
-        "result_max_size"     : 1024**3*2,
+        "result_max_size"     : 2*10**9,
         "linear_correction"   : False,
         "error_controlled"    : False if master.support_storing_fmu_states else False,
         "logging"             : False,

@@ -222,7 +222,7 @@ class Test_Log:
         assert full_log_msg in log[-1], "log full message is missing"
         trunc_log_len = len(log)
 
-        fmu.set_max_log_size(1024*1024)
+        fmu.set_max_log_size(2e6)
         assert not fmu.has_reached_max_log_size()
 
         fmu.simulate()
