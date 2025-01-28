@@ -135,7 +135,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             Maximum size of the stored result (in bytes). This is not a hard limit, the
             actual size will be slightly larger to account for that the result need to
             be consistent.
-            Default: 1024**3*2 (2GB)
+            Default: 2e9 (2GB)
 
         return_result --
             Determines if the simulation result should be returned or
@@ -216,7 +216,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             'result_handler': None,
             'return_result': True,
             'result_store_variable_description': True,
-            'result_max_size': 1024**3*2,
+            'result_max_size': 2e9,
             'filter':None,
             'synchronize_simulation':False,
             'extra_equations':None,
@@ -820,7 +820,7 @@ class FMICSAlgOptions(OptionBase):
             Maximum size of the stored result (in bytes). This is not a hard limit, the
             actual size will be slightly larger to account for that the result need to
             be consistent.
-            Default: 1024**3*2 (2GB)
+            Default: 2e9 (2GB)
 
         return_result --
             Determines if the simulation result should be returned or
@@ -885,7 +885,7 @@ class FMICSAlgOptions(OptionBase):
             'result_file_name':'',
             'result_handling':"binary",
             'result_handler': None,
-            'result_max_size':1024**3*2,
+            'result_max_size': 2e9,
             'result_store_variable_description': True,
             'return_result': True,
             'time_limit': None,

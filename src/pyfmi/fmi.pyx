@@ -236,7 +236,7 @@ cdef class ModelBase:
         self._log_is_stream = 0
         self._additional_logger = None
         self._current_log_size = 0
-        self._max_log_size = 1024**3*2 #About 2GB limit
+        self._max_log_size = 2*10**9 # 2GB limit
         self._max_log_size_msg_sent = False
         self._log_stream = None
         self._modelId = None
@@ -766,7 +766,7 @@ cdef class ModelBase:
 
                 number_of_characters --
                     The maximum number of characters in the log.
-                    Default: 1024^3*2 (about 2GB)
+                    Default: 2e9 (2GB)
         """
         self._max_log_size = number_of_characters
         self._log_handler.set_max_log_size(number_of_characters)
