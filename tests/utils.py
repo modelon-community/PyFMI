@@ -10,16 +10,14 @@ def setup_reference_fmus():
     """
         This function downloads reference FMUs from the Modelica group and unpacks
         them into the test files directory.
-        When FMUs are extract, the MD5 sum is logged to file, in order to identify
-        if the setup needs to run again when running repeated tests.
-
+        The MD5sum of the URL is checked in order to avoid unnecessary downloading.
         Note that this requires an internet connection to work.
     """
 
-    def download_url(url, save_path, chunk_size=1024):
-        """ Download file from URL to 'save_path'. """
+    def download_url(url, save_file_to, chunk_size=1024):
+        """ Download file from URL to 'save_file_to' in chunks. """
         r = requests.get(url, stream=True)
-        with open(save_path, 'wb') as fd:
+        with open(save_file_to, 'wb') as fd:
             for chunk in r.iter_content(chunk_size=chunk_size):
                 fd.write(chunk)
 
