@@ -151,7 +151,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             Default: True
 
         filter --
-            A filter for choosing which variables to actually store
+            A filter for choosing which model variables to actually store
             result for. The syntax can be found in
             http://en.wikipedia.org/wiki/Glob_%28programming%29 . An
             example is filter = "*der" , stor all variables ending with
@@ -845,7 +845,7 @@ class FMICSAlgOptions(OptionBase):
             Default: none
 
         filter --
-            A filter for choosing which variables to actually store
+            A filter for choosing which model variables to actually store
             result for. The syntax can be found in
             http://en.wikipedia.org/wiki/Glob_%28programming%29 . An
             example is filter = "*der" , stor all variables ending with

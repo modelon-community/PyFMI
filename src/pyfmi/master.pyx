@@ -294,13 +294,13 @@ class MasterAlgOptions(OptionBase):
         result_handler --
             The handler for the result. Depending on the option in
             result_handling this either defaults to ResultHandlerFile
-            or ResultHandlerMemory. If result_handling custom is choosen
+            or ResultHandlerMemory. If result_handling custom is chosen
             This MUST be provided and be a dictionary with model name as 'key'
             and the ResultHandler instance for that model as 'value'.
             Default: None
 
         filter --
-            A filter for choosing which variables to actually store
+            A filter for choosing which model variables to actually store
             result for. The syntax can be found in
             http://en.wikipedia.org/wiki/Glob_%28programming%29 . An
             example is filter = "*der" , stor all variables ending with
@@ -317,7 +317,7 @@ class MasterAlgOptions(OptionBase):
             If True, store additionally the values in the underlying 
             FMUs to the result file before data has been exchange 
             between the connected models. The values will always be 
-            stored after data has been exhanged between the connected
+            stored after data has been exchanged between the connected
             models.
             Default: False
         
@@ -342,7 +342,7 @@ class MasterAlgOptions(OptionBase):
             <result_downsampling_factor>-th communication point.
             Start & end point are always included.
             Affects results storing from the 'store_step_before_update' option.
-            Useage with 'error_controlled' = True is not supported.
+            Usage with 'error_controlled' = True is not supported.
             Example: If set to 2: Result contains only every other communication point.
             Default: 1 (no downsampling)
     """
@@ -419,7 +419,7 @@ cdef class Master:
                       Needs to be a subclass of FMUModelCS.
                       
             connection  
-                    - Specifices the connection between the models.
+                    - Specifies the connection between the models.
                         
                     - model_begin.variable -> model_accept.variable
                       [(model_source,"beta",model_destination,"y"),(...)]
