@@ -23,11 +23,11 @@ jobs:
     - name: Install superlu
       run: |
         cd /tmp
-        curl -fSsL https://portal.nersc.gov/project/sparse/superlu/superlu_mt_3.1.tar.gz | tar xz
-        cd SuperLU_MT_3.1
-        make CFLAGS="-O2 -fPIC -fopenmp" BLASLIB="-lblas" PLAT="_OPENMP" MPLIB="-fopenmp" lib -j1
-        sudo cp -v ./lib/libsuperlu_mt_OPENMP.a /usr/lib
-        sudo cp -v ./SRC/*.h /usr/include
+        curl -fSsL https://github.com/xiaoyeli/superlu_mt/archive/refs/tags/v4.0.1.tar.gz | tar xz
+        cd superlu_mt-4.0.1
+        cmake -Denable_examples=OFF -Denable_tests=OFF -DPLAT="_OPENMP" -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DSUPERLUMT_INSTALL_INCLUDEDIR=include .
+        make -j4
+        sudo make install
     - name: Install sundials
       run: |
         git clone --depth 1 -b v2.7.0 https://github.com/LLNL/sundials /tmp/sundials
