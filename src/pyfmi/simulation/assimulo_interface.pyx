@@ -31,7 +31,7 @@ import time
 
 from pyfmi.common.io import ResultWriterDymola
 import pyfmi.fmi as fmi
-from pyfmi.fmi import FMUException
+from pyfmi.exceptions import FMUException, InvalidOptionException
 from pyfmi.fmi cimport FMUModelME2
 
 from timeit import default_timer as timer
@@ -180,7 +180,7 @@ class FMIODE(Explicit_Problem):
         self._jm_fmu = self._model.get_generation_tool() == "JModelica.org"
 
         if with_jacobian:
-            raise fmi.FMUException("Jacobians are not supported using FMI 1.0, please use FMI 2.0")
+            raise FMUException("Jacobians are not supported using FMI 1.0, please use FMI 2.0")
 
     def _adapt_input(self, input):
         if input is not None:
@@ -214,7 +214,7 @@ class FMIODE(Explicit_Problem):
         #Evaluating the rhs
         try:
             rhs = self._model.get_derivatives()
-        except fmi.FMUException:
+        except FMUException:
             raise AssimuloRecoverableError
 
         #If there is no state, use the dummy
@@ -666,9 +666,9 @@ cdef class FMIODE2(cExplicit_Problem):
                 elif synchronize_simulation > 0:
                     self._synchronize_factor = synchronize_simulation
                 else:
-                    raise fmi.InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
+                    raise InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
             except Exception:
-                raise fmi.InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.") 
+                raise InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.") 
         else:
             self._synchronize_factor = 0.0
 
@@ -689,7 +689,7 @@ cdef class FMIODE2(cExplicit_Problem):
 
             for i,name in enumerate(input_names):
                 if self._model.get_variable_causality(name) != fmi.FMI2_INPUT:
-                    raise fmi.FMUException("Variable '%s' is not an input. Only variables specified to be inputs are allowed."%name)
+                    raise FMUException("Variable '%s' is not an input. Only variables specified to be inputs are allowed."%name)
 
                 if self._model.get_variable_data_type(name) == fmi.FMI2_REAL:
                     self.input_real_value_refs.append(self._model.get_variable_valueref(name))
@@ -778,7 +778,7 @@ cdef class FMIODE2(cExplicit_Problem):
         else:
             try:
                 der = self._model.get_derivatives()
-            except fmi.FMUException:
+            except FMUException:
                 raise AssimuloRecoverableError
 
         #If there is no state, use the dummy
@@ -840,7 +840,7 @@ cdef class FMIODE2(cExplicit_Problem):
                     Jac[:self._f_nbr,:self._f_nbr] = A if isinstance(A, np.ndarray) else A.toarray()
                     Jac[self._f_nbr:,self._f_nbr:] = self._extra_equations.jac(y_extra)
             else:
-                raise fmi.FMUException("No Jacobian provided for the extra equations")
+                raise FMUException("No Jacobian provided for the extra equations")
         else:
             Jac = A
             
@@ -867,7 +867,7 @@ cdef class FMIODE2(cExplicit_Problem):
             status = self.model_me2._get_event_indicators(self._event_temp_1)
 
             if status != 0:
-                raise fmi.FMUException('Failed to get the event indicators at time: %E.'%t)
+                raise FMUException('Failed to get the event indicators at time: %E.'%t)
 
             return self._event_temp_1
         else:
@@ -906,7 +906,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 status = self.model_me2._get_derivatives(self._state_temp_1)
 
                 if status != 0:
-                    raise fmi.FMUException('Failed to get the derivatives at time: %E during handling of the result.'%t)
+                    raise FMUException('Failed to get the derivatives at time: %E during handling of the result.'%t)
             else:
                 rhs = self._model.get_derivatives()
 
@@ -937,7 +937,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 status = self.model_me2._get_derivatives(self._state_temp_1)
 
                 if status != 0:
-                    raise fmi.FMUException('Failed to get the derivatives at time: %E during handling of the event.'%solver.t,)
+                    raise FMUException('Failed to get the derivatives at time: %E during handling of the event.'%solver.t,)
             else:
                 rhs = self._model.get_derivatives()
 
@@ -1012,7 +1012,7 @@ cdef class FMIODE2(cExplicit_Problem):
                         diag_data[index] = 0.0
                         index +=1
                 if index != self._number_of_diagnostics_variables:
-                    raise fmi.FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self._number_of_diagnostics_variables, index))
+                    raise FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self._number_of_diagnostics_variables, index))
                 self.export.diagnostics_point(diag_data)
 
 

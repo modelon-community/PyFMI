@@ -40,6 +40,7 @@ import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
 from pyfmi.common import encode, decode
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, DiagnosticsBase
+from pyfmi.exceptions import FMUException
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
 NCP_LARGE = 5000
@@ -1989,7 +1990,7 @@ class ResultHandlerCSV(ResultHandler):
             self.file_open = True
         else:
             if not hasattr(self.file_name, 'write'):
-                raise fmi.FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports writing to through the 'write' method.")
+                raise FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports writing to through the 'write' method.")
             f = self.file_name #assume it is a stream
             self.file_open = False
         self._file = f
@@ -2126,7 +2127,7 @@ class ResultHandlerFile(ResultHandler):
             f = codecs.open(self.file_name,'w','utf-8')
         else:
             if not (hasattr(self.file_name, 'write') and hasattr(self.file_name, 'seek')):
-                raise fmi.FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write' and 'seek'.")
+                raise FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write' and 'seek'.")
             f = self.file_name #assume it is a stream
             self._is_stream = True
         self.file_open = True
@@ -2697,7 +2698,7 @@ class ResultHandlerBinaryFile(ResultHandler):
                     msg += " and"
             if self.nof_diag_vars < 1:
                 msg += " 'diagnostics_vars'."
-            raise fmi.FMUException(msg)
+            raise FMUException(msg)
 
         self.file_name = opts["result_file_name"]
         try:
@@ -2706,7 +2707,7 @@ class ResultHandlerBinaryFile(ResultHandler):
             self.parameters = False
 
         if self.parameters:
-            raise fmi.FMUException("Storing sensitivity results are not supported using this format. Use the file format instead.")
+            raise FMUException("Storing sensitivity results are not supported using this format. Use the file format instead.")
 
         if self.file_name == "":
             self.file_name=self.model.get_identifier() + '_result.mat'
@@ -2717,7 +2718,7 @@ class ResultHandlerBinaryFile(ResultHandler):
             self._file = open(file_name,'wb')
         else:
             if not (hasattr(self.file_name, 'write') and hasattr(self.file_name, 'seek') and (hasattr(self.file_name, 'tell'))):
-                raise fmi.FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'.")
+                raise FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'.")
             self._file = self.file_name #assume it is a stream
             self._is_stream = True
         self.file_open = True
@@ -2929,15 +2930,15 @@ def get_result_handler(model, opts):
     elif opts["result_handling"] == "custom":
         result_handler = opts["result_handler"]
         if result_handler is None:
-            raise fmi.FMUException("The result handler needs to be specified when using a custom result handling.")
+            raise FMUException("The result handler needs to be specified when using a custom result handling.")
         if not isinstance(result_handler, ResultHandler):
-            raise fmi.FMUException("The result handler needs to be a subclass of ResultHandler.")
+            raise FMUException("The result handler needs to be a subclass of ResultHandler.")
     elif (opts["result_handling"] is None) or (opts["result_handling"] == 'none'): #No result handling (for performance)
         if opts["result_handling"] == 'none': ## TODO: Future; remove this
             logging_module.warning("result_handling = 'none' is deprecated. Please use None instead.")
         result_handler = ResultHandlerDummy(model)
     else:
-        raise fmi.FMUException("Unknown option to result_handling.")
+        raise FMUException("Unknown option to result_handling.")
 
     if (opts.get("result_max_size", 0) > 0) and not result_handler.supports.get("result_max_size", False):
         logging_module.warning("The chosen result handler does not support limiting the result size. Ignoring option 'result_max_size'.")

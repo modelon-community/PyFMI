@@ -32,6 +32,7 @@ from pyfmi.fmi cimport FMUModelME2
 import functools
 import marshal
 import pyfmi.fmi as fmi
+from pyfmi.exceptions import FMUException, IOException
 
 cpdef decode(x):
     if isinstance(x, bytes):
@@ -275,7 +276,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
                 elif data_type == FMI_BOOLEAN:
                     param_bool.append(last_vref)
                 else:
-                    raise fmi.FMUException("Unknown type detected for variable %s when writing the results."%var.name)
+                    raise FMUException("Unknown type detected for variable %s when writing the results."%var.name)
             else:
                 last_data_matrix = 2
                 index_variable = index_variable + 1
@@ -288,7 +289,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
                 elif data_type == FMI_BOOLEAN:
                     varia_bool.append(last_vref)
                 else:
-                    raise fmi.FMUException("Unknown type detected for variable %s when writing the results."%var.name)
+                    raise FMUException("Unknown type detected for variable %s when writing the results."%var.name)
 
             data_info[1,i] = alias*last_index
             data_info[0,i] = last_data_matrix
@@ -388,11 +389,11 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_params, list dia
 
     name_output = <char*>FMIL.calloc((tot_nof_vars+1)*name_length,sizeof(char))
     if name_output == NULL:
-        raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
+        raise FMUException("Failed to allocate memory for storing the names of the variables. " \
                                "Please reduce the number of stored variables by using filters.")
     desc_output = <char*>FMIL.calloc((tot_nof_vars+1)*desc_length,sizeof(char))
     if desc_output == NULL:
-        raise fmi.FMUException("Failed to allocate memory for storing the description of the variables. " \
+        raise FMUException("Failed to allocate memory for storing the description of the variables. " \
                                "Please reduce the number of stored variables or disable storing of the description.")
 
     for i in range(tot_nof_vars+1):
@@ -437,7 +438,7 @@ cpdef convert_sorted_vars_name(list sorted_vars, list diag_param_names, list dia
 
     name_output = <char*>FMIL.calloc((tot_nof_vars+1)*name_length,sizeof(char))
     if name_output == NULL:
-        raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
+        raise FMUException("Failed to allocate memory for storing the names of the variables. " \
                                "Please reduce the number of stored variables by using filters.")
 
     for i in range(tot_nof_vars+1):
@@ -1124,7 +1125,7 @@ def read_trajectory(file_name, long long data_index, long long file_position, lo
     elif sizeof_type == 8:
         return _read_trajectory64(file_name, start_point, end_point, interval, file_position, nbr_points)
     else:
-        raise fmi.FMUException("Failed to read the result. The result is on an unsupported format. Can only read data that is either a 32 or 64 bit double.")
+        raise FMUException("Failed to read the result. The result is on an unsupported format. Can only read data that is either a 32 or 64 bit double.")
 
 DTYPE32 = np.float32
 ctypedef np.float32_t DTYPE32_t
@@ -1274,7 +1275,7 @@ def read_diagnostics_trajectory(
                 iter_point += diag_var_interval
             else:
                 fclose(cfile)
-                raise fmi.IOException("Result file is corrupt, cannot read results.")
+                raise IOException("Result file is corrupt, cannot read results.")
     fclose(cfile)
     return data, file_pos_model_var, file_pos_diag_var
 
@@ -1310,7 +1311,7 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
     cdef dict data = {}
 
     if tmp == NULL:
-        raise fmi.IOException("Couldn't allocate memory to read name list.")
+        raise IOException("Couldn't allocate memory to read name list.")
 
     cfile = fopen(file_name, 'rb')
     fseek(cfile, file_position, 0)

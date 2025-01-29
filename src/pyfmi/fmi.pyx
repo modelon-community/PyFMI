@@ -45,6 +45,12 @@ from pyfmi.common.core import create_temp_dir
 
 from pyfmi.fmi_util import cpr_seed, enable_caching
 from pyfmi.fmi_util cimport encode, decode
+# XXX: Importing all exceptions for backwards-compatibility of the import from pyfmi.fmi
+from pyfmi.exceptions import (
+    FMUException, IOException, InvalidOptionException, TimeLimitExceeded,
+    InvalidFMUException, InvalidXMLException, InvalidBinaryException,
+    InvalidVersionException
+)
 
 int   = np.int32
 np.int = np.int32
@@ -179,51 +185,6 @@ cdef void importlogger2(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log
 #CALLBACKS
 cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     (<list>c.context).append("FMIL: module = %s, log level = %d: %s"%(module, log_level, message))
-
-class FMUException(Exception):
-    """
-    An FMU exception.
-    """
-    pass
-
-class IOException(FMUException):
-    """
-        Exception covering issues related to writing/reading data.
-    """
-    pass
-
-class InvalidOptionException(FMUException):
-    """
-        Exception covering issues related to invalid choices of options.
-    """
-    pass
-
-class TimeLimitExceeded(FMUException):
-    pass
-
-class InvalidFMUException(FMUException):
-    """
-    Exception covering problems with the imported FMU.
-    """
-    pass
-
-class InvalidXMLException(InvalidFMUException):
-    """
-    Exception covering problem with the XML-file in the imported FMU.
-    """
-    pass
-
-class InvalidBinaryException(InvalidFMUException):
-    """
-    Exception covering problem with the binary in the imported FMU.
-    """
-    pass
-
-class InvalidVersionException(InvalidFMUException):
-    """
-    Exception covering problem with the version of the imported FMU.
-    """
-    pass
 
 cdef class ModelBase:
     """

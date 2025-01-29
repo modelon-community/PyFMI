@@ -21,7 +21,8 @@ import os
 import numpy as np
 cimport pyfmi.fmil_import as FMIL
 
-from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, FMUModelCS2, FMUModelME2
+from pyfmi.fmi import FMUModelME1, FMUModelCS1, FMUModelCS2, FMUModelME2
+from pyfmi.exceptions import FMUException
 
 def get_examples_folder():
     return os.path.join(os.path.dirname(__file__), 'examples')

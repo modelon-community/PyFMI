@@ -23,7 +23,7 @@ import re
 import numpy as np
 from distutils.util import strtobool
 from pyfmi.common.log.tree import Node, Comment
-from pyfmi.fmi import FMUException
+from pyfmi.exceptions import FMUException
 
 ## Leaf parser ##
 
