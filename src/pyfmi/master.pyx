@@ -37,7 +37,10 @@ from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionExc
 from pyfmi.common.io import get_result_handler, ResultHandler
 from pyfmi.common.core import TrajectoryLinearInterpolation, TrajectoryUserFunction
 from pyfmi.fmi cimport FMUModelCS2
-cimport fmil_import as FMIL
+
+cimport pyfmi.fmil_import as FMIL
+cimport pyfmi.fmil2_import as FMIL2
+
 from pyfmi.fmi_util import Graph
 from pyfmi.exceptions import FMUException, InvalidFMUException
 
@@ -51,7 +54,7 @@ cdef reset_models(list models):
     for model in models:
         model.reset()
 
-cdef perform_do_step(list models, dict time_spent, FMIL.fmi2_import_t** model_addresses, double cur_time, double step_size, bool new_step, int setting):
+cdef perform_do_step(list models, dict time_spent, FMIL2.fmi2_import_t** model_addresses, double cur_time, double step_size, bool new_step, int setting):
     if setting == SERIAL:
         perform_do_step_serial(models, time_spent, cur_time,  step_size,  new_step)
     else:
@@ -72,7 +75,7 @@ cdef perform_do_step_serial(list models, dict time_spent, double cur_time, doubl
         if status != 0:
             raise FMUException("The step failed for model %s at time %f. See the log for more information. Return flag %d."%(model.get_name(), cur_time, status))
 
-cdef perform_do_step_parallel(list models, FMIL.fmi2_import_t** model_addresses, int n, double cur_time, double step_size, int new_step):
+cdef perform_do_step_parallel(list models, FMIL2.fmi2_import_t** model_addresses, int n, double cur_time, double step_size, int new_step):
     """
     Perform a do step on all the models.
     """
@@ -87,7 +90,7 @@ cdef perform_do_step_parallel(list models, FMIL.fmi2_import_t** model_addresses,
         #id = openmp.omp_get_thread_num()
         #time = openmp.omp_get_wtime() 
         
-        status |= FMIL.fmi2_import_do_step(model_addresses[i], cur_time, step_size, new_step)
+        status |= FMIL2.fmi2_import_do_step(model_addresses[i], cur_time, step_size, new_step)
         #time = openmp.omp_get_wtime() -time
         #printf("Time: %f (%d), %d, %d, Elapsed Time: %f \n",cur_time, i, num_threads, id,  time)
 
@@ -393,7 +396,7 @@ cdef class Master:
     cdef public int _support_directional_derivatives, _support_storing_fmu_states, _support_interpolate_inputs, _max_output_derivative_order
     cdef double rtol, atol, current_step_size
     cdef public object y_m1, yd_m1, u_m1, ud_m1, udd_m1
-    cdef FMIL.fmi2_import_t** fmu_adresses
+    cdef FMIL2.fmi2_import_t** fmu_adresses
     cdef public int _len_inputs, _len_inputs_discrete, _len_outputs, _len_outputs_discrete
     cdef public int _len_derivatives
     cdef public list _storedDrow, _storedDcol
@@ -432,7 +435,7 @@ cdef class Master:
             if not isinstance(model, fmi.FMUModelCS2):
                 # TODO: Should be a "not supported" Exception instead?
                 raise InvalidFMUException("The Master algorithm currently only supports CS 2.0 FMUs.")
-        self.fmu_adresses = <FMIL.fmi2_import_t**>FMIL.malloc(len(models)*sizeof(FMIL.fmi2_import_t*))
+        self.fmu_adresses = <FMIL2.fmi2_import_t**>FMIL.malloc(len(models)*sizeof(FMIL2.fmi2_import_t*))
         
         self.connections = connections
         self.models = models
@@ -835,8 +838,8 @@ cdef class Master:
     cpdef get_connection_derivatives(self, np.ndarray y_cur):
         #cdef list yd = []
         cdef int i = 0, inext = 0, status = 0
-        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']  yd    = np.empty((self._len_outputs))
-        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']  ydtmp = np.empty((self._len_outputs))
+        cdef np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode='c']  yd    = np.empty((self._len_outputs))
+        cdef np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode='c']  ydtmp = np.empty((self._len_outputs))
         cdef np.ndarray y_last = None
         
         if self.opts["extrapolation_order"] > 0:
@@ -884,8 +887,8 @@ cdef class Master:
     cpdef get_connection_second_derivatives(self, np.ndarray yd_cur):
 
         cdef int i = 0, inext = 0, status = 0
-        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']  ydd    = np.empty((self._len_outputs))
-        cdef np.ndarray[FMIL.fmi2_real_t, ndim=1, mode='c']  yddtmp = np.empty((self._len_outputs))
+        cdef np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode='c']  ydd    = np.empty((self._len_outputs))
+        cdef np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode='c']  yddtmp = np.empty((self._len_outputs))
         cdef np.ndarray yd_last = None
         
         if self.opts["extrapolation_order"] > 1:

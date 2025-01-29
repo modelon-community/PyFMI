@@ -26,7 +26,7 @@ import itertools
 import numpy as np
 cimport numpy as np
 
-cimport fmil_import as FMIL
+cimport pyfmi.fmil_import as FMIL
 from pyfmi.fmi cimport FMUModelME2
 
 import functools

@@ -23,7 +23,7 @@ cimport numpy as np
 
 import pyfmi.fmi as fmi
 from pyfmi.fmi cimport FMUModelME2
-cimport fmil_import as FMIL
+cimport pyfmi.fmil2_import as FMIL2
 
 from pyfmi.fmi_util import enable_caching, Graph
 
@@ -675,7 +675,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
 
             The ValueReference for the variable passed as argument.
         """
-        cdef FMIL.fmi2_value_reference_t vr
+        cdef FMIL2.fmi2_value_reference_t vr
         
         name_parts = variable_name.split(".")
         try:
@@ -721,7 +721,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         
         return self._get_global_name(model_ind, local_name)
     
-    cdef FMIL.fmi2_value_reference_t _get_local_vr(self, valueref):
+    cdef FMIL2.fmi2_value_reference_t _get_local_vr(self, valueref):
         return valueref & 0x00000000FFFFFFFF
     
     cdef _get_model_index_from_vr(self, valueref):
@@ -730,7 +730,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
     cdef _get_global_name(self, model_ind, name):
         return self.index[model_ind] + "." + name
     
-    def _get_global_vr(self, model_ind, FMIL.fmi2_value_reference_t valueref):
+    def _get_global_vr(self, model_ind, FMIL2.fmi2_value_reference_t valueref):
         return (model_ind << 32) + valueref
     
     @enable_caching
@@ -1123,18 +1123,18 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         """
         Helper method to get, see docstring on get.
         """
-        cdef FMIL.fmi2_base_type_enu_t type
+        cdef FMIL2.fmi2_base_type_enu_t type
 
         ref  = self.get_variable_valueref(variable_name)
         type = self.get_variable_data_type(variable_name)
 
-        if type == FMIL.fmi2_base_type_real:  #REAL
+        if type == FMIL2.fmi2_base_type_real:  #REAL
             return self.get_real([ref])
-        elif type == FMIL.fmi2_base_type_int or type == FMIL.fmi2_base_type_enum: #INTEGER
+        elif type == FMIL2.fmi2_base_type_int or type == FMIL2.fmi2_base_type_enum: #INTEGER
             return self.get_integer([ref])
-        elif type == FMIL.fmi2_base_type_str: #STRING
+        elif type == FMIL2.fmi2_base_type_str: #STRING
             return self.get_string([ref])
-        elif type == FMIL.fmi2_base_type_bool: #BOOLEAN
+        elif type == FMIL2.fmi2_base_type_bool: #BOOLEAN
             return self.get_boolean([ref])
         else:
             raise FMUException('Type not supported.')
@@ -1143,18 +1143,18 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         """
         Helper method to set, see docstring on set.
         """
-        cdef FMIL.fmi2_base_type_enu_t   type
+        cdef FMIL2.fmi2_base_type_enu_t   type
 
         ref  = self.get_variable_valueref(variable_name)
         type = self.get_variable_data_type(variable_name)
 
-        if type == FMIL.fmi2_base_type_real:  #REAL
+        if type == FMIL2.fmi2_base_type_real:  #REAL
             self.set_real([ref], [value])
-        elif type == FMIL.fmi2_base_type_int or type == FMIL.fmi2_base_type_enum: #INTEGER
+        elif type == FMIL2.fmi2_base_type_int or type == FMIL2.fmi2_base_type_enum: #INTEGER
             self.set_integer([ref], [value])
-        elif type == FMIL.fmi2_base_type_str: #STRING
+        elif type == FMIL2.fmi2_base_type_str: #STRING
             self.set_string([ref], [value])
-        elif type == FMIL.fmi2_base_type_bool: #BOOLEAN
+        elif type == FMIL2.fmi2_base_type_bool: #BOOLEAN
             self.set_boolean([ref], [value])
         else:
             raise FMUException('Type not supported.')
@@ -1297,7 +1297,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         return model.get_variable_unbounded(variable_name[len(model_name)+1:])
         
     
-    cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, variable_name) except *:
+    cpdef FMIL2.fmi2_causality_enu_t get_variable_causality(self, variable_name) except *:
         """
         Get the causality of the variable.
 
@@ -1321,7 +1321,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         
         return model.get_variable_causality(variable_name[len(model_name)+1:])
     
-    cpdef FMIL.fmi2_initial_enu_t get_variable_initial(self, variable_name) except *:
+    cpdef FMIL2.fmi2_initial_enu_t get_variable_initial(self, variable_name) except *:
         """
         Get initial of the variable.
         
@@ -1345,7 +1345,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         
         return model.get_variable_initial(variable_name[len(model_name)+1:])
     
-    cpdef FMIL.fmi2_variability_enu_t get_variable_variability(self, variable_name) except *:
+    cpdef FMIL2.fmi2_variability_enu_t get_variable_variability(self, variable_name) except *:
         """
         Get variability of the variable.
 
@@ -1393,7 +1393,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         return model.get_variable_description(variable_name[len(model_name)+1:])
 
     
-    cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, variable_name) except *:
+    cpdef FMIL2.fmi2_base_type_enu_t get_variable_data_type(self, variable_name) except *:
         """
         Get data type of variable.
 
@@ -1863,7 +1863,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
         """
         return self._t
 
-    cpdef _set_time(self, FMIL.fmi2_real_t t):
+    cpdef _set_time(self, FMIL2.fmi2_real_t t):
         """
         Sets the current time of the simulation.
 
@@ -1892,7 +1892,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
             
         return np.concatenate(states).ravel()
 
-    def _set_continuous_states(self, np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values):
+    def _set_continuous_states(self, np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode="c"] values):
         """
         Set the values of the continuous states.
 

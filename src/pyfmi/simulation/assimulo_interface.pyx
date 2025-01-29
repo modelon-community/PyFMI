@@ -35,7 +35,8 @@ from pyfmi.exceptions import FMUException, InvalidOptionException
 from pyfmi.fmi cimport FMUModelME2
 
 from timeit import default_timer as timer
-cimport fmil_import as FMIL
+
+cimport pyfmi.fmil_import as FMIL
 
 try:
     import assimulo

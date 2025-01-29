@@ -19,7 +19,9 @@
 
 import os
 import numpy as np
-cimport pyfmi.fmil_import as FMIL
+
+cimport pyfmi.fmil1_import as FMIL1
+cimport pyfmi.fmil2_import as FMIL2
 
 from pyfmi.fmi import FMUModelME1, FMUModelCS1, FMUModelCS2, FMUModelME2
 from pyfmi.exceptions import FMUException
@@ -28,7 +30,7 @@ def get_examples_folder():
     return os.path.join(os.path.dirname(__file__), 'examples')
 
 cdef class _ForTestingFMUModelME1(FMUModelME1):
-    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx):
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL1.fmi1_real_t* xnominal, size_t nx):
         for i in range(nx):
             if self._allocated_fmu == 1:  # If initialized
                 # Set new values to test that atol gets auto-corrected.
@@ -36,7 +38,7 @@ cdef class _ForTestingFMUModelME1(FMUModelME1):
             else:
                 # Set some illegal values in order to test the fallback/auto-correction.
                 xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
-        return FMIL.fmi1_status_ok
+        return FMIL1.fmi1_status_ok
 
     cpdef set_allocated_fmu(self, int value):
         self._allocated_fmu = value
@@ -152,7 +154,7 @@ class Dummy_FMUModelCS1(FMUModelCS1):
 
 
 cdef class _ForTestingFMUModelME2(FMUModelME2):
-    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values):
+    cdef int _get_real_by_ptr(self, FMIL2.fmi2_value_reference_t* vrefs, size_t _size, FMIL2.fmi2_real_t* values):
         vr = np.zeros(_size)
         for i in range(_size):
             vr[i] = vrefs[i]
@@ -160,14 +162,14 @@ cdef class _ForTestingFMUModelME2(FMUModelME2):
         try:
             vv = self.get_real(vr)
         except Exception:
-            return FMIL.fmi2_status_error
+            return FMIL2.fmi2_status_error
 
         for i in range(_size):
             values[i] = vv[i]
 
-        return FMIL.fmi2_status_ok
+        return FMIL2.fmi2_status_ok
 
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size):
+    cdef int _set_real(self, FMIL2.fmi2_value_reference_t* vrefs, FMIL2.fmi2_real_t* values, size_t _size):
         vr = np.zeros(_size)
         vv = np.zeros(_size)
         for i in range(_size):
@@ -177,38 +179,38 @@ cdef class _ForTestingFMUModelME2(FMUModelME2):
         try:
             self.set_real(vr, vv)
         except Exception:
-            return FMIL.fmi2_status_error
+            return FMIL2.fmi2_status_error
 
-        return FMIL.fmi2_status_ok
+        return FMIL2.fmi2_status_ok
 
-    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
+    cdef int _get_real_by_list(self, FMIL2.fmi2_value_reference_t[:] valueref, size_t _size, FMIL2.fmi2_real_t[:] values):
         try:
             tmp = self.get_real(valueref)
             for i in range(_size):
                 values[i] = tmp[i]
         except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
+            return FMIL2.fmi2_status_error
+        return FMIL2.fmi2_status_ok
 
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values):
+    cdef int _get_integer(self, FMIL2.fmi2_value_reference_t[:] valueref, size_t _size, FMIL2.fmi2_integer_t[:] values):
         try:
             tmp = self.get_integer(valueref)
             for i in range(_size):
                 values[i] = tmp[i]
         except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
+            return FMIL2.fmi2_status_error
+        return FMIL2.fmi2_status_ok
 
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
+    cdef int _get_boolean(self, FMIL2.fmi2_value_reference_t[:] valueref, size_t _size, FMIL2.fmi2_real_t[:] values):
         try:
             tmp = self.get_boolean(valueref)
             for i in range(_size):
                 values[i] = tmp[i]
         except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
+            return FMIL2.fmi2_status_error
+        return FMIL2.fmi2_status_ok
 
-    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx):
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL2.fmi2_real_t* xnominal, size_t nx):
         for i in range(nx):
             if self._initialized_fmu == 1:
                 # Set new values to test that atol gets auto-corrected.
@@ -216,7 +218,7 @@ cdef class _ForTestingFMUModelME2(FMUModelME2):
             else:
                 # Set some illegal values in order to test the fallback/auto-correction.
                 xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
-        return FMIL.fmi2_status_ok
+        return FMIL2.fmi2_status_ok
 
     cpdef set_initialized_fmu(self, int value):
         self._initialized_fmu = value
