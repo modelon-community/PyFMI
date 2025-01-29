@@ -7,7 +7,7 @@ sys.path.append(str(this_dir))
 
 from conftest import setup_reference_fmus
 
-setup_reference_fmus()
-expected_fmu = Path(this_dir) / 'files' / 'reference_fmus' / '3.0' / 'VanDerPol.fmu'
-if not expected_fmu.exists():
-    raise Exception(f"Test setup failed, FMU {expected_fmu} does not exist!")
+def test_foo(setup_reference_fmus):
+    expected_fmu = Path(this_dir) / 'files' / 'reference_fmus' / '3.0' / 'VanDerPol.fmu'
+    if not expected_fmu.exists():
+        raise Exception(f"Test setup failed, FMU {expected_fmu} does not exist!")

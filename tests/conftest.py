@@ -7,7 +7,7 @@ import pytest
 
 files_directory = Path(__file__).parent / 'files'
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(scope="session")
 def setup_reference_fmus():
     """
         This function downloads reference FMUs from the Modelica group and unpacks
@@ -18,10 +18,15 @@ def setup_reference_fmus():
 
     def download_url(url, save_file_to, chunk_size=1024):
         """ Download file from URL to 'save_file_to' in chunks. """
-        with urllib.request.urlopen(url) as file_to_download:
-            with open(save_file_to, 'wb') as file_handle:
-                file_handle.write(file_to_download.read())
-
+        try:
+            with urllib.request.urlopen(url) as file_to_download:
+                with open(save_file_to, 'wb') as file_handle:
+                    file_handle.write(file_to_download.read())
+        except urllib.request.URLError as e:
+            raise Exception(
+                "Unable to download reference FMUs, please verify your internet connection is working and" + \
+                f" that the URL {url} exists."
+                ) from e
     zip_file_url = "https://github.com/modelica/Reference-FMUs/releases/download/v0.0.37/Reference-FMUs-0.0.37.zip"
     zip_file_name = 'reference_fmus.zip'
     zip_unzip_to = files_directory / 'reference_fmus'
