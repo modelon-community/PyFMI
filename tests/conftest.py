@@ -1,11 +1,13 @@
-import requests
+import urllib.request
 import hashlib
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 from pathlib import Path
+import pytest
 
 files_directory = Path(__file__).parent / 'files'
 
+@pytest.fixture(autouse=True, scope="session")
 def setup_reference_fmus():
     """
         This function downloads reference FMUs from the Modelica group and unpacks
@@ -16,10 +18,9 @@ def setup_reference_fmus():
 
     def download_url(url, save_file_to, chunk_size=1024):
         """ Download file from URL to 'save_file_to' in chunks. """
-        r = requests.get(url, stream=True)
-        with open(save_file_to, 'wb') as fd:
-            for chunk in r.iter_content(chunk_size=chunk_size):
-                fd.write(chunk)
+        with urllib.request.urlopen(url) as file_to_download:
+            with open(save_file_to, 'wb') as file_handle:
+                file_handle.write(file_to_download.read())
 
     zip_file_url = "https://github.com/modelica/Reference-FMUs/releases/download/v0.0.37/Reference-FMUs-0.0.37.zip"
     zip_file_name = 'reference_fmus.zip'
