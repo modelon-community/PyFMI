@@ -14,9 +14,10 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-Module containing the FMI interface Python wrappers.
-"""
+
+# TODO: Description
+# Module containing the FMI interface Python wrappers.
+
 import numpy as np
 cimport numpy as np
 
@@ -25,27 +26,7 @@ cimport pyfmi.fmil1_import as FMIL1
 cimport pyfmi.fmil2_import as FMIL2
 
 cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t*, char*, char*, int)
-
-cdef class ModelBase:
-    """
-    Abstract Model class containing base functionality.
-    """
-    cdef list _log
-    cdef char* _fmu_log_name
-    cdef FMIL.jm_callbacks callbacks
-    cdef public dict cache
-    cdef public object _log_stream
-    cdef public object file_object
-    cdef public object _additional_logger
-    cdef public object _max_log_size_msg_sent
-    cdef public object _result_file
-    cdef public object _log_handler
-    cdef object _modelId
-    cdef public int _log_is_stream, _invoked_dealloc
-    cdef public unsigned long long int _current_log_size, _max_log_size
-
-    cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
-
+from pyfmi.fmi_base cimport ModelBase
 
 cdef class ScalarVariable:
     """
@@ -70,7 +51,7 @@ cdef class ScalarVariable2:
     cdef FMIL2.fmi2_variable_alias_kind_enu_t _alias
     cdef FMIL2.fmi2_initial_enu_t             _initial
     cdef object _name
-    cdef object _description #A characater pointer but we need an own reference and this is sufficient
+    cdef object _description #A character pointer but we need an own reference and this is sufficient
 
 cdef class DeclaredType2:
     cdef object _name
@@ -264,18 +245,3 @@ cdef class WorkerClass2:
     cdef np.ndarray get_value_reference_numpy_vector(self, int index)
     cdef np.ndarray get_real_numpy_vector(self, int index)
     cpdef verify_dimensions(self, int dim)
-
-cdef class LogHandler:
-    cdef unsigned long _max_log_size
-
-    cpdef void set_max_log_size(self, unsigned long val)
-    cpdef void capi_start_callback(self, int limit_reached, unsigned long current_log_size)
-    cpdef void capi_end_callback  (self, int limit_reached, unsigned long current_log_size)
-
-cdef class LogHandlerDefault(LogHandler):
-    cdef unsigned long _log_checkpoint
-
-    cdef void _update_checkpoint (self, int limit_reached, unsigned long current_log_size)
-    cpdef unsigned long get_log_checkpoint(self)
-    cpdef void capi_start_callback(self, int limit_reached, unsigned long current_log_size)
-    cpdef void capi_end_callback  (self, int limit_reached, unsigned long current_log_size)
