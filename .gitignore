@@ -19,10 +19,14 @@ src/pyfmi/simulation/assimulo_interface.c
 
 src/pyfmi/fmi.c
 
+src/pyfmi/test_util.c
+
 src/pyfmi/LICENSE
 
 src/pyfmi/CHANGELOG
 
 src/pyfmi/version.txt
+
+tests/files/reference_fmus/
 
 __pycache__
