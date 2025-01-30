@@ -7,7 +7,7 @@ import pytest
 
 files_directory = Path(__file__).parent / 'files'
 
-@pytest.fixture(scope="session")
+@pytest.fixture(autouse=True, scope="session")
 def setup_reference_fmus():
     """
         This function downloads reference FMUs from the Modelica group and unpacks
