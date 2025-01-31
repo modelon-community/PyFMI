@@ -27,12 +27,12 @@ cimport numpy as np
 
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil1_import as FMIL1
-from pyfmi.fmi cimport FMUModelME1
+cimport pyfmi.fmi1 as FMI1
 from pyfmi.exceptions import FMUException
 from pyfmi.fmi import FMI_OK, FMI_DEFAULT_LOG_LEVEL
 
 
-cdef class FMUModelME1Extended(FMUModelME1):
+cdef class FMUModelME1Extended(FMI1.FMUModelME1):
 
     cdef public object _explicit_problem, _solver
     cdef public object _current_time, _stop_time, _input_time
@@ -43,7 +43,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
 
     def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _connect_dll=True):
         #Instantiate the FMU
-        FMUModelME1.__init__(self, fmu = fmu, log_file_name = log_file_name, log_level = log_level, _connect_dll=_connect_dll)
+        FMI1.FMUModelME1.__init__(self, fmu = fmu, log_file_name = log_file_name, log_level = log_level, _connect_dll=_connect_dll)
         
         nbr_f, nbr_g = self.get_ode_sizes()
 

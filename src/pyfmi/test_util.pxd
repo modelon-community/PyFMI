@@ -18,10 +18,11 @@
 """ Collection of classes used for testing purposes."""
 cimport pyfmi.fmil1_import as FMIL1
 cimport pyfmi.fmil2_import as FMIL2
+cimport pyfmi.fmi1 as FMI1
 
-from pyfmi.fmi cimport FMUModelME1, FMUModelME2
+from pyfmi.fmi cimport FMUModelME2
 
-cdef class _ForTestingFMUModelME1(FMUModelME1):
+cdef class _ForTestingFMUModelME1(FMI1.FMUModelME1):
     cdef int _get_nominal_continuous_states_fmil(self, FMIL1.fmi1_real_t* xnominal, size_t nx)
     cpdef set_allocated_fmu(self, int value)
 

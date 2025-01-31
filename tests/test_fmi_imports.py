@@ -99,7 +99,6 @@ import pyfmi.fmi as fmi
         'ScalarVariable',
         'ScalarVariable2',
         'TimeLimitExceeded',
-        'UnsupportedOperation',
         'WorkerClass2',
         'check_fmu_args',
         'create_temp_dir',

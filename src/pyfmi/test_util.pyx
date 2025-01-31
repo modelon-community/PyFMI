@@ -22,14 +22,15 @@ import numpy as np
 
 cimport pyfmi.fmil1_import as FMIL1
 cimport pyfmi.fmil2_import as FMIL2
+cimport pyfmi.fmi1 as FMI1
 
-from pyfmi.fmi import FMUModelME1, FMUModelCS1, FMUModelCS2, FMUModelME2
+from pyfmi.fmi import FMUModelCS2, FMUModelME2
 from pyfmi.exceptions import FMUException
 
 def get_examples_folder():
     return os.path.join(os.path.dirname(__file__), 'examples')
 
-cdef class _ForTestingFMUModelME1(FMUModelME1):
+cdef class _ForTestingFMUModelME1(FMI1.FMUModelME1):
     cdef int _get_nominal_continuous_states_fmil(self, FMIL1.fmi1_real_t* xnominal, size_t nx):
         for i in range(nx):
             if self._allocated_fmu == 1:  # If initialized
@@ -60,7 +61,7 @@ class Dummy_FMUModelME1(_ForTestingFMUModelME1):
     _nominal_continuous_states = None
 
     def __init__(self, states_vref, *args,**kwargs):
-        FMUModelME1.__init__(self, *args, **kwargs)
+        FMI1.FMUModelME1.__init__(self, *args, **kwargs)
 
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
         self._nominal_continuous_states = np.ones(self.get_ode_sizes()[0])
@@ -115,12 +116,12 @@ class Dummy_FMUModelME1(_ForTestingFMUModelME1):
 
     nominal_continuous_states = property(get_nominal_continuous_states_testimpl)
 
-class Dummy_FMUModelCS1(FMUModelCS1):
+class Dummy_FMUModelCS1(FMI1.FMUModelCS1):
     #Override properties
     time = None
 
     def __init__(self, states_vref, *args,**kwargs):
-        FMUModelCS1.__init__(self, *args, **kwargs)
+        FMI1.FMUModelCS1.__init__(self, *args, **kwargs)
 
         self.variables = self.get_model_variables(include_alias=False)
         self.states_vref = states_vref
