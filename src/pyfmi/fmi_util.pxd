@@ -19,11 +19,10 @@ from libc.stdio cimport FILE
 
 import numpy as np
 cimport numpy as np
-from pyfmi.fmi cimport FMUModelME2
+cimport pyfmi.fmi2 as FMI2
 
 cpdef decode(x)
 cpdef encode(x)
-
 
 """
     Below we define a 'modification' to fseek that is OS specific in order to handle very large files.
@@ -55,7 +54,7 @@ cdef class DumpData:
     cdef np.ndarray real_var_ref, int_var_ref, bool_var_ref
     cdef np.ndarray real_var_tmp, int_var_tmp, bool_var_tmp
     cdef np.ndarray time_tmp
-    cdef public FMUModelME2 model_me2
+    cdef public FMI2.FMUModelME2 model_me2
     cdef public int model_me2_instance
     cdef public object _file, model
     cdef size_t real_size, int_size, bool_size

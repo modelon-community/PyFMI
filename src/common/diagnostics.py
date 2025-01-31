@@ -18,7 +18,7 @@
 
 ## This file contains various components for the 'dynamics_diagnostics' options
 
-from pyfmi.fmi import FMUModelME2
+from pyfmi.fmi2 import FMUModelME2
 import numpy as np
 import numbers
 

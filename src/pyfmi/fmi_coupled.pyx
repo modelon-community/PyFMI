@@ -21,9 +21,10 @@ import time
 import numpy as np
 cimport numpy as np
 
-import pyfmi.fmi as fmi
-from pyfmi.fmi cimport FMUModelME2
 cimport pyfmi.fmil2_import as FMIL2
+cimport pyfmi.fmi2 as FMI2
+from pyfmi.fmi2 import FMI2_INPUT, FMI2_OUTPUT
+from pyfmi.fmi_base import PyEventInfo
 
 from pyfmi.fmi_util import enable_caching, Graph
 
@@ -281,10 +282,10 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
     def verify_connection_variables(self):
         for model in self.models_dict.keys():
             for output in self.models_dict[model]["local_output"]:
-                if model.get_variable_causality(output) != fmi.FMI2_OUTPUT:
+                if model.get_variable_causality(output) != FMI2_OUTPUT:
                     raise FMUException("The connection variable " + output + " in model " + model.get_name() + " is not an output. ")
             for input in self.models_dict[model]["local_input"]:
-                if model.get_variable_causality(input) != fmi.FMI2_INPUT:
+                if model.get_variable_causality(input) != FMI2_INPUT:
                     raise FMUException("The connection variable " + input + " in model " + model.get_name() + " is not an input. ")
     
     def define_graph(self):
@@ -797,7 +798,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
                 global_name = self._get_global_name(i, key)
                 global_vr   = self._get_global_vr(i, var.value_reference)
                 
-                variable_dict[self._get_global_name(i, key)] = fmi.ScalarVariable2(global_name, global_vr, 
+                variable_dict[self._get_global_name(i, key)] = FMI2.ScalarVariable2(global_name, global_vr, 
                                             var.type, var.description, var.variability, 
                                             var.causality, var.alias, var.initial)
         
@@ -810,7 +811,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         global_name = self._get_global_name(model_ind, scalar_variable.name)
         global_vr   = self._get_global_vr(model_ind, scalar_variable.value_reference)
         
-        return fmi.ScalarVariable2(global_name, global_vr, 
+        return FMI2.ScalarVariable2(global_name, global_vr, 
                                             scalar_variable.type, scalar_variable.description, scalar_variable.variability, 
                                             scalar_variable.causality, scalar_variable.alias, scalar_variable.initial)
 
@@ -1838,7 +1839,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
             if len(model) != 2:
                 raise FMUException("The models should be provided as a list of lists with the name" \
                 " of the model as the first entry and the model object as the second.")
-            if not isinstance(model[1], fmi.FMUModelME2): 
+            if not isinstance(model[1], FMI2.FMUModelME2): 
                 # TODO: Should be a "not supported" Exception instead?
                 raise InvalidFMUException("The coupled model currently only supports ME 2.0 FMUs.")
                 
@@ -2188,7 +2189,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
             nextEventTime = model.event_info.nextEventTime
         """
 
-        event_info = fmi.PyEventInfo()
+        event_info = PyEventInfo()
         event_info.newDiscreteStatesNeeded = False
         event_info.terminateSimulation     = False
         event_info.nominalsOfContinuousStatesChanged = self._nominals_continuous_states_changed

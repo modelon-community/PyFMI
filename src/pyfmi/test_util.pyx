@@ -23,8 +23,8 @@ import numpy as np
 cimport pyfmi.fmil1_import as FMIL1
 cimport pyfmi.fmil2_import as FMIL2
 cimport pyfmi.fmi1 as FMI1
+cimport pyfmi.fmi2 as FMI2
 
-from pyfmi.fmi import FMUModelCS2, FMUModelME2
 from pyfmi.exceptions import FMUException
 
 def get_examples_folder():
@@ -154,7 +154,7 @@ class Dummy_FMUModelCS1(FMI1.FMUModelCS1):
         return self.get_real(vref)
 
 
-cdef class _ForTestingFMUModelME2(FMUModelME2):
+cdef class _ForTestingFMUModelME2(FMI2.FMUModelME2):
     cdef int _get_real_by_ptr(self, FMIL2.fmi2_value_reference_t* vrefs, size_t _size, FMIL2.fmi2_real_t* values):
         vr = np.zeros(_size)
         for i in range(_size):
@@ -229,13 +229,13 @@ cdef class _ForTestingFMUModelME2(FMUModelME2):
         # test class, so we should never try to terminate or deallocate the FMU instance.
         self._initialized_fmu = 0
 
-class Dummy_FMUModelCS2(FMUModelCS2):
+class Dummy_FMUModelCS2(FMI2.FMUModelCS2):
     #Override properties
     time = None
     continuous_states = None
 
     def __init__(self, negated_aliases, *args,**kwargs):
-        FMUModelCS2.__init__(self, *args, **kwargs)
+        FMI2.FMUModelCS2.__init__(self, *args, **kwargs)
 
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
         self.variables = self.get_model_variables(include_alias=False)
@@ -326,7 +326,7 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
     
 
     def __init__(self, negated_aliases, *args, **kwargs):
-        FMUModelME2.__init__(self, *args, **kwargs)
+        FMI2.FMUModelME2.__init__(self, *args, **kwargs)
 
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
         self.variables = self.get_model_variables(include_alias=False)

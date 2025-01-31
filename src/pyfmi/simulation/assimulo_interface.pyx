@@ -30,9 +30,9 @@ import scipy.sparse as sps
 import time
 
 from pyfmi.common.io import ResultWriterDymola
-import pyfmi.fmi as fmi
 from pyfmi.exceptions import FMUException, InvalidOptionException
-from pyfmi.fmi cimport FMUModelME2
+cimport pyfmi.fmi2 as FMI2
+from pyfmi.fmi2 import FMI2_REAL, FMI2_INPUT
 
 from timeit import default_timer as timer
 
@@ -588,7 +588,7 @@ cdef class FMIODE2(cExplicit_Problem):
         self.input_names = []
         self.timings = {"handle_result": 0.0}
 
-        if type(model)==FMUModelME2: #if isinstance(model, FMUModelME2):
+        if type(model)==FMI2.FMUModelME2: #if isinstance(model, FMUModelME2):
             self.model_me2 = model
             self.model_me2_instance = 1
         else:
@@ -689,10 +689,10 @@ cdef class FMIODE2(cExplicit_Problem):
                 input_names = [input_names]
 
             for i,name in enumerate(input_names):
-                if self._model.get_variable_causality(name) != fmi.FMI2_INPUT:
+                if self._model.get_variable_causality(name) != FMI2_INPUT:
                     raise FMUException("Variable '%s' is not an input. Only variables specified to be inputs are allowed."%name)
 
-                if self._model.get_variable_data_type(name) == fmi.FMI2_REAL:
+                if self._model.get_variable_data_type(name) == FMI2_REAL:
                     self.input_real_value_refs.append(self._model.get_variable_valueref(name))
                     input_real_mask.append(i)
                 else:
@@ -1335,7 +1335,7 @@ class FMIODESENS2(FMIODE2):
             self.param_valref = [model.get_variable_valueref(x) for x in parameters]
 
             for param in parameters:
-                if model.get_variable_causality(param) != fmi.FMI2_INPUT and \
+                if model.get_variable_causality(param) != FMI2_INPUT and \
                    (model.get_generation_tool() != "JModelica.org" and model.get_generation_tool() != "Optimica Compiler Toolkit"):
                     raise FMIModel_Exception("The sensitivity parameters must be specified as inputs!")
 
@@ -1345,7 +1345,7 @@ class FMIODESENS2(FMIODE2):
         if self._model.get_capability_flags()['providesDirectionalDerivatives']:
             use_rhs_sens = True
             for param in parameters:
-                if model.get_variable_causality(param) != fmi.FMI2_INPUT and \
+                if model.get_variable_causality(param) != FMI2_INPUT and \
                   (model.get_generation_tool() == "JModelica.org" or model.get_generation_tool() == "Optimica Compiler Toolkit"):
                     use_rhs_sens = False
                     logging_module.warning("The sensitivity parameters must be specified as inputs in order to set up the sensitivity " \

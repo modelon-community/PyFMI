@@ -32,14 +32,15 @@ import scipy as sp
 import scipy.sparse as sps
 import scipy.optimize as spopt
 
-import pyfmi.fmi as fmi
 from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
 from pyfmi.common.io import get_result_handler, ResultHandler
 from pyfmi.common.core import TrajectoryLinearInterpolation, TrajectoryUserFunction
-from pyfmi.fmi cimport FMUModelCS2
+cimport pyfmi.fmi2 as FMI2
 
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil2_import as FMIL2
+
+from pyfmi.fmi2 import FMI2_CONTINUOUS, FMI2_INPUT, FMI2_OUTPUT
 
 from pyfmi.fmi_util import Graph
 from pyfmi.exceptions import FMUException, InvalidFMUException
@@ -432,7 +433,7 @@ cdef class Master:
         if not isinstance(models, list):
             raise FMUException("The models should be provided as a list.")
         for model in models:
-            if not isinstance(model, fmi.FMUModelCS2):
+            if not isinstance(model, FMI2.FMUModelCS2):
                 # TODO: Should be a "not supported" Exception instead?
                 raise InvalidFMUException("The Master algorithm currently only supports CS 2.0 FMUs.")
         self.fmu_adresses = <FMIL2.fmi2_import_t**>FMIL.malloc(len(models)*sizeof(FMIL2.fmi2_import_t*))
@@ -537,7 +538,7 @@ cdef class Master:
             
     def copy_fmu_addresses(self):
         for model in self.models_dict.keys():
-            self.fmu_adresses[self.models_dict[model]["order"]] = (<FMUModelCS2>model)._fmu
+            self.fmu_adresses[self.models_dict[model]["order"]] = (<FMI2.FMUModelCS2>model)._fmu
             
     def define_connection_matrix(self):
         cdef list data = []
@@ -575,8 +576,8 @@ cdef class Master:
             src = connection[0]; src_var = connection[1]
             dst = connection[2]; dst_var = connection[3]
             
-            if connection[0].get_variable_variability(connection[1]) == fmi.FMI2_CONTINUOUS and \
-               connection[2].get_variable_variability(connection[3]) == fmi.FMI2_CONTINUOUS:
+            if connection[0].get_variable_variability(connection[1]) == FMI2_CONTINUOUS and \
+               connection[2].get_variable_variability(connection[3]) == FMI2_CONTINUOUS:
                    
                 data.append(1)
                 row.append(self.models_dict[dst]["global_index_inputs"]+self.models_dict[dst]["local_input"].index(dst_var))
@@ -603,16 +604,16 @@ cdef class Master:
             for i in range(nlocal):
                 #local_D = model.get_directional_derivative([self.models_dict[model]["local_input_vref"][i]],self.models_dict[model]["local_output_vref"], [1.0])
                 local_D = np.empty(self.models_dict[model]["local_output_len"])
-                #status = (<FMUModelCS2>model)._get_directional_derivative(np.array([self.models_dict[model]["local_input_vref"][i]]),self.models_dict[model]["local_output_vref_array"], self._array_one, local_D)
+                #status = (<FMI2.FMUModelCS2>model)._get_directional_derivative(np.array([self.models_dict[model]["local_input_vref"][i]]),self.models_dict[model]["local_output_vref_array"], self._array_one, local_D)
                 if self.opts["experimental_finite_difference_D"]:
-                    up = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_input_vref_array"][i:i+1])
+                    up = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_input_vref_array"][i:i+1])
                     eps = max(abs(up), 1.0)
-                    yp = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
-                    (<FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"][i:i+1], up+eps)
-                    local_D = ((<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"]) - yp)/eps
-                    (<FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"][i:i+1], up)
+                    yp = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
+                    (<FMI2.FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"][i:i+1], up+eps)
+                    local_D = ((<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"]) - yp)/eps
+                    (<FMI2.FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"][i:i+1], up)
                 else:
-                    status = (<FMUModelCS2>model)._get_directional_derivative(self.models_dict[model]["local_input_vref_array"][i:i+1],self.models_dict[model]["local_output_vref_array"], self._array_one, local_D)
+                    status = (<FMI2.FMUModelCS2>model)._get_directional_derivative(self.models_dict[model]["local_input_vref_array"][i:i+1],self.models_dict[model]["local_output_vref_array"], self._array_one, local_D)
             
                     if status != 0: raise FMUException("Failed to get the directional derivatives while computing the global D matrix.")
                 data.extend(local_D)
@@ -687,8 +688,8 @@ cdef class Master:
         
     def connection_setup(self, connections):
         for connection in connections:
-            if connection[0].get_variable_variability(connection[1]) == fmi.FMI2_CONTINUOUS and \
-               connection[2].get_variable_variability(connection[3]) == fmi.FMI2_CONTINUOUS:
+            if connection[0].get_variable_variability(connection[1]) == FMI2_CONTINUOUS and \
+               connection[2].get_variable_variability(connection[3]) == FMI2_CONTINUOUS:
                 self.models_dict[connection[0]]["local_output"].append(connection[1])
                 self.models_dict[connection[0]]["local_output_vref"].append(connection[0].get_variable_valueref(connection[1]))
                 self.models_dict[connection[2]]["local_input"].append(connection[3])
@@ -727,16 +728,16 @@ cdef class Master:
     def verify_connection_variables(self):
         for model in self.models_dict.keys():
             for output in self.models_dict[model]["local_output"]:
-                if model.get_variable_causality(output) != fmi.FMI2_OUTPUT:
+                if model.get_variable_causality(output) != FMI2_OUTPUT:
                     raise FMUException("The connection variable " + output + " in model " + model.get_name() + " is not an output. ")
             for output in self.models_dict[model]["local_output_discrete"]:
-                if model.get_variable_causality(output) != fmi.FMI2_OUTPUT:
+                if model.get_variable_causality(output) != FMI2_OUTPUT:
                     raise FMUException("The connection variable " + output + " in model " + model.get_name() + " is not an output. ")
             for input in self.models_dict[model]["local_input"]:
-                if model.get_variable_causality(input) != fmi.FMI2_INPUT:
+                if model.get_variable_causality(input) != FMI2_INPUT:
                     raise FMUException("The connection variable " + input + " in model " + model.get_name() + " is not an input. ")
             for input in self.models_dict[model]["local_input_discrete"]:
-                if model.get_variable_causality(input) != fmi.FMI2_INPUT:
+                if model.get_variable_causality(input) != FMI2_INPUT:
                     raise FMUException("The connection variable " + input + " in model " + model.get_name() + " is not an input. ")
                     
     def check_algebraic_loops(self):
@@ -785,7 +786,7 @@ cdef class Master:
         for model in self.models:
             index_start = self.models_dict[model]["global_index_outputs"]
             index_end = index_start + self.models_dict[model]["local_output_len"]
-            local_output_vref_array = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
+            local_output_vref_array = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
             for i, index in enumerate(range(index_start, index_end)):
                 y[index] = local_output_vref_array[i].item()
         return y.reshape(-1,1)
@@ -813,7 +814,7 @@ cdef class Master:
         for model in self.models:
             index_start = self.models_dict[model]["global_index_derivatives"]
             index_end = index_start + self.models_dict[model]["local_derivative_len"]
-            local_derivative_vref_array = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_derivative_vref_array"])
+            local_derivative_vref_array = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_derivative_vref_array"])
             for i, index in enumerate(range(index_start, index_end)):
                 xd[index] = local_derivative_vref_array[i].item()
 
@@ -829,7 +830,7 @@ cdef class Master:
                 
     cpdef np.ndarray get_specific_connection_outputs(self, model, np.ndarray mask, np.ndarray yout):
         cdef int j = 0
-        cdef np.ndarray ytmp = (<FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"][mask])
+        cdef np.ndarray ytmp = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"][mask])
         for i, flag in enumerate(mask):
             if flag:
                 yout[i+self.models_dict[model]["global_index_outputs"]] = ytmp[j].item()
@@ -847,7 +848,7 @@ cdef class Master:
                 for model in self.models_dict.keys():
                     #yd.extend(model.get_output_derivatives(self.models_dict[model]["local_output"], 1))
                     inext = i + self.models_dict[model]["local_output_len"]
-                    status = (<FMUModelCS2>model)._get_output_derivatives(self.models_dict[model]["local_output_vref_array"], ydtmp, self.models_dict[model]["local_output_vref_ones"])
+                    status = (<FMI2.FMUModelCS2>model)._get_output_derivatives(self.models_dict[model]["local_output_vref_array"], ydtmp, self.models_dict[model]["local_output_vref_ones"])
                     if status != 0: raise FMUException("Failed to get the output derivatives.")
                     yd[i:inext] = ydtmp[:inext-i]
                     i = inext
@@ -895,7 +896,7 @@ cdef class Master:
             if self.max_output_derivative_order > 1 and not self.opts["force_finite_difference_outputs"]:
                 for model in self.models_dict.keys():
                     inext = i + self.models_dict[model]["local_output_len"]
-                    status = (<FMUModelCS2>model)._get_output_derivatives(self.models_dict[model]["local_output_vref_array"], yddtmp, self.models_dict[model]["local_output_vref_twos"])
+                    status = (<FMI2.FMUModelCS2>model)._get_output_derivatives(self.models_dict[model]["local_output_vref_array"], yddtmp, self.models_dict[model]["local_output_vref_twos"])
                     if status != 0: raise FMUException("Failed to get the output derivatives of second order.")
                     ydd[i:inext] = yddtmp[:inext-i]
                     i = inext
@@ -937,17 +938,17 @@ cdef class Master:
             i = self.models_dict[model]["global_index_inputs"] #MIGHT BE WRONG
             inext = i + self.models_dict[model]["local_input_len"]
             #model.set(self.models_dict[model]["local_input"], u[i:inext])
-            (<FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"], u[i:inext])
+            (<FMI2.FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"], u[i:inext])
             
             if ud is not None: #Set the input derivatives
                 ud = ud.ravel()
                 #model.set_input_derivatives(self.models_dict[model]["local_input"], ud[i:inext], 1)
-                status = (<FMUModelCS2>model)._set_input_derivatives(self.models_dict[model]["local_input_vref_array"], ud[i:inext], self.models_dict[model]["local_input_vref_ones"])
+                status = (<FMI2.FMUModelCS2>model)._set_input_derivatives(self.models_dict[model]["local_input_vref_array"], ud[i:inext], self.models_dict[model]["local_input_vref_ones"])
                 if status != 0: raise FMUException("Failed to set the first order input derivatives.")
                 
             if udd is not None: #Set the input derivatives
                 udd = udd.ravel()
-                status = (<FMUModelCS2>model)._set_input_derivatives(self.models_dict[model]["local_input_vref_array"], udd[i:inext], self.models_dict[model]["local_input_vref_twos"])
+                status = (<FMI2.FMUModelCS2>model)._set_input_derivatives(self.models_dict[model]["local_input_vref_array"], udd[i:inext], self.models_dict[model]["local_input_vref_twos"])
                 if status != 0: raise FMUException("Failed to set the second order input derivatives.")
             
             i = inext
@@ -965,7 +966,7 @@ cdef class Master:
         cdef int i = self.models_dict[model]["global_index_inputs"]
         cdef int inext = i + self.models_dict[model]["local_input_len"]
         cdef np.ndarray usliced = u.ravel()[i:inext]
-        (<FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"][mask], usliced[mask])
+        (<FMI2.FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"][mask], usliced[mask])
     
     cpdef set_specific_connection_inputs_discrete(self, model, np.ndarray mask, np.ndarray u):
         cdef int i = self.models_dict[model]["global_index_inputs_discrete"]

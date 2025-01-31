@@ -27,11 +27,14 @@ import numpy as np
 cimport numpy as np
 
 cimport pyfmi.fmil_import as FMIL
-from pyfmi.fmi cimport FMUModelME2
+cimport pyfmi.fmi2 as FMI2 # TODO
+from pyfmi.fmi1 import ( # TODO
+    FMI_NEGATED_ALIAS, FMI_PARAMETER, FMI_CONSTANT,
+    FMI_REAL, FMI_INTEGER, FMI_ENUMERATION, FMI_BOOLEAN
+)
 
 import functools
 import marshal
-import pyfmi.fmi as fmi
 from pyfmi.exceptions import FMUException, IOException
 
 cpdef decode(x):
@@ -238,10 +241,10 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
     cdef int nof_diag_params = len(diagnostics_param_values)
     cdef int i, alias, data_type, variability
     cdef int last_data_matrix = -1, last_index = -1
-    cdef int FMI_NEGATED_ALIAS = fmi.FMI_NEGATED_ALIAS
-    cdef int FMI_PARAMETER = fmi.FMI_PARAMETER, FMI_CONSTANT = fmi.FMI_CONSTANT
-    cdef int FMI_REAL = fmi.FMI_REAL, FMI_INTEGER = fmi.FMI_INTEGER
-    cdef int FMI_ENUMERATION = fmi.FMI_ENUMERATION, FMI_BOOLEAN = fmi.FMI_BOOLEAN
+    cdef int _FMI_NEGATED_ALIAS = FMI_NEGATED_ALIAS # TODO
+    cdef int _FMI_PARAMETER = FMI_PARAMETER, _FMI_CONSTANT = FMI_CONSTANT # TODO
+    cdef int _FMI_REAL = FMI_REAL, _FMI_INTEGER = FMI_INTEGER # TODO
+    cdef int _FMI_ENUMERATION = FMI_ENUMERATION, _FMI_BOOLEAN = FMI_BOOLEAN # TODO
     cdef list param_real = [], param_int = [], param_bool = []
     cdef list varia_real = [], varia_int = [], varia_bool = []
     last_vref = -1
@@ -251,7 +254,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         data_info[2,i] = 0
         data_info[3,i] = -1
 
-        if var.alias == FMI_NEGATED_ALIAS:
+        if var.alias == _FMI_NEGATED_ALIAS:
             alias = -1
         else:
             alias = 1
@@ -264,16 +267,16 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
             last_vref   = var.value_reference
             data_type   = var.type
 
-            if variability == FMI_PARAMETER or variability == FMI_CONSTANT:
+            if variability == _FMI_PARAMETER or variability == _FMI_CONSTANT:
                 last_data_matrix = 1
                 index_fixed = index_fixed + 1
                 last_index = index_fixed
 
-                if data_type == FMI_REAL:
+                if data_type == _FMI_REAL:
                     param_real.append(last_vref)
-                elif data_type == FMI_INTEGER or data_type == FMI_ENUMERATION:
+                elif data_type == _FMI_INTEGER or data_type == _FMI_ENUMERATION:
                     param_int.append(last_vref)
-                elif data_type == FMI_BOOLEAN:
+                elif data_type == _FMI_BOOLEAN:
                     param_bool.append(last_vref)
                 else:
                     raise FMUException("Unknown type detected for variable %s when writing the results."%var.name)
@@ -282,11 +285,11 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
                 index_variable = index_variable + 1
                 last_index = index_variable
 
-                if data_type == FMI_REAL:
+                if data_type == _FMI_REAL:
                     varia_real.append(last_vref)
-                elif data_type == FMI_INTEGER or data_type == FMI_ENUMERATION:
+                elif data_type == _FMI_INTEGER or data_type == _FMI_ENUMERATION:
                     varia_int.append(last_vref)
-                elif data_type == FMI_BOOLEAN:
+                elif data_type == _FMI_BOOLEAN:
                     varia_bool.append(last_vref)
                 else:
                     raise FMUException("Unknown type detected for variable %s when writing the results."%var.name)
@@ -1003,7 +1006,7 @@ class Graph:
 
 cdef class DumpData:
     def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref, with_diagnostics):
-        if type(model) == FMUModelME2:
+        if type(model) == FMI2.FMUModelME2:
             self.real_var_ref = np.array(real_var_ref, dtype=np.uint32, ndmin=1).ravel()
             self.int_var_ref  = np.array(int_var_ref,  dtype=np.uint32, ndmin=1).ravel()
             self.bool_var_ref = np.array(bool_var_ref, dtype=np.uint32, ndmin=1).ravel()
@@ -1023,7 +1026,7 @@ cdef class DumpData:
 
         self._file = filep
 
-        if type(model) == FMUModelME2: #isinstance(model, FMUModelME2):
+        if type(model) == FMI2.FMUModelME2: #isinstance(model, FMUModelME2):
             self.model_me2 = model
             self.model_me2_instance = 1
         else:
