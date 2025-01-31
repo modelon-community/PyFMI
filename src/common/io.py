@@ -827,7 +827,7 @@ class ResultStorageMemory(ResultDymola):
         else:
             try:
                 var = self.vars[name]
-            except KeyError as ex:
+            except KeyError:
                 raise VariableNotFoundError("Cannot find variable " +
                                         name + " in data file.")
 

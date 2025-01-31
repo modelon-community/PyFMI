@@ -44,7 +44,6 @@ cimport numpy as np
 cimport pyfmi.fmil_import as FMIL
 from pyfmi.exceptions import FMUException
 
-
 # from pyfmi.fmi_util cimport decode
 cpdef decode(x): # TODO; temporarily here due to circular dependency
     if isinstance(x, bytes):
@@ -443,7 +442,7 @@ cdef class ModelBase:
                 file_path -- path to extracted XML file
             otherwise function returns nothing
         """
-        # XXX: Needs to be here for now, due to circular dependency, since pyfmi.common.log.parser imports FMUException (from this file)
+        # TODO: Needs to be here for now, causes issues with the imports in via __init__ files
         from pyfmi.common.log import extract_xml_log
 
         if file_name is None:
