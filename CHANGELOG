@@ -1,5 +1,6 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+    * Refactored internal files. This should NOT affect imports.
 
 
 --- PyFMI-2.16.3 ---

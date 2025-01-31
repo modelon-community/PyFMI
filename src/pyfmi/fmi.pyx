@@ -154,16 +154,17 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
     # TODO: This method can be made more efficient by providing
     # the unzipped part and the already read XML object to the different
     # FMU classes.
+    # XXX: Does this require API changes to the respective classes?
 
     # FMIL related variables
     cdef FMIL.fmi_import_context_t*     context
     cdef FMIL.jm_callbacks              callbacks
     cdef FMIL.jm_string                 last_error
     cdef FMIL.fmi_version_enu_t         version
-    cdef FMIL1.fmi1_import_t*            fmu_1 = NULL
-    cdef FMIL2.fmi2_import_t*            fmu_2 = NULL
-    cdef FMIL1.fmi1_fmu_kind_enu_t       fmu_1_kind
-    cdef FMIL2.fmi2_fmu_kind_enu_t       fmu_2_kind
+    cdef FMIL1.fmi1_import_t*           fmu_1 = NULL
+    cdef FMIL2.fmi2_import_t*           fmu_2 = NULL
+    cdef FMIL1.fmi1_fmu_kind_enu_t      fmu_1_kind
+    cdef FMIL2.fmi2_fmu_kind_enu_t      fmu_2_kind
     cdef list                           log_data = []
 
     #Variables for deallocation
@@ -280,7 +281,7 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
                 raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+FMI_BASE.decode(last_error))
             else:
                 _handle_load_fmu_exception(fmu, log_data)
-                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible nore information.")
+                raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible more information.")
 
         fmu_2_kind = FMIL2.fmi2_import_get_fmu_kind(fmu_2)
 

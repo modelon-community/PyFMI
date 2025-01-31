@@ -107,7 +107,7 @@ FMI_DERIVATIVES = 1
 # Evaluate Jacobian of outputs.
 FMI_OUTPUTS = 2
 
-# XXX: Copied from utils for now; to avoid circular dependencies
+# TODO: Copied from utils temporarily; to avoid circular dependencies
 cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
     cdef int i=0,j=0,k=0
     cdef int n_col = len(column_keys)#len(dependencies.keys())

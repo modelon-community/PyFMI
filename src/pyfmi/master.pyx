@@ -35,13 +35,12 @@ import scipy.optimize as spopt
 from pyfmi.common.algorithm_drivers import OptionBase, InvalidAlgorithmOptionException, AssimuloSimResult
 from pyfmi.common.io import get_result_handler, ResultHandler
 from pyfmi.common.core import TrajectoryLinearInterpolation, TrajectoryUserFunction
-cimport pyfmi.fmi2 as FMI2
 
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil2_import as FMIL2
+cimport pyfmi.fmi2 as FMI2
 
 from pyfmi.fmi2 import FMI2_CONTINUOUS, FMI2_INPUT, FMI2_OUTPUT
-
 from pyfmi.fmi_util import Graph
 from pyfmi.exceptions import FMUException, InvalidFMUException
 

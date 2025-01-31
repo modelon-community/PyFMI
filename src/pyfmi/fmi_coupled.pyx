@@ -25,12 +25,11 @@ cimport pyfmi.fmil2_import as FMIL2
 cimport pyfmi.fmi2 as FMI2
 from pyfmi.fmi2 import FMI2_INPUT, FMI2_OUTPUT
 from pyfmi.fmi_base import PyEventInfo
-
 from pyfmi.fmi_util import enable_caching, Graph
+from pyfmi.exceptions import FMUException, InvalidFMUException
 
 from collections import OrderedDict
 import scipy.optimize as spopt
-from pyfmi.exceptions import FMUException, InvalidFMUException
 
 def init_f_block(u, coupled, block):
     

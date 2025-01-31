@@ -28,8 +28,9 @@ cimport numpy as np
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil1_import as FMIL1
 cimport pyfmi.fmi1 as FMI1
+from pyfmi.fmi_base import FMI_DEFAULT_LOG_LEVEL
+from pyfmi.fmi1 import FMI_OK
 from pyfmi.exceptions import FMUException
-from pyfmi.fmi import FMI_OK, FMI_DEFAULT_LOG_LEVEL
 
 
 cdef class FMUModelME1Extended(FMI1.FMUModelME1):

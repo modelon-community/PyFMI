@@ -45,7 +45,6 @@ cimport pyfmi.fmil_import as FMIL
 from pyfmi.exceptions import FMUException
 
 
-
 # from pyfmi.fmi_util cimport decode
 cpdef decode(x): # TODO; temporarily here due to circular dependency
     if isinstance(x, bytes):
@@ -74,7 +73,7 @@ cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t* co
     else:
         return FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
 
-# TODO: copied; replace by functools lru_cache?
+# TODO: copied due to circular dependencies; replace by functools lru_cache?
 def enable_caching(obj):
     @functools.wraps(obj, ('__name__', '__doc__'))
     def memoizer(*args, **kwargs):
@@ -729,8 +728,7 @@ cdef class ModelBase:
 class PyEventInfo(): # TODO: Should this be a cpdef + FMIX variants?
     pass
 
-# XXX: Should likely be moved to pyfmi/common/log/
-# This does require some re-factoring due to circular dependency on FMUException
+# TODO: Move to common/log/ ? (new .pyx file there)
 cdef class LogHandler:
     """Base class for a log handling class."""
     def __init__(self, max_log_size):

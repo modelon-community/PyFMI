@@ -29,14 +29,14 @@ cimport numpy as np
 import scipy.sparse as sps
 import time
 
-from pyfmi.common.io import ResultWriterDymola
-from pyfmi.exceptions import FMUException, InvalidOptionException
+cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmi2 as FMI2
 from pyfmi.fmi2 import FMI2_REAL, FMI2_INPUT
+from pyfmi.exceptions import FMUException, InvalidOptionException
+from pyfmi.common.io import ResultWriterDymola
 
 from timeit import default_timer as timer
 
-cimport pyfmi.fmil_import as FMIL
 
 try:
     import assimulo

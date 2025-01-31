@@ -36,20 +36,10 @@ except ImportError:
     print("WX-Python not found. The GUI will not work.")
 
 #JModelica related imports
-try:
-    from pyfmi.common.io import ResultDymolaTextual
-    from pyfmi.common.io import ResultDymolaBinary
-    from pyfmi.common.io import ResultCSVTextual
-    from pyfmi.common.io import JIOError
-except ImportError:
-    try:
-        from pyjmi.common.io import ResultDymolaTextual
-        from pyjmi.common.io import ResultDymolaBinary
-        from pyjmi.common.io import ResultCSVTextual
-        from pyjmi.common.io import JIOError
-    except ImportError:
-        print("JModelica Python package was not found.")
-
+from pyfmi.common.io import ResultDymolaTextual
+from pyfmi.common.io import ResultDymolaBinary
+from pyfmi.common.io import ResultCSVTextual
+from pyfmi.common.io import JIOError
 
 ID_GRID    = 15001
 ID_LICENSE = 15002

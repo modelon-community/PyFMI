@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-# TODO: Description
 # Module containing the FMI1 interface Python wrappers.
 
 cimport pyfmi.fmil_import as FMIL

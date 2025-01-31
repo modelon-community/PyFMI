@@ -15,8 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-# TODO: Description
-# Module containing the FMI interface Python wrappers.
+# Module containing the abstract base class for FMI interface Python wrappers.
+# Plus some auxiliary functions
 
 cimport pyfmi.fmil_import as FMIL
 
@@ -46,7 +46,6 @@ cdef class ModelBase:
 
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
 
-# TODO: Possibly move to fmi.pyx?
 cdef class LogHandler:
     cdef unsigned long _max_log_size
 
