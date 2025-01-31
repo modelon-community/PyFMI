@@ -26,56 +26,10 @@ cimport pyfmi.fmil1_import as FMIL1
 cimport pyfmi.fmil2_import as FMIL2
 
 cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t*, char*, char*, int)
-from pyfmi.fmi_base cimport ModelBase
 
-cdef class ScalarVariable:
-    """
-    Class defining data structure based on the XML element ScalarVariable.
-    """
-    cdef object _name
-    cdef FMIL1.fmi1_value_reference_t _value_reference
-    cdef object _description #A character pointer but we need an own reference and this is sufficient
-    cdef FMIL1.fmi1_base_type_enu_t _type
-    cdef FMIL1.fmi1_variability_enu_t _variability
-    cdef FMIL1.fmi1_causality_enu_t _causality
-    cdef FMIL1.fmi1_variable_alias_kind_enu_t _alias
+cimport pyfmi.fmi_base as FMI_BASE
 
-cdef class ScalarVariable2:
-    """
-    Class defining data structure based on the XML element ScalarVariable.
-    """
-    cdef object         _value_reference
-    cdef FMIL2.fmi2_base_type_enu_t           _type
-    cdef FMIL2.fmi2_variability_enu_t         _variability
-    cdef FMIL2.fmi2_causality_enu_t           _causality
-    cdef FMIL2.fmi2_variable_alias_kind_enu_t _alias
-    cdef FMIL2.fmi2_initial_enu_t             _initial
-    cdef object _name
-    cdef object _description #A character pointer but we need an own reference and this is sufficient
-
-cdef class DeclaredType2:
-    cdef object _name
-    cdef object _description
-    cdef object _quantity
-
-cdef class EnumerationType2(DeclaredType2):
-    cdef object _items
-
-cdef class IntegerType2(DeclaredType2):
-    cdef int _min, _max
-
-cdef class RealType2(DeclaredType2):
-    cdef float _min, _max, _nominal
-    cdef object _unbounded, _relativeQuantity, _unit, _display_unit
-
-cdef class FMUState2:
-    """
-    Class containing a pointer to a FMU-state.
-    """
-    cdef FMIL2.fmi2_FMU_state_t fmu_state
-    cdef dict _internal_state_variables
-
-cdef class FMUModelBase(ModelBase):
+cdef class FMUModelBase(FMI_BASE.ModelBase):
     """
     An FMI Model loaded from a DLL.
     """
@@ -136,7 +90,7 @@ cdef class FMUModelME1(FMUModelBase):
     cdef int _get_nominal_continuous_states_fmil(self, FMIL1.fmi1_real_t* xnominal, size_t nx)
     cdef public object _preinit_nominal_continuous_states
 
-cdef class FMUModelBase2(ModelBase):
+cdef class FMUModelBase2(FMI_BASE.ModelBase):
     """
     FMI Model loaded from a dll.
     """

@@ -24,40 +24,40 @@ cimport numpy as np
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil2_import as FMIL2
 
-# cdef class ScalarVariable2:
-#     """
-#     Class defining data structure based on the XML element ScalarVariable.
-#     """
-#     cdef object         _value_reference
-#     cdef FMIL2.fmi2_base_type_enu_t           _type
-#     cdef FMIL2.fmi2_variability_enu_t         _variability
-#     cdef FMIL2.fmi2_causality_enu_t           _causality
-#     cdef FMIL2.fmi2_variable_alias_kind_enu_t _alias
-#     cdef FMIL2.fmi2_initial_enu_t             _initial
-#     cdef object _name
-#     cdef object _description #A character pointer but we need an own reference and this is sufficient
+cdef class ScalarVariable2:
+    """
+    Class defining data structure based on the XML element ScalarVariable.
+    """
+    cdef object         _value_reference
+    cdef FMIL2.fmi2_base_type_enu_t           _type
+    cdef FMIL2.fmi2_variability_enu_t         _variability
+    cdef FMIL2.fmi2_causality_enu_t           _causality
+    cdef FMIL2.fmi2_variable_alias_kind_enu_t _alias
+    cdef FMIL2.fmi2_initial_enu_t             _initial
+    cdef object _name
+    cdef object _description #A character pointer but we need an own reference and this is sufficient
 
-# cdef class DeclaredType2:
-#     cdef object _name
-#     cdef object _description
-#     cdef object _quantity
+cdef class DeclaredType2:
+    cdef object _name
+    cdef object _description
+    cdef object _quantity
 
-# cdef class EnumerationType2(DeclaredType2):
-#     cdef object _items
+cdef class EnumerationType2(DeclaredType2):
+    cdef object _items
 
-# cdef class IntegerType2(DeclaredType2):
-#     cdef int _min, _max
+cdef class IntegerType2(DeclaredType2):
+    cdef int _min, _max
 
-# cdef class RealType2(DeclaredType2):
-#     cdef float _min, _max, _nominal
-#     cdef object _unbounded, _relativeQuantity, _unit, _display_unit
+cdef class RealType2(DeclaredType2):
+    cdef float _min, _max, _nominal
+    cdef object _unbounded, _relativeQuantity, _unit, _display_unit
 
-# cdef class FMUState2:
-#     """
-#     Class containing a pointer to a FMU-state.
-#     """
-#     cdef FMIL2.fmi2_FMU_state_t fmu_state
-#     cdef dict _internal_state_variables
+cdef class FMUState2:
+    """
+    Class containing a pointer to a FMU-state.
+    """
+    cdef FMIL2.fmi2_FMU_state_t fmu_state
+    cdef dict _internal_state_variables
 
 # cdef class FMUModelBase2(ModelBase):
 #     """

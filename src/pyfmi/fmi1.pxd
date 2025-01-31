@@ -18,23 +18,23 @@
 # TODO: Description
 # Module containing the FMI interface Python wrappers.
 
-import numpy as np
-cimport numpy as np
+# import numpy as np
+# cimport numpy as np
 
-cimport pyfmi.fmil_import as FMIL
+# cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil1_import as FMIL1
 
-# cdef class ScalarVariable:
-#     """
-#     Class defining data structure based on the XML element ScalarVariable.
-#     """
-#     cdef object _name
-#     cdef FMIL1.fmi1_value_reference_t _value_reference
-#     cdef object _description #A character pointer but we need an own reference and this is sufficient
-#     cdef FMIL1.fmi1_base_type_enu_t _type
-#     cdef FMIL1.fmi1_variability_enu_t _variability
-#     cdef FMIL1.fmi1_causality_enu_t _causality
-#     cdef FMIL1.fmi1_variable_alias_kind_enu_t _alias
+cdef class ScalarVariable:
+    """
+    Class defining data structure based on the XML element ScalarVariable.
+    """
+    cdef object _name
+    cdef FMIL1.fmi1_value_reference_t _value_reference
+    cdef object _description #A character pointer but we need an own reference and this is sufficient
+    cdef FMIL1.fmi1_base_type_enu_t _type
+    cdef FMIL1.fmi1_variability_enu_t _variability
+    cdef FMIL1.fmi1_causality_enu_t _causality
+    cdef FMIL1.fmi1_variable_alias_kind_enu_t _alias
 
 # cdef class FMUModelBase(ModelBase):
 #     """

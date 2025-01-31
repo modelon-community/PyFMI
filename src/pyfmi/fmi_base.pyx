@@ -707,8 +707,8 @@ cdef class ModelBase:
             raise FMUException("Unknown input.")
         return regexp
 
-# class PyEventInfo():
-#     pass
+class PyEventInfo(): # TODO: Should this be a cpdef + FMIX variants?
+    pass
 
 # XXX: Should likely be moved to pyfmi/common/log/
 # This does require some re-factoring due to circular dependency on FMUException
