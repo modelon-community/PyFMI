@@ -1963,7 +1963,7 @@ class TestResultDymolaBinary:
         res = fmu.simulate(options = opts)
 
         rdb = ResultDymolaBinary(opts["result_file_name"])
-        cpu_time = rdb.get_variable_data('cpu_time').x
+        cpu_time = rdb.get_variable_data(f"{DIAGNOSTICS_PREFIX}cpu_time").x
 
         first_value = -1 # initialize to any negative value since the first cpu_time value is 0.0
 
