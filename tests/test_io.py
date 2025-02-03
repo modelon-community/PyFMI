@@ -1959,6 +1959,7 @@ class TestResultDymolaBinary:
         fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
         opts = fmu.simulate_options()
         opts['dynamic_diagnostics'] = True
+        opts["result_file_name"] = "TestCPUTime.mat"
         res = fmu.simulate(options = opts)
 
         rdb = ResultDymolaBinary(opts["result_file_name"])
