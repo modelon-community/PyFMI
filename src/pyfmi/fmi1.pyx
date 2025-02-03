@@ -2969,7 +2969,7 @@ cdef class FMUModelME1(FMUModelBase):
             self._instantiated_fmu = 0
 
 cdef object _load_fmi1_fmu(
-    str fmu, 
+    fmu, 
     object log_file_name, 
     str kind, 
     int log_level, 

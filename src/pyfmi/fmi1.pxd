@@ -96,7 +96,7 @@ cdef class FMUModelME1(FMUModelBase):
     cdef public object _preinit_nominal_continuous_states
 
 cdef object _load_fmi1_fmu(
-    str fmu, 
+    fmu, 
     object log_file_name, 
     str kind, 
     int log_level, 

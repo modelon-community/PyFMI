@@ -170,7 +170,7 @@ cdef class WorkerClass2:
     cpdef verify_dimensions(self, int dim)
 
 cdef object _load_fmi2_fmu(
-    str fmu, 
+    fmu, 
     object log_file_name, 
     str kind, 
     int log_level, 
