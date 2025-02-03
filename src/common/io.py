@@ -97,7 +97,7 @@ class ResultStorage:
 class ResultHandler:
     def __init__(self, model = None):
         self.model = model
-        # Dictionary of support capabilities 
+        # Dictionary of support capabilities
         # should be UPDATED, not REPLACED, for stating supported capabilities
         self.supports = {"dynamic_diagnostics": False,
                          "result_max_size": False}
@@ -1545,7 +1545,7 @@ class ResultDymolaBinary(ResultDymola):
                 name == f'{DIAGNOSTICS_PREFIX}cpu_time'
             ):
             return Trajectory(
-                time, self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x[start_index:stop_index])
+                time, np.cumsum(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x[start_index:stop_index]))
 
         factor, data_index, data_mat = self._map_index_to_data_properties(name)
 
@@ -2885,7 +2885,7 @@ class ResultHandlerBinaryFile(ResultHandler):
 
 def verify_result_size(file_name, first_point, current_size, previous_size, max_size, ncp, time):
     free_space = get_available_disk_space(file_name)
-    
+
     if first_point:
         point_size = current_size - previous_size
         estimate = ncp*point_size + previous_size
@@ -2893,10 +2893,10 @@ def verify_result_size(file_name, first_point, current_size, previous_size, max_
         msg = ""
         if estimate > max_size:
             msg = msg + "The result is estimated to exceed the allowed maximum size (limit: %g GB, estimate: %g GB). "%(max_size/GB_FACTOR, estimate/GB_FACTOR)
-        
+
         if estimate > free_space:
             msg = msg + "The result is estimated to exceed the available disk space (available: %g GB, estimate: %g GB). "%(free_space/GB_FACTOR, estimate/GB_FACTOR)
-        
+
         if msg != "":
             if ncp > NCP_LARGE:
                 msg = msg + "The number of result points is large (%d), consider reducing the number of points. "%ncp

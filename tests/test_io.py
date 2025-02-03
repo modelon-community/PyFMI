@@ -609,7 +609,7 @@ class TestResultFileBinary:
         res = ResultDymolaBinary('CoupledClutches_result.mat')
 
         assert res.description[res.get_variable_index("J1.phi")] == "Absolute rotation angle of component"
-    
+
     def test_modified_result_file_data_diagnostics(self):
         """Verify that computed diagnostics can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -660,7 +660,7 @@ class TestResultFileBinary:
         result_writer.simulation_end()
 
         assert len(res.get_variable_data("@Diagnostics.state_errors.clutch2.w_rel").x) == 4, res.get_variable_data("@Diagnostics.state_errors.clutch2.w_rel").x
-    
+
     def test_modified_result_file_data_diagnostics_steps(self):
         """Verify that diagnostics can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -711,7 +711,7 @@ class TestResultFileBinary:
         result_writer.simulation_end()
 
         assert len(res.get_variable_data("@Diagnostics.nbr_steps").x) == 4, res.get_variable_data("@Diagnostics.nbr_steps").x
-    
+
     def test_modified_result_file_data_2(self):
         """Verify that continuous trajectories are updated when retrieved from a result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -733,7 +733,7 @@ class TestResultFileBinary:
         result_writer.simulation_end()
 
         assert len(res.get_variable_data("J1.phi").x) == 2, res.get_variable_data("J1.phi").x
-        
+
     def test_modified_result_file_data_2_different(self):
         """Verify that (different) continuous trajectories are updated when retrieved from a result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -755,7 +755,7 @@ class TestResultFileBinary:
         result_writer.simulation_end()
 
         assert len(res.get_variable_data("J2.phi").x) == 2, res.get_variable_data("J2.phi").x
-    
+
     def test_modified_result_file_data_1(self):
         """Verify that (different) constants/parameters can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -779,7 +779,7 @@ class TestResultFileBinary:
 
         #Assert that no exception is raised
         res.get_variable_data("J2.J")
-    
+
     def test_modified_result_file_data_1_delayed(self):
         """Verify that constants/parameters can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -799,7 +799,7 @@ class TestResultFileBinary:
 
         #Assert that no exception is raised
         res.get_variable_data("J2.J")
-        
+
     def test_modified_result_file_time(self):
         """Verify that 'time' can be retrieved from an updated result file"""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -1945,7 +1945,7 @@ class TestResultDymolaBinary:
 
         vars = ["time"]
         start_index, stop_index = 0, 5
-        
+
         partial_1, _ = rdb.get_variables_data(vars, start_index, stop_index)
         full_traj = rdb.get_variable_data(vars[0])
         partial_2, _ = rdb.get_variables_data(vars, start_index, stop_index)
@@ -1954,6 +1954,23 @@ class TestResultDymolaBinary:
         assert len(full_traj.x) == (ncp + 1)
         assert len(partial_2[vars[0]].x) == (stop_index - start_index)
 
+    def test_cpu_time(self):
+        """ Verify the cumulative CPU time trajectory is never decreasing. """
+        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
+        opts = fmu.simulate_options()
+        opts['dynamic_diagnostics'] = True
+        res = fmu.simulate(options = opts)
+
+        rdb = ResultDymolaBinary(opts["result_file_name"])
+        cpu_time = rdb.get_variable_data('cpu_time').x
+
+        first_value = -1 # initialize to any negative value since the first cpu_time value is 0.0
+
+        # Test that the data is never decreasing (since we return it using numpy cumulative sum)
+        for value in cpu_time:
+            assert value >= first_value
+            first_value = value
+
 @pytest.mark.assimulo
 class TestFileSizeLimit:
     def _setup(self, result_type, result_file_name="", fmi_type="me"):
@@ -1961,7 +1978,7 @@ class TestFileSizeLimit:
             model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
         else:
             model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
-            
+
         opts = model.simulate_options()
         opts["result_handling"]  = result_type
         opts["result_file_name"] = result_file_name
@@ -2025,7 +2042,7 @@ class TestFileSizeLimit:
 
         assert file_size > max_size*0.9 and file_size < max_size*1.1, \
                 "The file size is not within 10% of the given max size"
-    
+
     def _test_result_size_early_abort(self, result_type, result_file_name=""):
         """
         Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
@@ -2067,7 +2084,7 @@ class TestFileSizeLimit:
 
             assert file_size < max_size*0.1, \
                     "The file size is not small, no early abort"
-    
+
     # TODO: Pytest parametrization
     """
     Binary
@@ -2077,19 +2094,19 @@ class TestFileSizeLimit:
         Make sure that the diagnostics variables are also taken into account.
         """
         self._test_result_size_verification("binary", dynamic_diagnostics=True)
-        
+
     def test_binary_file_size_verification(self):
         self._test_result_size_verification("binary")
-    
+
     def test_binary_file_size_early_abort(self):
         self._test_result_size_early_abort("binary")
 
     def test_small_size_binary_file(self):
         self._test_result_exception("binary")
-    
+
     def test_small_size_binary_file_cs(self):
         self._test_result_exception("binary", fmi_type="cs")
-    
+
     def test_small_size_binary_file_stream(self):
         self._test_result_exception("binary", BytesIO())
 
@@ -2104,13 +2121,13 @@ class TestFileSizeLimit:
     """
     def test_text_file_size_verification(self):
         self._test_result_size_verification("file")
-    
+
     def test_text_file_size_early_abort(self):
         self._test_result_size_early_abort("file")
 
     def test_small_size_text_file(self):
         self._test_result_exception("file")
-    
+
     def test_small_size_text_file_stream(self):
         self._test_result_exception("file", StringIO())
 
@@ -2125,13 +2142,13 @@ class TestFileSizeLimit:
     """
     def test_csv_file_size_verification(self):
         self._test_result_size_verification("csv")
-    
+
     def test_csv_file_size_early_abort(self):
         self._test_result_size_early_abort("csv")
 
     def test_small_size_csv_file(self):
         self._test_result_exception("csv")
-    
+
     def test_small_size_csv_file_stream(self):
         self._test_result_exception("csv", StringIO())
 
@@ -2146,10 +2163,10 @@ class TestFileSizeLimit:
     """
     def test_small_size_memory(self):
         self._test_result_exception("memory")
-    
+
     def test_memory_size_early_abort(self):
         self._test_result_size_early_abort("memory")
-    
+
     def test_small_size_memory_stream(self):
         self._test_result_exception("memory", StringIO())
 
@@ -2171,7 +2188,7 @@ class TestCustomResultHandlerMissingSupport:
     def test_limit_result_size(self, caplog):
         """Test limiting the result size when support is missing."""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
-        
+
         opts = model.simulate_options()
         opts["result_handling"] = "custom"
         opts["result_handler"]  = ResultHandlerCustomNoSupport(model)
@@ -2187,7 +2204,7 @@ class TestCustomResultHandlerMissingSupport:
     def test_dynamic_diags(self):
         """Test simulation with DynamicDiagnostics."""
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
-        
+
         opts = model.simulate_options()
         opts["result_handling"] = "custom"
         opts["result_handler"]  = ResultHandlerCustomNoSupport(model)
