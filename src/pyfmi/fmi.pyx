@@ -17,9 +17,7 @@
 
 # distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
 
-"""
-Module containing the FMI interface Python wrappers.
-"""
+# Module containing the FMI interface Python wrappers.
 """
 For profiling:
 # cython: linetrace=True
@@ -40,65 +38,133 @@ cimport pyfmi.fmi2 as FMI2
 from pyfmi.common.core import create_temp_dir
 
 from pyfmi.exceptions import (
-    FMUException, IOException, InvalidOptionException, TimeLimitExceeded,
-    InvalidFMUException, InvalidXMLException, InvalidBinaryException,
+    FMUException,
+    IOException,
+    InvalidOptionException,
+    TimeLimitExceeded,
+    InvalidFMUException,
+    InvalidXMLException,
+    InvalidBinaryException,
     InvalidVersionException
 )
 
 from pyfmi.fmi_base import (
-    ModelBase, LogHandler, LogHandlerDefault, PyEventInfo,
-    FMI_DEFAULT_LOG_LEVEL, enable_caching, check_fmu_args
+    ModelBase,
+    LogHandler,
+    LogHandlerDefault,
+    PyEventInfo,
+    FMI_DEFAULT_LOG_LEVEL,
+    enable_caching,
+    check_fmu_args
 )
 
 from pyfmi.fmi1 import (
     # Classes
-    ScalarVariable, FMUModelBase, FMUModelCS1, FMUModelME1,
+    ScalarVariable,
+    FMUModelBase,
+    FMUModelCS1,
+    FMUModelME1,
     # Basic flags related to FMI1
-    FMI_TRUE, FMI_FALSE,
+    FMI_TRUE,
+    FMI_FALSE,
     # Status
-    FMI_OK, FMI_WARNING, FMI_DISCARD,
-    FMI_ERROR, FMI_FATAL, FMI_PENDING,
-    FMI1_DO_STEP_STATUS, FMI1_PENDING_STATUS, FMI1_LAST_SUCCESSFUL_TIME,
+    FMI_OK,
+    FMI_WARNING,
+    FMI_DISCARD,
+    FMI_ERROR,
+    FMI_FATAL,
+    FMI_PENDING,
+    FMI1_DO_STEP_STATUS,
+    FMI1_PENDING_STATUS,
+    FMI1_LAST_SUCCESSFUL_TIME,
     # Types
-    FMI_REAL, FMI_INTEGER, FMI_BOOLEAN, FMI_STRING, FMI_ENUMERATION,
+    FMI_REAL,
+    FMI_INTEGER,
+    FMI_BOOLEAN,
+    FMI_STRING,
+    FMI_ENUMERATION,
     # Alias data
-    FMI_NO_ALIAS, FMI_ALIAS, FMI_NEGATED_ALIAS,
+    FMI_NO_ALIAS,
+    FMI_ALIAS,
+    FMI_NEGATED_ALIAS,
     # Variability
-    FMI_CONTINUOUS, FMI_CONSTANT, FMI_PARAMETER, FMI_DISCRETE,
+    FMI_CONTINUOUS,
+    FMI_CONSTANT,
+    FMI_PARAMETER,
+    FMI_DISCRETE,
     # Causality
-    FMI_INPUT, FMI_OUTPUT, FMI_INTERNAL, FMI_NONE,
+    FMI_INPUT,
+    FMI_OUTPUT,
+    FMI_INTERNAL,
+    FMI_NONE,
     # Misc 
-    FMI_ME, FMI_CS_STANDALONE, FMI_CS_TOOL, 
-    GLOBAL_FMU_OBJECT, FMI_REGISTER_GLOBALLY, GLOBAL_LOG_LEVEL
+    FMI_ME,
+    FMI_CS_STANDALONE,
+    FMI_CS_TOOL, 
+    GLOBAL_FMU_OBJECT,
+    FMI_REGISTER_GLOBALLY,
+    GLOBAL_LOG_LEVEL
 )
 
 from pyfmi.fmi2 import (
     # Classes
-    ScalarVariable2, DeclaredType2, EnumerationType2,
-    IntegerType2, RealType2, FMUState2, WorkerClass2,
-    FMUModelBase2, FMUModelME2, FMUModelCS2,
+    ScalarVariable2,
+    DeclaredType2,
+    EnumerationType2,
+    IntegerType2,
+    RealType2,
+    FMUState2,
+    WorkerClass2,
+    FMUModelBase2,
+    FMUModelME2,
+    FMUModelCS2,
     # Basic flags related to FMI
-    FMI2_TRUE, FMI2_FALSE,
+    FMI2_TRUE,
+    FMI2_FALSE,
     # Status
-    FMI2_DO_STEP_STATUS, FMI2_PENDING_STATUS, FMI2_LAST_SUCCESSFUL_TIME, FMI2_TERMINATED,
+    FMI2_DO_STEP_STATUS,
+    FMI2_PENDING_STATUS,
+    FMI2_LAST_SUCCESSFUL_TIME,
+    FMI2_TERMINATED,
     # Types
-    FMI2_REAL,FMI2_INTEGER, FMI2_BOOLEAN,
-    FMI2_STRING, FMI2_ENUMERATION,
+    FMI2_REAL,
+    FMI2_INTEGER,
+    FMI2_BOOLEAN,
+    FMI2_STRING,
+    FMI2_ENUMERATION,
     # Variability
-    FMI2_CONSTANT, FMI2_FIXED, FMI2_TUNABLE,
-    FMI2_DISCRETE, FMI2_CONTINUOUS, FMI2_UNKNOWN,
+    FMI2_CONSTANT,
+    FMI2_FIXED,
+    FMI2_TUNABLE,
+    FMI2_DISCRETE,
+    FMI2_CONTINUOUS,
+    FMI2_UNKNOWN,
     # Causality
-    FMI2_INPUT, FMI2_OUTPUT, FMI2_PARAMETER, 
-    FMI2_CALCULATED_PARAMETER, FMI2_LOCAL, FMI2_INDEPENDENT,
+    FMI2_INPUT,
+    FMI2_OUTPUT,
+    FMI2_PARAMETER, 
+    FMI2_CALCULATED_PARAMETER,
+    FMI2_LOCAL,
+    FMI2_INDEPENDENT,
     # Dependency
-    FMI2_KIND_DEPENDENT, FMI2_KIND_CONSTANT, FMI2_KIND_FIXED, 
-    FMI2_KIND_TUNABLE, FMI2_KIND_DISCRETE,
+    FMI2_KIND_DEPENDENT,
+    FMI2_KIND_CONSTANT,
+    FMI2_KIND_FIXED, 
+    FMI2_KIND_TUNABLE,
+    FMI2_KIND_DISCRETE,
     # Initial
-    FMI2_INITIAL_EXACT, FMI2_INITIAL_APPROX, FMI2_INITIAL_CALCULATED, FMI2_INITIAL_UNKNOWN,
+    FMI2_INITIAL_EXACT,
+    FMI2_INITIAL_APPROX,
+    FMI2_INITIAL_CALCULATED,
+    FMI2_INITIAL_UNKNOWN,
     # Jacobian approximation
-    FORWARD_DIFFERENCE_EPS, CENTRAL_DIFFERENCE_EPS,
+    FORWARD_DIFFERENCE_EPS,
+    CENTRAL_DIFFERENCE_EPS,
     # Flags for evaluation of FMI Jacobians
-    FMI_STATES, FMI_INPUTS, FMI_DERIVATIVES, FMI_OUTPUTS,
+    FMI_STATES,
+    FMI_INPUTS,
+    FMI_DERIVATIVES,
+    FMI_OUTPUTS,
 )
 
 # Callbacks
