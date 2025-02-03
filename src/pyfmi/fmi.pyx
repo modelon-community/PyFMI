@@ -93,7 +93,7 @@ from pyfmi.fmi2 import (
     # Dependency
     FMI2_KIND_DEPENDENT, FMI2_KIND_CONSTANT, FMI2_KIND_FIXED, 
     FMI2_KIND_TUNABLE, FMI2_KIND_DISCRETE,
-    # INITIAL
+    # Initial
     FMI2_INITIAL_EXACT, FMI2_INITIAL_APPROX, FMI2_INITIAL_CALCULATED, FMI2_INITIAL_UNKNOWN,
     # Jacobian approximation
     FORWARD_DIFFERENCE_EPS, CENTRAL_DIFFERENCE_EPS,
@@ -101,7 +101,7 @@ from pyfmi.fmi2 import (
     FMI_STATES, FMI_INPUTS, FMI_DERIVATIVES, FMI_OUTPUTS,
 )
 
-#CALLBACKS
+# Callbacks
 cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     (<list>c.context).append("FMIL: module = %s, log level = %d: %s"%(module, log_level, message))
 

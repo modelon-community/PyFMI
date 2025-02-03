@@ -163,10 +163,7 @@ cdef class ModelBase:
         if isinstance(variable_name, basestring):
             return self._get(variable_name) #Scalar case
         else:
-            ret = []
-            for i in xrange(len(variable_name)): #A list of variables
-                ret += [self._get(variable_name[i])]
-            return ret
+            return [self._get(variable_name[i]) for i in xrange(len(variable_name))]
 
     def _exec_algorithm(self, module, algorithm, options):
         """
