@@ -32,14 +32,19 @@ cimport pyfmi.fmil1_import as FMIL1
 cimport pyfmi.fmi_base as FMI_BASE
 
 from pyfmi.exceptions import (
-    FMUException, InvalidVersionException, 
-    InvalidXMLException, InvalidBinaryException
+    FMUException,
+    InvalidVersionException, 
+    InvalidXMLException,
+    InvalidBinaryException
 )
 
 from pyfmi.common.core import create_temp_dir
 from pyfmi.fmi_base import (
     PyEventInfo, 
-    FMI_DEFAULT_LOG_LEVEL, enable_caching, check_fmu_args
+    FMI_DEFAULT_LOG_LEVEL,
+    enable_caching,
+    check_fmu_args,
+    _handle_load_fmu_exception
 )
 
 GLOBAL_LOG_LEVEL = 3
@@ -2962,3 +2967,61 @@ cdef class FMUModelME1(FMUModelBase):
             FMIL1.fmi1_import_free_model_instance(self._fmu)
             self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             self._instantiated_fmu = 0
+
+cdef object _load_fmi1_fmu(
+    str fmu, 
+    object log_file_name, 
+    str kind, 
+    int log_level, 
+    int allow_unzipped_fmu,
+    FMIL.fmi_import_context_t* context, 
+    bytes fmu_temp_dir,
+    FMIL.jm_callbacks callbacks,
+    list log_data
+):
+    """
+    The FMI1 part of fmi.pyx load_fmu.
+    """
+    # TODO: Duplicated code here for error handling
+    cdef FMIL.jm_string last_error
+    cdef FMIL1.fmi1_import_t* fmu_1 = NULL
+    cdef FMIL1.fmi1_fmu_kind_enu_t fmu_1_kind
+    model = None
+
+    # Check the fmu-kind
+    fmu_1 = FMIL1.fmi1_import_parse_xml(context, fmu_temp_dir)
+
+    if fmu_1 is NULL:
+        # Delete the context
+        last_error = FMIL.jm_get_last_error(&callbacks)
+        FMIL.fmi_import_free_context(context)
+        if not allow_unzipped_fmu:
+            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
+        if callbacks.log_level >= FMIL.jm_log_level_error:
+            _handle_load_fmu_exception(fmu, log_data)
+            raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+FMI_BASE.decode(last_error))
+        else:
+            _handle_load_fmu_exception(fmu, log_data)
+            raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible nore information.")
+
+    fmu_1_kind = FMIL1.fmi1_import_get_fmu_kind(fmu_1)
+
+    # Compare fmu_kind with input-specified kind
+    if fmu_1_kind == FMI_ME and kind.upper() != 'CS':
+        model = FMUModelME1(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
+                            allow_unzipped_fmu = allow_unzipped_fmu)
+    elif (fmu_1_kind == FMI_CS_STANDALONE or fmu_1_kind == FMI_CS_TOOL) and kind.upper() != 'ME':
+        model = FMUModelCS1(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
+                            allow_unzipped_fmu = allow_unzipped_fmu)
+    else:
+        FMIL1.fmi1_import_free(fmu_1)
+        FMIL.fmi_import_free_context(context)
+        if not allow_unzipped_fmu:
+            FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
+        _handle_load_fmu_exception(fmu, log_data)
+        raise FMUException("FMU is a {} and not a {}".format(FMI_BASE.decode(FMIL1.fmi1_fmu_kind_to_string(fmu_1_kind)), kind.upper()))
+
+    FMIL1.fmi1_import_free(fmu_1)
+    FMIL.fmi_import_free_context(context)
+
+    return model

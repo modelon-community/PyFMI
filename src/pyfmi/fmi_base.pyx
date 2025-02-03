@@ -782,3 +782,7 @@ def check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path):
 
         if not os.path.isfile(fmu_full_path):
             raise FMUException('Could not locate the FMU in the specified directory.')
+
+def _handle_load_fmu_exception(fmu, log_data):
+    for log in log_data:
+        print(log)

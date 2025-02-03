@@ -168,3 +168,15 @@ cdef class WorkerClass2:
     cdef np.ndarray get_value_reference_numpy_vector(self, int index)
     cdef np.ndarray get_real_numpy_vector(self, int index)
     cpdef verify_dimensions(self, int dim)
+
+cdef object _load_fmi2_fmu(
+    str fmu, 
+    object log_file_name, 
+    str kind, 
+    int log_level, 
+    int allow_unzipped_fmu,
+    FMIL.fmi_import_context_t* context, 
+    bytes fmu_temp_dir,
+    FMIL.jm_callbacks callbacks,
+    list log_data
+)

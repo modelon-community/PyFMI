@@ -94,3 +94,15 @@ cdef class FMUModelME1(FMUModelBase):
     cpdef get_derivatives(self)
     cdef int _get_nominal_continuous_states_fmil(self, FMIL1.fmi1_real_t* xnominal, size_t nx)
     cdef public object _preinit_nominal_continuous_states
+
+cdef object _load_fmi1_fmu(
+    str fmu, 
+    object log_file_name, 
+    str kind, 
+    int log_level, 
+    int allow_unzipped_fmu,
+    FMIL.fmi_import_context_t* context, 
+    bytes fmu_temp_dir,
+    FMIL.jm_callbacks callbacks,
+    list log_data
+)
