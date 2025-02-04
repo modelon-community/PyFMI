@@ -1956,7 +1956,10 @@ class TestResultDymolaBinary:
 
     def test_cpu_time(self):
         """ Verify the cumulative CPU time trajectory is never decreasing. """
-        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
+        fmu = Dummy_FMUModelME2(
+            [],
+            os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False
+        )
         opts = fmu.simulate_options()
         opts['dynamic_diagnostics'] = True
         opts["result_file_name"] = "TestCPUTime.mat"
@@ -1964,11 +1967,17 @@ class TestResultDymolaBinary:
 
         rdb = ResultDymolaBinary(opts["result_file_name"])
         cpu_time = rdb.get_variable_data(f"{DIAGNOSTICS_PREFIX}cpu_time").x
-
+        cpu_time_2, _ = rdb.get_variables_data([f"{DIAGNOSTICS_PREFIX}cpu_time"])
+        cpu_time_2 = cpu_time_2[f"{DIAGNOSTICS_PREFIX}cpu_time"].x
         first_value = -1 # initialize to any negative value since the first cpu_time value is 0.0
 
         # Test that the data is never decreasing (since we return it using numpy cumulative sum)
         for value in cpu_time:
+            assert value >= first_value
+            first_value = value
+
+        first_value = -1
+        for value in cpu_time_2:
             assert value >= first_value
             first_value = value
 
