@@ -1,5 +1,8 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+
+
+--- PyFMI-2.16.3 ---
     * Changed default log and file size limitations from 2 GiB (2*1024**3) to 2 GB (2e9).
       Updated the corresponding error messages to correctly reference sizes in GB instead of GiB.
     * Clarified that the `filter` option only applies to model variables.
