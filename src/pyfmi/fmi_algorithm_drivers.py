@@ -16,7 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 Module for simulation algorithms to be used together with
-pyfmi.fmi.FMUModel*.simulate.
+pyfmi.fmi*.FMUModel*.simulate.
 """
 
 import logging as logging_module
@@ -24,14 +24,18 @@ import time
 import numpy as np
 import scipy.optimize as spopt
 
-import pyfmi.fmi as fmi
-import pyfmi.fmi_coupled as fmi_coupled
-import pyfmi.fmi_extended as fmi_extended
+from pyfmi.fmi1 import FMUModelME1, FMUModelCS1, FMI_ERROR, FMI_DISCARD, FMI1_LAST_SUCCESSFUL_TIME # TODO
+from pyfmi.fmi2 import FMUModelME2, FMUModelCS2, FMI2_INPUT, FMI2_LAST_SUCCESSFUL_TIME
+from pyfmi.fmi_coupled import CoupledFMUModelME2
+from pyfmi.fmi_extended import FMUModelME1Extended
+from pyfmi.fmi_util import parameter_estimation_f
+
 from pyfmi.common.diagnostics import setup_diagnostics_variables
 from pyfmi.common.algorithm_drivers import AlgorithmBase, OptionBase, InvalidAlgorithmOptionException, InvalidSolverArgumentException, JMResultBase
 from pyfmi.common.io import get_result_handler
 from pyfmi.common.core import TrajectoryLinearInterpolation
 from pyfmi.common.core import TrajectoryUserFunction
+from pyfmi.exceptions import FMUException, InvalidOptionException, TimeLimitExceeded
 
 from timeit import default_timer as timer
 
@@ -253,7 +257,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         Parameters::
 
             model --
-                fmi.FMUModel* object representation of the model.
+                FMUModel* object representation of the model.
 
             options --
                 The options that should be used in the algorithm. For details on
@@ -278,7 +282,7 @@ class AssimuloFMIAlg(AlgorithmBase):
         try:
             import assimulo
         except Exception:
-            raise fmi.FMUException(
+            raise FMUException(
                 'Could not find Assimulo package. Check pyfmi.check_packages()')
 
         # import Assimulo dependent classes
@@ -319,7 +323,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             input_values = input_traj[1].eval(self.start_time)[0,:]
 
             if len(input_names) != len(input_values):
-                raise fmi.FMUException("The number of input variables is not equal to the number of input values, please verify the input object.")
+                raise FMUException("The number of input variables is not equal to the number of input values, please verify the input object.")
 
             self.model.set(input_names, input_values)
 
@@ -333,26 +337,26 @@ class AssimuloFMIAlg(AlgorithmBase):
         # Initialize?
         if self.options['initialize']:
 
-            if isinstance(self.model, fmi.FMUModelME1):
+            if isinstance(self.model, FMUModelME1):
                 self.model.time = start_time #Set start time before initialization
                 self.model.initialize(tolerance=self.rtol)
 
-            elif isinstance(self.model, ((fmi.FMUModelME2, fmi_coupled.CoupledFMUModelME2))):
+            elif isinstance(self.model, ((FMUModelME2, CoupledFMUModelME2))):
                 self.model.setup_experiment(tolerance=self.rtol, start_time=self.start_time, stop_time=self.final_time)
                 self.model.initialize()
                 self.model.event_update()
                 self.model.enter_continuous_time_mode()
             else:
-                raise fmi.FMUException("Unknown model.")
+                raise FMUException("Unknown model.")
 
             time_res_init = timer()
             self.result_handler.initialize_complete()
             time_res_init = timer() - time_res_init
 
-        elif self.model.time is None and isinstance(self.model, fmi.FMUModelME2):
-            raise fmi.FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
+        elif self.model.time is None and isinstance(self.model, FMUModelME2):
+            raise FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
         elif self.model.time is None:
-            raise fmi.FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
+            raise FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
 
         self._set_absolute_tolerance_options()
 
@@ -365,7 +369,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             number_of_diagnostics_variables = len(_diagnostics_vars)
 
         #See if there is an time event at start time
-        if isinstance(self.model, fmi.FMUModelME1):
+        if isinstance(self.model, FMUModelME1):
             event_info = self.model.get_event_info()
             if event_info.upcomingTimeEvent and event_info.nextEventTime == model.time:
                 self.model.event_update()
@@ -388,22 +392,22 @@ class AssimuloFMIAlg(AlgorithmBase):
         if self.options["sensitivities"]:
             if self.model.get_generation_tool() != "JModelica.org" and \
                self.model.get_generation_tool() != "Optimica Compiler Toolkit":
-                if isinstance(self.model, fmi.FMUModelME2):
+                if isinstance(self.model, FMUModelME2):
                     for var in self.options["sensitivities"]:
                         causality = self.model.get_variable_causality(var)
-                        if causality != fmi.FMI2_INPUT:
-                            raise fmi.FMUException("The sensitivity parameter is not specified as an input which is required.")
+                        if causality != FMI2_INPUT:
+                            raise FMUException("The sensitivity parameter is not specified as an input which is required.")
                 else:
-                    raise fmi.FMUException("Sensitivity calculations only possible with JModelica.org generated FMUs")
+                    raise FMUException("Sensitivity calculations only possible with JModelica.org generated FMUs")
 
             if self.options["solver"] != "CVode":
-                raise fmi.FMUException("Sensitivity simulations currently only supported using the solver CVode.")
+                raise FMUException("Sensitivity simulations currently only supported using the solver CVode.")
 
             #Checks to see if all the sensitivities are inside the model
             #else there will be an exception
             self.model.get(self.options["sensitivities"])
 
-        if not self.input and (isinstance(self.model, ((fmi.FMUModelME2, fmi_coupled.CoupledFMUModelME2)))):
+        if not self.input and (isinstance(self.model, (FMUModelME2, CoupledFMUModelME2))):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(self.model,
                                          result_file_name = self.result_file_name,
@@ -423,7 +427,7 @@ class AssimuloFMIAlg(AlgorithmBase):
                                      extra_equations = self.options["extra_equations"],
                                      synchronize_simulation = self.options["synchronize_simulation"],
                                      number_of_diagnostics_variables = number_of_diagnostics_variables)
-        elif isinstance(self.model, ((fmi.FMUModelME2, fmi_coupled.CoupledFMUModelME2))):
+        elif isinstance(self.model, (FMUModelME2, CoupledFMUModelME2)):
             if self.options["sensitivities"]:
                 self.probl = FMIODESENS2(self.model,
                                          input_traj,
@@ -515,7 +519,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             if not self.result_handler.supports.get('dynamic_diagnostics', False):
                 err_msg = ("The chosen result_handler does not support dynamic_diagnostics."
                            " Try using e.g., ResultHandlerBinaryFile.")
-                raise fmi.InvalidOptionException(err_msg)
+                raise InvalidOptionException(err_msg)
             self.options['logging'] = True
         elif self.options['logging']:
             if self.result_handler.supports.get('dynamic_diagnostics', False):
@@ -567,20 +571,20 @@ class AssimuloFMIAlg(AlgorithmBase):
                 else: #rtol is a vector where not all elements are equal (make sure that all are equal except zeros) (and store the rtol value)
                     fnbr, gnbr = self.model.get_ode_sizes()
                     if len(self.solver_options["rtol"]) != fnbr:
-                        raise fmi.InvalidOptionException("If the relative tolerance is provided as a vector, it need to be equal to the number of states.")
+                        raise InvalidOptionException("If the relative tolerance is provided as a vector, it need to be equal to the number of states.")
                     rtol_scalar = 0.0
                     for tol in self.solver_options["rtol"]:
                         if rtol_scalar == 0.0 and tol != 0.0:
                             rtol_scalar = tol
                             continue
                         if rtol_scalar != 0.0 and tol != 0.0 and rtol_scalar != tol:
-                            raise fmi.InvalidOptionException("If the relative tolerance is provided as a vector, the values need to be equal except for zeros.")
+                            raise InvalidOptionException("If the relative tolerance is provided as a vector, the values need to be equal except for zeros.")
                     self.rtol = rtol_scalar
 
             else: #rtol was not provided as a vector -> modify if there are unbounded states
                 self.rtol = self.solver_options["rtol"]
 
-                if not isinstance(self.model, fmi.FMUModelME1):
+                if not isinstance(self.model, FMUModelME1):
                     unbounded_attribute = False
                     rtol_vector = []
                     for state in self.model.get_states_list():
@@ -598,9 +602,9 @@ class AssimuloFMIAlg(AlgorithmBase):
             self.rtol = self.model.get_relative_tolerance() #No support for relative tolerance in the used solver
 
         self.with_jacobian = self.options['with_jacobian']
-        if not (isinstance(self.model, fmi.FMUModelME2)): # or isinstance(self.model, fmi_coupled.CoupledFMUModelME2) For coupled FMUs, currently not supported
+        if not (isinstance(self.model, FMUModelME2)): # or isinstance(self.model, fmi_coupled.CoupledFMUModelME2) For coupled FMUs, currently not supported
             self.with_jacobian = False #Force false flag in this case as it is not supported
-        elif self.with_jacobian == "Default" and (isinstance(self.model, fmi.FMUModelME2)): #or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)
+        elif self.with_jacobian == "Default" and (isinstance(self.model, FMUModelME2)): #or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)
             if self.model.get_capability_flags()['providesDirectionalDerivatives']:
                 self.with_jacobian = True
             else:
@@ -707,7 +711,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             try:
                 setattr(self.simulator, k, v)
             except Exception as e:
-                raise fmi.InvalidOptionException("Failed to set the solver option '%s' with msg: %s"%(k, str(e))) from None
+                raise InvalidOptionException("Failed to set the solver option '%s' with msg: %s"%(k, str(e))) from None
 
         #Needs to be set as last option in order to have an impact.
         if "maxord" in solver_options:
@@ -917,7 +921,7 @@ class FMICSAlg(AlgorithmBase):
         Parameters::
 
             model --
-                fmi.FMUModelCS1 object representation of the model.
+                FMUModelCS1 object representation of the model.
 
             options --
                 The options that should be used in the algorithm. For details on
@@ -985,24 +989,24 @@ class FMICSAlg(AlgorithmBase):
 
         # Initialize?
         if self.options['initialize']:
-            if isinstance(self.model, ((fmi.FMUModelCS1, fmi_extended.FMUModelME1Extended))):
+            if isinstance(self.model, (FMUModelCS1, FMUModelME1Extended)):
                 self.model.initialize(start_time, final_time, stop_time_defined=self.options["stop_time_defined"])
 
-            elif isinstance(self.model, fmi.FMUModelCS2):
+            elif isinstance(self.model, FMUModelCS2):
                 self.model.setup_experiment(start_time=start_time, stop_time_defined=self.options["stop_time_defined"], stop_time=final_time)
                 self.model.initialize()
 
             else:
-                raise fmi.FMUException("Unknown model.")
+                raise FMUException("Unknown model.")
 
             time_res_init = timer()
             self.result_handler.initialize_complete()
             time_res_init = timer() - time_res_init
 
-        elif self.model.time is None and isinstance(self.model, fmi.FMUModelCS2):
-            raise fmi.FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
+        elif self.model.time is None and isinstance(self.model, FMUModelCS2):
+            raise FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
         elif self.model.time is None:
-            raise fmi.FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
+            raise FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")
 
         if abs(start_time - model.time) > 1e-14:
             logging_module.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
@@ -1021,17 +1025,17 @@ class FMICSAlg(AlgorithmBase):
         """
         # no of communication points
         if self.options['ncp'] <= 0:
-            raise fmi.FMUException(f"Setting {self.options['ncp']} as 'ncp' is not allowed for a CS FMU. Must be greater than 0.")
+            raise FMUException(f"Setting {self.options['ncp']} as 'ncp' is not allowed for a CS FMU. Must be greater than 0.")
         self.ncp = self.options['ncp']
 
         # Since isinstance(<any boolean>, int) evaluates to True
         is_invalid_type = isinstance(self.options['result_downsampling_factor'], bool) or \
                           not isinstance(self.options['result_downsampling_factor'], int)
         if is_invalid_type:
-            raise fmi.FMUException("Option 'result_downsampling_factor' must be an integer, " + \
+            raise FMUException("Option 'result_downsampling_factor' must be an integer, " + \
                                   f"was {type(self.options['result_downsampling_factor'])}")
         elif self.options['result_downsampling_factor'] < 1:
-            raise fmi.FMUException("Valid values for option 'result_downsampling_factor' are only positive integers, " + \
+            raise FMUException("Valid values for option 'result_downsampling_factor' are only positive integers, " + \
                                   f"was {self.options['result_downsampling_factor']}")
         self.result_downsampling_factor = self.options['result_downsampling_factor']
 
@@ -1050,9 +1054,9 @@ class FMICSAlg(AlgorithmBase):
                 elif self.options["synchronize_simulation"] > 0:
                     self._synchronize_factor = self.options["synchronize_simulation"]
                 else:
-                    raise fmi.InvalidOptionException(f"Setting {self.options['synchronize_simulation']} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
+                    raise InvalidOptionException(f"Setting {self.options['synchronize_simulation']} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
             except Exception:
-                raise fmi.InvalidOptionException(f"Setting {self.options['synchronize_simulation']} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
+                raise InvalidOptionException(f"Setting {self.options['synchronize_simulation']} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
         else:
             self._synchronize_factor = 0.0
 
@@ -1093,18 +1097,17 @@ class FMICSAlg(AlgorithmBase):
 
             if status != 0:
 
-                if status == fmi.FMI_ERROR:
+                if status == FMI_ERROR:
                     result_handler.simulation_end()
-                    raise fmi.FMUException("The simulation failed. See the log for more information. Return flag %d."%status)
+                    raise FMUException("The simulation failed. See the log for more information. Return flag %d."%status)
 
-                elif status == fmi.FMI_DISCARD and (isinstance(self.model, fmi.FMUModelCS1) or
-                                                    isinstance(self.model, fmi.FMUModelCS2)):
+                elif status == FMI_DISCARD and isinstance(self.model, (FMUModelCS1, FMUModelCS2)):
 
                     try:
-                        if isinstance(self.model, fmi.FMUModelCS1):
-                            last_time = self.model.get_real_status(fmi.FMI1_LAST_SUCCESSFUL_TIME)
+                        if isinstance(self.model, FMUModelCS1):
+                            last_time = self.model.get_real_status(FMI1_LAST_SUCCESSFUL_TIME)
                         else:
-                            last_time = self.model.get_real_status(fmi.FMI2_LAST_SUCCESSFUL_TIME)
+                            last_time = self.model.get_real_status(FMI2_LAST_SUCCESSFUL_TIME)
                         if last_time > t: #Solver succeeded in taken a step a little further than the last time
                             self.model.time = last_time
                             final_time = last_time
@@ -1112,7 +1115,7 @@ class FMICSAlg(AlgorithmBase):
                             start_time_point = timer()
                             result_handler.integration_point()
                             self.timings["storing_result"] += timer() - start_time_point
-                    except fmi.FMUException:
+                    except FMUException:
                         pass
                 break
                 #result_handler.simulation_end()
@@ -1127,7 +1130,7 @@ class FMICSAlg(AlgorithmBase):
             self.timings["storing_result"] += timer() - start_time_point
 
             if self.options["time_limit"] and (timer() - time_start) > self.options["time_limit"]:
-                raise fmi.TimeLimitExceeded("The time limit was exceeded at integration time %.8E."%final_time)
+                raise TimeLimitExceeded("The time limit was exceeded at integration time %.8E."%final_time)
 
             if self.input_traj is not None:
                 self.model.set(self.input_traj[0], self.input_traj[1].eval(t+h)[0,:])
@@ -1200,7 +1203,7 @@ class SciEstAlg(AlgorithmBase):
         Parameters::
 
             model --
-                fmi.FMUModel* object representation of the model.
+                FMUModel* object representation of the model.
 
             options --
                 The options that should be used in the algorithm. For details on
@@ -1278,8 +1281,6 @@ class SciEstAlg(AlgorithmBase):
         """
         Runs the estimation.
         """
-        from pyfmi.fmi_util import parameter_estimation_f
-
         #Define callback
         global niter
         niter = 0

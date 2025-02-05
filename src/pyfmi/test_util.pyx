@@ -19,15 +19,19 @@
 
 import os
 import numpy as np
-cimport pyfmi.fmil_import as FMIL
 
-from pyfmi.fmi import FMUException, FMUModelME1, FMUModelCS1, FMUModelCS2, FMUModelME2
+cimport pyfmi.fmil1_import as FMIL1
+cimport pyfmi.fmil2_import as FMIL2
+cimport pyfmi.fmi1 as FMI1
+cimport pyfmi.fmi2 as FMI2
+
+from pyfmi.exceptions import FMUException
 
 def get_examples_folder():
     return os.path.join(os.path.dirname(__file__), 'examples')
 
-cdef class _ForTestingFMUModelME1(FMUModelME1):
-    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi1_real_t* xnominal, size_t nx):
+cdef class _ForTestingFMUModelME1(FMI1.FMUModelME1):
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL1.fmi1_real_t* xnominal, size_t nx):
         for i in range(nx):
             if self._allocated_fmu == 1:  # If initialized
                 # Set new values to test that atol gets auto-corrected.
@@ -35,7 +39,7 @@ cdef class _ForTestingFMUModelME1(FMUModelME1):
             else:
                 # Set some illegal values in order to test the fallback/auto-correction.
                 xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
-        return FMIL.fmi1_status_ok
+        return FMIL1.fmi1_status_ok
 
     cpdef set_allocated_fmu(self, int value):
         self._allocated_fmu = value
@@ -57,7 +61,7 @@ class Dummy_FMUModelME1(_ForTestingFMUModelME1):
     _nominal_continuous_states = None
 
     def __init__(self, states_vref, *args,**kwargs):
-        FMUModelME1.__init__(self, *args, **kwargs)
+        FMI1.FMUModelME1.__init__(self, *args, **kwargs)
 
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
         self._nominal_continuous_states = np.ones(self.get_ode_sizes()[0])
@@ -112,12 +116,12 @@ class Dummy_FMUModelME1(_ForTestingFMUModelME1):
 
     nominal_continuous_states = property(get_nominal_continuous_states_testimpl)
 
-class Dummy_FMUModelCS1(FMUModelCS1):
+class Dummy_FMUModelCS1(FMI1.FMUModelCS1):
     #Override properties
     time = None
 
     def __init__(self, states_vref, *args,**kwargs):
-        FMUModelCS1.__init__(self, *args, **kwargs)
+        FMI1.FMUModelCS1.__init__(self, *args, **kwargs)
 
         self.variables = self.get_model_variables(include_alias=False)
         self.states_vref = states_vref
@@ -150,8 +154,8 @@ class Dummy_FMUModelCS1(FMUModelCS1):
         return self.get_real(vref)
 
 
-cdef class _ForTestingFMUModelME2(FMUModelME2):
-    cdef int _get_real_by_ptr(self, FMIL.fmi2_value_reference_t* vrefs, size_t _size, FMIL.fmi2_real_t* values):
+cdef class _ForTestingFMUModelME2(FMI2.FMUModelME2):
+    cdef int _get_real_by_ptr(self, FMIL2.fmi2_value_reference_t* vrefs, size_t _size, FMIL2.fmi2_real_t* values):
         vr = np.zeros(_size)
         for i in range(_size):
             vr[i] = vrefs[i]
@@ -159,14 +163,14 @@ cdef class _ForTestingFMUModelME2(FMUModelME2):
         try:
             vv = self.get_real(vr)
         except Exception:
-            return FMIL.fmi2_status_error
+            return FMIL2.fmi2_status_error
 
         for i in range(_size):
             values[i] = vv[i]
 
-        return FMIL.fmi2_status_ok
+        return FMIL2.fmi2_status_ok
 
-    cdef int _set_real(self, FMIL.fmi2_value_reference_t* vrefs, FMIL.fmi2_real_t* values, size_t _size):
+    cdef int _set_real(self, FMIL2.fmi2_value_reference_t* vrefs, FMIL2.fmi2_real_t* values, size_t _size):
         vr = np.zeros(_size)
         vv = np.zeros(_size)
         for i in range(_size):
@@ -176,38 +180,38 @@ cdef class _ForTestingFMUModelME2(FMUModelME2):
         try:
             self.set_real(vr, vv)
         except Exception:
-            return FMIL.fmi2_status_error
+            return FMIL2.fmi2_status_error
 
-        return FMIL.fmi2_status_ok
+        return FMIL2.fmi2_status_ok
 
-    cdef int _get_real_by_list(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
+    cdef int _get_real_by_list(self, FMIL2.fmi2_value_reference_t[:] valueref, size_t _size, FMIL2.fmi2_real_t[:] values):
         try:
             tmp = self.get_real(valueref)
             for i in range(_size):
                 values[i] = tmp[i]
         except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
+            return FMIL2.fmi2_status_error
+        return FMIL2.fmi2_status_ok
 
-    cdef int _get_integer(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_integer_t[:] values):
+    cdef int _get_integer(self, FMIL2.fmi2_value_reference_t[:] valueref, size_t _size, FMIL2.fmi2_integer_t[:] values):
         try:
             tmp = self.get_integer(valueref)
             for i in range(_size):
                 values[i] = tmp[i]
         except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
+            return FMIL2.fmi2_status_error
+        return FMIL2.fmi2_status_ok
 
-    cdef int _get_boolean(self, FMIL.fmi2_value_reference_t[:] valueref, size_t _size, FMIL.fmi2_real_t[:] values):
+    cdef int _get_boolean(self, FMIL2.fmi2_value_reference_t[:] valueref, size_t _size, FMIL2.fmi2_real_t[:] values):
         try:
             tmp = self.get_boolean(valueref)
             for i in range(_size):
                 values[i] = tmp[i]
         except Exception:
-            return FMIL.fmi2_status_error
-        return FMIL.fmi2_status_ok
+            return FMIL2.fmi2_status_error
+        return FMIL2.fmi2_status_ok
 
-    cdef int _get_nominal_continuous_states_fmil(self, FMIL.fmi2_real_t* xnominal, size_t nx):
+    cdef int _get_nominal_continuous_states_fmil(self, FMIL2.fmi2_real_t* xnominal, size_t nx):
         for i in range(nx):
             if self._initialized_fmu == 1:
                 # Set new values to test that atol gets auto-corrected.
@@ -215,7 +219,7 @@ cdef class _ForTestingFMUModelME2(FMUModelME2):
             else:
                 # Set some illegal values in order to test the fallback/auto-correction.
                 xnominal[i] = (((<int> i) % 3) - 1) * 2.0  # -2.0, 0.0, 2.0, <repeat>
-        return FMIL.fmi2_status_ok
+        return FMIL2.fmi2_status_ok
 
     cpdef set_initialized_fmu(self, int value):
         self._initialized_fmu = value
@@ -225,13 +229,13 @@ cdef class _ForTestingFMUModelME2(FMUModelME2):
         # test class, so we should never try to terminate or deallocate the FMU instance.
         self._initialized_fmu = 0
 
-class Dummy_FMUModelCS2(FMUModelCS2):
+class Dummy_FMUModelCS2(FMI2.FMUModelCS2):
     #Override properties
     time = None
     continuous_states = None
 
     def __init__(self, negated_aliases, *args,**kwargs):
-        FMUModelCS2.__init__(self, *args, **kwargs)
+        FMI2.FMUModelCS2.__init__(self, *args, **kwargs)
 
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
         self.variables = self.get_model_variables(include_alias=False)
@@ -322,7 +326,7 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
     
 
     def __init__(self, negated_aliases, *args, **kwargs):
-        FMUModelME2.__init__(self, *args, **kwargs)
+        FMI2.FMUModelME2.__init__(self, *args, **kwargs)
 
         self.continuous_states = np.zeros(self.get_ode_sizes()[0])
         self.variables = self.get_model_variables(include_alias=False)

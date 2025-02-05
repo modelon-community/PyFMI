@@ -21,11 +21,12 @@ import time
 import numpy as np
 cimport numpy as np
 
-import pyfmi.fmi as fmi
-from pyfmi.fmi cimport FMUModelME2
-cimport fmil_import as FMIL
-
+cimport pyfmi.fmil2_import as FMIL2
+cimport pyfmi.fmi2 as FMI2
+from pyfmi.fmi2 import FMI2_INPUT, FMI2_OUTPUT
+from pyfmi.fmi_base import PyEventInfo
 from pyfmi.fmi_util import enable_caching, Graph
+from pyfmi.exceptions import FMUException, InvalidFMUException
 
 from collections import OrderedDict
 import scipy.optimize as spopt
@@ -215,7 +216,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         self.models      = [model[1] for model in models]
         
         if len(self.names) != len(self.models):
-            raise fmi.FMUException("The names of the provided models must be unique.")
+            raise FMUException("The names of the provided models must be unique.")
         
         self.models_dict = OrderedDict((model,{"model": model,
                                                "local_input": [], "local_input_vref": [], "local_input_len": 0,
@@ -243,7 +244,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
     def connection_setup(self):
         for connection in self.connections:
             if len(connection) != 4:
-                raise fmi.FMUException('The connections between the models must follow the syntax: '\
+                raise FMUException('The connections between the models must follow the syntax: '\
                                         '(model_source,"beta",model_destination,"y").')
             self.models_dict[connection[0]]["local_output"].append(connection[1])
             self.models_dict[connection[0]]["local_output_vref"].append(connection[0].get_variable_valueref(connection[1]))
@@ -280,11 +281,11 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
     def verify_connection_variables(self):
         for model in self.models_dict.keys():
             for output in self.models_dict[model]["local_output"]:
-                if model.get_variable_causality(output) != fmi.FMI2_OUTPUT:
-                    raise fmi.FMUException("The connection variable " + output + " in model " + model.get_name() + " is not an output. ")
+                if model.get_variable_causality(output) != FMI2_OUTPUT:
+                    raise FMUException("The connection variable " + output + " in model " + model.get_name() + " is not an output. ")
             for input in self.models_dict[model]["local_input"]:
-                if model.get_variable_causality(input) != fmi.FMI2_INPUT:
-                    raise fmi.FMUException("The connection variable " + input + " in model " + model.get_name() + " is not an input. ")
+                if model.get_variable_causality(input) != FMI2_INPUT:
+                    raise FMUException("The connection variable " + input + " in model " + model.get_name() + " is not an input. ")
     
     def define_graph(self):
         edges = []
@@ -355,7 +356,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
                         blocks[-1]["outputs"][model] = [var]
                         blocks[-1]["has_outputs"] = True
                 else:
-                    raise fmi.FMUException("Something went wrong while creating the blocks.")
+                    raise FMUException("Something went wrong while creating the blocks.")
         """
         for block in blocks:
             block["inputs_mask"] = {}
@@ -459,7 +460,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         exit of initialization mode.
         """
         if self.time is None:
-            raise fmi.FMUException("Setup Experiment has to be called prior to the initialization method.")
+            raise FMUException("Setup Experiment has to be called prior to the initialization method.")
         
         self._update_coupling_equations()
         
@@ -674,7 +675,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
 
             The ValueReference for the variable passed as argument.
         """
-        cdef FMIL.fmi2_value_reference_t vr
+        cdef FMIL2.fmi2_value_reference_t vr
         
         name_parts = variable_name.split(".")
         try:
@@ -682,7 +683,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         vr = model.get_variable_valueref(variable_name[len(model_name)+1:])
         
@@ -714,13 +715,13 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         try:
             model = self.models[model_ind]
         except Exception:
-            raise fmi.FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
+            raise FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
         
         local_name = model.get_variable_by_valueref(local_vr, type)
         
         return self._get_global_name(model_ind, local_name)
     
-    cdef FMIL.fmi2_value_reference_t _get_local_vr(self, valueref):
+    cdef FMIL2.fmi2_value_reference_t _get_local_vr(self, valueref):
         return valueref & 0x00000000FFFFFFFF
     
     cdef _get_model_index_from_vr(self, valueref):
@@ -729,7 +730,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
     cdef _get_global_name(self, model_ind, name):
         return self.index[model_ind] + "." + name
     
-    def _get_global_vr(self, model_ind, FMIL.fmi2_value_reference_t valueref):
+    def _get_global_vr(self, model_ind, FMIL2.fmi2_value_reference_t valueref):
         return (model_ind << 32) + valueref
     
     @enable_caching
@@ -796,7 +797,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
                 global_name = self._get_global_name(i, key)
                 global_vr   = self._get_global_vr(i, var.value_reference)
                 
-                variable_dict[self._get_global_name(i, key)] = fmi.ScalarVariable2(global_name, global_vr, 
+                variable_dict[self._get_global_name(i, key)] = FMI2.ScalarVariable2(global_name, global_vr, 
                                             var.type, var.description, var.variability, 
                                             var.causality, var.alias, var.initial)
         
@@ -809,7 +810,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         global_name = self._get_global_name(model_ind, scalar_variable.name)
         global_vr   = self._get_global_vr(model_ind, scalar_variable.value_reference)
         
-        return fmi.ScalarVariable2(global_name, global_vr, 
+        return FMI2.ScalarVariable2(global_name, global_vr, 
                                             scalar_variable.type, scalar_variable.description, scalar_variable.variability, 
                                             scalar_variable.causality, scalar_variable.alias, scalar_variable.initial)
 
@@ -832,7 +833,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         return model.get_variable_max(variable_name[len(model_name)+1:])
     
@@ -866,7 +867,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             try:
                 model = self.models[model_ind]
             except Exception:
-                raise fmi.FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
+                raise FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
             
             output_values.append(model.get_real(local_vr))
             
@@ -902,7 +903,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             try:
                 model = self.models[model_ind]
             except Exception:
-                raise fmi.FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
+                raise FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
             
             output_values.append(model.get_integer(local_vr))
             
@@ -939,7 +940,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             try:
                 model = self.models[model_ind]
             except Exception:
-                raise fmi.FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
+                raise FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
             
             output_values.append(model.get_boolean(local_vr))
         
@@ -975,7 +976,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             try:
                 model = self.models[model_ind]
             except Exception:
-                raise fmi.FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
+                raise FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
             
             output_values.extend(model.get_string(local_vr))
         
@@ -1003,7 +1004,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         set_value      = np.array(values, dtype=float, ndmin=1).ravel()
 
         if np.size(input_valueref) != np.size(set_value):
-            raise fmi.FMUException('The length of valueref and values are inconsistent.')
+            raise FMUException('The length of valueref and values are inconsistent.')
         
         for i,vref in enumerate(input_valueref):
             local_vr = self._get_local_vr(vref)
@@ -1012,7 +1013,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             try:
                 model = self.models[model_ind]
             except Exception:
-                raise fmi.FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
+                raise FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
             
             model.set_real(local_vr, set_value[i])
     
@@ -1038,7 +1039,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         set_value      = np.array(values, dtype=int,ndmin=1).ravel()
 
         if np.size(input_valueref) != np.size(set_value):
-            raise fmi.FMUException('The length of valueref and values are inconsistent.')
+            raise FMUException('The length of valueref and values are inconsistent.')
         
         for i,vref in enumerate(input_valueref):
             local_vr = self._get_local_vr(vref)
@@ -1047,7 +1048,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             try:
                 model = self.models[model_ind]
             except Exception:
-                raise fmi.FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
+                raise FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
             
             model.set_integer(local_vr, set_value[i])
             
@@ -1073,7 +1074,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         set_value      = np.array(values, ndmin=1).ravel()
 
         if np.size(input_valueref) != np.size(set_value):
-            raise fmi.FMUException('The length of valueref and values are inconsistent.')
+            raise FMUException('The length of valueref and values are inconsistent.')
         
         for i,vref in enumerate(input_valueref):
             local_vr = self._get_local_vr(vref)
@@ -1082,7 +1083,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             try:
                 model = self.models[model_ind]
             except Exception:
-                raise fmi.FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
+                raise FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
             
             model.set_boolean(local_vr, set_value[i])
 
@@ -1114,7 +1115,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             try:
                 model = self.models[model_ind]
             except Exception:
-                raise fmi.FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
+                raise FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
             
             model.set_string(local_vr, set_value[i])        
 
@@ -1122,41 +1123,41 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
         """
         Helper method to get, see docstring on get.
         """
-        cdef FMIL.fmi2_base_type_enu_t type
+        cdef FMIL2.fmi2_base_type_enu_t type
 
         ref  = self.get_variable_valueref(variable_name)
         type = self.get_variable_data_type(variable_name)
 
-        if type == FMIL.fmi2_base_type_real:  #REAL
+        if type == FMIL2.fmi2_base_type_real:  #REAL
             return self.get_real([ref])
-        elif type == FMIL.fmi2_base_type_int or type == FMIL.fmi2_base_type_enum: #INTEGER
+        elif type == FMIL2.fmi2_base_type_int or type == FMIL2.fmi2_base_type_enum: #INTEGER
             return self.get_integer([ref])
-        elif type == FMIL.fmi2_base_type_str: #STRING
+        elif type == FMIL2.fmi2_base_type_str: #STRING
             return self.get_string([ref])
-        elif type == FMIL.fmi2_base_type_bool: #BOOLEAN
+        elif type == FMIL2.fmi2_base_type_bool: #BOOLEAN
             return self.get_boolean([ref])
         else:
-            raise fmi.FMUException('Type not supported.')
+            raise FMUException('Type not supported.')
     
     def _set(self, variable_name, value):
         """
         Helper method to set, see docstring on set.
         """
-        cdef FMIL.fmi2_base_type_enu_t   type
+        cdef FMIL2.fmi2_base_type_enu_t   type
 
         ref  = self.get_variable_valueref(variable_name)
         type = self.get_variable_data_type(variable_name)
 
-        if type == FMIL.fmi2_base_type_real:  #REAL
+        if type == FMIL2.fmi2_base_type_real:  #REAL
             self.set_real([ref], [value])
-        elif type == FMIL.fmi2_base_type_int or type == FMIL.fmi2_base_type_enum: #INTEGER
+        elif type == FMIL2.fmi2_base_type_int or type == FMIL2.fmi2_base_type_enum: #INTEGER
             self.set_integer([ref], [value])
-        elif type == FMIL.fmi2_base_type_str: #STRING
+        elif type == FMIL2.fmi2_base_type_str: #STRING
             self.set_string([ref], [value])
-        elif type == FMIL.fmi2_base_type_bool: #BOOLEAN
+        elif type == FMIL2.fmi2_base_type_bool: #BOOLEAN
             self.set_boolean([ref], [value])
         else:
-            raise fmi.FMUException('Type not supported.')
+            raise FMUException('Type not supported.')
     
     def get_directional_derivative(self, var_ref, func_ref, v):
         """
@@ -1242,7 +1243,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         return model.get_variable_min(variable_name[len(model_name)+1:])
     
@@ -1267,7 +1268,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         return model.get_variable_start(variable_name[len(model_name)+1:])
         
@@ -1291,12 +1292,12 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         return model.get_variable_unbounded(variable_name[len(model_name)+1:])
         
     
-    cpdef FMIL.fmi2_causality_enu_t get_variable_causality(self, variable_name) except *:
+    cpdef FMIL2.fmi2_causality_enu_t get_variable_causality(self, variable_name) except *:
         """
         Get the causality of the variable.
 
@@ -1316,11 +1317,11 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         return model.get_variable_causality(variable_name[len(model_name)+1:])
     
-    cpdef FMIL.fmi2_initial_enu_t get_variable_initial(self, variable_name) except *:
+    cpdef FMIL2.fmi2_initial_enu_t get_variable_initial(self, variable_name) except *:
         """
         Get initial of the variable.
         
@@ -1340,11 +1341,11 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         return model.get_variable_initial(variable_name[len(model_name)+1:])
     
-    cpdef FMIL.fmi2_variability_enu_t get_variable_variability(self, variable_name) except *:
+    cpdef FMIL2.fmi2_variability_enu_t get_variable_variability(self, variable_name) except *:
         """
         Get variability of the variable.
 
@@ -1364,7 +1365,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         return model.get_variable_variability(variable_name[len(model_name)+1:])
 
@@ -1387,12 +1388,12 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         return model.get_variable_description(variable_name[len(model_name)+1:])
 
     
-    cpdef FMIL.fmi2_base_type_enu_t get_variable_data_type(self, variable_name) except *:
+    cpdef FMIL2.fmi2_base_type_enu_t get_variable_data_type(self, variable_name) except *:
         """
         Get data type of variable.
 
@@ -1411,7 +1412,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         return model.get_variable_data_type(variable_name[len(model_name)+1:])
 
@@ -1435,7 +1436,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         var = model.get_variable_alias_base(variable_name[len(model_name)+1:])
         
@@ -1547,7 +1548,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             try:
                 model = self.models[model_ind]
             except Exception:
-                raise fmi.FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
+                raise FMUException("Could not map the value reference to the correct model. Is the value reference correct?")
                 
             return model.get_variable_nominal(valueref=local_vr)
             
@@ -1558,11 +1559,11 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
                 ind = self.names[model_name]
                 model = self.models[ind]
             except Exception:
-                raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+                raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
             
             return model.get_variable_nominal(variable_name=variable_name[len(model_name)+1:])
         else:
-            raise fmi.FMUException('Either provide value reference or variable name.')
+            raise FMUException('Either provide value reference or variable name.')
     
     def get_variable_alias(self, variable_name):
         """
@@ -1590,7 +1591,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             ind = self.names[model_name]
             model = self.models[ind]
         except Exception:
-            raise fmi.FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
+            raise FMUException("The variable %s could not be found. Was the name correctly prefixed with the model name?"%variable_name)
         
         modified_vars = {}
         vars = model.get_variable_alias(variable_name[len(model_name)+1:])
@@ -1659,7 +1660,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             FMU_state = model.get_fmu_state()
         """
         if not self._supports_get_set_FMU_state():
-            raise fmi.FMUException('This coupled FMU does not support get and set FMU-state')
+            raise FMUException('This coupled FMU does not support get and set FMU-state')
 
         if state is None:
             state = []
@@ -1686,7 +1687,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
             Model.set_fmu_state(FMU_state)
         """
         if not self._supports_get_set_FMU_state():
-            raise fmi.FMUException('This FMU dos not support get and set FMU-state')
+            raise FMUException('This FMU dos not support get and set FMU-state')
             
         for i,model in enumerate(self.models):
             model.set_fmu_state(state[i])
@@ -1707,7 +1708,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
 
         """
         if not self._supports_get_set_FMU_state():
-            raise fmi.FMUException('This FMU does not support get and set FMU-state')
+            raise FMUException('This FMU does not support get and set FMU-state')
         
         for i,model in enumerate(self.models):
             model.free_fmu_state(state[i])
@@ -1827,18 +1828,19 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
         
         """
         if not isinstance(models, list):
-            raise fmi.FMUException("The models should be provided as a list.")
+            raise FMUException("The models should be provided as a list.")
         for model in models:
             try:
                 len(model)
             except TypeError:
-                raise fmi.FMUException("The models should be provided as a list of lists with the name" \
+                raise FMUException("The models should be provided as a list of lists with the name" \
                 " of the model as the first entry and the model object as the second.")
             if len(model) != 2:
-                raise fmi.FMUException("The models should be provided as a list of lists with the name" \
+                raise FMUException("The models should be provided as a list of lists with the name" \
                 " of the model as the first entry and the model object as the second.")
-            if not isinstance(model[1], fmi.FMUModelME2):
-                raise fmi.InvalidFMUException("The coupled model currently only supports ME 2.0 FMUs.")
+            if not isinstance(model[1], FMI2.FMUModelME2): 
+                # TODO: Should be a "not supported" Exception instead?
+                raise InvalidFMUException("The coupled model currently only supports ME 2.0 FMUs.")
                 
         #Call super
         CoupledFMUModelBase.__init__(self, models, connections)
@@ -1861,7 +1863,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
         """
         return self._t
 
-    cpdef _set_time(self, FMIL.fmi2_real_t t):
+    cpdef _set_time(self, FMIL2.fmi2_real_t t):
         """
         Sets the current time of the simulation.
 
@@ -1890,7 +1892,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
             
         return np.concatenate(states).ravel()
 
-    def _set_continuous_states(self, np.ndarray[FMIL.fmi2_real_t, ndim=1, mode="c"] values):
+    def _set_continuous_states(self, np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode="c"] values):
         """
         Set the values of the continuous states.
 
@@ -1983,7 +1985,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
                 success = res["success"]
                 
                 if not success:
-                    raise fmi.FMUException("Failed to converge the block.")
+                    raise FMUException("Failed to converge the block.")
                 
                 """
                 for model in block["outputs"].keys():
@@ -2186,7 +2188,7 @@ cdef class CoupledFMUModelME2(CoupledFMUModelBase):
             nextEventTime = model.event_info.nextEventTime
         """
 
-        event_info = fmi.PyEventInfo()
+        event_info = PyEventInfo()
         event_info.newDiscreteStatesNeeded = False
         event_info.terminateSimulation     = False
         event_info.nominalsOfContinuousStatesChanged = self._nominals_continuous_states_changed

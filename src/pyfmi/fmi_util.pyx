@@ -26,12 +26,16 @@ import itertools
 import numpy as np
 cimport numpy as np
 
-cimport fmil_import as FMIL
-from pyfmi.fmi cimport FMUModelME2
+cimport pyfmi.fmil_import as FMIL
+cimport pyfmi.fmi2 as FMI2 # TODO
+from pyfmi.fmi1 import ( # TODO
+    FMI_NEGATED_ALIAS, FMI_PARAMETER, FMI_CONSTANT,
+    FMI_REAL, FMI_INTEGER, FMI_ENUMERATION, FMI_BOOLEAN
+)
 
 import functools
 import marshal
-import pyfmi.fmi as fmi
+from pyfmi.exceptions import FMUException, IOException
 
 cpdef decode(x):
     if isinstance(x, bytes):
@@ -237,10 +241,10 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
     cdef int nof_diag_params = len(diagnostics_param_values)
     cdef int i, alias, data_type, variability
     cdef int last_data_matrix = -1, last_index = -1
-    cdef int FMI_NEGATED_ALIAS = fmi.FMI_NEGATED_ALIAS
-    cdef int FMI_PARAMETER = fmi.FMI_PARAMETER, FMI_CONSTANT = fmi.FMI_CONSTANT
-    cdef int FMI_REAL = fmi.FMI_REAL, FMI_INTEGER = fmi.FMI_INTEGER
-    cdef int FMI_ENUMERATION = fmi.FMI_ENUMERATION, FMI_BOOLEAN = fmi.FMI_BOOLEAN
+    cdef int _FMI_NEGATED_ALIAS = FMI_NEGATED_ALIAS # TODO
+    cdef int _FMI_PARAMETER = FMI_PARAMETER, _FMI_CONSTANT = FMI_CONSTANT # TODO
+    cdef int _FMI_REAL = FMI_REAL, _FMI_INTEGER = FMI_INTEGER # TODO
+    cdef int _FMI_ENUMERATION = FMI_ENUMERATION, _FMI_BOOLEAN = FMI_BOOLEAN # TODO
     cdef list param_real = [], param_int = [], param_bool = []
     cdef list varia_real = [], varia_int = [], varia_bool = []
     last_vref = -1
@@ -250,7 +254,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         data_info[2,i] = 0
         data_info[3,i] = -1
 
-        if var.alias == FMI_NEGATED_ALIAS:
+        if var.alias == _FMI_NEGATED_ALIAS:
             alias = -1
         else:
             alias = 1
@@ -263,32 +267,32 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
             last_vref   = var.value_reference
             data_type   = var.type
 
-            if variability == FMI_PARAMETER or variability == FMI_CONSTANT:
+            if variability == _FMI_PARAMETER or variability == _FMI_CONSTANT:
                 last_data_matrix = 1
                 index_fixed = index_fixed + 1
                 last_index = index_fixed
 
-                if data_type == FMI_REAL:
+                if data_type == _FMI_REAL:
                     param_real.append(last_vref)
-                elif data_type == FMI_INTEGER or data_type == FMI_ENUMERATION:
+                elif data_type == _FMI_INTEGER or data_type == _FMI_ENUMERATION:
                     param_int.append(last_vref)
-                elif data_type == FMI_BOOLEAN:
+                elif data_type == _FMI_BOOLEAN:
                     param_bool.append(last_vref)
                 else:
-                    raise fmi.FMUException("Unknown type detected for variable %s when writing the results."%var.name)
+                    raise FMUException("Unknown type detected for variable %s when writing the results."%var.name)
             else:
                 last_data_matrix = 2
                 index_variable = index_variable + 1
                 last_index = index_variable
 
-                if data_type == FMI_REAL:
+                if data_type == _FMI_REAL:
                     varia_real.append(last_vref)
-                elif data_type == FMI_INTEGER or data_type == FMI_ENUMERATION:
+                elif data_type == _FMI_INTEGER or data_type == _FMI_ENUMERATION:
                     varia_int.append(last_vref)
-                elif data_type == FMI_BOOLEAN:
+                elif data_type == _FMI_BOOLEAN:
                     varia_bool.append(last_vref)
                 else:
-                    raise fmi.FMUException("Unknown type detected for variable %s when writing the results."%var.name)
+                    raise FMUException("Unknown type detected for variable %s when writing the results."%var.name)
 
             data_info[1,i] = alias*last_index
             data_info[0,i] = last_data_matrix
@@ -388,11 +392,11 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_params, list dia
 
     name_output = <char*>FMIL.calloc((tot_nof_vars+1)*name_length,sizeof(char))
     if name_output == NULL:
-        raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
+        raise FMUException("Failed to allocate memory for storing the names of the variables. " \
                                "Please reduce the number of stored variables by using filters.")
     desc_output = <char*>FMIL.calloc((tot_nof_vars+1)*desc_length,sizeof(char))
     if desc_output == NULL:
-        raise fmi.FMUException("Failed to allocate memory for storing the description of the variables. " \
+        raise FMUException("Failed to allocate memory for storing the description of the variables. " \
                                "Please reduce the number of stored variables or disable storing of the description.")
 
     for i in range(tot_nof_vars+1):
@@ -437,7 +441,7 @@ cpdef convert_sorted_vars_name(list sorted_vars, list diag_param_names, list dia
 
     name_output = <char*>FMIL.calloc((tot_nof_vars+1)*name_length,sizeof(char))
     if name_output == NULL:
-        raise fmi.FMUException("Failed to allocate memory for storing the names of the variables. " \
+        raise FMUException("Failed to allocate memory for storing the names of the variables. " \
                                "Please reduce the number of stored variables by using filters.")
 
     for i in range(tot_nof_vars+1):
@@ -1002,7 +1006,7 @@ class Graph:
 
 cdef class DumpData:
     def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref, with_diagnostics):
-        if type(model) == FMUModelME2:
+        if type(model) == FMI2.FMUModelME2:
             self.real_var_ref = np.array(real_var_ref, dtype=np.uint32, ndmin=1).ravel()
             self.int_var_ref  = np.array(int_var_ref,  dtype=np.uint32, ndmin=1).ravel()
             self.bool_var_ref = np.array(bool_var_ref, dtype=np.uint32, ndmin=1).ravel()
@@ -1022,7 +1026,7 @@ cdef class DumpData:
 
         self._file = filep
 
-        if type(model) == FMUModelME2: #isinstance(model, FMUModelME2):
+        if type(model) == FMI2.FMUModelME2: #isinstance(model, FMUModelME2):
             self.model_me2 = model
             self.model_me2_instance = 1
         else:
@@ -1124,7 +1128,7 @@ def read_trajectory(file_name, long long data_index, long long file_position, lo
     elif sizeof_type == 8:
         return _read_trajectory64(file_name, start_point, end_point, interval, file_position, nbr_points)
     else:
-        raise fmi.FMUException("Failed to read the result. The result is on an unsupported format. Can only read data that is either a 32 or 64 bit double.")
+        raise FMUException("Failed to read the result. The result is on an unsupported format. Can only read data that is either a 32 or 64 bit double.")
 
 DTYPE32 = np.float32
 ctypedef np.float32_t DTYPE32_t
@@ -1274,7 +1278,7 @@ def read_diagnostics_trajectory(
                 iter_point += diag_var_interval
             else:
                 fclose(cfile)
-                raise fmi.IOException("Result file is corrupt, cannot read results.")
+                raise IOException("Result file is corrupt, cannot read results.")
     fclose(cfile)
     return data, file_pos_model_var, file_pos_diag_var
 
@@ -1310,7 +1314,7 @@ def read_name_list(file_name, int file_position, int nbr_variables, int max_leng
     cdef dict data = {}
 
     if tmp == NULL:
-        raise fmi.IOException("Couldn't allocate memory to read name list.")
+        raise IOException("Couldn't allocate memory to read name list.")
 
     cfile = fopen(file_name, 'rb')
     fseek(cfile, file_position, 0)

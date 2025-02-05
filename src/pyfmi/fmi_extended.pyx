@@ -25,13 +25,15 @@ import logging
 import numpy as np
 cimport numpy as np
 
-cimport fmil_import as FMIL
-from pyfmi.fmi cimport FMUModelME1
-from pyfmi.fmi import FMUException
-from pyfmi.fmi import FMI_OK, FMI_DEFAULT_LOG_LEVEL
+cimport pyfmi.fmil_import as FMIL
+cimport pyfmi.fmil1_import as FMIL1
+cimport pyfmi.fmi1 as FMI1
+from pyfmi.fmi_base import FMI_DEFAULT_LOG_LEVEL
+from pyfmi.fmi1 import FMI_OK
+from pyfmi.exceptions import FMUException
 
 
-cdef class FMUModelME1Extended(FMUModelME1):
+cdef class FMUModelME1Extended(FMI1.FMUModelME1):
 
     cdef public object _explicit_problem, _solver
     cdef public object _current_time, _stop_time, _input_time
@@ -42,7 +44,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
 
     def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _connect_dll=True):
         #Instantiate the FMU
-        FMUModelME1.__init__(self, fmu = fmu, log_file_name = log_file_name, log_level = log_level, _connect_dll=_connect_dll)
+        FMI1.FMUModelME1.__init__(self, fmu = fmu, log_file_name = log_file_name, log_level = log_level, _connect_dll=_connect_dll)
         
         nbr_f, nbr_g = self.get_ode_sizes()
 
@@ -126,12 +128,12 @@ cdef class FMUModelME1Extended(FMUModelME1):
         Calls the low-level FMI function: fmiGetDerivatives
         """
         cdef int status
-        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] values = np.empty(self._nContinuousStates,dtype=np.double)
+        cdef np.ndarray[FMIL1.fmi1_real_t, ndim=1,mode='c'] values = np.empty(self._nContinuousStates,dtype=np.double)
         
         if self._input_active:
             self._eval_input(self.time)
         
-        status = FMIL.fmi1_import_get_derivatives(self._fmu, <FMIL.fmi1_real_t*>values.data, self._nContinuousStates)
+        status = FMIL1.fmi1_import_get_derivatives(self._fmu, <FMIL1.fmi1_real_t*>values.data, self._nContinuousStates)
 
         if status != 0:
             raise FMUException('Failed to get the derivative values.')
@@ -139,7 +141,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
         return values
 
     
-    def do_step(self, FMIL.fmi1_real_t current_time, FMIL.fmi1_real_t step_size, new_step=True):
+    def do_step(self, FMIL1.fmi1_real_t current_time, FMIL1.fmi1_real_t step_size, new_step=True):
         """
         Performs an integrator step.
 
@@ -164,7 +166,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
         Calls the underlying low-level function fmiDoStep.
         """
         cdef int status
-        cdef FMIL.fmi1_boolean_t new_s
+        cdef FMIL1.fmi1_boolean_t new_s
         cdef double time
 
         time = current_time+step_size
@@ -207,7 +209,7 @@ cdef class FMUModelME1Extended(FMUModelME1):
         """
         raise NotImplementedError
 
-    def get_output_derivatives(self, variables, FMIL.fmi1_integer_t order):
+    def get_output_derivatives(self, variables, FMIL1.fmi1_integer_t order):
         """
         Returns the output derivatives for the specified variables. The
         order specifies the nth-derivative.
@@ -281,9 +283,9 @@ cdef class FMUModelME1Extended(FMUModelME1):
         """
         cdef int status
         cdef FMIL.size_t nref
-        cdef np.ndarray[FMIL.fmi1_integer_t, ndim=1,mode='c'] np_orders = np.array(orders, dtype=np.int32, ndmin=1).flatten()
-        cdef np.ndarray[FMIL.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
-        cdef np.ndarray[FMIL.fmi1_real_t, ndim=1,mode='c'] val = np.array(values, dtype=float, ndmin=1).flatten()
+        cdef np.ndarray[FMIL1.fmi1_integer_t, ndim=1,mode='c'] np_orders = np.array(orders, dtype=np.int32, ndmin=1).flatten()
+        cdef np.ndarray[FMIL1.fmi1_value_reference_t, ndim=1,mode='c'] value_refs
+        cdef np.ndarray[FMIL1.fmi1_real_t, ndim=1,mode='c'] val = np.array(values, dtype=float, ndmin=1).flatten()
 
         nref = len(val)
         orders = np.array([0]*nref, dtype=np.int32)
@@ -429,14 +431,14 @@ cdef class FMUModelME1Extended(FMUModelME1):
         Calls the low-level FMU function: fmiInstantiateSlave
         """
         cdef char tolerance_controlled
-        cdef FMIL.fmi1_real_t tolerance
+        cdef FMIL1.fmi1_real_t tolerance
 
         self.time = start_time
 
         tolerance_controlled = 1
-        tolerance = FMIL.fmi1_import_get_default_experiment_tolerance(self._fmu)
+        tolerance = FMIL1.fmi1_import_get_default_experiment_tolerance(self._fmu)
 
-        status = FMIL.fmi1_import_initialize(self._fmu, tolerance_controlled, tolerance, &self._eventInfo)
+        status = FMIL1.fmi1_import_initialize(self._fmu, tolerance_controlled, tolerance, &self._eventInfo)
 
         if status == 1:
             if self._enable_logging:

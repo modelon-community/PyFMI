@@ -19,8 +19,7 @@
 import numpy as np
 cimport numpy as np
 import logging
-
-from pyfmi.fmi cimport FMUModelME2
+cimport pyfmi.fmi2 as FMI2
 
 try:
     import assimulo
@@ -53,7 +52,7 @@ cdef class FMIODE2(cExplicit_Problem):
     cdef public list input_names, input_real_value_refs, input_other, _logg_step_event
     cdef public double t0, _synchronize_factor
     cdef public jac_use, state_events_use, time_events_use
-    cdef public FMUModelME2 model_me2
+    cdef public FMI2.FMUModelME2 model_me2
     cdef public int model_me2_instance
     cdef public np.ndarray _state_temp_1, _event_temp_1
 
