@@ -28,11 +28,8 @@ except ImportError:
     from setuptools import setup
     have_nd = False
 
-try:
-    from Cython.Distutils import build_ext
-    from Cython.Build import cythonize
-except ImportError:
-    raise Exception("Please upgrade to a newer Cython version, >= 3.")
+from Cython.Distutils import build_ext
+from Cython.Build import cythonize
 
 
 NAME = "PyFMI"
@@ -91,13 +88,14 @@ copy_args = sys.argv[1:]
 
 fmil_home = os.getenv("FMIL_HOME")
 if fmil_home: #Check for environment variable that specifies FMIL
-    incdirs = os.path.join(fmil_home, 'include')
-    libdirs = os.path.join(fmil_home, 'lib')
-    bindirs = os.path.join(fmil_home, 'bin')
+    incdirs = [os.path.join(fmil_home, 'include')]
+    # Specify both lib64 and 64, since can it depend on the platform (rockylinux/ubuntu etc)
+    libdirs = [os.path.join(fmil_home, 'lib64'), os.path.join(fmil_home, 'lib')]
+    bindirs = [os.path.join(fmil_home, 'bin')]
 else:
-    incdirs = ""
-    libdirs = ""
-    bindirs = ""
+    incdirs = []
+    libdirs = []
+    bindirs = []
 
 static = False
 debug_flag = False
@@ -119,9 +117,9 @@ for x in sys.argv[1:]:
             raise Exception("Cannot specify --prefix without numpy.distutils")
         copy_args[copy_args.index(x)] = x.replace('/',os.sep)
     if not x.find('--fmil-home'):
-        incdirs = os.path.join(x[12:],'include')
-        libdirs = os.path.join(x[12:],'lib')
-        bindirs = os.path.join(x[12:],'bin')
+        incdirs = [os.path.join(x[12:],'include')]
+        libdirs = [os.path.join(x[12:],'lib'), os.path.join(x[12:],'lib64')]
+        bindirs = [os.path.join(x[12:],'bin')]
         copy_args.remove(x)
     if not x.find('--copy-libgcc'):
         if x[14:].upper() == "TRUE":
@@ -161,13 +159,17 @@ for x in sys.argv[1:]:
         copy_args.remove(x)
 
 if not incdirs:
-    raise Exception("FMI Library cannot be found. Please specify its location, either using the flag to the setup script '--fmil-home' or specify it using the environment variable FMIL_HOME.")
+    raise Exception(
+        "FMI Library cannot be found. Please specify its location, " + \
+        "either using the flag to the setup script '--fmil-home' or" + \
+        " specify it using the environment variable FMIL_HOME."
+    )
 
 if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
 
     #Check to see if FMILIB_SHARED exists and if so copy it, otherwise raise exception
     if sys.platform.startswith("win"):
-        dirs_to_search = [libdirs, bindirs]
+        dirs_to_search = libdirs + bindirs
         while dirs_to_search:
             path_to_dir = os.path.abspath(dirs_to_search.pop())
             for file_name in os.listdir(path_to_dir):
@@ -177,7 +179,9 @@ if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
                     dirs_to_search = None
                     break
         if not fmilib_shared:
-            raise Exception(f"Could not find shared library 'fmilib_shared' at either location:\n\t{libdirs}\n\t{bindirs}")
+            raise Exception(
+                f"Could not find shared library 'fmilib_shared' at either location:" + \
+                    f"\n\t{', '.join(dirs_to_search)}")
 
         if copy_gcc_lib:
             path_gcc_lib = ctypes.util.find_library("libgcc_s_dw2-1.dll")
@@ -258,8 +262,8 @@ def check_extensions():
 
     for i in range(len(ext_list)):
 
-        ext_list[i].include_dirs = [np.get_include(), "src", os.path.join("src", "pyfmi"), incdirs]
-        ext_list[i].library_dirs = [libdirs]
+        ext_list[i].include_dirs = [np.get_include(), "src", os.path.join("src", "pyfmi")] + incdirs
+        ext_list[i].library_dirs = libdirs
         ext_list[i].language = "c"
         ext_list[i].libraries = ["fmilib_shared"] if sys.platform.startswith("win") else ["fmilib"] #If windows shared, else static
 
