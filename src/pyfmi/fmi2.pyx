@@ -5273,7 +5273,7 @@ cdef object _load_fmi2_fmu(
     list log_data
 ):
     """
-    The FMI1 part of fmi.pyx load_fmu.
+    The FMI2 part of fmi.pyx load_fmu.
     """
     # TODO: Tons of duplicated code here for error handling
     cdef FMIL.jm_string last_error

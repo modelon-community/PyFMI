@@ -29,7 +29,7 @@ from fmil_import cimport (
 )
 
 cdef extern from 'fmilib.h':
-    #FMI VARIABLE TYPE DEFINITIONS
+    # FMI VARIABLE TYPE DEFINITIONS
     ctypedef double fmi2_real_t
     ctypedef int    fmi2_boolean_t
     ctypedef void*  fmi2_component_t
@@ -40,7 +40,7 @@ cdef extern from 'fmilib.h':
     ctypedef void*  fmi2_component_environment_t
     ctypedef size_t fmi2_value_reference_t
 
-    #STRUCTS
+    # STRUCTS
     ctypedef enum fmi2_boolean_enu_t:
         fmi2_true = 1
         fmi2_false = 0

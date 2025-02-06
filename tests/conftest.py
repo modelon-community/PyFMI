@@ -16,7 +16,7 @@ def setup_reference_fmus():
         Note that this requires an internet connection to work.
     """
 
-    def download_url(url, save_file_to, chunk_size=1024):
+    def download_url(url, save_file_to):
         """ Download file from URL to 'save_file_to' in chunks. """
         try:
             with urllib.request.urlopen(url) as file_to_download:
