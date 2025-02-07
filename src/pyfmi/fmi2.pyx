@@ -5291,10 +5291,10 @@ cdef object _load_fmi2_fmu(
         if not allow_unzipped_fmu:
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+FMI_BASE.decode(last_error))
+            _handle_load_fmu_exception(log_data)
+            raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. " + FMI_BASE.decode(last_error))
         else:
-            _handle_load_fmu_exception(fmu, log_data)
+            _handle_load_fmu_exception(log_data)
             raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible more information.")
 
     fmu_2_kind = FMIL2.fmi2_import_get_fmu_kind(fmu_2)
@@ -5307,10 +5307,10 @@ cdef object _load_fmi2_fmu(
         if not allow_unzipped_fmu:
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_data)
-            raise FMUException("The FMU kind could not be determined. "+FMI_BASE.decode(last_error))
+            _handle_load_fmu_exception(log_data)
+            raise FMUException("The FMU kind could not be determined. " + FMI_BASE.decode(last_error))
         else:
-            _handle_load_fmu_exception(fmu, log_data)
+            _handle_load_fmu_exception(log_data)
             raise FMUException("The FMU kind could not be determined. Enable logging for possibly more information.")
 
     # FMU kind is known
@@ -5336,7 +5336,7 @@ cdef object _load_fmi2_fmu(
         FMIL.fmi_import_free_context(context)
         if not allow_unzipped_fmu:
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
-        _handle_load_fmu_exception(fmu, log_data)
+        _handle_load_fmu_exception(log_data)
         raise FMUException("FMU is a {} and not a {}".format(FMI_BASE.decode(FMIL2.fmi2_fmu_kind_to_string(fmu_2_kind)),  FMI_BASE.decode(kind.upper())))
 
     FMIL2.fmi2_import_free(fmu_2)

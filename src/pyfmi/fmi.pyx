@@ -178,7 +178,7 @@ cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, FMI
     (<list>c.context).append("FMIL: module = %s, log level = %d: %s"%(module, log_level, message))
 
 cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
-               log_level=FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):
+               log_level = FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):
     """
     Helper method for creating a model instance.
 
@@ -291,10 +291,10 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
         if not allow_unzipped_fmu:
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_data)
+            _handle_load_fmu_exception(log_data)
             raise InvalidVersionException("The FMU could not be loaded. The FMU version is unsupported. " + FMI_BASE.decode(last_error))
         else:
-            _handle_load_fmu_exception(fmu, log_data)
+            _handle_load_fmu_exception(log_data)
             raise InvalidVersionException("The FMU could not be loaded. The FMU version is unsupported. Enable logging for possibly more information.")
 
     return model

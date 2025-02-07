@@ -2998,10 +2998,10 @@ cdef object _load_fmi1_fmu(
         if not allow_unzipped_fmu:
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_data)
+            _handle_load_fmu_exception(log_data)
             raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+FMI_BASE.decode(last_error))
         else:
-            _handle_load_fmu_exception(fmu, log_data)
+            _handle_load_fmu_exception(log_data)
             raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible nore information.")
 
     fmu_1_kind = FMIL1.fmi1_import_get_fmu_kind(fmu_1)
@@ -3018,7 +3018,7 @@ cdef object _load_fmi1_fmu(
         FMIL.fmi_import_free_context(context)
         if not allow_unzipped_fmu:
             FMIL.fmi_import_rmdir(&callbacks,fmu_temp_dir)
-        _handle_load_fmu_exception(fmu, log_data)
+        _handle_load_fmu_exception(log_data)
         raise FMUException("FMU is a {} and not a {}".format(FMI_BASE.decode(FMIL1.fmi1_fmu_kind_to_string(fmu_1_kind)), kind.upper()))
 
     FMIL1.fmi1_import_free(fmu_1)

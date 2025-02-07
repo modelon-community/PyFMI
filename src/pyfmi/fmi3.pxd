@@ -22,10 +22,29 @@ cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi_base as FMI_BASE
 
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
-    pass
+    # FMIL related variables
+    cdef FMIL.fmi_import_context_t* _context
+    cdef FMIL3.fmi3_import_t*       _fmu
+    cdef FMIL3.fmi3_fmu_kind_enu_t  _fmu_kind
+    cdef FMIL.fmi_version_enu_t     _version
+    # Internal values
+    cdef object _fmu_full_path
+    cdef public object _enable_logging
+    cdef int _allow_unzipped_fmu
+    cdef int _allocated_context, _allocated_xml
+    cdef char* _fmu_temp_dir
 
 cdef class FMUModelME3(FMUModelBase3):
     pass
+
+cdef void _cleanup_on_load_error(
+    FMIL3.fmi3_import_t* fmu_3,
+    FMIL.fmi_import_context_t* context,
+    int allow_unzipped_fmu,
+    FMIL.jm_callbacks callbacks,
+    bytes fmu_temp_dir,
+    list log_data
+)
 
 cdef object _load_fmi3_fmu(
     fmu, 

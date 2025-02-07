@@ -199,12 +199,14 @@ class Test_FMUModelME1:
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped ME FMU 1.0 using FMUModelME1 """
         self._test_unzipped_bouncing_ball(FMUModelME1)
-        self._test_unzipped_bouncing_ball(FMUModelME1, tmp_dir = tempfile.TemporaryDirectory(dir = "./").name)
+        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
+        self._test_unzipped_bouncing_ball(FMUModelME1, tmp_dir = tmp_dir.name)
 
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped ME FMU 1.0 using load_fmu """
         self._test_unzipped_bouncing_ball(load_fmu)
-        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tempfile.TemporaryDirectory(dir = "./").name)
+        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
+        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tmp_dir.name)
 
     def test_invalid_binary(self):
         err_msg = "The FMU could not be loaded."
@@ -329,12 +331,14 @@ class Test_FMUModelCS1:
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped CS FMU 1.0 using FMUModelCS1 """
         self._test_unzipped_bouncing_ball(FMUModelCS1)
-        self._test_unzipped_bouncing_ball(FMUModelCS1, tmp_dir = tempfile.TemporaryDirectory(dir = "./").name)
+        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
+        self._test_unzipped_bouncing_ball(FMUModelCS1, tmp_dir = tmp_dir.name)
 
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped CS FMU 1.0 using load_fmu """
         self._test_unzipped_bouncing_ball(load_fmu)
-        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tempfile.TemporaryDirectory(dir = "./").name)
+        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
+        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tmp_dir.name)
 
     def test_invalid_binary(self):
         err_msg = "The FMU could not be loaded."
@@ -577,12 +581,14 @@ class Test_FMUModelCS2:
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped CS FMU 2.0 using FMUModelCS2 """
         self._test_unzipped_bouncing_ball(FMUModelCS2)
-        self._test_unzipped_bouncing_ball(FMUModelCS2, tmp_dir = tempfile.TemporaryDirectory(dir = "./").name)
+        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
+        self._test_unzipped_bouncing_ball(FMUModelCS2, tmp_dir = tmp_dir.name)
 
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped CS FMU 2.0 using load_fmu """
         self._test_unzipped_bouncing_ball(load_fmu)
-        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tempfile.TemporaryDirectory(dir = "./").name)
+        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
+        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tmp_dir.name)
 
     def test_log_file_name(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu")
@@ -1153,12 +1159,14 @@ class Test_FMUModelME2:
     def test_unzipped_fmu1(self):
         """ Test load and simulate unzipped ME FMU 2.0 using FMUModelME2 """
         self._test_unzipped_bouncing_ball(FMUModelME2)
-        self._test_unzipped_bouncing_ball(FMUModelME2, tmp_dir = tempfile.TemporaryDirectory(dir = "./").name)
+        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
+        self._test_unzipped_bouncing_ball(FMUModelME2, tmp_dir = tmp_dir.name)
 
     def test_unzipped_fmu2(self):
         """ Test load and simulate unzipped ME FMU 2.0 using load_fmu """
         self._test_unzipped_bouncing_ball(load_fmu)
-        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tempfile.TemporaryDirectory(dir = "./").name)
+        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
+        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tmp_dir.name)
 
     def test_unzipped_fmu_exceptions(self):
         """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelME2. """
