@@ -20,7 +20,7 @@ import os
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
 from pyfmi.test_util import Dummy_FMUModelME2
-from pyfmi.fmi_util import decode
+from pyfmi.util import decode
 
 import numpy as np
 file_path = os.path.dirname(os.path.abspath(__file__))

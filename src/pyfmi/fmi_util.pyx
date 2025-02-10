@@ -33,128 +33,12 @@ from pyfmi.fmi1 import ( # TODO
     FMI_REAL, FMI_INTEGER, FMI_ENUMERATION, FMI_BOOLEAN
 )
 
-import functools
-import marshal
+cimport pyfmi.util as pyfmi_util
+
 from pyfmi.exceptions import FMUException, IOException
 
-cpdef decode(x):
-    if isinstance(x, bytes):
-        return x.decode(errors="replace")
-    else:
-        return x
-
-cpdef encode(x):
-    if isinstance(x, str):
-        return x.encode()
-    else:
-        return x
-
-def enable_caching(obj):
-    @functools.wraps(obj, ('__name__', '__doc__'))
-    def memoizer(*args, **kwargs):
-        cache = args[0].cache #First argument is the self object
-        key = (obj, marshal.dumps(args[1:]), marshal.dumps(kwargs))
-
-        if len(cache) > 1000: #Remove items from cache in case it grows large
-            cache.popitem()
-
-        if key not in cache:
-            cache[key] = obj(*args, **kwargs)
-        return cache[key]
-
-    return memoizer
-
-cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
-    cdef int i=0,j=0,k=0
-    cdef int n_col = len(column_keys)#len(dependencies.keys())
-    cdef dict columns_taken# = {key: 1 for key in dependencies.keys() if len(dependencies[key]) == 0}
-    cdef dict groups = {}
-    cdef dict column_dict = {}
-    cdef dict column_keys_dict = {}
-    cdef dict data_index = {}
-
-    row_keys_dict    = {s:i for i,s in enumerate(dependencies.keys())}
-    column_keys_dict = {s:i for i,s in enumerate(column_keys)}
-    column_dict      = {i:[] for i,s in enumerate(column_keys)}
-    for i,dx in enumerate(dependencies.keys()):
-        for x in dependencies[dx]:
-            column_dict[column_keys_dict[x]].append(dx)
-    columns_taken = {key: 1 for key in column_dict.keys() if len(column_dict[key]) == 0}
-
-    k = 0
-    kd = 0
-    data_index = {}
-    data_index_with_diag = {}
-    for i in range(n_col):
-        data_index[i] = list(range(k, k + len(column_dict[i])))
-        k = k + len(column_dict[i])
-
-        data_index_with_diag[i] = []
-        diag_added = False
-        for x in column_dict[i]:
-            ind = row_keys_dict[x]
-            if ind < i:
-                data_index_with_diag[i].append(kd)
-                kd = kd + 1
-            else:
-                if ind == i:
-                    diag_added = True
-                if not diag_added:
-                    kd = kd + 1
-                    diag_added = True
-                data_index_with_diag[i].append(kd)
-                kd = kd + 1
-        if not diag_added:
-            kd = kd + 1
-
-    nnz = k
-    nnz_with_diag = kd
-
-    k = 0
-    for i in range(n_col):
-        if (i in columns_taken) or (interested_columns is not None and not (i in interested_columns)):
-            continue
-
-        # New group
-        groups[k] = [[i], column_dict[i][:], [row_keys_dict[x] for x in column_dict[i]], [i]*len(column_dict[i]), data_index[i], data_index_with_diag[i]]
-
-        for j in range(i+1, n_col):
-            if (j in columns_taken) or (interested_columns is not None and not (j in interested_columns)):
-                continue
-
-            intersect = frozenset(groups[k][1]).intersection(column_dict[j])
-            if not intersect:
-
-                #structure
-                # - [0] - variable indexes
-                # - [1] - variable names
-                # - [2] - matrix rows
-                # - [3] - matrix columns
-                # - [4] - position in data vector (CSC format)
-                # - [5] - position in data vector (with diag) (CSC format)
-
-                groups[k][0].append(j)
-                groups[k][1].extend(column_dict[j])
-                groups[k][2].extend([row_keys_dict[x] for x in column_dict[j]])
-                groups[k][3].extend([j]*len(column_dict[j]))
-                groups[k][4].extend(data_index[j])
-                groups[k][5].extend(data_index_with_diag[j])
-                columns_taken[j] = 1
-
-        groups[k][0] = np.array(groups[k][0],dtype=np.int32)
-        groups[k][2] = np.array(groups[k][2],dtype=np.int32)
-        groups[k][3] = np.array(groups[k][3],dtype=np.int32)
-        groups[k][4] = np.array(groups[k][4],dtype=np.int32)
-        groups[k][5] = np.array(groups[k][5],dtype=np.int32)
-        k = k + 1
-
-    groups["groups"] = list(groups.keys())
-    groups["nnz"] = nnz
-    groups["nnz_with_diag"] = nnz_with_diag
-
-    return groups
-
 cimport cython
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef double quad_err(np.ndarray[double, ndim=1] sim, np.ndarray[double, ndim=1] est, int n):
@@ -337,7 +221,7 @@ cpdef convert_str_list(list data):
     cdef bytes py_string
 
     for i in range(items):
-        data[i] = encode(data[i])
+        data[i] = pyfmi_util.encode(data[i])
         j = len(data[i])
         if j+1 > length:
             length = j+1
@@ -363,8 +247,8 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_params, list dia
     cdef int nof_diag_params = len(diag_params)
     cdef int nof_diag_vars = len(diag_vars)
     cdef int i, name_length_trial, desc_length_trial, kd, kn
-    cdef list desc = [encode("Time in [s]")]
-    cdef list name = [encode("time")]
+    cdef list desc = [pyfmi_util.encode("Time in [s]")]
+    cdef list name = [pyfmi_util.encode("time")]
     cdef int name_length = len(name[0])+1
     cdef int desc_length = len(desc[0])+1
     cdef char *desc_output
@@ -375,8 +259,8 @@ cpdef convert_sorted_vars_name_desc(list sorted_vars, list diag_params, list dia
 
     for tmp_name, tmp_desc in itertools.chain([(var.name, var.description) for var in sorted_vars],
                                              diag_params, diag_vars):
-        tmp_name = encode(tmp_name)
-        tmp_desc = encode(tmp_desc)
+        tmp_name = pyfmi_util.encode(tmp_name)
+        tmp_desc = pyfmi_util.encode(tmp_desc)
 
         name.append(tmp_name)
         desc.append(tmp_desc)
@@ -424,14 +308,14 @@ cpdef convert_sorted_vars_name(list sorted_vars, list diag_param_names, list dia
     cdef int nof_diag_params = len(diag_param_names)
     cdef int nof_diag_vars = len(diag_vars)
     cdef int i, name_length_trial, kn
-    cdef list name = [encode("time")]
+    cdef list name = [pyfmi_util.encode("time")]
     cdef int name_length = len(name[0])+1
     cdef char *name_output
     cdef char *ctmp_name
     cdef int tot_nof_vars = items+nof_diag_params+nof_diag_vars
 
     for tmp_name in itertools.chain( [var.name for var in sorted_vars], diag_param_names, diag_vars):
-        tmp_name = encode(tmp_name)
+        tmp_name = pyfmi_util.encode(tmp_name)
         name.append(tmp_name)
 
         name_length_trial = len(tmp_name)
@@ -475,7 +359,7 @@ cpdef convert_scalarvariable_name_to_str(list data):
     output = <char*>FMIL.calloc(items*length,sizeof(char))
 
     for i in range(items):
-        py_byte_string = data[i].name#.encode("latin-1")
+        py_byte_string = data[i].name#.pyfmi_util.encode("latin-1")
         tmp = py_byte_string
         tmp_length = len(tmp)
         k = i*length
@@ -487,7 +371,7 @@ cpdef convert_scalarvariable_name_to_str(list data):
 
     FMIL.free(output)
 
-    return length, py_string#.encode("latin-1")
+    return length, py_string#.pyfmi_util.encode("latin-1")
 
 """
 class Graph:

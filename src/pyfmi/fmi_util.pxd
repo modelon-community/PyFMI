@@ -21,8 +21,7 @@ import numpy as np
 cimport numpy as np
 cimport pyfmi.fmi2 as FMI2
 
-cpdef decode(x)
-cpdef encode(x)
+# TODO: Should this be split further into e.g., fmi_io_util & fmi_coupled_util?
 
 """
     Below we define a 'modification' to fseek that is OS specific in order to handle very large files.

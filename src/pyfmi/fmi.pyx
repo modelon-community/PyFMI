@@ -33,6 +33,7 @@ cimport pyfmi.fmi_base as FMI_BASE
 cimport pyfmi.fmi1 as FMI1
 cimport pyfmi.fmi2 as FMI2
 cimport pyfmi.fmi3 as FMI3
+cimport pyfmi.util as pyfmi_util
 
 from pyfmi.common.core import create_temp_dir
 
@@ -53,7 +54,6 @@ from pyfmi.fmi_base import (
     LogHandlerDefault,
     PyEventInfo,
     FMI_DEFAULT_LOG_LEVEL,
-    enable_caching,
     check_fmu_args,
     _handle_load_fmu_exception
 )
@@ -265,8 +265,8 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
     context = FMIL.fmi_import_allocate_context(&callbacks)
 
     # Get the FMI version of the provided model
-    fmu_temp_dir = FMI_BASE.encode(fmu) if allow_unzipped_fmu else FMI_BASE.encode(create_temp_dir())
-    fmu_full_path = FMI_BASE.encode(fmu_full_path)
+    fmu_temp_dir = pyfmi_util.encode(fmu) if allow_unzipped_fmu else pyfmi_util.encode(create_temp_dir())
+    fmu_full_path = pyfmi_util.encode(fmu_full_path)
     version = FMI_BASE.import_and_get_version(context, fmu_full_path, fmu_temp_dir, allow_unzipped_fmu)
 
     # Check the version & parse XML
@@ -292,7 +292,7 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
             _handle_load_fmu_exception(log_data)
-            raise InvalidVersionException("The FMU could not be loaded. The FMU version is unsupported. " + FMI_BASE.decode(last_error))
+            raise InvalidVersionException("The FMU could not be loaded. The FMU version is unsupported. " + pyfmi_util.decode(last_error))
         else:
             _handle_load_fmu_exception(log_data)
             raise InvalidVersionException("The FMU could not be loaded. The FMU version is unsupported. Enable logging for possibly more information.")

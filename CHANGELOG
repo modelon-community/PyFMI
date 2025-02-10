@@ -1,6 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
-    * Refactored internal files. This should NOT affect imports.
+    * [BREAKING] Refactored internal files, this does affect a number of secondary imports.
+      * pyfmi.fmi_util: encode, decode, cpr_seed, enable_caching now via pyfmi.util.
 
 
 --- PyFMI-2.16.3 ---

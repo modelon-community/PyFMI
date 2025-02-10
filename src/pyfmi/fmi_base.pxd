@@ -20,10 +20,6 @@
 
 cimport pyfmi.fmil_import as FMIL
 
-# TODO; temporarily here due to circular dependency
-cpdef decode(x)
-cpdef encode(x)
-
 cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t*, char*, char*, int)
 
 cdef class ModelBase:

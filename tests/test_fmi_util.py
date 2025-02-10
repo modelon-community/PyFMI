@@ -22,7 +22,7 @@ Module containing the tests for the FMI interface.
 import numpy as np
 from collections import OrderedDict
 
-import pyfmi.fmi_util as fmi_util
+import pyfmi.util as pfmi_util
 
 class Test_FMIUtil:
     def test_cpr_seed(self):
@@ -34,7 +34,7 @@ class Test_FMIUtil:
         
         states = ['inertia3.phi', 'inertia3.w', 'damper.phi_rel', 'damper.w_rel']
         
-        groups = fmi_util.cpr_seed(structure, states)
+        groups = pfmi_util.cpr_seed(structure, states)
         
         assert np.array(groups[0][5] == [1,2,3]).all()
         assert np.array(groups[1][5] == [5,7]).all()
@@ -53,7 +53,7 @@ class Test_FMIUtil:
         states = ['inertia3.phi', 'inertia3.w', 'damper.phi_rel', 'damper.w_rel']
         
         interested_columns = {0:1, 1:0, 2:0}
-        groups = fmi_util.cpr_seed(structure, states, interested_columns)
+        groups = pfmi_util.cpr_seed(structure, states, interested_columns)
         
         assert np.array(groups[0][5] == [1,2,3]).all()
         assert np.array(groups[1][5] == [5,7]).all()
@@ -62,7 +62,7 @@ class Test_FMIUtil:
         assert len(groups) == 5
         
         interested_columns = {0:1, 1:0, 3:0}
-        groups = fmi_util.cpr_seed(structure, states, interested_columns)
+        groups = pfmi_util.cpr_seed(structure, states, interested_columns)
         
         assert np.array(groups[0][5] == [1,2,3]).all()
         assert np.array(groups[1][5] == [8,9]).all()
@@ -71,7 +71,7 @@ class Test_FMIUtil:
         assert len(groups) == 5
         
         interested_columns = {1:1, 2:0, 3:0}
-        groups = fmi_util.cpr_seed(structure, states, interested_columns)
+        groups = pfmi_util.cpr_seed(structure, states, interested_columns)
         
         assert np.array(groups[0][5] == [3,5,7]).all()
         assert np.array(groups[1][5] == [8,9]).all()
