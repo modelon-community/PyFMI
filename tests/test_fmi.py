@@ -23,12 +23,35 @@ import tempfile
 import types
 import logging
 from io import StringIO
+from pathlib import Path
 
-from pyfmi.fmi import FMUException, InvalidOptionException, InvalidXMLException, InvalidBinaryException, InvalidVersionException, FMUModelME1, FMUModelCS1, load_fmu, FMUModelCS2, FMUModelME2
+from pyfmi.fmi import (
+    FMUException,
+    InvalidOptionException,
+    InvalidXMLException,
+    InvalidBinaryException,
+    InvalidVersionException,
+    load_fmu,
+    FMUModelME1,
+    FMUModelCS1,
+    FMUModelME2,
+    FMUModelCS2,
+    FMUModelME3,
+)
 import pyfmi.fmi as fmi
-from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg, AssimuloFMIAlgOptions, \
-                                        PYFMI_JACOBIAN_LIMIT, PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT
-from pyfmi.test_util import Dummy_FMUModelCS1, Dummy_FMUModelME1, Dummy_FMUModelME2, Dummy_FMUModelCS2, get_examples_folder
+from pyfmi.fmi_algorithm_drivers import (
+    AssimuloFMIAlg, 
+    AssimuloFMIAlgOptions,
+    PYFMI_JACOBIAN_LIMIT,
+    PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT
+)
+from pyfmi.test_util import (
+    Dummy_FMUModelCS1,
+    Dummy_FMUModelME1,
+    Dummy_FMUModelME2,
+    Dummy_FMUModelCS2,
+    get_examples_folder,
+)
 from pyfmi.common.io import ResultHandler
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 from pyfmi.common.core import create_temp_dir
@@ -39,16 +62,9 @@ class NoSolveAlg(AssimuloFMIAlg):
     Algorithm that skips the solve step. Typically necessary to test DummyFMUs that
     don't have an implementation that can handle that step.
     """
-
     def solve(self):
         pass
 
-
-try:
-    import assimulo
-except ImportError:
-    # XXX: Accept import failure due to conditional test execution
-    pass
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -61,18 +77,99 @@ FMU_PATHS.ME2.coupled_clutches_modified = os.path.join(file_path, "files", "FMUs
 FMU_PATHS.ME1.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NominalTest4.fmu")
 FMU_PATHS.ME2.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NominalTests.NominalTest4.fmu")
 
+REFERENCE_FMU_PATH = Path(file_path) / 'files' / 'reference_fmus' / '3.0'
 
+# TODO: Many tests here could be parameterized
+# However, in many cases this relies on having FMUs with the same functionality
+# available for different FMI versions.
 
-def _helper_unzipped_fmu_exception_invalid_dir(fmu_loader):
-    """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification.
-        The input argument is any of the FMU interfaces FMUModelME1, FMUModelME2, FMUModelCS1, FMUModelCS2 and load_fmu from pyfmi.fmi.
-    """
-    err_msg = "Specified fmu path '.*\\' needs to contain a modelDescription.xml according to the FMI specification"
-    with tempfile.TemporaryDirectory() as temp_dir:
+# All currently supported FMU loaders (for single FMUs)
+ALL_FMU_LOADERS = [
+    load_fmu,
+    FMUModelME1,
+    FMUModelME2,
+    FMUModelME3,
+    FMUModelCS1,
+    FMUModelCS2,
+]
+
+class Test_FMU:
+    """Tests that can be parameterized for all FMI versions and/or loading types."""
+    @pytest.mark.parametrize("fmu_loader", ALL_FMU_LOADERS)
+    def test_invalid_path(self, fmu_loader):
+        """Test loading an FMU on a path that does not exist."""
+        msg = "Could not locate the FMU in the specified directory."
+        with pytest.raises(FMUException, match = msg):
+            fmu_loader("path_that_does_not_exist.fmu")
+    
+    @pytest.mark.parametrize("fmu_loader", ALL_FMU_LOADERS)
+    def test_unzipped_fmu_exception_invalid_dir(self, fmu_loader):
+        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml."""
+        err_msg = "Specified fmu path '.*\\' needs to contain a modelDescription.xml according to the FMI specification"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with pytest.raises(FMUException, match = err_msg):
+                fmu_loader(temp_dir, allow_unzipped_fmu = True)
+
+    @pytest.mark.parametrize("fmu_loader", ALL_FMU_LOADERS)
+    def test_unzipped_fmu_exception_is_file(self, fmu_loader):
+        """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True. """
+        err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
+        fmu_path = tempfile.mktemp(dir = ".")
         with pytest.raises(FMUException, match = err_msg):
-            fmu = fmu_loader(temp_dir, allow_unzipped_fmu = True)
+            fmu_loader(fmu_path, allow_unzipped_fmu = True)
 
-pytest.mark.assimulo
+    @pytest.mark.parametrize("fmu_loader, fmu_path",
+        [
+            (FMUModelME1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
+            (FMUModelCS1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')),
+            (FMUModelME2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
+            (FMUModelCS2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
+            (FMUModelME3, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
+        ]
+    )
+    def test_invalid_version(self, fmu_loader, fmu_path):
+        """Test using an FMU with the incorrect version."""
+        msg = "The FMU could not be loaded."
+        with pytest.raises(InvalidVersionException, match = msg):
+            fmu_loader(fmu_path, _connect_dll = False)
+
+
+@pytest.mark.parametrize("fmu_loader, fmu_path",
+    [
+        (load_fmu   , os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
+        (FMUModelME1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
+        (load_fmu   , os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
+        (FMUModelME2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
+        pytest.param(load_fmu   , REFERENCE_FMU_PATH / 'BouncingBall.fmu', marks = pytest.mark.xfail(strict = True)),
+        pytest.param(FMUModelME3, REFERENCE_FMU_PATH / 'BouncingBall.fmu', marks = pytest.mark.xfail(strict = True)),
+        (load_fmu   , os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
+        (FMUModelCS1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
+        (load_fmu   , os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')),
+        (FMUModelCS2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')),
+    ]
+)
+@pytest.mark.assimulo
+class TestUnzippedBouncingBall:
+    def _test_unzipped_bouncing_ball(self, fmu_loader, fmu_path, fmu_dir):
+        """ Simulates the bouncingBall FMU by unzipping the example FMU before loading."""
+        with ZipFile(fmu_path, 'r') as fmu_zip:
+            fmu_zip.extractall(path = fmu_dir)
+
+        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
+        res = unzipped_fmu.simulate(final_time = 2.0)
+        assert res.final("h") == pytest.approx(0.0424044, abs = 1e-2)
+    
+    def test_create_temp_dir(self, fmu_loader, fmu_path):
+        """Test unzipped bouncingBall using FMU unzipped to 'create_temp_dir()'."""
+        unzip_dir = create_temp_dir()
+        self._test_unzipped_bouncing_ball(fmu_loader, fmu_path, unzip_dir)
+
+    def test_custom_temp_dir(self, fmu_loader, fmu_path):
+        """Test unzipped bouncingBall using FMU unzipped to custom temp directory."""
+        unzip_dir = tempfile.TemporaryDirectory(dir = "./")
+        self._test_unzipped_bouncing_ball(fmu_loader, fmu_path, unzip_dir.name)
+
+@pytest.mark.assimulo
 class Test_FMUModelME1_Simulation:
     def test_simulate_with_debug_option_no_state(self):
         """ Verify that an instance of CVodeDebugInformation is created """
@@ -175,49 +272,12 @@ class Test_FMUModelME1_Simulation:
     # one FMI version for that, because they mainly test algorithm drivers functionality.
 
 
+@pytest.mark.assimulo
 class Test_FMUModelME1:
-    def test_unzipped_fmu_exception_invalid_dir(self):
-        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
-        _helper_unzipped_fmu_exception_invalid_dir(FMUModelME1)
-
-    def _test_unzipped_bouncing_ball(self, fmu_loader, tmp_dir = None):
-        """ Simulates the bouncing ball FMU ME1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME1 or load_fmu. """
-        tol = 1e-4
-        if tmp_dir is None:
-            fmu_dir = create_temp_dir()
-        else:
-            fmu_dir = tmp_dir
-        fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')
-        with ZipFile(fmu, 'r') as fmu_zip:
-            fmu_zip.extractall(path = fmu_dir)
-
-        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
-        res = unzipped_fmu.simulate(final_time = 2.0)
-        value = np.abs(res.final('h') - (0.0424044))
-        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
-
-    def test_unzipped_fmu1(self):
-        """ Test load and simulate unzipped ME FMU 1.0 using FMUModelME1 """
-        self._test_unzipped_bouncing_ball(FMUModelME1)
-        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
-        self._test_unzipped_bouncing_ball(FMUModelME1, tmp_dir = tmp_dir.name)
-
-    def test_unzipped_fmu2(self):
-        """ Test load and simulate unzipped ME FMU 1.0 using load_fmu """
-        self._test_unzipped_bouncing_ball(load_fmu)
-        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
-        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tmp_dir.name)
-
     def test_invalid_binary(self):
         err_msg = "The FMU could not be loaded."
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu")
         with pytest.raises(InvalidBinaryException, match = err_msg):
-            FMUModelME1(fmu, _connect_dll=True)
-
-    def test_invalid_version(self):
-        err_msg = "This class only supports FMI 1.0"
-        fmu = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu")
-        with pytest.raises(InvalidVersionException, match = err_msg):
             FMUModelME1(fmu, _connect_dll=True)
 
     def test_get_time_varying_variables(self):
@@ -257,7 +317,6 @@ class Test_FMUModelME1:
         assert np.abs(model.get_default_experiment_stop_time()-1.5) < 1e-4
         assert np.abs(model.get_default_experiment_tolerance()-0.0001) < 1e-4
 
-
     def test_log_file_name(self):
         model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         assert os.path.exists("bouncingBall_log.txt")
@@ -283,13 +342,6 @@ class Test_FMUModelME1:
         assert bounce.get_name() == 'bouncingBall'
         assert dq.get_name() == 'dq'
 
-    def test_instantiate_jmu(self):
-        """
-        Test that FMUModelME1 can not be instantiated with a JMU file.
-        """
-        with pytest.raises(FMUException):
-            FMUModelME1('model.jmu')
-
     def test_get_fmi_options(self):
         """
         Test that simulate_options on an FMU returns the correct options
@@ -308,48 +360,10 @@ class Test_FMUModelME1:
         assert len(model.get_string([]))  == 0, "get_string ([]) has non-empty return"
 
 class Test_FMUModelCS1:
-    def test_unzipped_fmu_exception_invalid_dir(self):
-        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
-        _helper_unzipped_fmu_exception_invalid_dir(FMUModelCS1)
-
-    def _test_unzipped_bouncing_ball(self, fmu_loader, tmp_dir = None):
-        """ Simulates the bouncing ball FMU CS1.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS1 or load_fmu. """
-        tol = 1e-2
-        if tmp_dir is None:
-            fmu_dir = create_temp_dir()
-        else:
-            fmu_dir = tmp_dir
-        fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')
-        with ZipFile(fmu, 'r') as fmu_zip:
-            fmu_zip.extractall(path = fmu_dir)
-
-        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
-        res = unzipped_fmu.simulate(final_time = 2.0)
-        value = np.abs(res.final('h') - (0.0424044))
-        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
-
-    def test_unzipped_fmu1(self):
-        """ Test load and simulate unzipped CS FMU 1.0 using FMUModelCS1 """
-        self._test_unzipped_bouncing_ball(FMUModelCS1)
-        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
-        self._test_unzipped_bouncing_ball(FMUModelCS1, tmp_dir = tmp_dir.name)
-
-    def test_unzipped_fmu2(self):
-        """ Test load and simulate unzipped CS FMU 1.0 using load_fmu """
-        self._test_unzipped_bouncing_ball(load_fmu)
-        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
-        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tmp_dir.name)
-
     def test_invalid_binary(self):
         err_msg = "The FMU could not be loaded."
         fmu = os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "NegatedAlias.fmu")
         with pytest.raises(InvalidBinaryException, match = err_msg):
-            model = FMUModelCS1(fmu, _connect_dll=True)
-
-    def test_invalid_version(self):
-        err_msg = "This class only supports FMI 1.0"
-        fmu = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "NegatedAlias.fmu")
-        with pytest.raises(InvalidVersionException, match = err_msg):
             model = FMUModelCS1(fmu, _connect_dll=True)
 
     def test_custom_result_handler(self):
@@ -434,6 +448,7 @@ class Test_FMUModelCS1:
         with pytest.raises(FMUException):
             model.simulate(options=opts)
 
+@pytest.mark.assimulo
 class Test_FMUModelBase:
     def test_unicode_description(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "Description.fmu")
@@ -552,44 +567,7 @@ class Test_FMUModelBase:
         assert xn[7] == pytest.approx(1.0)
 
 
-class Test_LoadFMU:
-    def test_unzipped_fmu_exception_invalid_dir(self):
-        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
-        _helper_unzipped_fmu_exception_invalid_dir(load_fmu)
-
 class Test_FMUModelCS2:
-    def test_unzipped_fmu_exception_invalid_dir(self):
-        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
-        _helper_unzipped_fmu_exception_invalid_dir(FMUModelCS2)
-
-    def _test_unzipped_bouncing_ball(self, fmu_loader, tmp_dir = None):
-        """ Simulates the bouncing ball FMU CS2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelCS2 or load_fmu. """
-        tol = 1e-2
-        if tmp_dir is None:
-            fmu_dir = create_temp_dir()
-        else:
-            fmu_dir = tmp_dir
-        fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')
-        with ZipFile(fmu, 'r') as fmu_zip:
-            fmu_zip.extractall(path = fmu_dir)
-
-        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
-        res = unzipped_fmu.simulate(final_time = 2.0)
-        value = np.abs(res.final('h') - (0.0424044))
-        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
-
-    def test_unzipped_fmu1(self):
-        """ Test load and simulate unzipped CS FMU 2.0 using FMUModelCS2 """
-        self._test_unzipped_bouncing_ball(FMUModelCS2)
-        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
-        self._test_unzipped_bouncing_ball(FMUModelCS2, tmp_dir = tmp_dir.name)
-
-    def test_unzipped_fmu2(self):
-        """ Test load and simulate unzipped CS FMU 2.0 using load_fmu """
-        self._test_unzipped_bouncing_ball(load_fmu)
-        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
-        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tmp_dir.name)
-
     def test_log_file_name(self):
         full_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu")
         model = FMUModelCS2(full_path, _connect_dll=False)
@@ -603,19 +581,7 @@ class Test_FMUModelCS2:
         with pytest.raises(InvalidBinaryException, match = err_msg):
             model = FMUModelCS2(fmu, _connect_dll=True)
 
-    def test_invalid_version(self):
-        err_msg = "The FMU version is not supported"
-        fmu = os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "CoupledClutches.fmu")
-        with pytest.raises(InvalidVersionException, match = err_msg):
-            model = FMUModelCS2(fmu, _connect_dll=True)
-
-    def test_unzipped_fmu_exceptions(self):
-        """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelCS2. """
-        err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
-        with pytest.raises(FMUException, match = err_msg):
-            model = FMUModelCS2(os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "LinearStability.SubSystem1.fmu"), _connect_dll=False, allow_unzipped_fmu=True)
-
-    def test_erreneous_ncp(self):
+    def test_erroneous_ncp(self):
         model = FMUModelCS2(os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
 
         opts = model.simulate_options()
@@ -626,6 +592,8 @@ class Test_FMUModelCS2:
         with pytest.raises(FMUException):
             model.simulate(options=opts)
 
+class Test_Downsample:
+    """Tests for the 'result_downsampling_factor' option for CS FMUs."""
     def _verify_downsample_result(self, ref_traj, test_traj, ncp, factor):
         """Auxiliary function for result_downsampling_factor testing. 
         Verify correct length and values of downsampled trajectory."""
@@ -673,46 +641,32 @@ class Test_FMUModelCS2:
             res = fmu.simulate(options = opts)
             self._verify_downsample_result(ref_res_traj, res[test_var], opts['ncp'], f)
 
-    def test_downsample_error_check_invalid_value(self):
+    @pytest.mark.parametrize("value", [-10, -20, -1, 0])
+    def test_downsample_error_check_invalid_value(self, value):
         """ Verify we get an exception if the option is set to anything less than 1. """
         fmu = FMUModelCS2(os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu'))
         opts = fmu.simulate_options()
-        test_values = [-10, -20, -1, 0]
 
-        # TODO: tidy up with pytest
         expected_substr = "Valid values for option 'result_downsampling_factor' are only positive integers"
-        for value in test_values:
+        with pytest.raises(FMUException, match = expected_substr):
             opts['result_downsampling_factor'] = value
-            try:
-                fmu.simulate(options = opts)
-                error_raised = False
-            except FMUException as e:
-                error_raised = True
-                assert expected_substr in str(e), f"Error was {str(e)}, expected substring {expected_substr}"
-            assert error_raised
+            fmu.simulate(options = opts)
 
-    def test_error_check_invalid_value(self):
+    @pytest.mark.parametrize("value", [1/2, 1/3, "0.5", False])
+    def test_error_check_invalid_value(self, value):
         """ Verify we get an exception if the option is set to anything that is not an integer. """
         fmu = FMUModelCS2(os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu'))
         opts = fmu.simulate_options()
-        test_values = [1/2, 1/3, "0.5", False]
 
-        # TODO: tidy up with pytest
         expected_substr = "Option 'result_downsampling_factor' must be an integer,"
-        for value in test_values:
+        with pytest.raises(FMUException, match = expected_substr):
             opts['result_downsampling_factor'] = value
-            try:
-                fmu.simulate(options = opts)
-                error_raised = False
-            except FMUException as e:
-                error_raised = True
-                assert expected_substr in str(e), f"Error was {str(e)}, expected substring {expected_substr}"
-            assert error_raised
+            fmu.simulate(options = opts)
 
 @pytest.mark.assimulo
 class Test_FMUModelME2_Simulation:
     def test_basicsens1(self):
-        #Noncompliant FMI test as 'd' is parameter is not supposed to be able to be set during simulation
+        # Noncompliant FMI test as 'd' is parameter is not supposed to be able to be set during simulation
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BasicSens1.fmu"), _connect_dll=False)
 
         def f(*args, **kwargs):
@@ -1135,54 +1089,12 @@ class Test_FMUModelME2_Simulation:
 
         model.simulate(options = opts)
 
+@pytest.mark.assimulo
 class Test_FMUModelME2:
-    def test_unzipped_fmu_exception_invalid_dir(self):
-        """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml, which it should according to the FMI specification. """
-        _helper_unzipped_fmu_exception_invalid_dir(FMUModelME2)
-
-    def _test_unzipped_bouncing_ball(self, fmu_loader, tmp_dir = None):
-        """ Simulates the bouncing ball FMU ME2.0 by unzipping the example FMU before loading, 'fmu_loader' is either FMUModelME2 or load_fmu. """
-        tol = 1e-4
-        if tmp_dir is None:
-            fmu_dir = create_temp_dir()
-        else:
-            fmu_dir = tmp_dir
-        fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')
-        with ZipFile(fmu, 'r') as fmu_zip:
-            fmu_zip.extractall(path = fmu_dir)
-
-        unzipped_fmu = fmu_loader(fmu_dir, allow_unzipped_fmu = True)
-        res = unzipped_fmu.simulate(final_time = 2.0)
-        value = np.abs(res.final('h') - (0.0424044))
-        assert value < tol, "Assertion failed, value={} is not less than {}.".format(value, tol)
-
-    def test_unzipped_fmu1(self):
-        """ Test load and simulate unzipped ME FMU 2.0 using FMUModelME2 """
-        self._test_unzipped_bouncing_ball(FMUModelME2)
-        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
-        self._test_unzipped_bouncing_ball(FMUModelME2, tmp_dir = tmp_dir.name)
-
-    def test_unzipped_fmu2(self):
-        """ Test load and simulate unzipped ME FMU 2.0 using load_fmu """
-        self._test_unzipped_bouncing_ball(load_fmu)
-        tmp_dir = tempfile.TemporaryDirectory(dir = "./")
-        self._test_unzipped_bouncing_ball(load_fmu, tmp_dir = tmp_dir.name)
-
-    def test_unzipped_fmu_exceptions(self):
-        """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True, with FMUModelME2. """
-        err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
-        with pytest.raises(FMUException, match = err_msg):
-            FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu"), _connect_dll=False, allow_unzipped_fmu=True)
-
     def test_invalid_binary(self):
         err_msg = "The FMU could not be loaded."
         with pytest.raises(InvalidBinaryException, match = err_msg):
             FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStability.SubSystem2.fmu"), _connect_dll=True)
-
-    def test_invalid_version(self):
-        err_msg = "The FMU version is not supported by this class"
-        with pytest.raises(InvalidVersionException, match = err_msg):
-            FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "RLC_Circuit.fmu"), _connect_dll=True)
 
     def test_estimate_directional_derivatives_linearstate(self):
         model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStateSpace.fmu"), _connect_dll=False)
@@ -1324,20 +1236,6 @@ class Test_FMUModelME2:
         assert len(state_dep.keys()) == 0, len(state_dep.keys())
         assert len(input_dep.keys()) == 0, len(input_dep.keys())
 
-    def test_exception_with_load_fmu(self):
-        """ Verify exception is raised. """
-        err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
-        test_file = 'abcdefgh1234567qwertyuiop.txt'
-        rm_file = False
-        if not os.path.isfile(test_file):
-            with open(test_file, 'w') as fh:
-                fh.write('')
-            rm_file = True
-        with pytest.raises(FMUException, match = err_msg):
-            fmu = load_fmu(test_file,  allow_unzipped_fmu = True)
-        if rm_file:
-            os.remove(test_file)
-
     def test_malformed_xml(self):
         with pytest.raises(InvalidXMLException):
             load_fmu(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "MalFormed.fmu"))
@@ -1379,6 +1277,7 @@ class Test_FMUModelME2:
         assert len(model.get_boolean([])) == 0, "get_boolean([]) has non-empty return"
         assert len(model.get_string([]))  == 0, "get_string ([]) has non-empty return"
 
+@pytest.mark.assimulo
 class Test_FMUModelBase2:
     def test_relative_quantity(self):
         model = FMUModelME2(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "test_type_definitions.fmu"), _connect_dll=False)
@@ -1599,7 +1498,6 @@ class Test_FMUModelBase2:
         tsyn = res.detailed_timings["computing_solution"]
         
         assert tsyn > t, f"synchronization does not work: Expected {tsyn} > {t}"
-        
     
     def test_simulation_with_synchronization_CS(self):
         """
@@ -1668,26 +1566,15 @@ class Test_FMUModelBase2:
         assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
 
 class Test_load_fmu_only_XML:
-    def test_loading_xml_me1(self):
-
-        model = FMUModelME1(FMU_PATHS.ME1.coupled_clutches, _connect_dll=False)
-
-        assert model.get_name() == "CoupledClutches", model.get_name()
-
-    def test_loading_xml_cs1(self):
-
-        model = FMUModelCS1(os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "CoupledClutches.fmu"), _connect_dll=False)
-
-        assert model.get_name() == "CoupledClutches", model.get_name()
-
-    def test_loading_xml_me2(self):
-
-        model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
-
-        assert model.get_name() == "CoupledClutches", model.get_name()
-
-    def test_loading_xml_cs2(self):
-
-        model = FMUModelCS2(os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
-
-        assert model.get_name() == "CoupledClutches", model.get_name()
+    @pytest.mark.parametrize("fmu_path, test_class",
+        [
+            (FMU_PATHS.ME1.coupled_clutches, FMUModelME1),
+            (os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "CoupledClutches.fmu"), FMUModelCS1),
+            (FMU_PATHS.ME2.coupled_clutches, FMUModelME2),
+            (os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), FMUModelCS2),
+        ]
+    )
+    def test_load_xml(self, fmu_path, test_class):
+        """Test loading only the XML without connecting to the DLL."""
+        model = test_class(fmu_path, _connect_dll=False)
+        assert model.get_name() == "CoupledClutches"

@@ -54,12 +54,6 @@ from pyfmi.test_util import Dummy_FMUModelME1, Dummy_FMUModelCS1, Dummy_FMUModel
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 
-try:
-    import assimulo
-except ImportError:
-    # XXX: Accept import failure due to conditional test execution
-    pass
-
 def _run_negated_alias(model, result_type, result_file_name=""):
     opts = model.simulate_options()
     opts["result_handling"] = result_type
@@ -566,6 +560,7 @@ class TestResultFileBinary_Simulation:
         stream = BytesIO()
         _run_negated_alias(simple_alias, "binary", stream)
 
+@pytest.mark.assimulo
 class TestResultFileBinary:
     def _get_description_unicode(self, result_file_name):
         model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "Description.fmu"), _connect_dll=False)
@@ -583,7 +578,7 @@ class TestResultFileBinary:
         res = ResultDymolaBinary(result_file_name)
 
         desc = res.description[res.get_variable_index("x")]
-        #This handling should in the future be nativly handled by the IO module
+        #This handling should in the future be natively handled by the IO module
         desc = desc.encode("latin_1", "replace").decode("utf-8", "replace")
 
         assert desc == u"Test symbols '' ‘’"
@@ -1597,6 +1592,7 @@ class TestResultCSVTextual:
         simple_alias = Dummy_FMUModelCS2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "NegatedAlias.fmu"), _connect_dll=False)
         _run_negated_alias(simple_alias, "csv")
 
+@pytest.mark.assimulo
 class TestResultDymolaBinary:
 
     def test_next_start_index(self):
@@ -2000,8 +1996,8 @@ class TestFileSizeLimit:
 
         opts["result_max_size"] = max_size
 
-        #No exception should be raised.
-        res = model.simulate(options=opts)
+        # No exception should be raised.
+        model.simulate(options=opts)
 
     def _test_result_exception(self, result_type, result_file_name="", fmi_type="me"):
         model, opts = self._setup(result_type, result_file_name, fmi_type)
@@ -2095,96 +2091,66 @@ class TestFileSizeLimit:
             assert file_size < max_size*0.1, \
                     "The file size is not small, no early abort"
 
-    # TODO: Pytest parametrization
-    """
-    Binary
-    """
-    def test_binary_file_size_verification_diagnostics(self):
-        """
-        Make sure that the diagnostics variables are also taken into account.
-        """
-        self._test_result_size_verification("binary", dynamic_diagnostics=True)
+    @pytest.mark.parametrize("result_type", ["binary", "file", "csv"])
+    def test_binary_file_size_verification(self, result_type):
+        """Test file size verification."""
+        self._test_result_size_verification(result_type)
 
-    def test_binary_file_size_verification(self):
-        self._test_result_size_verification("binary")
+    @pytest.mark.parametrize("result_type", ["binary"])
+    def test_file_size_verification_diagnostics(self, result_type):
+        """Test file size verification when using dynamic_diagnostics."""
+        self._test_result_size_verification(result_type, dynamic_diagnostics=True)
 
-    def test_binary_file_size_early_abort(self):
-        self._test_result_size_early_abort("binary")
+    @pytest.mark.parametrize("result_type", ["binary", "file", "csv", "memory"])
+    def test_file_size_early_abort(self, result_type):
+        """Test result size early abort."""
+        self._test_result_size_early_abort(result_type)
 
-    def test_small_size_binary_file(self):
-        self._test_result_exception("binary")
+    @pytest.mark.parametrize("result_type", ["binary", "file", "csv", "memory"])
+    def test_small_size_file(self, result_type):
+        """Test the Exception for too small file sizes."""
+        self._test_result_exception(result_type)
 
-    def test_small_size_binary_file_cs(self):
-        self._test_result_exception("binary", fmi_type="cs")
+    @pytest.mark.parametrize("result_type", ["binary"])
+    def test_small_size_file_cs(self, result_type):
+        """Test the Exception for too small file sizes, CS case."""
+        self._test_result_exception(result_type, fmi_type="cs")
 
-    def test_small_size_binary_file_stream(self):
-        self._test_result_exception("binary", BytesIO())
+    @pytest.mark.parametrize("result_type, result_file_name", 
+        [
+            ("binary", BytesIO()),
+            ("file",   StringIO()),
+            ("csv",    StringIO()),
+            ("memory", StringIO()),
+        ]
+    )
+    def test_small_size_file_stream(self, result_type, result_file_name):
+        """Test the Exception for too small file sizes, Stream."""
+        self._test_result_exception(result_type, result_file_name)
 
-    def test_large_size_binary_file(self):
-        self._test_result("binary")
+    @pytest.mark.parametrize("result_type, max_size", 
+        [
+            ("binary", 10**6),
+            ("file",   10**6),
+            ("csv",    10**7),
+            ("memory", 10**6),
+        ]
+    )
+    def test_large_size_file(self, result_type, max_size):
+        """Test the Exception for too large file sizes."""
+        self._test_result(result_type, max_size = max_size)
 
-    def test_large_size_binary_file_stream(self):
-        self._test_result("binary", BytesIO())
-
-    """
-    Text
-    """
-    def test_text_file_size_verification(self):
-        self._test_result_size_verification("file")
-
-    def test_text_file_size_early_abort(self):
-        self._test_result_size_early_abort("file")
-
-    def test_small_size_text_file(self):
-        self._test_result_exception("file")
-
-    def test_small_size_text_file_stream(self):
-        self._test_result_exception("file", StringIO())
-
-    def test_large_size_text_file(self):
-        self._test_result("file")
-
-    def test_large_size_text_file_stream(self):
-        self._test_result("file", StringIO())
-
-    """
-    CSV
-    """
-    def test_csv_file_size_verification(self):
-        self._test_result_size_verification("csv")
-
-    def test_csv_file_size_early_abort(self):
-        self._test_result_size_early_abort("csv")
-
-    def test_small_size_csv_file(self):
-        self._test_result_exception("csv")
-
-    def test_small_size_csv_file_stream(self):
-        self._test_result_exception("csv", StringIO())
-
-    def test_large_size_csv_file(self):
-        self._test_result("csv", max_size=10000000)
-
-    def test_large_size_csv_file_stream(self):
-        self._test_result("csv", StringIO(), max_size=10000000)
-
-    """
-    Memory
-    """
-    def test_small_size_memory(self):
-        self._test_result_exception("memory")
-
-    def test_memory_size_early_abort(self):
-        self._test_result_size_early_abort("memory")
-
-    def test_small_size_memory_stream(self):
-        self._test_result_exception("memory", StringIO())
-
-    def test_large_size_memory(self):
-        self._test_result("memory")
-
-    def test_large_size_memory_stream(self):
-        self._test_result("memory", StringIO())
+    @pytest.mark.parametrize("result_type, result_file_name, max_size", 
+        [
+            ("binary", BytesIO(),  10**6),
+            ("file",   StringIO(), 10**6),
+            ("csv",    StringIO(), 10**7),
+            ("memory", StringIO(), 10**6)
+        ]
+    )
+    def test_large_size_file_stream(self, result_type, result_file_name, max_size):
+        """Test the Exception for too large file sizes, Stream."""
+        self._test_result(result_type, result_file_name, max_size = max_size)
 
 
 class ResultHandlerCustomNoSupport(ResultHandler):
@@ -2192,6 +2158,7 @@ class ResultHandlerCustomNoSupport(ResultHandler):
         super().__init__(*args, **kwargs)
         self.supports = {} # Don't do that (the dictionary should be UPDATED, not REPLACED)
 
+@pytest.mark.assimulo
 class TestCustomResultHandlerMissingSupport:
     """Test that ResultHandlers fail gracefully, even if one overwrites the supports attribute."""
     # caplog = pytest.LogCaptureFixture

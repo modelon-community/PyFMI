@@ -17,6 +17,7 @@
 
 import pytest
 import re
+from io import StringIO
 from pyfmi import load_fmu
 from pathlib import Path
 from pyfmi.fmi import (
@@ -27,6 +28,11 @@ from pyfmi.exceptions import (
     InvalidFMUException,
     InvalidVersionException
 )
+
+# TODO: A lot of the tests here could be parameterized with the tests in test_fmi.py
+# This would however require on of the following:
+# a) Changing the tests in test_fmi.py to use the FMI1/2 reference FMUs
+# b) Mocking the FMUs in some capacity
 
 this_dir = Path(__file__).parent.absolute()
 REFERENCE_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
@@ -44,7 +50,7 @@ REFERENCE_FMU_NAMES = [
 REFERENCE_FMUS = [str(REFERENCE_FMU_PATH / fmu_name) 
                     for fmu_name in REFERENCE_FMU_NAMES]
 
-def test_foo():
+def test_reference_fmu_exist():
     expected_fmu = REFERENCE_FMU_PATH / 'VanDerPol.fmu'
     assert expected_fmu.exists()
 
@@ -92,7 +98,7 @@ class TestFMI3LoadFMU:
             load_fmu(ref_fmu, kind = "SE")
 
 
-class TestFMI3ME:
+class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
     @pytest.mark.parametrize("ref_fmu", [REFERENCE_FMU_PATH / "VanDerPol.fmu"])
     def test_basic(self, ref_fmu):
@@ -107,13 +113,6 @@ class TestFMI3ME:
         with pytest.raises(InvalidVersionException, match = msg):
             FMUModelME3(ref_fmu, _connect_dll = False)
 
-    def test_incorrect_version(self):
-        """Test using an FMU with the incorrect version."""
-        fmu_path = this_dir / "files" / "FMUs" / "XML" / "ME2.0" / "bouncingBall.fmu"
-        msg = "The FMU could not be loaded. The FMU version is not supported by this class"
-        with pytest.raises(InvalidVersionException, match = msg):
-            FMUModelME3(fmu_path, _connect_dll = False)
-
     def test_logfile_content(self):
         """Test that we get the log content from FMIL parsing the modelDescription.xml."""
         log_filename = "test_fmi3_log.txt"
@@ -126,7 +125,16 @@ class TestFMI3ME:
         assert "FMIL: module = FMILIB, log level = 4: XML specifies FMI standard version 3.0" in data
         assert "FMIL: module = FMILIB, log level = 5: Parsing finished successfully" in data
 
-    # TODO: Test the same with stream
+    # TODO: FUTURE: Move to test_stream.py
+    def test_logging_stream(self):
+        """Test logging content from FMIL using a stream."""
+        log_filename = StringIO("")
+        fmu = FMUModelME3(REFERENCE_FMU_PATH / "VanDerPol.fmu", log_file_name = log_filename, 
+                          _connect_dll = False, log_level = 5)
+        log = fmu.get_log()
+
+        assert "FMIL: module = FMILIB, log level = 4: XML specifies FMI standard version 3.0" in log
+        assert "FMIL: module = FMILIB, log level = 5: Parsing finished successfully" in log
 
     @pytest.mark.parametrize("log_level", [1, 2, 3, 4, 5, 6, 7])
     def test_valid_log_levels(self, log_level):
@@ -150,12 +158,6 @@ class TestFMI3ME:
         msg = "The log level must be an integer between 0 and 7"
         with pytest.raises(FMUException, match = msg):
             FMUModelME3(fmu_path, log_level = log_level, _connect_dll = False)
-
-    def test_invalid_path(self):
-        """Test loading an FMU on a path that does not exist."""
-        msg = "Could not locate the FMU in the specified directory."
-        with pytest.raises(FMUException, match = msg):
-            FMUModelME3("path_that_does_not_exist.fmu", _connect_dll = False)
 
 
 class TestFMI3CS:

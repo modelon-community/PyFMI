@@ -16,6 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import pytest
 
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
@@ -26,6 +27,7 @@ import numpy as np
 file_path = os.path.dirname(os.path.abspath(__file__))
 logs = os.path.join(file_path, "files", "Logs")
 
+@pytest.mark.assimulo
 class Test_Log:
     def test_decode_bytes(self):
         """

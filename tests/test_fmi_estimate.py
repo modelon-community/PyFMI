@@ -22,12 +22,6 @@ import numpy as np
 from pyfmi.test_util import Dummy_FMUModelME2
 from scipy.io.matlab import loadmat
 
-try:
-    import assimulo
-except ImportError:
-    # XXX: Accept import failure due to conditional test execution
-    pass
-
 file_path = os.path.dirname(os.path.abspath(__file__))
 
 @pytest.mark.assimulo

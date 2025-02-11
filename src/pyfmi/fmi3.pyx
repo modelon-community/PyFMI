@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2025Modelon AB
+# Copyright (C) 2025 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -41,7 +41,6 @@ from pyfmi.fmi_base import (
 
 from pyfmi.common.core import create_temp_dir
 
-# TODO: Is this correct?
 # CALLBACKS
 cdef void importlogger3(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     if c.context != NULL:
@@ -51,8 +50,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     """
     FMI3 Model loaded from a dll.
     """
-    def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
-                 _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
+    def __init__(self, fmu, log_file_name = "", log_level = FMI_DEFAULT_LOG_LEVEL,
+                 _unzipped_dir = None, _connect_dll = True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
 
@@ -62,7 +61,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 Name of the fmu as a string.
 
             log_file_name --
-                Filename for file used to save logmessages.
+                Filename for file used to save log messages.
                 This argument can also be a stream if it supports 'write', for full functionality
                 it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
                 for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
@@ -109,6 +108,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self.callbacks.logger  = importlogger3
         self.callbacks.context = <void*>self
         # Specify FMI3 related callbacks
+        # TODO
 
         if isinstance(log_level, int) and (log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all):
             if log_level == FMIL.jm_log_level_nothing:
@@ -121,9 +121,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._enable_logging = enable_logging
         self._fmu_full_path = pyfmi_util.encode(os.path.abspath(fmu))
         check_fmu_args(self._allow_unzipped_fmu, fmu, self._fmu_full_path)
+
         # Create a struct for allocation
-        self._context           = FMIL.fmi_import_allocate_context(&self.callbacks)
+        self._context = FMIL.fmi_import_allocate_context(&self.callbacks)
         self._allocated_context = 1
+
         #Get the FMI version of the provided model
         if _unzipped_dir:
             fmu_temp_dir = pyfmi_util.encode(_unzipped_dir)
@@ -134,6 +136,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         fmu_temp_dir = os.path.abspath(fmu_temp_dir)
         self._fmu_temp_dir = <char*>FMIL.malloc((FMIL.strlen(fmu_temp_dir)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_temp_dir, fmu_temp_dir)
+
         if _unzipped_dir:
             # If the unzipped directory is provided we assume that the version
             # is correct. This is due to that the method to get the version
@@ -149,7 +152,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. " + last_error)
             else:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. Enable logging for possibly more information.")
-        if self._version != FMIL.fmi_version_3_0_enu:
+        elif self._version != FMIL.fmi_version_3_0_enu:
             last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
             if enable_logging:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version is not supported by this class. " + last_error)
@@ -197,7 +200,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     def __dealloc__(self):
         """
-        Deallocate memory allocated
+        Deallocate memory
         """
         self._invoked_dealloc = 1
 
@@ -292,7 +295,9 @@ cdef void _cleanup_on_load_error(
     bytes fmu_temp_dir,
     list log_data
 ):
-    """To reduce some code duplication for various failures in _load_fmi3_fmu"""
+    """
+    To reduce some code duplication for various failures in _load_fmi3_fmu.
+    """
     if fmu_3 is not NULL:
         FMIL3.fmi3_import_free(fmu_3)
     FMIL.fmi_import_free_context(context)
@@ -314,7 +319,6 @@ cdef object _load_fmi3_fmu(
     """
     The FMI3 part of fmi.pyx load_fmu.
     """
-    # TODO: Tons of duplicated code here for error handling
     cdef FMIL.jm_string last_error
     cdef FMIL3.fmi3_import_t* fmu_3 = NULL
     cdef FMIL3.fmi3_fmu_kind_enu_t fmu_3_kind
@@ -353,7 +357,7 @@ cdef object _load_fmi3_fmu(
         elif fmu_3_kind & FMIL3.fmi3_fmu_kind_cs:
             raise InvalidFMUException("Import of FMI3 CoSimulation FMUs is not yet supported.")
         elif fmu_3_kind & FMIL3.fmi3_fmu_kind_se:
-            # TODO: Once/If we decide to support it, the docstring on load_fmu needs to be updated to include it
+            # TODO: when we support it, the docstring on load_fmu needs to be updated to include it
             # TODO: Plus, this is blocked in load_fmu to begin with
             raise InvalidFMUException("Import of FMI3 ScheduledExecution FMUs is not supported.")
     elif (kind.upper() == 'ME') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_me):
