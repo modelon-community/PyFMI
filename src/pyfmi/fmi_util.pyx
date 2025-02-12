@@ -359,7 +359,7 @@ cpdef convert_scalarvariable_name_to_str(list data):
     output = <char*>FMIL.calloc(items*length,sizeof(char))
 
     for i in range(items):
-        py_byte_string = data[i].name#.pyfmi_util.encode("latin-1")
+        py_byte_string = data[i].name
         tmp = py_byte_string
         tmp_length = len(tmp)
         k = i*length
