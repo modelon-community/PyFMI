@@ -99,6 +99,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         # Default values
 
         # Internal values
+        self._enable_logging = False
 
         # Specify the general callback functions
         self.callbacks.malloc  = FMIL.malloc
@@ -112,13 +113,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         if isinstance(log_level, int) and (log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all):
             if log_level == FMIL.jm_log_level_nothing:
-                enable_logging = False
+                self._enable_logging = False
             else:
-                enable_logging = True
+                self._enable_logging = True
             self.callbacks.log_level = log_level
         else:
             raise FMUException(f"The log level must be an integer between {FMIL.jm_log_level_nothing} and {FMIL.jm_log_level_all}")
-        self._enable_logging = enable_logging
         self._fmu_full_path = pyfmi_util.encode(os.path.abspath(fmu))
         check_fmu_args(self._allow_unzipped_fmu, fmu, self._fmu_full_path)
 
@@ -148,13 +148,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         # Check the version
         if self._version == FMIL.fmi_version_unknown_enu:
             last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
-            if enable_logging:
+            if self._enable_logging:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. " + last_error)
             else:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. Enable logging for possibly more information.")
         elif self._version != FMIL.fmi_version_3_0_enu:
             last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
-            if enable_logging:
+            if self._enable_logging:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version is not supported by this class. " + last_error)
             else:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version is not supported by this class. Enable logging for possibly more information.")
@@ -163,7 +163,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._fmu = FMIL3.fmi3_import_parse_xml(self._context, self._fmu_temp_dir, NULL)
         if self._fmu is NULL:
             last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
-            if enable_logging:
+            if self._enable_logging:
                 raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. " + last_error)
             else:
                 raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible more information.")
@@ -173,7 +173,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         # FMU kind is unknown
         if self._fmu_kind & FMIL3.fmi3_fmu_kind_unknown:
             last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
-            if enable_logging:
+            if self._enable_logging:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU kind could not be determined. " + last_error)
             else:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU kind could not be determined. Enable logging for possibly more information.")
@@ -355,18 +355,16 @@ cdef object _load_fmi3_fmu(
             model = FMUModelME3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                                 allow_unzipped_fmu = allow_unzipped_fmu)
         elif fmu_3_kind & FMIL3.fmi3_fmu_kind_cs:
-            raise InvalidFMUException("Import of FMI3 CoSimulation FMUs is not yet supported.")
+            raise InvalidFMUException("Import of FMI3 Co-Simulation FMUs is not yet supported.")
         elif fmu_3_kind & FMIL3.fmi3_fmu_kind_se:
-            # TODO: when we support it, the docstring on load_fmu needs to be updated to include it
-            # TODO: Plus, this is blocked in load_fmu to begin with
-            raise InvalidFMUException("Import of FMI3 ScheduledExecution FMUs is not supported.")
+            raise InvalidFMUException("Import of FMI3 Scheduled Execution FMUs is not supported.")
     elif (kind.upper() == 'ME') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_me):
         model = FMUModelME3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                             allow_unzipped_fmu = allow_unzipped_fmu)
     elif (kind.upper() == 'CS') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_cs):
-        raise InvalidFMUException("Import of FMI3 CoSimulation FMUs is not yet supported.")
+        raise InvalidFMUException("Import of FMI3 Co-Simulation FMUs is not yet supported.")
     elif (kind.upper() == 'SE') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_se):
-        raise InvalidFMUException("Import of FMI3 ScheduledExecution FMUs is not supported.")
+        raise InvalidFMUException("Import of FMI3 Scheduled Execution FMUs is not supported.")
 
     # Could not match FMU kind with input-specified kind
     if model is None:

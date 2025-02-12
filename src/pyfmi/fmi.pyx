@@ -198,12 +198,13 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
 
         kind --
             String indicating the kind of model to create. This is only
-            needed if a FMU contains both a ME and CS model.
+            needed if a FMU contains multiple models.
             Available options:
                 - 'ME'
                 - 'CS'
+                - 'SE'
                 - 'auto'
-            Default: 'auto' (Chooses ME before CS if both available)
+            Default: 'auto' (Chooses ME > CS > SE, if multiple are available)
 
         log_level --
             Determines the logging output. Can be set between 0
@@ -240,9 +241,9 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
     check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path)
 
     # Check that kind-argument is well-defined
-    if not kind.lower() == 'auto':
-        if (kind.upper() != 'ME' and kind.upper() != 'CS'):
-            raise FMUException('Input-argument "kind" can only be "ME", "CS" or "auto" (default) and not: ' + kind)
+    _allowed_kinds = ["ME", "CS", "SE"]
+    if (not kind.lower() == "auto") and (kind.upper() not in _allowed_kinds):
+        raise FMUException('Input-argument "kind" can only be "ME", "CS", "SE" or "auto" (default) and not: ' + kind)
 
     # Specify FMI related callbacks
     callbacks.malloc    = FMIL.malloc
