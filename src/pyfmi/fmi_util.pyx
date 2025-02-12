@@ -34,6 +34,10 @@ from pyfmi.fmi1 import ( # TODO
 )
 
 cimport pyfmi.util as pyfmi_util
+from pyfmi.util import (
+    encode,
+    decode
+)
 
 from pyfmi.exceptions import FMUException, IOException
 

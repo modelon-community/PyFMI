@@ -1,8 +1,6 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
-    * [BREAKING] Refactored internal files, this does affect a small number of secondary imports.
-      * pyfmi.fmi_util: encode, decode, cpr_seed, enable_caching now via pyfmi.util.
-
+    * Refactored internal files, this does affect a small number of secondary imports.
 
 --- PyFMI-2.16.3 ---
     * Changed default log and file size limitations from 2 GiB (2*1024**3) to 2 GB (2e9).
