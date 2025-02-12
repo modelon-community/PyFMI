@@ -371,7 +371,7 @@ cpdef convert_scalarvariable_name_to_str(list data):
 
     FMIL.free(output)
 
-    return length, py_string#.pyfmi_util.encode("latin-1")
+    return length, py_string
 
 """
 class Graph:

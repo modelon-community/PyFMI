@@ -30,10 +30,10 @@ cdef extern from 'fmilib.h':
 
     # STATUS
     cdef enum fmi3_fmu_kind_enu_t:
-        fmi3_fmu_kind_unknown = 1
-        fmi3_fmu_kind_me = 2
-        fmi3_fmu_kind_cs = 4
-        fmi3_fmu_kind_se = 8
+        fmi3_fmu_kind_unknown = 1 << 0
+        fmi3_fmu_kind_me = 1 << 1
+        fmi3_fmu_kind_cs = 1 << 2
+        fmi3_fmu_kind_se = 1 << 3
 
     # LOGGING
     ctypedef int(*fmi3_xml_element_start_handle_ft)(void*, char*, void*, char*, char**)
