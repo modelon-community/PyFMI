@@ -223,7 +223,7 @@ def check_extensions():
         ext_list[-1].extra_link_args = extra_link_flags
     """
     incl_path = [".", "src", os.path.join("src", "pyfmi")]
-    #FMI PYX
+    # FMI PYX
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_base.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
@@ -236,32 +236,40 @@ def check_extensions():
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi2.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi3.pyx")],
+                    include_path = incl_path,
+                    compiler_directives={'language_level' : "3str"})
 
-    #FMI UTIL
+    # FMI UTIL
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_util.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
 
-    #FMI Extended PYX
+    # FMI Extended PYX
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_extended.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
 
-    #FMI Coupled PYX
+    # FMI Coupled PYX
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_coupled.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
 
-    #Simulation interface PYX
+    # Simulation interface PYX
     ext_list += cythonize([os.path.join("src", "pyfmi", "simulation", "assimulo_interface.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
 
-    #MASTER PYX
+    # MASTER PYX
     compile_time_env = {'WITH_OPENMP': with_openmp}
     ext_list += cythonize([os.path.join("src", "pyfmi", "master.pyx")],
                     include_path = incl_path,
                     compile_time_env=compile_time_env,
+                    compiler_directives={'language_level' : "3str"})
+    
+    # UTILITIES
+    ext_list += cythonize([os.path.join("src", "pyfmi", "util.pyx")],
+                    include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
 
     # Test utilities

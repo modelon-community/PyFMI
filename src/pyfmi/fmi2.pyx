@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2025Modelon AB
+# Copyright (C) 2025 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -26,11 +26,12 @@ cimport numpy as np
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil2_import as FMIL2
 cimport pyfmi.fmi_base as FMI_BASE
+cimport pyfmi.util as pyfmi_util
+from pyfmi.util import enable_caching
 
 from collections import OrderedDict
 from pyfmi.fmi_base import (
     PyEventInfo,
-    enable_caching,
     FMI_DEFAULT_LOG_LEVEL,
     check_fmu_args,
     _handle_load_fmu_exception
@@ -112,97 +113,6 @@ FMI_INPUTS = 2
 FMI_DERIVATIVES = 1
 # Evaluate Jacobian of outputs.
 FMI_OUTPUTS = 2
-
-# TODO: Copied from utils temporarily; to avoid circular dependencies
-cpdef cpr_seed(dependencies, list column_keys, dict interested_columns = None):
-    cdef int i=0,j=0,k=0
-    cdef int n_col = len(column_keys)#len(dependencies.keys())
-    cdef dict columns_taken# = {key: 1 for key in dependencies.keys() if len(dependencies[key]) == 0}
-    cdef dict groups = {}
-    cdef dict column_dict = {}
-    cdef dict column_keys_dict = {}
-    cdef dict data_index = {}
-
-    row_keys_dict    = {s:i for i,s in enumerate(dependencies.keys())}
-    column_keys_dict = {s:i for i,s in enumerate(column_keys)}
-    column_dict      = {i:[] for i,s in enumerate(column_keys)}
-    for i,dx in enumerate(dependencies.keys()):
-        for x in dependencies[dx]:
-            column_dict[column_keys_dict[x]].append(dx)
-    columns_taken = {key: 1 for key in column_dict.keys() if len(column_dict[key]) == 0}
-
-    k = 0
-    kd = 0
-    data_index = {}
-    data_index_with_diag = {}
-    for i in range(n_col):
-        data_index[i] = list(range(k, k + len(column_dict[i])))
-        k = k + len(column_dict[i])
-
-        data_index_with_diag[i] = []
-        diag_added = False
-        for x in column_dict[i]:
-            ind = row_keys_dict[x]
-            if ind < i:
-                data_index_with_diag[i].append(kd)
-                kd = kd + 1
-            else:
-                if ind == i:
-                    diag_added = True
-                if not diag_added:
-                    kd = kd + 1
-                    diag_added = True
-                data_index_with_diag[i].append(kd)
-                kd = kd + 1
-        if not diag_added:
-            kd = kd + 1
-
-    nnz = k
-    nnz_with_diag = kd
-
-    k = 0
-    for i in range(n_col):
-        if (i in columns_taken) or (interested_columns is not None and not (i in interested_columns)):
-            continue
-
-        # New group
-        groups[k] = [[i], column_dict[i][:], [row_keys_dict[x] for x in column_dict[i]], [i]*len(column_dict[i]), data_index[i], data_index_with_diag[i]]
-
-        for j in range(i+1, n_col):
-            if (j in columns_taken) or (interested_columns is not None and not (j in interested_columns)):
-                continue
-
-            intersect = frozenset(groups[k][1]).intersection(column_dict[j])
-            if not intersect:
-
-                #structure
-                # - [0] - variable indexes
-                # - [1] - variable names
-                # - [2] - matrix rows
-                # - [3] - matrix columns
-                # - [4] - position in data vector (CSC format)
-                # - [5] - position in data vector (with diag) (CSC format)
-
-                groups[k][0].append(j)
-                groups[k][1].extend(column_dict[j])
-                groups[k][2].extend([row_keys_dict[x] for x in column_dict[j]])
-                groups[k][3].extend([j]*len(column_dict[j]))
-                groups[k][4].extend(data_index[j])
-                groups[k][5].extend(data_index_with_diag[j])
-                columns_taken[j] = 1
-
-        groups[k][0] = np.array(groups[k][0],dtype=np.int32)
-        groups[k][2] = np.array(groups[k][2],dtype=np.int32)
-        groups[k][3] = np.array(groups[k][3],dtype=np.int32)
-        groups[k][4] = np.array(groups[k][4],dtype=np.int32)
-        groups[k][5] = np.array(groups[k][5],dtype=np.int32)
-        k = k + 1
-
-    groups["groups"] = list(groups.keys())
-    groups["nnz"] = nnz
-    groups["nnz_with_diag"] = nnz_with_diag
-
-    return groups
 
 # #CALLBACKS
 cdef void importlogger2(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
@@ -660,7 +570,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
         self._enable_logging = enable_logging
 
-        self._fmu_full_path = FMI_BASE.encode(os.path.abspath(fmu))
+        self._fmu_full_path = pyfmi_util.encode(os.path.abspath(fmu))
         check_fmu_args(self._allow_unzipped_fmu, fmu, self._fmu_full_path)
 
         # Create a struct for allocation
@@ -669,34 +579,34 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         #Get the FMI version of the provided model
         if _unzipped_dir:
-            fmu_temp_dir  = FMI_BASE.encode(_unzipped_dir)
+            fmu_temp_dir  = pyfmi_util.encode(_unzipped_dir)
         elif self._allow_unzipped_fmu:
-            fmu_temp_dir = FMI_BASE.encode(fmu)
+            fmu_temp_dir = pyfmi_util.encode(fmu)
         else:
-            fmu_temp_dir  = FMI_BASE.encode(create_temp_dir())
+            fmu_temp_dir  = pyfmi_util.encode(create_temp_dir())
         fmu_temp_dir = os.path.abspath(fmu_temp_dir)
         self._fmu_temp_dir = <char*>FMIL.malloc((FMIL.strlen(fmu_temp_dir)+1)*sizeof(char))
         FMIL.strcpy(self._fmu_temp_dir, fmu_temp_dir)
 
         if _unzipped_dir:
-            #If the unzipped directory is provided we assume that the version
-            #is correct. This is due to that the method to get the version
-            #unzipps the FMU which we already have done.
+            # If the unzipped directory is provided we assume that the version
+            # is correct. This is due to that the method to get the version
+            # unzips the FMU which we already have done.
             self._version = FMIL.fmi_version_2_0_enu
         else:
             self._version = FMI_BASE.import_and_get_version(self._context, self._fmu_full_path,
                                                    fmu_temp_dir, self._allow_unzipped_fmu)
 
-        #Check the version
+        # Check the version
         if self._version == FMIL.fmi_version_unknown_enu:
-            last_error = FMI_BASE.decode(FMIL.jm_get_last_error(&self.callbacks))
+            last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
             if enable_logging:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. "+last_error)
             else:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. Enable logging for possibly more information.")
 
         if self._version != FMIL.fmi_version_2_0_enu:
-            last_error = FMI_BASE.decode(FMIL.jm_get_last_error(&self.callbacks))
+            last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
             if enable_logging:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version is not supported by this class. "+last_error)
             else:
@@ -706,7 +616,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         self._fmu           = FMIL2.fmi2_import_parse_xml(self._context, self._fmu_temp_dir, NULL)
 
         if self._fmu is NULL:
-            last_error = FMI_BASE.decode(FMIL.jm_get_last_error(&self.callbacks))
+            last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
             if enable_logging:
                 raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+last_error)
             else:
@@ -718,7 +628,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         #FMU kind is unknown
         if self._fmu_kind == FMIL2.fmi2_fmu_kind_unknown:
-            last_error = FMI_BASE.decode(FMIL.jm_get_last_error(&self.callbacks))
+            last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
             if enable_logging:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU kind could not be determined. "+last_error)
             else:
@@ -737,7 +647,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             status = FMIL2.fmi2_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
             self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             if status == FMIL.jm_status_error:
-                last_error = FMI_BASE.decode(FMIL2.fmi2_import_get_last_error(self._fmu))
+                last_error = pyfmi_util.decode(FMIL2.fmi2_import_get_last_error(self._fmu))
                 if enable_logging:
                     raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. " + last_error)
                 else:
@@ -746,14 +656,14 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         #Load information from model
         if isinstance(self,FMUModelME2):
-            self._modelId           = FMI_BASE.decode(FMIL2.fmi2_import_get_model_identifier_ME(self._fmu))
+            self._modelId           = pyfmi_util.decode(FMIL2.fmi2_import_get_model_identifier_ME(self._fmu))
         elif isinstance(self,FMUModelCS2):
-            self._modelId           = FMI_BASE.decode(FMIL2.fmi2_import_get_model_identifier_CS(self._fmu))
+            self._modelId           = pyfmi_util.decode(FMIL2.fmi2_import_get_model_identifier_CS(self._fmu))
         else:
             raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
 
         #Connect the DLL
-        self._modelName         = FMI_BASE.decode(FMIL2.fmi2_import_get_model_name(self._fmu))
+        self._modelName         = pyfmi_util.decode(FMIL2.fmi2_import_get_model_name(self._fmu))
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         self._nEventIndicators  = FMIL2.fmi2_import_get_number_of_event_indicators(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -766,7 +676,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             for i in range(len(self._log)):
                 self._log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
         else:
-            fmu_log_name = FMI_BASE.encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
+            fmu_log_name = pyfmi_util.encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
             FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
@@ -1087,7 +997,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         out = []
         for i in range(nref):
-            out.append(FMI_BASE.decode(output_value[i]))
+            out.append(pyfmi_util.decode(output_value[i]))
 
         FMIL.free(output_value)
 
@@ -1122,7 +1032,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             raise FMUException(
                 'The length of valueref and values are inconsistent.')
 
-        values = [FMI_BASE.encode(item) for item in values]
+        values = [pyfmi_util.encode(item) for item in values]
         for i in range(np.size(val_ref)):
             val[i] = values[i]
 
@@ -1152,12 +1062,12 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         elif basetype == FMIL2.fmi2_base_type_enum:
             if isinstance(value, str) or isinstance(value, bytes):
                 enum_type = self.get_variable_declared_type(variable_name)
-                enum_values = {FMI_BASE.encode(v[0]): k for k, v in enum_type.items.items()}
+                enum_values = {pyfmi_util.encode(v[0]): k for k, v in enum_type.items.items()}
                 try:
-                    self.set_integer([ref], [enum_values[FMI_BASE.encode(value)]])
+                    self.set_integer([ref], [enum_values[pyfmi_util.encode(value)]])
                 except KeyError:
-                    str_keys = [FMI_BASE.decode(k) for k in enum_values.keys()]
-                    msg = "The value '{}' is not in the list of allowed enumeration items for variable '{}'. Allowed values: {}'.".format(FMI_BASE.decode(value), FMI_BASE.decode(variable_name), ", ".join(str_keys))
+                    str_keys = [pyfmi_util.decode(k) for k in enum_values.keys()]
+                    msg = "The value '{}' is not in the list of allowed enumeration items for variable '{}'. Allowed values: {}'.".format(pyfmi_util.decode(value), pyfmi_util.decode(variable_name), ", ".join(str_keys))
                     raise FMUException(msg)
             else:
                 self.set_integer([ref], [value])
@@ -1222,7 +1132,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         else:
             raise FMUException('The instance is not curent an instance of an ME-model or a CS-model. Use load_fmu for correct loading.')
 
-        name = FMI_BASE.encode(name)
+        name = pyfmi_util.encode(name)
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL2.fmi2_import_instantiate(self._fmu, name, fmuType, NULL, vis)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -1559,7 +1469,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             if variable == NULL:
                 raise FMUException("The variable with value reference: %s, could not be found."%str(valueref))
         elif variable_name is not None:
-            variable_name = FMI_BASE.encode(variable_name)
+            variable_name = pyfmi_util.encode(variable_name)
             variablename = variable_name
 
             variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -1576,7 +1486,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         if _override_erroneous_nominal:
             if variable_name is None:
-                variable_name = FMI_BASE.encode(self.get_variable_by_valueref(valueref))
+                variable_name = pyfmi_util.encode(self.get_variable_by_valueref(valueref))
                 variablename = variable_name
             if value == 0.0:
                 if self.callbacks.log_level >= FMIL.jm_log_level_warning:
@@ -1615,7 +1525,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         if variable == NULL:
             raise FMUException("The variable with the valuref %i could not be found."%valueref)
 
-        name = FMI_BASE.decode(FMIL2.fmi2_import_get_variable_name(variable))
+        name = pyfmi_util.decode(FMIL2.fmi2_import_get_variable_name(variable))
 
         return name
 
@@ -1636,7 +1546,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_import_variable_t* base_variable
         cdef FMIL2.fmi2_value_reference_t vr
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -1647,7 +1557,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         if base_variable == NULL:
             raise FMUException("The variable %s could not be found."%variablename)
 
-        name = FMI_BASE.decode(FMIL2.fmi2_import_get_variable_name(base_variable))
+        name = pyfmi_util.decode(FMIL2.fmi2_import_get_variable_name(base_variable))
 
         return name
 
@@ -1678,7 +1588,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef dict                                ret_values = {}
         cdef FMIL.size_t                         i
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -1695,7 +1605,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             variable = FMIL2.fmi2_import_get_variable(alias_list, i)
 
             alias_kind = FMIL2.fmi2_import_get_variable_alias_kind(variable)
-            alias_name = FMI_BASE.decode(FMIL2.fmi2_import_get_variable_name(variable))
+            alias_name = pyfmi_util.decode(FMIL2.fmi2_import_get_variable_name(variable))
 
             ret_values[alias_name] = alias_kind
 
@@ -1751,7 +1661,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             variable = FMIL2.fmi2_import_get_variable(variable_list, i)
 
             alias_kind       = FMIL2.fmi2_import_get_variable_alias_kind(variable)
-            name             = FMI_BASE.decode(FMIL2.fmi2_import_get_variable_name(variable))
+            name             = pyfmi_util.decode(FMIL2.fmi2_import_get_variable_name(variable))
             value_ref        = FMIL2.fmi2_import_get_variable_vr(variable)
             data_type        = FMIL2.fmi2_import_get_variable_base_type(variable)
             data_variability = FMIL2.fmi2_import_get_variability(variable)
@@ -1880,7 +1790,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             variable = FMIL2.fmi2_import_get_variable(variable_list, i)
 
             alias_kind       = FMIL2.fmi2_import_get_variable_alias_kind(variable)
-            name             = FMI_BASE.decode(FMIL2.fmi2_import_get_variable_name(variable))
+            name             = pyfmi_util.decode(FMIL2.fmi2_import_get_variable_name(variable))
             value_ref        = FMIL2.fmi2_import_get_variable_vr(variable)
             data_type        = FMIL2.fmi2_import_get_variable_base_type(variable)
             has_start        = FMIL2.fmi2_import_get_variable_has_start(variable)  #fmi2_import_get_initial, may be of interest
@@ -2001,7 +1911,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_import_variable_t* variable
         cdef FMIL2.fmi2_value_reference_t  vr
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2044,7 +1954,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_string_t type_unit_name
         cdef FMIL2.fmi2_string_t type_display_unit_name
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2071,12 +1981,12 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
                 item_name  = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_enum_type_item_name(enumeration_type, i)
                 item_desc  = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_enum_type_item_description(enumeration_type, i)
 
-                items[item_value] = (FMI_BASE.decode(item_name) if item_name != NULL else "",
-                                     FMI_BASE.decode(item_desc) if item_desc != NULL else "")
+                items[item_value] = (pyfmi_util.decode(item_name) if item_name != NULL else "",
+                                     pyfmi_util.decode(item_desc) if item_desc != NULL else "")
 
-            ret_type = EnumerationType2(FMI_BASE.decode(type_name) if type_name != NULL else "",
-                                        FMI_BASE.decode(type_desc) if type_desc != NULL else "",
-                                        FMI_BASE.decode(type_quantity) if type_quantity != NULL else "", items)
+            ret_type = EnumerationType2(pyfmi_util.decode(type_name) if type_name != NULL else "",
+                                        pyfmi_util.decode(type_desc) if type_desc != NULL else "",
+                                        pyfmi_util.decode(type_quantity) if type_quantity != NULL else "", items)
 
 
         elif basetype == FMIL2.fmi2_base_type_int:
@@ -2085,9 +1995,9 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             min_val = FMIL2.fmi2_import_get_integer_type_min(integer_type)
             max_val = FMIL2.fmi2_import_get_integer_type_max(integer_type)
 
-            ret_type = IntegerType2(FMI_BASE.decode(type_name) if type_name != NULL else "",
-                                    FMI_BASE.decode(type_desc) if type_desc != NULL else "",
-                                    FMI_BASE.decode(type_quantity) if type_quantity != NULL else "",
+            ret_type = IntegerType2(pyfmi_util.decode(type_name) if type_name != NULL else "",
+                                    pyfmi_util.decode(type_desc) if type_desc != NULL else "",
+                                    pyfmi_util.decode(type_quantity) if type_quantity != NULL else "",
                                          min_val, max_val)
         elif basetype == FMIL2.fmi2_base_type_real:
             real_type = FMIL2.fmi2_import_get_type_as_real(variable_type)
@@ -2104,11 +2014,11 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             type_unit_name = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_unit_name(type_unit)
             type_display_unit_name = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_display_unit_name(type_display_unit)
 
-            ret_type = RealType2(FMI_BASE.decode(type_name) if type_name != NULL else "",
-                                 FMI_BASE.decode(type_desc) if type_desc != NULL else "",
-                                 FMI_BASE.decode(type_quantity) if type_quantity != NULL else "",
+            ret_type = RealType2(pyfmi_util.decode(type_name) if type_name != NULL else "",
+                                 pyfmi_util.decode(type_desc) if type_desc != NULL else "",
+                                 pyfmi_util.decode(type_quantity) if type_quantity != NULL else "",
                                          min_val, max_val, nominal_val, unbounded, relative_quantity,
-                                 FMI_BASE.decode(type_display_unit_name) if type_display_unit_name != NULL else "", FMI_BASE.decode(type_unit_name) if type_unit_name != NULL else "")
+                                 pyfmi_util.decode(type_display_unit_name) if type_display_unit_name != NULL else "", pyfmi_util.decode(type_unit_name) if type_unit_name != NULL else "")
         else:
             raise NotImplementedError
 
@@ -2129,7 +2039,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         """
         cdef FMIL2.fmi2_import_variable_t* variable
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2154,7 +2064,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_import_variable_t* variable
         cdef FMIL2.fmi2_base_type_enu_t    basetype
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2181,7 +2091,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_import_variable_t* variable
         cdef FMIL2.fmi2_string_t desc
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2190,7 +2100,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         desc = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_variable_description(variable)
 
-        return FMI_BASE.decode(desc) if desc != NULL else ""
+        return pyfmi_util.decode(desc) if desc != NULL else ""
 
     cpdef FMIL2.fmi2_variability_enu_t get_variable_variability(self, variable_name) except *:
         """
@@ -2209,7 +2119,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_import_variable_t* variable
         cdef FMIL2.fmi2_variability_enu_t variability
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2236,7 +2146,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_import_variable_t* variable
         cdef FMIL2.fmi2_initial_enu_t initial
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2265,7 +2175,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_base_type_enu_t basetype
         cdef FMIL2.fmi2_string_t unit_description
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2284,7 +2194,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         unit_description = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_unit_name(unit)
 
-        return FMI_BASE.decode(unit_description) if unit_description != NULL else ""
+        return pyfmi_util.decode(unit_description) if unit_description != NULL else ""
 
     def get_variable_relative_quantity(self, variable_name):
         """
@@ -2304,7 +2214,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_base_type_enu_t basetype
         cdef FMIL2.fmi2_boolean_t relative_quantity
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2338,7 +2248,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_base_type_enu_t basetype
         cdef FMIL2.fmi2_boolean_t unbounded
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2373,7 +2283,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_base_type_enu_t basetype
         cdef FMIL2.fmi2_string_t display_unit_description
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2392,7 +2302,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         display_unit_description = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_display_unit_name(display_unit)
 
-        return FMI_BASE.decode(display_unit_description) if display_unit_description != NULL else ""
+        return pyfmi_util.decode(display_unit_description) if display_unit_description != NULL else ""
 
     def get_variable_display_value(self, variable_name):
         """
@@ -2418,7 +2328,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef int relative_quantity
         cdef FMIL2.fmi2_boolean_t relative_quantity_bool
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2461,7 +2371,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_import_variable_t* variable
         cdef FMIL2.fmi2_causality_enu_t causality
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2496,7 +2406,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef int                                  status
         cdef FMIL2.fmi2_boolean_t                  FMITRUE = 1
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2552,7 +2462,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_import_enum_variable_t*    enum_variable
         cdef FMIL2.fmi2_base_type_enu_t            basetype
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2595,7 +2505,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_import_enum_variable_t*    enum_variable
         cdef FMIL2.fmi2_base_type_enu_t            basetype
 
-        variable_name = FMI_BASE.encode(variable_name)
+        variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL2.fmi2_import_get_variable_by_name(self._fmu, variablename)
@@ -2938,7 +2848,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
 
         alias_kind       = FMIL2.fmi2_import_get_variable_alias_kind(variable)
-        name             = FMI_BASE.decode(FMIL2.fmi2_import_get_variable_name(variable))
+        name             = pyfmi_util.decode(FMIL2.fmi2_import_get_variable_name(variable))
         value_ref        = FMIL2.fmi2_import_get_variable_vr(variable)
         data_type        = FMIL2.fmi2_import_get_variable_base_type(variable)
         data_variability = FMIL2.fmi2_import_get_variability(variable)
@@ -3033,7 +2943,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
                     for j in range(0, start_indexp[i+1]-start_indexp[i]):
                         if dependencyp[start_indexp[i]+j] != 0:
                             variable = FMIL2.fmi2_import_get_variable(variable_list, dependencyp[start_indexp[i]+j]-1)
-                            name             = FMI_BASE.decode(FMIL2.fmi2_import_get_variable_name(variable))
+                            name             = pyfmi_util.decode(FMIL2.fmi2_import_get_variable_name(variable))
 
                             if name in states_dict:
                                 states[outputs[i]].append(name)
@@ -3124,7 +3034,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
                     for j in range(0, start_indexp[i+1]-start_indexp[i]):
                         if dependencyp[start_indexp[i]+j] != 0:
                             variable = FMIL2.fmi2_import_get_variable(variable_list, dependencyp[start_indexp[i]+j]-1)
-                            name             = FMI_BASE.decode(FMIL2.fmi2_import_get_variable_name(variable))
+                            name             = pyfmi_util.decode(FMIL2.fmi2_import_get_variable_name(variable))
 
                             if name in states_list:
                                 states[derivatives[i]].append(name)
@@ -3230,7 +3140,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
     def _get_A(self, use_structure_info=True, add_diag=True, output_matrix=None):
         if self._group_A is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
-            self._group_A = cpr_seed(derv_state_dep, list(self.get_states_list().keys()))
+            self._group_A = pyfmi_util.cpr_seed(derv_state_dep, list(self.get_states_list().keys()))
         if self._states_references is None:
             states                       = self.get_states_list()
             self._states_references      = [s.value_reference for s in states.values()]
@@ -3248,7 +3158,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
     def _get_B(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_B is None and use_structure_info:
             [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
-            self._group_B = cpr_seed(derv_input_dep, list(self.get_input_list().keys()))
+            self._group_B = pyfmi_util.cpr_seed(derv_input_dep, list(self.get_input_list().keys()))
         if self._inputs_references is None:
             inputs                       = self.get_input_list()
             self._inputs_references      = [s.value_reference for s in inputs.values()]
@@ -3266,7 +3176,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
     def _get_C(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_C is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
-            self._group_C = cpr_seed(out_state_dep, list(self.get_states_list().keys()))
+            self._group_C = pyfmi_util.cpr_seed(out_state_dep, list(self.get_states_list().keys()))
         if self._states_references is None:
             states                       = self.get_states_list()
             self._states_references      = [s.value_reference for s in states.values()]
@@ -3284,7 +3194,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
     def _get_D(self, use_structure_info=True, add_diag=False, output_matrix=None):
         if self._group_D is None and use_structure_info:
             [out_state_dep, out_input_dep] = self.get_output_dependencies()
-            self._group_D = cpr_seed(out_input_dep, list(self.get_input_list().keys()))
+            self._group_D = pyfmi_util.cpr_seed(out_input_dep, list(self.get_input_list().keys()))
         if self._inputs_references is None:
             inputs                       = self.get_input_list()
             self._inputs_references      = [s.value_reference for s in inputs.values()]
@@ -3542,7 +3452,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         cdef FMIL2.fmi2_string_t version = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_version(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
-        return FMI_BASE.decode(version)
+        return pyfmi_util.decode(version)
 
     def get_model_version(self):
         """
@@ -3550,7 +3460,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         """
         cdef FMIL2.fmi2_string_t version
         version = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_model_version(self._fmu)
-        return FMI_BASE.decode(version) if version != NULL else ""
+        return pyfmi_util.decode(version) if version != NULL else ""
 
     def get_name(self):
         """
@@ -3564,7 +3474,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         """
         cdef FMIL2.fmi2_string_t author
         author = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_author(self._fmu)
-        return FMI_BASE.decode(author) if author != NULL else ""
+        return pyfmi_util.decode(author) if author != NULL else ""
 
     def get_description(self):
         """
@@ -3572,7 +3482,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         """
         cdef FMIL2.fmi2_string_t desc
         desc = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_description(self._fmu)
-        return FMI_BASE.decode(desc) if desc != NULL else ""
+        return pyfmi_util.decode(desc) if desc != NULL else ""
 
     def get_copyright(self):
         """
@@ -3580,7 +3490,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         """
         cdef FMIL2.fmi2_string_t copyright
         copyright = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_copyright(self._fmu)
-        return FMI_BASE.decode(copyright) if copyright != NULL else ""
+        return pyfmi_util.decode(copyright) if copyright != NULL else ""
 
     def get_license(self):
         """
@@ -3588,7 +3498,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         """
         cdef FMIL2.fmi2_string_t license
         license = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_license(self._fmu)
-        return FMI_BASE.decode(license) if license != NULL else ""
+        return pyfmi_util.decode(license) if license != NULL else ""
 
     def get_generation_tool(self):
         """
@@ -3596,7 +3506,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         """
         cdef FMIL2.fmi2_string_t gen
         gen = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_generation_tool(self._fmu)
-        return FMI_BASE.decode(gen) if gen != NULL else ""
+        return pyfmi_util.decode(gen) if gen != NULL else ""
 
     def get_generation_date_and_time(self):
         """
@@ -3604,13 +3514,13 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         """
         cdef FMIL2.fmi2_string_t gen
         gen = <FMIL2.fmi2_string_t>FMIL2.fmi2_import_get_generation_date_and_time(self._fmu)
-        return FMI_BASE.decode(gen) if gen != NULL else ""
+        return pyfmi_util.decode(gen) if gen != NULL else ""
 
     def get_guid(self):
         """
         Return the model GUID.
         """
-        guid = FMI_BASE.decode(FMIL2.fmi2_import_get_GUID(self._fmu))
+        guid = pyfmi_util.decode(FMIL2.fmi2_import_get_GUID(self._fmu))
         return guid
 
     def get_variable_naming_convention(self):
@@ -3693,7 +3603,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         if self.get_capability_flags()['needsExecutionTool']:
             raise FMUException("The FMU specifies 'needsExecutionTool=true' which implies that it requires an external execution tool to simulate, this is not supported.")
 
-        self._modelId = FMI_BASE.decode(FMIL2.fmi2_import_get_model_identifier_CS(self._fmu))
+        self._modelId = pyfmi_util.decode(FMIL2.fmi2_import_get_model_identifier_CS(self._fmu))
 
         if _connect_dll:
             self.instantiate()
@@ -4335,7 +4245,7 @@ cdef class FMUModelME2(FMUModelBase2):
         # State nominals retrieved before initialization
         self._preinit_nominal_continuous_states = None
 
-        self._modelId = FMI_BASE.decode(FMIL2.fmi2_import_get_model_identifier_ME(self._fmu))
+        self._modelId = pyfmi_util.decode(FMIL2.fmi2_import_get_model_identifier_ME(self._fmu))
 
         if _connect_dll:
             self.instantiate()
@@ -5273,7 +5183,7 @@ cdef object _load_fmi2_fmu(
     list log_data
 ):
     """
-    The FMI1 part of fmi.pyx load_fmu.
+    The FMI2 part of fmi.pyx load_fmu.
     """
     # TODO: Tons of duplicated code here for error handling
     cdef FMIL.jm_string last_error
@@ -5291,10 +5201,10 @@ cdef object _load_fmi2_fmu(
         if not allow_unzipped_fmu:
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+FMI_BASE.decode(last_error))
+            _handle_load_fmu_exception(log_data)
+            raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. " + pyfmi_util.decode(last_error))
         else:
-            _handle_load_fmu_exception(fmu, log_data)
+            _handle_load_fmu_exception(log_data)
             raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible more information.")
 
     fmu_2_kind = FMIL2.fmi2_import_get_fmu_kind(fmu_2)
@@ -5307,10 +5217,10 @@ cdef object _load_fmi2_fmu(
         if not allow_unzipped_fmu:
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_data)
-            raise FMUException("The FMU kind could not be determined. "+FMI_BASE.decode(last_error))
+            _handle_load_fmu_exception(log_data)
+            raise FMUException("The FMU kind could not be determined. " + pyfmi_util.decode(last_error))
         else:
-            _handle_load_fmu_exception(fmu, log_data)
+            _handle_load_fmu_exception(log_data)
             raise FMUException("The FMU kind could not be determined. Enable logging for possibly more information.")
 
     # FMU kind is known
@@ -5336,8 +5246,8 @@ cdef object _load_fmi2_fmu(
         FMIL.fmi_import_free_context(context)
         if not allow_unzipped_fmu:
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
-        _handle_load_fmu_exception(fmu, log_data)
-        raise FMUException("FMU is a {} and not a {}".format(FMI_BASE.decode(FMIL2.fmi2_fmu_kind_to_string(fmu_2_kind)),  FMI_BASE.decode(kind.upper())))
+        _handle_load_fmu_exception(log_data)
+        raise FMUException("FMU is a {} and not a {}".format(pyfmi_util.decode(FMIL2.fmi2_fmu_kind_to_string(fmu_2_kind)),  pyfmi_util.decode(kind.upper())))
 
     FMIL2.fmi2_import_free(fmu_2)
     FMIL.fmi_import_free_context(context)

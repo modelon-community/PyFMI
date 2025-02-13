@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2025Modelon AB
+# Copyright (C) 2025 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -42,20 +42,8 @@ import numpy as np
 cimport numpy as np
 
 cimport pyfmi.fmil_import as FMIL
+cimport pyfmi.util as pyfmi_util 
 from pyfmi.exceptions import FMUException
-
-# from pyfmi.fmi_util cimport decode
-cpdef decode(x): # TODO; temporarily here due to circular dependency
-    if isinstance(x, bytes):
-        return x.decode(errors="replace")
-    else:
-        return x
-cpdef encode(x):
-    if isinstance(x, str):
-        return x.encode()
-    else:
-        return x
-
 
 int   = np.int32
 np.int = np.int32
@@ -71,22 +59,6 @@ cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t* co
         return FMIL.fmi_import_get_fmi_version(context, NULL, fmu_temp_dir)
     else:
         return FMIL.fmi_import_get_fmi_version(context, fmu_full_path, fmu_temp_dir)
-
-# TODO: copied due to circular dependencies; replace by functools lru_cache?
-def enable_caching(obj):
-    @functools.wraps(obj, ('__name__', '__doc__'))
-    def memoizer(*args, **kwargs):
-        cache = args[0].cache #First argument is the self object
-        key = (obj, marshal.dumps(args[1:]), marshal.dumps(kwargs))
-
-        if len(cache) > 1000: #Remove items from cache in case it grows large
-            cache.popitem()
-
-        if key not in cache:
-            cache[key] = obj(*args, **kwargs)
-        return cache[key]
-
-    return memoizer
 
 cdef class ModelBase:
     """
@@ -394,7 +366,7 @@ cdef class ModelBase:
         """ Returns a name of the logfile, if logging is done to a stream it returns
             a string formatted base on the model identifier.
         """
-        return '{}_log'.format(self._modelId) if self._log_is_stream else decode(self._fmu_log_name)
+        return '{}_log'.format(self._modelId) if self._log_is_stream else pyfmi_util.decode(self._fmu_log_name)
 
     def get_number_of_lines_log(self):
         """
@@ -550,8 +522,8 @@ cdef class ModelBase:
 
     cdef _logger(self, FMIL.jm_string c_module, int log_level, FMIL.jm_string c_message) with gil:
         cdef FMIL.FILE *f
-        module  = decode(c_module)
-        message = decode(c_message)
+        module  = pyfmi_util.decode(c_module)
+        message = pyfmi_util.decode(c_message)
 
         if self._additional_logger:
             self._additional_logger(module, log_level, message)
@@ -777,12 +749,12 @@ def check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path):
             raise FMUException(err_msg)
     else:
         # Check that the file referenced by fmu is appropriate
-        if not fmu_full_path.endswith('.fmu' if isinstance(fmu_full_path, str) else encode('.fmu')):
+        if not fmu_full_path.endswith('.fmu' if isinstance(fmu_full_path, str) else pyfmi_util.encode('.fmu')):
             raise FMUException("Instantiating an FMU requires an FMU (.fmu) file, specified file has extension {}".format(os.path.splitext(fmu_full_path)[1]))
 
         if not os.path.isfile(fmu_full_path):
             raise FMUException('Could not locate the FMU in the specified directory.')
 
-def _handle_load_fmu_exception(fmu, log_data):
+def _handle_load_fmu_exception(log_data):
     for log in log_data:
         print(log)

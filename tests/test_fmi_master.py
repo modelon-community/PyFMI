@@ -175,17 +175,13 @@ class Test_Master:
     def test_basic_simulation_mat_file_naming(self):
         opts = {"result_handling":"binary", "result_file_name": "Should fail..."}
         
-        try:
+        with pytest.raises(UnrecognizedOptionError):
             self._basic_simulation(opts)
-        except UnrecognizedOptionError:
-            pass
         
         opts = {"result_handling":"binary", "result_file_name": {"Should fail..."}}
         
-        try:
+        with pytest.raises(UnrecognizedOptionError):
             self._basic_simulation(opts)
-        except UnrecognizedOptionError:
-            pass
     
     def test_basic_simulation_mat_file_naming_exists(self):
         models, connections = self._load_basic_simulation()
@@ -434,32 +430,23 @@ class Test_Master:
             test_res_trajs = (test_res[models[0]]['x1'], test_res[models[1]]['x2'])
             self._verify_downsample_result(ref_res_trajs, test_res_trajs, 2000, f)
 
-    def test_downsample_error_check_invalid_value(self):
+    @pytest.mark.parametrize("value", [-10, -20, -1, 0])
+    def test_downsample_error_check_invalid_value(self, value):
         """ Verify we get an exception if the option is set to anything less than 1. """
         models, connections = self._load_basic_simulation()
-        test_values = [-10, -20, -1, 0]
 
-        # TODO: tidy up with pytest
         expected_substr = "Valid values for option 'result_downsampling_factor' are only positive integers"
-        for value in test_values:
-            try:
-                self._sim_basic_simulation(models, connections, {'result_downsampling_factor': value})
-                error_raised = False
-            except FMUException as e:
-                error_raised = True
-                assert expected_substr in str(e), f"Error was {str(e)}, expected substring {expected_substr}"
-            assert error_raised
+        with pytest.raises(FMUException, match = expected_substr):
+            self._sim_basic_simulation(models, connections, {'result_downsampling_factor': value})
 
-    def test_error_check_invalid_value(self):
+    @pytest.mark.parametrize("value", [1/2, 1/3, "0.5", False])
+    def test_error_check_invalid_value(self, value):
         """ Verify we get an exception if the option is set to anything that is not an integer. """
         models, connections = self._load_basic_simulation()
-        test_values = [1/2, 1/3, "0.5", False]
 
         expected_substr = "Option 'result_downsampling_factor' must be an integer,"
-        ## TODO: Pytest parametrization
-        for value in test_values:
-            with pytest.raises(Exception, match = expected_substr):
-                self._sim_basic_simulation(models, connections, {'result_downsampling_factor': value})
+        with pytest.raises(FMUException, match = expected_substr):
+            self._sim_basic_simulation(models, connections, {'result_downsampling_factor': value})
     
     @pytest.mark.skipif(True, reason = "Error controlled simulation only supported if storing FMU states are available.")
     def test_error_controlled_with_downsampling(self):

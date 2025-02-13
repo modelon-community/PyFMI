@@ -28,12 +28,12 @@ import os
 cimport cython
 
 cimport pyfmi.fmil_import as FMIL
-cimport pyfmi.fmil1_import as FMIL1
-cimport pyfmi.fmil2_import as FMIL2
 
 cimport pyfmi.fmi_base as FMI_BASE
 cimport pyfmi.fmi1 as FMI1
 cimport pyfmi.fmi2 as FMI2
+cimport pyfmi.fmi3 as FMI3
+cimport pyfmi.util as pyfmi_util
 
 from pyfmi.common.core import create_temp_dir
 
@@ -54,7 +54,6 @@ from pyfmi.fmi_base import (
     LogHandlerDefault,
     PyEventInfo,
     FMI_DEFAULT_LOG_LEVEL,
-    enable_caching,
     check_fmu_args,
     _handle_load_fmu_exception
 )
@@ -168,12 +167,18 @@ from pyfmi.fmi2 import (
     FMI_OUTPUTS,
 )
 
+from pyfmi.fmi3 import (
+    # Classes
+    FMUModelBase3,
+    FMUModelME3,
+)
+
 # Callbacks
 cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     (<list>c.context).append("FMIL: module = %s, log level = %d: %s"%(module, log_level, message))
 
 cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
-               log_level=FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):
+               log_level = FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):
     """
     Helper method for creating a model instance.
 
@@ -193,12 +198,13 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
 
         kind --
             String indicating the kind of model to create. This is only
-            needed if a FMU contains both a ME and CS model.
+            needed if a FMU contains multiple models.
             Available options:
                 - 'ME'
                 - 'CS'
+                - 'SE'
                 - 'auto'
-            Default: 'auto' (Chooses ME before CS if both available)
+            Default: 'auto' (Chooses ME > CS > SE, if multiple are available)
 
         log_level --
             Determines the logging output. Can be set between 0
@@ -235,9 +241,9 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
     check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path)
 
     # Check that kind-argument is well-defined
-    if not kind.lower() == 'auto':
-        if (kind.upper() != 'ME' and kind.upper() != 'CS'):
-            raise FMUException('Input-argument "kind" can only be "ME", "CS" or "auto" (default) and not: ' + kind)
+    _allowed_kinds = ["ME", "CS", "SE"]
+    if (not kind.lower() == "auto") and (kind.upper() not in _allowed_kinds):
+        raise FMUException('Input-argument "kind" can only be "ME", "CS", "SE" or "auto" (default) and not: ' + kind)
 
     # Specify FMI related callbacks
     callbacks.malloc    = FMIL.malloc
@@ -260,38 +266,11 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
     context = FMIL.fmi_import_allocate_context(&callbacks)
 
     # Get the FMI version of the provided model
-    fmu_temp_dir = FMI_BASE.encode(fmu) if allow_unzipped_fmu else FMI_BASE.encode(create_temp_dir())
-    fmu_full_path = FMI_BASE.encode(fmu_full_path)
+    fmu_temp_dir = pyfmi_util.encode(fmu) if allow_unzipped_fmu else pyfmi_util.encode(create_temp_dir())
+    fmu_full_path = pyfmi_util.encode(fmu_full_path)
     version = FMI_BASE.import_and_get_version(context, fmu_full_path, fmu_temp_dir, allow_unzipped_fmu)
 
-    # Check the version
-    if version == FMIL.fmi_version_unknown_enu:
-        # Delete context
-        last_error = FMIL.jm_get_last_error(&callbacks)
-        FMIL.fmi_import_free_context(context)
-        if not allow_unzipped_fmu:
-            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
-        if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. "+FMI_BASE.decode(last_error))
-        else:
-            _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. Enable logging for possibly more information.")
-
-    if version > 2: # TODO: FMI3 remove this part?; simply use the final else in the if version = ... elif ... else ?
-        # Delete the context
-        last_error = FMIL.jm_get_last_error(&callbacks)
-        FMIL.fmi_import_free_context(context)
-        if not allow_unzipped_fmu:
-            FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
-        if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU could not be loaded. The FMU version is unsupported. "+FMI_BASE.decode(last_error))
-        else:
-            _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU could not be loaded. The FMU version is unsupported. Enable logging for possibly more information.")
-
-    # Parse the xml
+    # Check the version & parse XML
     if version == FMIL.fmi_version_1_enu:
         model = FMI1._load_fmi1_fmu(
             fmu, log_file_name, kind, log_level, allow_unzipped_fmu,
@@ -302,19 +281,21 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
             fmu, log_file_name, kind, log_level, allow_unzipped_fmu,
             context, fmu_temp_dir, callbacks, log_data
         )
+    elif version == FMIL.fmi_version_3_0_enu:
+        model = FMI3._load_fmi3_fmu(
+            fmu, log_file_name, kind, log_level, allow_unzipped_fmu,
+            context, fmu_temp_dir, callbacks, log_data
+        )
     else:
-        # This else-statement ensures that the variables "context" and "version" are defined before proceeding
-
-        # Delete the context
         last_error = FMIL.jm_get_last_error(&callbacks)
         FMIL.fmi_import_free_context(context)
         if not allow_unzipped_fmu:
             FMIL.fmi_import_rmdir(&callbacks, fmu_temp_dir)
         if callbacks.log_level >= FMIL.jm_log_level_error:
-            _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU could not be loaded. The FMU version is not found. "+FMI_BASE.decode(last_error))
+            _handle_load_fmu_exception(log_data)
+            raise InvalidVersionException("The FMU could not be loaded. The FMU version is unsupported. " + pyfmi_util.decode(last_error))
         else:
-            _handle_load_fmu_exception(fmu, log_data)
-            raise InvalidVersionException("The FMU could not be loaded. The FMU version is not found. Enable logging for possibly more information.")
+            _handle_load_fmu_exception(log_data)
+            raise InvalidVersionException("The FMU could not be loaded. The FMU version is unsupported. Enable logging for possibly more information.")
 
     return model

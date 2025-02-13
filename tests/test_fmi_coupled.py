@@ -23,11 +23,6 @@ from pyfmi.fmi_coupled import CoupledFMUModelME2
 import pyfmi.fmi as fmi
 from pyfmi.test_util import Dummy_FMUModelME2
 
-try:
-    import assimulo
-except ImportError:
-    # XXX: Accept import failure due to conditional test execution
-    pass
 
 file_path = os.path.dirname(os.path.abspath(__file__))
 me2_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0")

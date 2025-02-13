@@ -31,6 +31,7 @@ class TestIO(StringIO):
     """ Test class used to verify that a custom class can be used as a logger
         if it inherits specific properties.
     """
+    __test__ = False
     def __init__(self, arg):
         StringIO.__init__(self, arg)
 
@@ -75,99 +76,35 @@ def simulate_and_verify_stream_contents(compiled_fmu, fmu_loader, stream, open_t
         err_msg = "Unable to find substring {} in list {}".format(line, "".join(contents))
         assert line in contents[i], err_msg
 
-class Test_FMUModelME2:
-    """ Test stream functionality for FMI class FMUModelME2. """
-    @pytest.fixture(autouse=True)
-    @classmethod
-    def setup_class(cls):
-        cls.example_fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')
-        cls.test_class = FMUModelME2
 
-        # Verify the installation is not corrupt while setting up the class.
-        assert os.path.isfile(cls.example_fmu)
-
-    def test_testio(self):
-        """ FMUModelME2 and custom IO class. """
+@pytest.mark.parametrize("fmu_path, test_class",
+    [
+        pytest.param(os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu'), FMUModelME2, marks = pytest.mark.assimulo),
+        pytest.param(os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu'), load_fmu, marks = pytest.mark.assimulo),
+        pytest.param(os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu'), FMUModelCS2),
+    ])
+class Test_Stream:
+    def test_testio(self, fmu_path, test_class):
+        """ Test custom IO class. """
         stream = TestIO("")
-        simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream)
+        simulate_and_verify_stream_contents(fmu_path, test_class, stream)
 
-    def test_stringio(self):
-        """ FMUModelME2 and StringIO. """
+    def test_stringio(self, fmu_path, test_class):
+        """ Test StringIO. """
         stream = StringIO()
-        simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream)
+        simulate_and_verify_stream_contents(fmu_path, test_class, stream)
 
-    def test_textiowrapper(self):
-        """ FMUModelME2 and TextIOWrapper. """
+    def test_textiowrapper(self, fmu_path, test_class):
+        """ Test TextIOWrapper. """
         p = tempfile.mkdtemp()
         output_file = os.path.join(p, 'test.txt')
         stream = open(output_file, 'w')
-        simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream, True)
+        simulate_and_verify_stream_contents(fmu_path, test_class, stream, True)
         if not stream.closed:
             stream.close()
         rmtree(p)
 
-class Test_FMUModelCS2:
-    """ Test stream functionality for FMI class FMUModelCS2. """
-    @pytest.fixture(autouse=True)
-    @classmethod
-    def setup_class(cls):
-        cls.example_fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')
-        cls.test_class = FMUModelCS2
-
-        # Verify the installation is not corrupt while setting up the class.
-        assert os.path.isfile(cls.example_fmu)
-
-    def test_testio(self):
-        """ FMUModelCS2 and custom IO class. """
-        stream = TestIO("")
-        simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream)
-
-    def test_stringio(self):
-        """ FMUModelCS2 and StringIO. """
-        stream = StringIO()
-        simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream)
-
-    def test_textiowrapper(self):
-        """ FMUModelCS2 and TextIOWrapper. """
-        p = tempfile.mkdtemp()
-        output_file = os.path.join(p, 'test.txt')
-        stream = open(output_file, 'w')
-        simulate_and_verify_stream_contents(self.example_fmu, self.test_class, stream, True)
-        if not stream.closed:
-            stream.close()
-        rmtree(p)
-
-class Test_LoadFMU:
-    """ Test stream functionality with load_fmu. """
-    @pytest.fixture(autouse=True)
-    @classmethod
-    def setup_class(cls):
-        cls.example_fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')
-        cls.test_class = load_fmu
-
-        # Verify the installation is not corrupt while setting up the class.
-        assert os.path.isfile(cls.example_fmu)
-
-    def test_testio(self):
-        """ load_fmu and custom IO class. """
-        stream = TestIO("")
-        simulate_and_verify_stream_contents(Test_LoadFMU.example_fmu, Test_LoadFMU.test_class, stream)
-
-    def test_stringio(self):
-        """ load_fmu and StringIO. """
-        stream = StringIO()
-        simulate_and_verify_stream_contents(Test_LoadFMU.example_fmu, Test_LoadFMU.test_class, stream)
-
-    def test_textiowrapper(self):
-        """ load_fmu and TextIOWrapper. """
-        p = tempfile.mkdtemp()
-        output_file = os.path.join(p, 'test.txt')
-        stream = open(output_file, 'w')
-        simulate_and_verify_stream_contents(Test_LoadFMU.example_fmu, Test_LoadFMU.test_class, stream, True)
-        if not stream.closed:
-            stream.close()
-        rmtree(p)
-
+@pytest.mark.assimulo
 class TestXML:
     """ Test other log related functions together with streams. """
     @pytest.fixture(autouse=True)
