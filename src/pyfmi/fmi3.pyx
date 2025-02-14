@@ -30,7 +30,8 @@ from pyfmi.exceptions import (
     FMUException,
     InvalidXMLException,
     InvalidFMUException,
-    InvalidVersionException
+    InvalidBinaryException,
+    InvalidVersionException,
 )
 
 from pyfmi.fmi_base import (
@@ -108,8 +109,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self.callbacks.free    = FMIL.free
         self.callbacks.logger  = importlogger3
         self.callbacks.context = <void*>self
+
         # Specify FMI3 related callbacks
-        # TODO
+        self.callBackFunctions.logger               = FMIL3.fmi3_log_forwarding
+        self.callBackFunctions.allocateMemory       = FMIL.calloc
+        self.callBackFunctions.freeMemory           = FMIL.free
+        self.callBackFunctions.stepFinished         = NULL
+        self.callBackFunctions.instanceEnvironment = NULL
 
         if isinstance(log_level, int) and (log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all):
             if log_level == FMIL.jm_log_level_nothing:
@@ -158,7 +164,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version is not supported by this class. " + last_error)
             else:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version is not supported by this class. Enable logging for possibly more information.")
-        
+
         # Parse xml and check fmu-kind
         self._fmu = FMIL3.fmi3_import_parse_xml(self._context, self._fmu_temp_dir, NULL)
         if self._fmu is NULL:
@@ -167,7 +173,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. " + last_error)
             else:
                 raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible more information.")
-        
+
         self._fmu_kind = FMIL3.fmi3_import_get_fmu_kind(self._fmu)
         self._allocated_xml = 1
         # FMU kind is unknown
@@ -179,6 +185,19 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 raise InvalidVersionException("The FMU could not be loaded. The FMU kind could not be determined. Enable logging for possibly more information.")
         else:
             self._fmu_kind = self._get_fmu_kind()
+
+        #Connect the DLL
+        if _connect_dll:
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+            status = FMIL3.fmi3_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+            if status == FMIL.jm_status_error:
+                last_error = pyfmi_util.decode(FMIL3.fmi3_import_get_last_error(self._fmu))
+                if self._enable_logging:
+                    raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. " + last_error)
+                else:
+                    raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. Enable logging for possibly more information.")
+            self._allocated_dll = 1
 
         self._modelId = "TODO" # TODO
 
@@ -206,10 +225,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         if self._allocated_xml == 1:
             FMIL3.fmi3_import_free(self._fmu)
-        
+
         if self._allocated_context == 1:
             FMIL.fmi_import_free_context(self._context)
-        
+
         if self._fmu_temp_dir != NULL:
             if not self._allow_unzipped_fmu:
                 FMIL.fmi_import_rmdir(&self.callbacks, self._fmu_temp_dir)
@@ -306,12 +325,12 @@ cdef void _cleanup_on_load_error(
     _handle_load_fmu_exception(log_data)
 
 cdef object _load_fmi3_fmu(
-    fmu, 
-    object log_file_name, 
-    str kind, 
-    int log_level, 
+    fmu,
+    object log_file_name,
+    str kind,
+    int log_level,
     int allow_unzipped_fmu,
-    FMIL.fmi_import_context_t* context, 
+    FMIL.fmi_import_context_t* context,
     bytes fmu_temp_dir,
     FMIL.jm_callbacks callbacks,
     list log_data
@@ -329,7 +348,7 @@ cdef object _load_fmi3_fmu(
 
     if fmu_3 is NULL:
         # Delete the context
-        _cleanup_on_load_error(fmu_3, context, allow_unzipped_fmu, 
+        _cleanup_on_load_error(fmu_3, context, allow_unzipped_fmu,
                                callbacks, fmu_temp_dir, log_data)
         if callbacks.log_level >= FMIL.jm_log_level_error:
             last_error = FMIL.jm_get_last_error(&callbacks)
@@ -341,7 +360,7 @@ cdef object _load_fmi3_fmu(
 
     # FMU kind is unknown
     if fmu_3_kind & FMIL3.fmi3_fmu_kind_unknown:
-        _cleanup_on_load_error(fmu_3, context, allow_unzipped_fmu, 
+        _cleanup_on_load_error(fmu_3, context, allow_unzipped_fmu,
                                callbacks, fmu_temp_dir, log_data)
         if callbacks.log_level >= FMIL.jm_log_level_error:
             last_error = FMIL.jm_get_last_error(&callbacks)
@@ -368,7 +387,7 @@ cdef object _load_fmi3_fmu(
 
     # Could not match FMU kind with input-specified kind
     if model is None:
-        _cleanup_on_load_error(fmu_3, context, allow_unzipped_fmu, 
+        _cleanup_on_load_error(fmu_3, context, allow_unzipped_fmu,
                                callbacks, fmu_temp_dir, log_data)
         raise FMUException("FMU is a {} and not a {}".format(pyfmi_util.decode(FMIL3.fmi3_fmu_kind_to_string(fmu_3_kind)),  pyfmi_util.decode(kind.upper())))
 

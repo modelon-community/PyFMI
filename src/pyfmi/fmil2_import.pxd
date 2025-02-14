@@ -175,7 +175,6 @@ cdef extern from 'fmilib.h':
         pass
     ctypedef fmi2_xml_variable_t fmi2_import_variable_t
 
-    #ctypedef void(*fmi2_callback_logger_ft)(fmi2_component_t c,fmi2_string_t instanceName, fmi2_status_t status, fmi2_string_t category,fmi2_string_t message,...)
     ctypedef void(*fmi2_callback_logger_ft)(fmi2_component_environment_t c,fmi2_string_t instanceName, fmi2_status_t status, fmi2_string_t category,fmi2_string_t message,...)
     ctypedef void(*fmi2_step_finished_ft)(fmi2_component_environment_t env, fmi2_status_t status)
     ctypedef void *(*fmi2_callback_allocate_memory_ft)(size_t, size_t)
