@@ -206,8 +206,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise NotImplementedError(f"Unable to fetch model identifier for FMU kind {self._fmu_kind}")
 
         #Connect the DLL
-        self._modelName         = pyfmi_util.decode(FMIL3.fmi3_import_get_model_name(self._fmu))
+        self._modelName = pyfmi_util.decode(FMIL3.fmi3_import_get_model_name(self._fmu))
 
+        # TODO Check status and error handling
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_get_number_of_event_indicators(self._fmu, &self._nEventIndicators)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
