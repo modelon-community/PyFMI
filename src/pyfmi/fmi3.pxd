@@ -28,11 +28,15 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef FMIL3.fmi3_import_t*       _fmu
     cdef FMIL3.fmi3_fmu_kind_enu_t  _fmu_kind
     cdef FMIL.fmi_version_enu_t     _version
+    cdef FMIL.size_t                _nEventIndicators
+    cdef FMIL.size_t                _nContinuousStates
+
     # Internal values
     cdef object _fmu_full_path
     cdef public object _enable_logging
     cdef int _allow_unzipped_fmu
     cdef int _allocated_dll, _allocated_context, _allocated_xml
+    cdef object         _modelName
     cdef char* _fmu_temp_dir
 
 cdef class FMUModelME3(FMUModelBase3):

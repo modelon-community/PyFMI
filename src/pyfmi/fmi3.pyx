@@ -203,7 +203,18 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if self._fmu_kind & FMIL3.fmi3_fmu_kind_me:
             self._modelId= pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_ME(self._fmu))
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Unable to fetch model identifier for FMU kind {self._fmu_kind}")
+
+        #Connect the DLL
+        self._modelName         = pyfmi_util.decode(FMIL3.fmi3_import_get_model_name(self._fmu))
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_get_number_of_event_indicators(self._fmu, &self._nEventIndicators)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_get_number_of_continuous_states(self._fmu, &self._nContinuousStates)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if not isinstance(log_file_name, str):
             self._set_log_stream(log_file_name)
