@@ -60,24 +60,14 @@ cdef extern from 'fmilib.h':
         fmi3_string_t category,
         fmi3_string_t message,
         )
-    ctypedef void *(*fmi3_allocate_memory_callback_ft)(size_t, size_t)
-    ctypedef void(*fmi3_free_memory_callback_ft)(void *)
-    # rename to intermediate_step_finished?
-    ctypedef void(*fmi3_step_finished_ft)(fmi3_instance_environment_t env, fmi3_status_t status)
 
     cdef struct fmi3_import_t:
         pass
 
-    ctypedef struct fmi3_callback_functions_t:
-        fmi3_log_message_callback_ft logger
-        fmi3_allocate_memory_callback_ft allocateMemory
-        fmi3_free_memory_callback_ft freeMemory
-        fmi3_step_finished_ft stepFinished
-        fmi3_instance_environment_t instanceEnvironment
 
     # FMI SPECIFICATION METHODS (3.0)
     # BASIC
-    int fmi3_import_create_dllfmu(fmi3_import_t *, fmi3_fmu_kind_enu_t, fmi3_callback_functions_t *)
+    int fmi3_import_create_dllfmu(fmi3_import_t *, fmi3_fmu_kind_enu_t, fmi3_callback_functions_t *, fmi3_log_message_callback_ft )
     # modes
 
     # misc
@@ -108,3 +98,18 @@ cdef extern from 'fmilib.h':
     # Does NOT invoke CAPI calls
     void fmi3_log_forwarding(fmi3_instance_environment_t, fmi3_status_t, fmi3_string_t, fmi3_string_t)
     char* fmi3_import_get_last_error(fmi3_import_t *)
+    char* fmi3_import_get_model_identifier_ME(fmi3_import_t *)
+
+
+# Not part of FMIL but declared for simplicity
+ctypedef void *(*fmi3_allocate_memory_callback_ft)(size_t, size_t)
+ctypedef void(*fmi3_free_memory_callback_ft)(void *)
+# rename to intermediate_step_finished?
+ctypedef void(*fmi3_step_finished_ft)(fmi3_instance_environment_t env, fmi3_status_t status)
+
+ctypedef struct fmi3_callback_functions_t:
+    fmi3_log_message_callback_ft logger
+    fmi3_allocate_memory_callback_ft allocateMemory
+    fmi3_free_memory_callback_ft freeMemory
+    fmi3_step_finished_ft stepFinished
+    fmi3_instance_environment_t instanceEnvironment

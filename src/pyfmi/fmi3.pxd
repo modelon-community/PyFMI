@@ -32,7 +32,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef object _fmu_full_path
     cdef public object _enable_logging
     cdef int _allow_unzipped_fmu
-    cdef int _allocated_context, _allocated_xml
+    cdef int _allocated_dll, _allocated_context, _allocated_xml
+    cdef char* _fmu_temp_dir
 
 cdef class FMUModelME3(FMUModelBase3):
     pass

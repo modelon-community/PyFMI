@@ -189,7 +189,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         #Connect the DLL
         if _connect_dll:
             self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-            status = FMIL3.fmi3_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions)
+            status = FMIL3.fmi3_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions, self.callBackFunctions.logger)
             self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             if status == FMIL.jm_status_error:
                 last_error = pyfmi_util.decode(FMIL3.fmi3_import_get_last_error(self._fmu))
@@ -199,7 +199,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                     raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. Enable logging for possibly more information.")
             self._allocated_dll = 1
 
-        self._modelId = "TODO" # TODO
+        print(f"{self._fmu_kind=}")
+        if self._fmu_kind & FMIL3.fmi3_fmu_kind_me:
+            self._modelId= pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_ME(self._fmu))
+        else:
+            raise NotImplementedError
 
         if not isinstance(log_file_name, str):
             self._set_log_stream(log_file_name)
