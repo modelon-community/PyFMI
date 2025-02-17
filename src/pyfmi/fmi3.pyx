@@ -199,7 +199,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                     raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. Enable logging for possibly more information.")
             self._allocated_dll = 1
 
-        print(f"{self._fmu_kind=}")
         if self._fmu_kind & FMIL3.fmi3_fmu_kind_me:
             self._modelId= pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_ME(self._fmu))
         else:
@@ -272,6 +271,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             return level
         else:
             raise FMUException('Logging is not enabled')
+
+    def get_identifier(self):
+        """ Return the model identifier, name of binary model file and prefix in
+            the C-function names of the model.
+        """
+        return self._modelId
+
 
 cdef class FMUModelME3(FMUModelBase3):
     """

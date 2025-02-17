@@ -59,7 +59,7 @@ class TestFMI3LoadFMU:
         """Test loading a SE only FMU via kind 'auto'"""
         msg = "Import of FMI3 Scheduled Execution FMUs is not supported"
         with pytest.raises(InvalidFMUException, match = re.escape(msg)):
-            load_fmu(ref_fmu, kind = "auto")  
+            load_fmu(ref_fmu, kind = "auto")
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
     def test_load_kind_ME(self, ref_fmu):
@@ -81,6 +81,10 @@ class TestFMI3LoadFMU:
         with pytest.raises(FMUException, match = re.escape(msg)):
             load_fmu(ref_fmu, kind = "SE")
 
+    def test_get_model_identifier(self):
+        """Test that model identifier is retrieved as expected."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu") # any FMI3 ME would suffice
+        assert fmu.get_identifier() == 'VanDerPol'
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
@@ -100,12 +104,12 @@ class Test_FMI3ME:
     def test_logfile_content(self):
         """Test that we get the log content from FMIL parsing the modelDescription.xml."""
         log_filename = "test_fmi3_log.txt"
-        FMUModelME3(FMI3_REF_FMU_PATH / "VanDerPol.fmu", log_file_name = log_filename, 
+        FMUModelME3(FMI3_REF_FMU_PATH / "VanDerPol.fmu", log_file_name = log_filename,
                     _connect_dll = False, log_level = 5)
-        
+
         with open(log_filename, "r") as file:
             data = file.read()
-        
+
         assert "FMIL: module = FMILIB, log level = 4: XML specifies FMI standard version 3.0" in data
         assert "FMIL: module = FMILIB, log level = 5: Parsing finished successfully" in data
 
@@ -113,7 +117,7 @@ class Test_FMI3ME:
     def test_logging_stream(self):
         """Test logging content from FMIL using a stream."""
         log_filename = StringIO("")
-        fmu = FMUModelME3(FMI3_REF_FMU_PATH / "VanDerPol.fmu", log_file_name = log_filename, 
+        fmu = FMUModelME3(FMI3_REF_FMU_PATH / "VanDerPol.fmu", log_file_name = log_filename,
                           _connect_dll = False, log_level = 5)
         log = fmu.get_log()
 
@@ -142,7 +146,6 @@ class Test_FMI3ME:
         msg = "The log level must be an integer between 0 and 7"
         with pytest.raises(FMUException, match = msg):
             FMUModelME3(fmu_path, log_level = log_level, _connect_dll = False)
-
 
 class TestFMI3CS:
     # TODO: Unsupported for now
