@@ -39,6 +39,7 @@ cdef class ModelBase:
     cdef object _modelId
     cdef public int _log_is_stream, _invoked_dealloc
     cdef public unsigned long long int _current_log_size, _max_log_size
+    cdef char* _fmu_temp_dir
 
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
 

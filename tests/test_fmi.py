@@ -22,6 +22,7 @@ from zipfile import ZipFile
 import tempfile
 import types
 import logging
+import shutil
 from io import StringIO
 from pathlib import Path
 
@@ -132,6 +133,38 @@ class Test_FMU:
         msg = "The FMU could not be loaded."
         with pytest.raises(InvalidVersionException, match = msg):
             fmu_loader(fmu_path, _connect_dll = False)
+
+
+@pytest.mark.parametrize("fmu_loader, fmu_path",
+    [
+        (FMUModelME1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
+        (FMUModelCS1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
+        (FMUModelME2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
+        (FMUModelCS2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')),
+        (FMUModelME3, REFERENCE_FMU_PATH / "BouncingBall.fmu"),
+    ]
+)
+class TestGetUnpackedFMUPath:
+    """Test the get_unpacked_fmu_path function."""
+    def test_get_unpacked_fmu_path(self, fmu_loader, fmu_path):
+        """Test the default internal unpacking."""
+        fmu = fmu_loader(fmu_path)
+        unpacked_path = fmu.get_unpacked_fmu_path()
+        assert os.path.exists(unpacked_path)
+        assert os.path.exists(os.path.join(unpacked_path, "modelDescription.xml"))
+        assert os.path.exists(os.path.join(unpacked_path, "binaries"))
+
+    def test_get_unpacked_fmu_path_unpacked_load(self, fmu_loader, fmu_path):
+        """Test manual unpacking."""
+        temp_dir = tempfile.mkdtemp(dir = ".") # XXX: not removed if test fails before assert
+        shutil.unpack_archive(fmu_path, format = "zip", extract_dir = temp_dir)
+        fmu = fmu_loader(temp_dir, allow_unzipped_fmu = True)
+
+        unpacked_path = fmu.get_unpacked_fmu_path()
+        assert unpacked_path == os.path.abspath(temp_dir)
+        assert os.path.exists(os.path.join(unpacked_path, "modelDescription.xml"))
+        assert os.path.exists(os.path.join(unpacked_path, "binaries"))
+        shutil.rmtree(temp_dir)
 
 
 @pytest.mark.parametrize("fmu_loader, fmu_path",

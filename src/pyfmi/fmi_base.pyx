@@ -137,6 +137,10 @@ cdef class ModelBase:
         else:
             return [self._get(variable_name[i]) for i in xrange(len(variable_name))]
 
+    def get_unpacked_fmu_path(self) -> str:
+        """Return absolute path to folder containing the unpacked FMU."""
+        return pyfmi_util.decode(self._fmu_temp_dir)
+
     def _exec_algorithm(self, module, algorithm, options):
         """
         Helper function which performs all steps of an algorithm run which are
