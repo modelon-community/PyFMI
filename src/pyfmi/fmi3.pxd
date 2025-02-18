@@ -24,7 +24,6 @@ cimport pyfmi.fmi_base as FMI_BASE
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
     # FMIL related variables
     cdef FMIL.fmi_import_context_t* _context
-    cdef FMIL3.fmi3_callback_functions_t callBackFunctions
     cdef FMIL3.fmi3_import_t*       _fmu
     cdef FMIL3.fmi3_fmu_kind_enu_t  _fmu_kind
     cdef FMIL.fmi_version_enu_t     _version

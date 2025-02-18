@@ -86,6 +86,11 @@ class TestFMI3LoadFMU:
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu") # any FMI3 ME would suffice
         assert fmu.get_identifier() == 'VanDerPol'
 
+    def test_get_get_version(self):
+        """Test that FMI version is retrieved as expected."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu") # any FMI3 ME would suffice
+        assert fmu.get_version() == '3.0'
+
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])

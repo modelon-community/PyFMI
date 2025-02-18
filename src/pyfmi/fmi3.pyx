@@ -110,12 +110,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self.callbacks.logger  = importlogger3
         self.callbacks.context = <void*>self
 
-        # Specify FMI3 related callbacks
-        self.callBackFunctions.logger               = FMIL3.fmi3_log_forwarding
-        self.callBackFunctions.allocateMemory       = FMIL.calloc
-        self.callBackFunctions.freeMemory           = FMIL.free
-        self.callBackFunctions.stepFinished         = NULL
-        self.callBackFunctions.instanceEnvironment = NULL
 
         if isinstance(log_level, int) and (log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all):
             if log_level == FMIL.jm_log_level_nothing:
@@ -189,7 +183,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         #Connect the DLL
         if _connect_dll:
             self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-            status = FMIL3.fmi3_import_create_dllfmu(self._fmu, self._fmu_kind, &self.callBackFunctions, self.callBackFunctions.logger)
+            status = FMIL3.fmi3_import_create_dllfmu(self._fmu, self._fmu_kind, NULL, FMIL3.fmi3_log_forwarding)
             self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             if status == FMIL.jm_status_error:
                 last_error = pyfmi_util.decode(FMIL3.fmi3_import_get_last_error(self._fmu))
@@ -202,7 +196,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if self._fmu_kind & FMIL3.fmi3_fmu_kind_me:
             self._modelId= pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_ME(self._fmu))
         else:
-            raise NotImplementedError(f"Unable to fetch model identifier for FMU kind {self._fmu_kind}")
+            raise NotImplementedError(f"FMUModelBase3 only supports FMU type 'Model Exchange'")
 
         #Connect the DLL
         self._modelName = pyfmi_util.decode(FMIL3.fmi3_import_get_model_name(self._fmu))
@@ -216,6 +210,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         status = FMIL3.fmi3_import_get_number_of_continuous_states(self._fmu, &self._nContinuousStates)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
+        # TODO: The code below is identical between FMUModelBase2 and FMUModelBase3, perhaps we can refactor this
         if not isinstance(log_file_name, str):
             self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
@@ -271,6 +266,24 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             return level
         else:
             raise FMUException('Logging is not enabled')
+
+    def get_version(self):
+        """
+        Returns the FMI version of the Model which it was generated according.
+
+        Returns::
+
+            version --
+                The version.
+
+        Example::
+
+            model.get_version()
+        """
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_version(self._fmu)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+        return pyfmi_util.decode(version)
 
     def get_identifier(self):
         """ Return the model identifier, name of binary model file and prefix in
