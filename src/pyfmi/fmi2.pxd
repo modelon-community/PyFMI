@@ -87,7 +87,6 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
     cdef public list    _save_bool_variables_val
     cdef object         _t
     cdef public object  _pyEventInfo
-    cdef char* _fmu_temp_dir
     cdef object         _states_references
     cdef object         _inputs_references
     cdef object         _outputs_references

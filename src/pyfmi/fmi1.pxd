@@ -68,7 +68,6 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
     cdef public list _save_int_variables_val
     cdef public list _save_bool_variables_val
     cdef int _fmu_kind
-    cdef char* _fmu_temp_dir
 
     cpdef _internal_set_fmu_null(self)
     cpdef get_variable_description(self, variablename)

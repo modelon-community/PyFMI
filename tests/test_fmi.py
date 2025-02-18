@@ -22,6 +22,7 @@ from zipfile import ZipFile
 import tempfile
 import types
 import logging
+import shutil
 from io import StringIO
 from pathlib import Path
 
@@ -103,12 +104,11 @@ class Test_FMU:
             fmu_loader("path_that_does_not_exist.fmu")
     
     @pytest.mark.parametrize("fmu_loader", ALL_FMU_LOADERS)
-    def test_unzipped_fmu_exception_invalid_dir(self, fmu_loader):
+    def test_unzipped_fmu_exception_invalid_dir(self, tmpdir, fmu_loader):
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml."""
         err_msg = "Specified fmu path '.*\\' needs to contain a modelDescription.xml according to the FMI specification"
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with pytest.raises(FMUException, match = err_msg):
-                fmu_loader(temp_dir, allow_unzipped_fmu = True)
+        with pytest.raises(FMUException, match = err_msg):
+            fmu_loader(str(tmpdir), allow_unzipped_fmu = True)
 
     @pytest.mark.parametrize("fmu_loader", ALL_FMU_LOADERS)
     def test_unzipped_fmu_exception_is_file(self, fmu_loader):
@@ -132,6 +132,36 @@ class Test_FMU:
         msg = "The FMU could not be loaded."
         with pytest.raises(InvalidVersionException, match = msg):
             fmu_loader(fmu_path, _connect_dll = False)
+
+
+@pytest.mark.parametrize("fmu_loader, fmu_path",
+    [
+        (FMUModelME1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
+        (FMUModelCS1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
+        (FMUModelME2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
+        (FMUModelCS2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')),
+        (FMUModelME3, REFERENCE_FMU_PATH / "BouncingBall.fmu"),
+    ]
+)
+class TestGetUnpackedFMUPath:
+    """Test the get_unpacked_fmu_path function."""
+    def test_get_unpacked_fmu_path(self, fmu_loader, fmu_path):
+        """Test the default internal unpacking."""
+        fmu = fmu_loader(fmu_path)
+        unpacked_path = fmu.get_unpacked_fmu_path()
+        assert os.path.exists(unpacked_path)
+        assert os.path.exists(os.path.join(unpacked_path, "modelDescription.xml"))
+        assert os.path.exists(os.path.join(unpacked_path, "binaries"))
+
+    def test_get_unpacked_fmu_path_unpacked_load(self, tmpdir, fmu_loader, fmu_path):
+        """Test manual unpacking."""
+        shutil.unpack_archive(fmu_path, format = "zip", extract_dir = tmpdir)
+        fmu = fmu_loader(str(tmpdir), allow_unzipped_fmu = True)
+
+        unpacked_path = fmu.get_unpacked_fmu_path()
+        assert unpacked_path == os.path.abspath(tmpdir)
+        assert os.path.exists(os.path.join(unpacked_path, "modelDescription.xml"))
+        assert os.path.exists(os.path.join(unpacked_path, "binaries"))
 
 
 @pytest.mark.parametrize("fmu_loader, fmu_path",
@@ -164,10 +194,9 @@ class TestUnzippedBouncingBall:
         unzip_dir = create_temp_dir()
         self._test_unzipped_bouncing_ball(fmu_loader, fmu_path, unzip_dir)
 
-    def test_custom_temp_dir(self, fmu_loader, fmu_path):
+    def test_custom_temp_dir(self, tmpdir, fmu_loader, fmu_path):
         """Test unzipped bouncingBall using FMU unzipped to custom temp directory."""
-        unzip_dir = tempfile.TemporaryDirectory(dir = "./")
-        self._test_unzipped_bouncing_ball(fmu_loader, fmu_path, unzip_dir.name)
+        self._test_unzipped_bouncing_ball(fmu_loader, fmu_path, str(tmpdir))
 
 @pytest.mark.assimulo
 class Test_FMUModelME1_Simulation:
