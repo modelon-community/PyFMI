@@ -193,15 +193,15 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                     raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. Enable logging for possibly more information.")
             self._allocated_dll = 1
 
+        # Note that below, values are retrieved from XML (via FMIL) if .dll/.so is not connected
         if self._fmu_kind & FMIL3.fmi3_fmu_kind_me:
             self._modelId= pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_ME(self._fmu))
         else:
             raise NotImplementedError(f"FMUModelBase3 only supports FMU type 'Model Exchange'")
 
-        #Connect the DLL
         self._modelName = pyfmi_util.decode(FMIL3.fmi3_import_get_model_name(self._fmu))
 
-        # TODO Check status and error handling
+        # TODO Check status and error handling?
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_get_number_of_event_indicators(self._fmu, &self._nEventIndicators)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -214,7 +214,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if not isinstance(log_file_name, str):
             self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
-                self._log_stream.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+                self._log_stream.write(
+                    "FMIL: module = %s, log level = %d: %s\n" % (
+                        self._log[i][0], self._log[i][1], self._log[i][2]
+                    )
+                )
         else:
             fmu_log_name = pyfmi_util.encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
@@ -223,7 +227,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             #Create the log file
             with open(self._fmu_log_name,'w') as file:
                 for i in range(len(self._log)):
-                    file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
+                    file.write("FMIL: module = %s, log level = %d: %s\n" % (
+                        self._log[i][0], self._log[i][1], self._log[i][2]
+                    )
+                )
 
         self._log = []
 
@@ -254,6 +261,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     def _get_fmu_kind(self):
         raise FMUException("FMUModelBase3 cannot be used directly, use FMUModelME3.")
+
+
+    def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
+        raise NotImplementedError
+
 
     def get_fmil_log_level(self):
         """
@@ -333,6 +345,8 @@ cdef class FMUModelME3(FMUModelBase3):
         # Call super on base class
         FMUModelBase3.__init__(self, fmu, log_file_name, log_level,
                                _unzipped_dir, _connect_dll, allow_unzipped_fmu)
+        if _connect_dll:
+            self.instantiate()
 
     def _get_fmu_kind(self):
         if self._fmu_kind & FMIL3.fmi3_fmu_kind_me:
@@ -340,6 +354,54 @@ cdef class FMUModelME3(FMUModelBase3):
         else:
             raise InvalidVersionException('The FMU could not be loaded. This class only supports FMI 3.0 for Model Exchange.')
 
+
+    def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
+        """
+        Instantiate the model.
+
+        Parameters::
+
+            name --
+                The name of the instance.
+                Default: 'Model'
+
+            visible --
+                Defines if the simulator application window should be visible or not.
+                Default: False, not visible.
+
+        Calls the respective low-level FMI function: fmi3InstantiateX where X is any of
+            ModelExchange, CoSimulation or ScheduledExecution.
+        """
+
+        cdef FMIL3.fmi3_boolean_t  log
+        cdef FMIL3.fmi3_boolean_t  vis
+        cdef FMIL.jm_status_enu_t status
+
+        log = self._enable_logging
+        vis = visible
+
+        #if isinstance(self, FMUModelME3):
+        #
+        #else:
+        #    raise FMUException('The instance is not curent an instance of an ME-model or a CS-model. Use load_fmu for correct loading.')
+
+        name_as_bytes = pyfmi_util.encode(name)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_instantiate_model_exchange(
+            self._fmu,
+            name_as_bytes,
+            NULL,
+            vis,
+            log,
+            NULL,
+            FMIL3.fmi3_log_forwarding
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != FMIL.jm_status_success:
+            raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
+
+        self._allocated_fmu = 1
 
 cdef void _cleanup_on_load_error(
     FMIL3.fmi3_import_t* fmu_3,

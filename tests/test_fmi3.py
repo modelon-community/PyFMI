@@ -38,6 +38,14 @@ this_dir = Path(__file__).parent.absolute()
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
 
+import contextlib
+from pathlib import Path
+
+@contextlib.contextmanager
+def temp_dir_context(tmpdir):
+    """Provides a temporary directory as a context."""
+    yield Path(tmpdir)
+
 class TestFMI3LoadFMU:
     """Basic unit tests for FMI3 loading via 'load_fmu'."""
     @pytest.mark.parametrize("ref_fmu", [
@@ -90,6 +98,26 @@ class TestFMI3LoadFMU:
         """Test that FMI version is retrieved as expected."""
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu") # any FMI3 ME would suffice
         assert fmu.get_version() == '3.0'
+
+    def test_instantiation(self, tmpdir):
+        """ Test that instantion works by verifying the output in the log.
+        """
+        found_substring = False
+        substring_to_find = 'Successfully loaded all the interface functions'
+
+        with temp_dir_context(tmpdir) as temp_path:
+             # any FMI3 ME would suffice, log_level set to 5 required by test
+            fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", log_level=5)
+            with open(fmu.get_log_filename(), 'r') as f:
+                contents = f.readlines()
+
+        for line in contents:
+            if substring_to_find in line:
+                found_substring = True
+                break
+
+        log_file = ''.join(contents)
+        assert found_substring, f"Unable to locate substring '{substring_to_find}' in file with contents '{log_file}'"
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""

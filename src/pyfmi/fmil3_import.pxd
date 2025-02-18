@@ -23,12 +23,12 @@ cimport pyfmi.fmil_import as FMIL
 from libcpp cimport bool # TODO: Possible issue due to https://github.com/cython/cython/issues/5730 ??
 
 
-# XXX: Copy more header content from FMI3 as it becomes necessary
 
 cdef extern from 'fmilib.h':
     # FMI VARIABLE TYPE DEFINITIONS
     ctypedef void*  fmi3_instance_environment_t
     ctypedef char*  fmi3_string_t
+    ctypedef bool    fmi3_boolean_t
 
     # STATUS
     cdef enum fmi3_fmu_kind_enu_t:
@@ -68,6 +68,15 @@ cdef extern from 'fmilib.h':
     # FMI SPECIFICATION METHODS (3.0)
     # BASIC
     int fmi3_import_create_dllfmu(fmi3_import_t*, fmi3_fmu_kind_enu_t, fmi3_instance_environment_t, fmi3_log_message_callback_ft )
+    FMIL.jm_status_enu_t fmi3_import_instantiate_model_exchange(
+        fmi3_import_t* fmu,
+        fmi3_string_t instanceName,
+        fmi3_string_t resourcePath,
+        fmi3_boolean_t visible,
+        fmi3_boolean_t loggingOn,
+        fmi3_instance_environment_t instanceEnvironment,
+        fmi3_log_message_callback_ft logMessage
+    )
     # modes
 
     # misc
