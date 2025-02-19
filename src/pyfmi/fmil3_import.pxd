@@ -28,7 +28,13 @@ cdef extern from 'fmilib.h':
     # FMI VARIABLE TYPE DEFINITIONS
     ctypedef void*  fmi3_instance_environment_t
     ctypedef char*  fmi3_string_t
-    ctypedef bool    fmi3_boolean_t
+    ctypedef bool   fmi3_boolean_t
+    ctypedef double fmi3_float64_t
+
+    # STRUCTS
+    ctypedef enum fmi3_boolean_enu_t:
+        fmi3_true = 1
+        fmi3_false = 0
 
     # STATUS
     cdef enum fmi3_fmu_kind_enu_t:
@@ -73,19 +79,30 @@ cdef extern from 'fmilib.h':
         fmi3_string_t instanceName,
         fmi3_string_t resourcePath,
         fmi3_boolean_t visible,
-        fmi3_boolean_t loggingOn,
-        fmi3_instance_environment_t instanceEnvironment,
-        fmi3_log_message_callback_ft logMessage
+        fmi3_boolean_t loggingOn
     )
     # modes
-
+    fmi3_status_t fmi3_import_enter_initialization_mode(
+        fmi3_import_t* fmu,
+        fmi3_boolean_t toleranceDefined,
+        fmi3_float64_t tolerance,
+        fmi3_float64_t startTime,
+        fmi3_boolean_t stopTimeDefined,
+        fmi3_float64_t stopTime)
+    fmi3_status_t fmi3_import_exit_initialization_mode(fmi3_import_t* fmu)
+    fmi3_status_t fmi3_import_enter_event_mode(fmi3_import_t* fmu)
+    fmi3_status_t fmi3_import_enter_continuous_time_mode(fmi3_import_t* fmu)
+    fmi3_status_t fmi3_import_enter_event_mode(fmi3_import_t* fmu)
     # misc
     char* fmi3_import_get_version(fmi3_import_t*)
 
     # setting
+    fmi3_status_t fmi3_import_set_time(fmi3_import_t *, fmi3_float64_t)
 
     # getting
-
+    double fmi3_import_get_default_experiment_start(fmi3_import_t*);
+    double fmi3_import_get_default_experiment_stop(fmi3_import_t*);
+    double fmi3_import_get_default_experiment_tolerance(fmi3_import_t*);
     # save states
 
     # FMI HELPER METHODS (3.0)

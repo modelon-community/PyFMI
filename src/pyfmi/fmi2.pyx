@@ -40,7 +40,7 @@ from pyfmi.fmi_base import (
 from pyfmi.exceptions import (
     FMUException,
     InvalidBinaryException,
-    InvalidXMLException, 
+    InvalidXMLException,
     InvalidVersionException
 )
 from pyfmi.common.core import create_temp_dir
@@ -1185,7 +1185,6 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         self._t = start_time
         self._last_accepted_time = start_time
-        self._relative_tolerance = tolerance
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL2.fmi2_import_setup_experiment(self._fmu,
@@ -5172,12 +5171,12 @@ cdef class WorkerClass2:
         return ret
 
 cdef object _load_fmi2_fmu(
-    fmu, 
-    object log_file_name, 
-    str kind, 
-    int log_level, 
+    fmu,
+    object log_file_name,
+    str kind,
+    int log_level,
     int allow_unzipped_fmu,
-    FMIL.fmi_import_context_t* context, 
+    FMIL.fmi_import_context_t* context,
     bytes fmu_temp_dir,
     FMIL.jm_callbacks callbacks,
     list log_data

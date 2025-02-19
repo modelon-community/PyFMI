@@ -31,11 +31,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef FMIL.size_t                _nContinuousStates
 
     # Internal values
-    cdef object _fmu_full_path
+    cdef public float  _last_accepted_time
     cdef public object _enable_logging
+    cdef object     _fmu_full_path
+    cdef object     _modelName
+    cdef object     _t
     cdef int _allow_unzipped_fmu
     cdef int _allocated_context, _allocated_dll, _allocated_fmu, _allocated_xml
-    cdef object         _modelName
     cdef char* _fmu_temp_dir
 
 cdef class FMUModelME3(FMUModelBase3):

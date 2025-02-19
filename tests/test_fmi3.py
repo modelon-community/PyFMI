@@ -48,6 +48,7 @@ def temp_dir_context(tmpdir):
 
 class TestFMI3LoadFMU:
     """Basic unit tests for FMI3 loading via 'load_fmu'."""
+
     @pytest.mark.parametrize("ref_fmu", [
         FMI3_REF_FMU_PATH / "BouncingBall.fmu",
         FMI3_REF_FMU_PATH / "Dahlquist.fmu",
@@ -118,6 +119,20 @@ class TestFMI3LoadFMU:
 
         log_file = ''.join(contents)
         assert found_substring, f"Unable to locate substring '{substring_to_find}' in file with contents '{log_file}'"
+
+    @pytest.mark.parametrize("ref_fmu", [
+        FMI3_REF_FMU_PATH / "BouncingBall.fmu",
+        FMI3_REF_FMU_PATH / "Dahlquist.fmu",
+        FMI3_REF_FMU_PATH / "Resource.fmu",
+        FMI3_REF_FMU_PATH / "StateSpace.fmu",
+        FMI3_REF_FMU_PATH / "Feedthrough.fmu",
+        FMI3_REF_FMU_PATH / "Stair.fmu",
+        FMI3_REF_FMU_PATH / "VanDerPol.fmu",
+    ])
+    def test_load_kind_auto(self, ref_fmu):
+        """Test initialize all the ME reference FMUs. """
+        fmu = load_fmu(ref_fmu)
+        fmu.initialize() # Should simply pass without any exceptions
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
