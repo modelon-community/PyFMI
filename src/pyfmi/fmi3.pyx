@@ -389,8 +389,7 @@ cdef class FMUModelME3(FMUModelBase3):
                 Defines if the simulator application window should be visible or not.
                 Default: False, not visible.
 
-        Calls the respective low-level FMI function: fmi3InstantiateX where X is any of
-            ModelExchange, CoSimulation or ScheduledExecution.
+        Calls the respective low-level FMI function: fmi3InstantiateModelExchange.
         """
 
         cdef FMIL3.fmi3_boolean_t  log
@@ -417,14 +416,44 @@ cdef class FMUModelME3(FMUModelBase3):
         self._allocated_fmu = 1
 
 
-    def initialize(self,
+    def initialize(
+        self,
         tolerance_defined=True,
         tolerance="Default",
         start_time="Default",
         stop_time_defined=False,
         stop_time="Default"
     ):
-        """ TODO """
+        """
+        Initializes the model and computes initial values for all variables.
+        Additionally calls the setup experiment, if not already called.
+
+        Args:
+            tolerance_defined --
+                Specifies if the model is to be solved with an error
+                controlled algorithm.
+                Default: True
+
+            tolerance --
+                The tolerance used by the error controlled algorithm.
+                Default: The tolerance defined in the model description
+
+            start_time --
+                Start time of the simulation.
+                Default: The start time defined in the model description.
+
+            stop_time_defined --
+                Defines if a fixed stop time is defined or not. If this is
+                set the simulation cannot go past the defined stop time.
+                Default: False
+
+            stop_time --
+                Stop time of the simulation.
+                Default: The stop time defined in the model description.
+
+        Calls the low-level FMI functions: fmi3EnterInitializationMode,
+                                           fmi3ExitInitializationMode
+        """
         log_open = self._log_open()
         if not log_open and self.get_log_level() > 2:
             self._open_log_file()
@@ -447,21 +476,23 @@ cdef class FMUModelME3(FMUModelBase3):
         if not log_open and self.get_log_level() > 2:
             self._close_log_file()
 
-    def enter_initialization_mode(self,
-            tolerance_defined=True,
-            tolerance="Default",
-            start_time="Default",
-            stop_time_defined=False,
-            stop_time="Default"
+    def enter_initialization_mode(
+        self,
+        tolerance_defined=True,
+        tolerance="Default",
+        start_time="Default",
+        stop_time_defined=False,
+        stop_time="Default"
     ):
         """
-        fmi3_import_enter_initialization_mode(
-                fmi3_import_t* fmu,
-                fmi3_boolean_t toleranceDefined,
-                fmi3_float64_t tolerance,
-                fmi3_float64_t startTime,
-                fmi3_boolean_t stopTimeDefined,
-                fmi3_float64_t stopTime);
+        Enters initialization mode by calling the low level FMI function
+        fmi3EnterInitializationMode.
+
+        Note that the method initialize() performs both the enter and
+        exit of initialization mode.
+
+        Args:
+            For a full description of the input arguments, see the docstring for method 'initialize'.
         """
         cdef FMIL3.fmi3_status_t status
 
@@ -493,7 +524,11 @@ cdef class FMUModelME3(FMUModelBase3):
 
     def exit_initialization_mode(self):
         """
-        fmi3_import_exit_initialization_mode(fmi3_import_t* fmu);
+            Exit initialization mode by calling the low level FMI function
+            fmi3ExitInitializationMode.
+
+            Note that the method initialize() performs both the enter and
+            exit of initialization mode.
         """
         cdef FMIL3.fmi3_status_t status
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -504,9 +539,7 @@ cdef class FMUModelME3(FMUModelBase3):
             raise FMUException("Failed to exit initialization mode")
 
     def enter_continuous_time_mode(self):
-        """
-        fmi3_import_enter_continuous_time_mode(fmi3_import_t* fmu);
-        """
+        """ Enter continuous time mode by calling the low level FMI function fmi3EnterContinuousTimeMode. """
         cdef FMIL3.fmi3_status_t status
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_enter_continuous_time_mode(self._fmu)
@@ -516,9 +549,7 @@ cdef class FMUModelME3(FMUModelBase3):
             raise FMUException("Failed to enter continuous time mode")
 
     def enter_event_mode(self):
-        """
-        fmi3_import_enter_event_mode(fmi3_import_t* fmu);
-        """
+        """ Enter event mode by calling the low level FMI function fmi3EnterEventMode. """
         cdef FMIL3.fmi3_status_t status
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_enter_event_mode(self._fmu)
