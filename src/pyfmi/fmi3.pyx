@@ -130,7 +130,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._context = FMIL.fmi_import_allocate_context(&self.callbacks)
         self._allocated_context = 1
 
-        #Get the FMI version of the provided model
+        # Get the FMI version of the provided model
         if _unzipped_dir:
             fmu_temp_dir = pyfmi_util.encode(_unzipped_dir)
         elif self._allow_unzipped_fmu:
@@ -174,6 +174,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         self._fmu_kind = FMIL3.fmi3_import_get_fmu_kind(self._fmu)
         self._allocated_xml = 1
+
         # FMU kind is unknown
         if self._fmu_kind & FMIL3.fmi3_fmu_kind_unknown:
             last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
@@ -184,7 +185,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         else:
             self._fmu_kind = self._get_fmu_kind()
 
-        #Connect the DLL
+        # Connect the DLL
         if _connect_dll:
             self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             status = FMIL3.fmi3_import_create_dllfmu(self._fmu, self._fmu_kind, NULL, FMIL3.fmi3_log_forwarding)
@@ -231,7 +232,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
             FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
-            #Create the log file
+            # Create the log file
             with open(self._fmu_log_name,'w') as file:
                 for i in range(len(self._log)):
                     file.write("FMIL: module = %s, log level = %d: %s\n" % (
