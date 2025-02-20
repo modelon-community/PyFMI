@@ -123,11 +123,17 @@ class TestFMI3LoadFMU:
         FMI3_REF_FMU_PATH / "Stair.fmu",
         FMI3_REF_FMU_PATH / "VanDerPol.fmu",
     ])
-    def test_initialize(self, ref_fmu):
-        """Test initialize all the ME reference FMUs. """
+    def test_initialize_reset_terminate(self, ref_fmu):
+        """Test initialize, reset and terminate of all the ME reference FMUs. """
         fmu = load_fmu(ref_fmu)
-        fmu.initialize() # Should simply pass without any exceptions
+        # Should simply pass without any exceptions
+        fmu.initialize()
+        fmu.reset()
 
+        # Test initialize again after resetting followed by terminate,
+        # since terminating does not require reset.
+        fmu.initialize()
+        fmu.terminate()
 
     @pytest.mark.parametrize("ref_fmu", [
         FMI3_REF_FMU_PATH / "BouncingBall.fmu",
