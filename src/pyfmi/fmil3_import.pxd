@@ -92,9 +92,9 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_exit_initialization_mode(fmi3_import_t* fmu)
     fmi3_status_t fmi3_import_enter_event_mode(fmi3_import_t* fmu)
     fmi3_status_t fmi3_import_enter_continuous_time_mode(fmi3_import_t* fmu)
-    fmi3_status_t fmi3_import_enter_event_mode(fmi3_import_t* fmu)
     # misc
     char* fmi3_import_get_version(fmi3_import_t*)
+    fmi3_status_t fmi3_import_reset(fmi3_import_t* fmu)
 
     # setting
     fmi3_status_t fmi3_import_set_time(fmi3_import_t *, fmi3_float64_t)

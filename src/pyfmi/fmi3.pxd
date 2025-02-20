@@ -27,8 +27,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef FMIL3.fmi3_import_t*       _fmu
     cdef FMIL3.fmi3_fmu_kind_enu_t  _fmu_kind
     cdef FMIL.fmi_version_enu_t     _version
-    cdef FMIL.size_t                _nEventIndicators
-    cdef FMIL.size_t                _nContinuousStates
+
 
     # Internal values
     cdef public float  _last_accepted_time
@@ -39,8 +38,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef int _allow_unzipped_fmu
     cdef int _allocated_context, _allocated_dll, _allocated_fmu, _allocated_xml
 
+    cdef int _initialized_fmu
+    cdef object  _has_entered_init_mode # this is public in FMI2 but I don't see why
+
 cdef class FMUModelME3(FMUModelBase3):
-    pass
+    cdef FMIL.size_t                _nEventIndicators
+    cdef FMIL.size_t                _nContinuousStates
 
 cdef void _cleanup_on_load_error(
     FMIL3.fmi3_import_t* fmu_3,

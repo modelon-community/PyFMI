@@ -206,18 +206,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         self._modelName = pyfmi_util.decode(FMIL3.fmi3_import_get_model_name(self._fmu))
 
-        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-        status = FMIL3.fmi3_import_get_number_of_event_indicators(self._fmu, &self._nEventIndicators)
-        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
-        if status != FMIL3.fmi3_status_ok:
-            raise InvalidFMUException("The FMU could not be instantiated, error retrieving number of event indicators.")
-
-        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-        status = FMIL3.fmi3_import_get_number_of_continuous_states(self._fmu, &self._nContinuousStates)
-        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
-        if status != FMIL3.fmi3_status_ok:
-            raise InvalidFMUException("The FMU could not be instantiated, error retrieving number of continuous states.")
-
         # TODO: The code below is identical between FMUModelBase2 and FMUModelBase3, perhaps we can refactor this
         if not isinstance(log_file_name, str):
             self._set_log_stream(log_file_name)
@@ -268,8 +256,26 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             self._log_stream = None
 
     def reset(self):
-        """ TODO """
+        """ Resets the FMU back to its original state. Note that the environment
+        has to initialize the FMU again after this function-call. """
+        cdef FMIL3.fmi3_status_t status
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_reset(self._fmu)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+        if status != 0:
+            raise FMUException('An error occured when reseting the model, see the log for possible more information')
+
+
+        #Default values
         self._t = None
+        self._has_entered_init_mode = False
+
+        #Reseting the allocation flags
+        self._initialized_fmu = 0
+
+        #Internal values
+        self._log = []
 
     def _get_fmu_kind(self):
         raise FMUException("FMUModelBase3 cannot be used directly, use FMUModelME3.")
@@ -366,6 +372,19 @@ cdef class FMUModelME3(FMUModelBase3):
         # Call super on base class
         FMUModelBase3.__init__(self, fmu, log_file_name, log_level,
                                _unzipped_dir, _connect_dll, allow_unzipped_fmu)
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_get_number_of_event_indicators(self._fmu, &self._nEventIndicators)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+        if status != FMIL3.fmi3_status_ok:
+            raise InvalidFMUException("The FMU could not be instantiated, error retrieving number of event indicators.")
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_get_number_of_continuous_states(self._fmu, &self._nContinuousStates)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+        if status != FMIL3.fmi3_status_ok:
+            raise InvalidFMUException("The FMU could not be instantiated, error retrieving number of continuous states.")
+
         if _connect_dll:
             self.instantiate()
 
@@ -427,7 +446,6 @@ cdef class FMUModelME3(FMUModelBase3):
     ):
         """
         Initializes the model and computes initial values for all variables.
-        Additionally calls the setup experiment, if not already called.
 
         Args:
             tolerance_defined --
@@ -477,6 +495,8 @@ cdef class FMUModelME3(FMUModelBase3):
         if not log_open and self.get_log_level() > 2:
             self._close_log_file()
 
+        self._initialized_fmu = 1
+
     def enter_initialization_mode(
         self,
         tolerance_defined=True,
@@ -522,6 +542,8 @@ cdef class FMUModelME3(FMUModelBase3):
 
         if status != FMIL3.fmi3_status_ok:
             raise FMUException("Failed to enter initialization mode")
+
+        self._has_entered_init_mode = True
 
     def exit_initialization_mode(self):
         """

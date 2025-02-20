@@ -92,12 +92,12 @@ class TestFMI3LoadFMU:
 
     def test_get_model_identifier(self):
         """Test that model identifier is retrieved as expected."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu") # any FMI3 ME would suffice
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
         assert fmu.get_identifier() == 'VanDerPol'
 
     def test_get_get_version(self):
         """Test that FMI version is retrieved as expected."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu") # any FMI3 ME would suffice
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
         assert fmu.get_version() == '3.0'
 
     def test_instantiation(self, tmpdir):
@@ -107,18 +107,12 @@ class TestFMI3LoadFMU:
         substring_to_find = 'Successfully loaded all the interface functions'
 
         with temp_dir_context(tmpdir) as temp_path:
-             # any FMI3 ME would suffice, log_level set to 5 required by test
+             # log_level set to 5 required by test
             fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", log_level=5)
             with open(fmu.get_log_filename(), 'r') as f:
                 contents = f.readlines()
 
-        for line in contents:
-            if substring_to_find in line:
-                found_substring = True
-                break
-
-        log_file = ''.join(contents)
-        assert found_substring, f"Unable to locate substring '{substring_to_find}' in file with contents '{log_file}'"
+        assert any(substring_to_find in line for line in fmu.get_log())
 
     @pytest.mark.parametrize("ref_fmu", [
         FMI3_REF_FMU_PATH / "BouncingBall.fmu",
@@ -129,10 +123,44 @@ class TestFMI3LoadFMU:
         FMI3_REF_FMU_PATH / "Stair.fmu",
         FMI3_REF_FMU_PATH / "VanDerPol.fmu",
     ])
-    def test_load_kind_auto(self, ref_fmu):
+    def test_initialize(self, ref_fmu):
         """Test initialize all the ME reference FMUs. """
         fmu = load_fmu(ref_fmu)
         fmu.initialize() # Should simply pass without any exceptions
+
+
+    @pytest.mark.parametrize("ref_fmu", [
+        FMI3_REF_FMU_PATH / "BouncingBall.fmu",
+        FMI3_REF_FMU_PATH / "Dahlquist.fmu",
+        FMI3_REF_FMU_PATH / "Resource.fmu",
+        FMI3_REF_FMU_PATH / "StateSpace.fmu",
+        FMI3_REF_FMU_PATH / "Feedthrough.fmu",
+        FMI3_REF_FMU_PATH / "Stair.fmu",
+        FMI3_REF_FMU_PATH / "VanDerPol.fmu",
+    ])
+    def test_initialize_manually(self, ref_fmu):
+        """Test initialize all the ME reference FMUs by entering/exiting initialization mode manually. """
+        fmu = load_fmu(ref_fmu)
+        # Should simply pass without any exceptions
+        fmu.enter_initialization_mode()
+        fmu.exit_initialization_mode()
+
+    def test_get_default_experiment_start_time(self):
+        """Test retrieving default experiment start time. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        assert fmu.get_default_experiment_start_time() == 0.0
+
+
+    def test_get_default_experiment_stop_time(self):
+        """Test retrieving default experiment stop time. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        assert fmu.get_default_experiment_stop_time() == 20.0
+
+
+    def test_get_default_experiment_tolerance(self):
+        """Test retrieving default experiment tolerance. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        assert fmu.get_default_experiment_tolerance() == 0.0001
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
