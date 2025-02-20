@@ -1205,7 +1205,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         status = FMIL2.fmi2_import_reset(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != 0:
-            raise FMUException('An error occured when reseting the model, see the log for possible more information')
+            raise FMUException('An error occured when resetting the model, see the log for possible more information')
 
         #Default values
         self._t = None

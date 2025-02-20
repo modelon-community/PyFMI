@@ -231,10 +231,17 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._log = []
 
     def __dealloc__(self):
-        """
-        Deallocate memory
-        """
+        """ Deallocate allocated memory. """
         self._invoked_dealloc = 1
+
+        if self._initialized_fmu == 1:
+            FMIL3.fmi3_import_terminate(self._fmu)
+
+        if self._allocated_fmu == 1:
+            FMIL3.fmi3_import_free_instance(self._fmu)
+
+        if self._allocated_dll == 1:
+            FMIL3.fmi3_import_destroy_dllfmu(self._fmu)
 
         if self._allocated_xml == 1:
             FMIL3.fmi3_import_free(self._fmu)
@@ -255,17 +262,41 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if self._log_stream:
             self._log_stream = None
 
+    def terminate(self):
+        """
+        Calls the FMI function fmi3Terminate() on the FMU.
+        After this call, any call to a function changing the state of the FMU will fail.
+        """
+        cdef FMIL3.fmi3_status_t status
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_terminate(self._fmu)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException("Termination of FMU failed, see log for possible more information.")
+
+    def free_instance(self):
+        """
+        Calls the FMI function fmi3FreeInstance() on the FMU. Note that this is not
+        needed generally.
+        """
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        FMIL3.fmi3_import_free_instance(self._fmu)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+
     def reset(self):
         """ Resets the FMU back to its original state. Note that the environment
-        has to initialize the FMU again after this function-call. """
+        has to initialize the FMU again after this function-call.
+        """
         cdef FMIL3.fmi3_status_t status
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_reset(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != 0:
-            raise FMUException('An error occured when reseting the model, see the log for possible more information')
-
+            raise FMUException('An error occured when resetting the model, see the log for possible more information')
 
         #Default values
         self._t = None
