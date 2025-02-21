@@ -144,6 +144,41 @@ class TestFMI3LoadFMU:
         FMI3_REF_FMU_PATH / "Stair.fmu",
         FMI3_REF_FMU_PATH / "VanDerPol.fmu",
     ])
+    def test_enter_continuous_time_mode(self, ref_fmu):
+        """Test entering continuous time mode. """
+        fmu = load_fmu(ref_fmu)
+        # Should simply pass without any exceptions
+        fmu.initialize()
+        fmu.enter_continuous_time_mode()
+        fmu.terminate()
+
+    @pytest.mark.parametrize("ref_fmu", [
+        FMI3_REF_FMU_PATH / "BouncingBall.fmu",
+        FMI3_REF_FMU_PATH / "Dahlquist.fmu",
+        FMI3_REF_FMU_PATH / "Resource.fmu",
+        FMI3_REF_FMU_PATH / "StateSpace.fmu",
+        FMI3_REF_FMU_PATH / "Feedthrough.fmu",
+        FMI3_REF_FMU_PATH / "Stair.fmu",
+        FMI3_REF_FMU_PATH / "VanDerPol.fmu",
+    ])
+    def test_enter_event_mode(self, ref_fmu):
+        """Test enter event mode. """
+        fmu = load_fmu(ref_fmu)
+        # Should simply pass without any exceptions
+        fmu.initialize()
+        fmu.enter_continuous_time_mode()
+        fmu.enter_event_mode()
+        fmu.terminate()
+
+    @pytest.mark.parametrize("ref_fmu", [
+        FMI3_REF_FMU_PATH / "BouncingBall.fmu",
+        FMI3_REF_FMU_PATH / "Dahlquist.fmu",
+        FMI3_REF_FMU_PATH / "Resource.fmu",
+        FMI3_REF_FMU_PATH / "StateSpace.fmu",
+        FMI3_REF_FMU_PATH / "Feedthrough.fmu",
+        FMI3_REF_FMU_PATH / "Stair.fmu",
+        FMI3_REF_FMU_PATH / "VanDerPol.fmu",
+    ])
     def test_initialize_manually(self, ref_fmu):
         """Test initialize all the ME reference FMUs by entering/exiting initialization mode manually. """
         fmu = load_fmu(ref_fmu)
