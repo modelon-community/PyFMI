@@ -186,6 +186,15 @@ class TestFMI3LoadFMU:
         fmu.enter_initialization_mode()
         fmu.exit_initialization_mode()
 
+    def test_get_double_terminate(self):
+        """Test invalid call sequence raises an error. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.initialize()
+        fmu.terminate()
+        msg = "Termination of FMU failed, see log for possible more information."
+        with pytest.raises(FMUException, match = msg):
+            fmu.terminate()
+
     def test_get_default_experiment_start_time(self):
         """Test retrieving default experiment start time. """
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
