@@ -114,7 +114,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self.callbacks.logger  = importlogger3
         self.callbacks.context = <void*>self
 
-
         if isinstance(log_level, int) and (log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all):
             if log_level == FMIL.jm_log_level_nothing:
                 self._enable_logging = False
@@ -282,7 +281,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         FMIL3.fmi3_import_free_instance(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
-
     def reset(self):
         """ Resets the FMU back to its original state. Note that the environment
         has to initialize the FMU again after this function-call.
@@ -308,10 +306,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     def _get_fmu_kind(self):
         raise FMUException("FMUModelBase3 cannot be used directly, use FMUModelME3.")
 
-
     def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
         raise NotImplementedError
-
 
     def initialize(self,
         tolerance_defined=True,
