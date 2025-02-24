@@ -199,10 +199,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             self._allocated_dll = 1
 
         # Note that below, values are retrieved from XML (via FMIL) if .dll/.so is not connected
-        if self._fmu_kind & FMIL3.fmi3_fmu_kind_me:
-            self._modelId= pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_ME(self._fmu))
-        else:
-            raise NotImplementedError(f"FMUModelBase3 only supports FMU type 'Model Exchange'")
+        self._modelId = self.get_identifier()
 
         self._modelName = pyfmi_util.decode(FMIL3.fmi3_import_get_model_name(self._fmu))
 
@@ -348,7 +345,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         """ Return the model identifier, name of binary model file and prefix in
             the C-function names of the model.
         """
-        return self._modelId
+        return NotImplementedError
 
     def get_default_experiment_start_time(self):
         """ Returns the default experiment start time as defined the XML description. """
@@ -425,6 +422,11 @@ cdef class FMUModelME3(FMUModelBase3):
         else:
             raise InvalidVersionException('The FMU could not be loaded. This class only supports FMI 3.0 for Model Exchange.')
 
+    def get_identifier(self):
+        if not self._modelId:
+            self._modelId = pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_ME(self._fmu))
+
+        return self._modelId
 
     def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
         """
