@@ -200,6 +200,16 @@ class TestFMI3LoadFMU:
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
         assert fmu.get_default_experiment_start_time() == 0.0
 
+    def test_free_instance_after_load(self):
+        """Test invoke free instance after loading. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.free_instance()
+
+    def test_free_instance_after_initialization(self):
+        """Test invoke free instance after initialization. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.initialize()
+        fmu.free_instance()
 
     def test_get_default_experiment_stop_time(self):
         """Test retrieving default experiment stop time. """
