@@ -47,8 +47,8 @@ jobs:
     - name: Install fmilib
       run: |
         cd /tmp
-        curl -fSsL https://github.com/modelon-community/fmi-library/archive/3.0a4.tar.gz | tar xz
-        cd fmi-library-3.0a4
+        curl -fSsL https://github.com/modelon-community/fmi-library/archive/3.0a5.tar.gz | tar xz
+        cd fmi-library-3.0a5
         sed -i "/CMAKE_INSTALL_PREFIX/d" CMakeLists.txt
         mkdir -p build && cd build
         cmake -DCMAKE_INSTALL_PREFIX=/usr ..
