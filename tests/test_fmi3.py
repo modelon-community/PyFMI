@@ -17,6 +17,7 @@
 
 import pytest
 import re
+import logging
 from io import StringIO
 from pyfmi import load_fmu
 from pathlib import Path
@@ -58,10 +59,13 @@ class TestFMI3LoadFMU:
         FMI3_REF_FMU_PATH / "Stair.fmu",
         FMI3_REF_FMU_PATH / "VanDerPol.fmu",
     ])
-    def test_load_kind_auto(self, ref_fmu):
+    def test_load_kind_auto(self, caplog, ref_fmu):
         """Test loading a ME FMU via kind 'auto'"""
+        caplog.set_level(logging.WARNING)
         fmu = load_fmu(ref_fmu, kind = "auto")
         assert isinstance(fmu, FMUModelME3)
+        experimental_msg = "FMI3 support is experimental."
+        assert any(experimental_msg in msg for msg in caplog.messages)
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "Clocks.fmu"])
     def test_load_kind_auto_SE(self, ref_fmu):
@@ -101,17 +105,12 @@ class TestFMI3LoadFMU:
         assert fmu.get_version() == '3.0'
 
     def test_instantiation(self, tmpdir):
-        """ Test that instantion works by verifying the output in the log.
-        """
-        found_substring = False
-        substring_to_find = 'Successfully loaded all the interface functions'
-
+        """ Test that instantiation works by verifying the output in the log."""
         with temp_dir_context(tmpdir) as temp_path:
              # log_level set to 5 required by test
             fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", log_level=5)
-            with open(fmu.get_log_filename(), 'r') as f:
-                contents = f.readlines()
 
+        substring_to_find = 'Successfully loaded all the interface functions'
         assert any(substring_to_find in line for line in fmu.get_log())
 
     @pytest.mark.parametrize("ref_fmu", [
