@@ -17,6 +17,9 @@
 
 # Module containing the FMI3 interface Python wrappers.
 
+import numpy as np
+cimport numpy as np
+
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi_base as FMI_BASE
@@ -40,6 +43,15 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cdef int _initialized_fmu
     cdef object  _has_entered_init_mode # this is public in FMI2 but I don't see why
+
+    cpdef set_float64(self, valueref, values)
+    cpdef set_float32(self, valueref, values)
+
+    cpdef np.ndarray get_float64(self, valueref)
+    cpdef np.ndarray get_float32(self, valueref)
+
+    cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variablename) except *
+    cpdef FMIL3.fmi3_base_type_enu_t get_variable_data_type(self, variable_name) except *
 
 cdef class FMUModelME3(FMUModelBase3):
     cdef FMIL.size_t                _nEventIndicators

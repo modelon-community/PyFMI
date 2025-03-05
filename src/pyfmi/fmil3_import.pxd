@@ -21,20 +21,43 @@
 # This file contains FMIL header content specific to FMI3
 cimport pyfmi.fmil_import as FMIL
 from libcpp cimport bool # TODO: Possible issue due to https://github.com/cython/cython/issues/5730 ??
-
+from libc.stdint cimport uint32_t
 
 
 cdef extern from 'fmilib.h':
     # FMI VARIABLE TYPE DEFINITIONS
-    ctypedef void*  fmi3_instance_environment_t
-    ctypedef char*  fmi3_string_t
-    ctypedef bool   fmi3_boolean_t
-    ctypedef double fmi3_float64_t
+    ctypedef void*    fmi3_instance_environment_t
+    ctypedef char*    fmi3_string_t
+    ctypedef bool     fmi3_boolean_t
+    ctypedef double   fmi3_float64_t
+    ctypedef float    fmi3_float32_t
+    ctypedef uint32_t fmi3_value_reference_t
 
     # STRUCTS
     ctypedef enum fmi3_boolean_enu_t:
         fmi3_true = 1
         fmi3_false = 0
+
+    cdef enum fmi3_base_type_enu_t:
+        fmi3_base_type_float64 = 1,
+        fmi3_base_type_float32 = 2,
+        fmi3_base_type_int64   = 3,
+        fmi3_base_type_int32   = 4,
+        fmi3_base_type_int16   = 5,
+        fmi3_base_type_int8    = 6,
+        fmi3_base_type_uint64  = 7,
+        fmi3_base_type_uint32  = 8,
+        fmi3_base_type_uint16  = 9,
+        fmi3_base_type_uint8   = 10,
+        fmi3_base_type_bool    = 11,
+        fmi3_base_type_binary  = 12,
+        fmi3_base_type_clock   = 13,
+        fmi3_base_type_str     = 14,
+        fmi3_base_type_enum    = 15
+
+    cdef struct fmi3_xml_variable_t:
+        pass
+    ctypedef fmi3_xml_variable_t fmi3_import_variable_t
 
     # STATUS
     cdef enum fmi3_fmu_kind_enu_t:
@@ -102,7 +125,13 @@ cdef extern from 'fmilib.h':
     # setting
     fmi3_status_t fmi3_import_set_time(fmi3_import_t *, fmi3_float64_t)
 
+    fmi3_status_t fmi3_import_set_float64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float64_t*, size_t)
+    fmi3_status_t fmi3_import_set_float32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float32_t*, size_t)
+
     # getting
+    fmi3_status_t fmi3_import_get_float64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float64_t*, size_t);
+    fmi3_status_t fmi3_import_get_float32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float32_t*, size_t);
+
     double fmi3_import_get_default_experiment_start(fmi3_import_t*);
     double fmi3_import_get_default_experiment_stop(fmi3_import_t*);
     double fmi3_import_get_default_experiment_tolerance(fmi3_import_t*);
@@ -133,3 +162,8 @@ cdef extern from 'fmilib.h':
     void fmi3_log_forwarding(fmi3_instance_environment_t, fmi3_status_t, fmi3_string_t, fmi3_string_t)
     char* fmi3_import_get_last_error(fmi3_import_t*)
     char* fmi3_import_get_model_identifier_ME(fmi3_import_t*)
+
+    # Getting variables attributes/types
+    fmi3_import_variable_t* fmi3_import_get_variable_by_name(fmi3_import_t*, char*)
+    fmi3_value_reference_t fmi3_import_get_variable_vr(fmi3_import_variable_t*)
+    fmi3_base_type_enu_t fmi3_import_get_variable_base_type(fmi3_import_variable_t*)

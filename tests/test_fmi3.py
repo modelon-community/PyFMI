@@ -17,12 +17,33 @@
 
 import pytest
 import re
+<<<<<<< HEAD
 import logging
+=======
+import numpy as np
+>>>>>>> 3b67cc5 (Implemented get & set for float32/64 variables)
 from io import StringIO
 from pyfmi import load_fmu
 from pathlib import Path
 from pyfmi.fmi import (
     FMUModelME3,
+)
+from pyfmi.fmi3 import (
+    FMI3_FLOAT64,
+    FMI3_FLOAT32,
+    FMI3_INT64,
+    FMI3_INT32,
+    FMI3_INT16,
+    FMI3_INT8,
+    FMI3_UINT64,
+    FMI3_UINT32,
+    FMI3_UINT16,
+    FMI3_UINT8,
+    FMI3_BOOL,
+    FMI3_BINARY,
+    FMI3_CLOCK,
+    FMI3_STRING,
+    FMI3_ENUM,
 )
 from pyfmi.exceptions import (
     FMUException,
@@ -281,6 +302,88 @@ class Test_FMI3ME:
         msg = "The log level must be an integer between 0 and 7"
         with pytest.raises(FMUException, match = msg):
             FMUModelME3(fmu_path, log_level = log_level, _connect_dll = False)
+
+    @pytest.mark.parametrize("variable_name, value, expected_dtype",
+        [
+            ("Float64_continuous_input", 3.14, np.double),
+            ("Float32_continuous_input", np.float32(3.14), np.float32),
+        ]
+    )
+    def test_set_get(self, variable_name, value, expected_dtype):
+        """Test getting and setting variables of various types."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = FMUModelME3(fmu_path)
+        fmu.set(variable_name, value)
+        res = fmu.get(variable_name)
+        assert res.dtype == expected_dtype
+        assert res[0] == value
+
+    def test_set_missing_variable(self):
+        """Test setting a variable that does not exists."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        var_name = "x0"
+        err_msg = f"The variable {var_name} could not be found."
+        with pytest.raises(FMUException, match = err_msg):
+            fmu.set(var_name, 0.)
+
+    def test_get_missing_variable(self):
+        """Test getting a variable that does not exists."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        var_name = "x0"
+        err_msg = f"The variable {var_name} could not be found."
+        with pytest.raises(FMUException, match = err_msg):
+            fmu.get(var_name)
+
+    def test_get_variable_valueref(self):
+        """Test getting variable value references."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        assert fmu.get_variable_valueref("time") == 0
+        assert fmu.get_variable_valueref("Enumeration_input") == 32
+
+    def test_get_variable_valueref_missing(self):
+        """Test getting variable value references for variable that does not exist."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        var_name = "x0"
+        err_msg = f"The variable {var_name} could not be found."
+        with pytest.raises(FMUException, match = err_msg):
+            fmu.get_variable_valueref(var_name)
+
+    @pytest.mark.parametrize("variable_name, expected_datatype",
+        [
+            ("Float64_continuous_input", FMI3_FLOAT64),
+            ("Float32_continuous_input", FMI3_FLOAT32),
+            ("Int64_input", FMI3_INT64),
+            ("Int32_input", FMI3_INT32),
+            ("Int16_input", FMI3_INT16),
+            ("Int8_input" , FMI3_INT8),
+            ("UInt64_input", FMI3_UINT64),
+            ("UInt32_input", FMI3_UINT32),
+            ("UInt16_input", FMI3_UINT16),
+            ("UInt8_input",  FMI3_UINT8),
+            ("Boolean_input", FMI3_BOOL),
+            ("String_parameter", FMI3_STRING),
+            ("Binary_input", FMI3_BINARY),
+            ("Enumeration_input", FMI3_ENUM),
+        ]
+    )
+    def test_get_variable_data_type(self, variable_name, expected_datatype):
+        """Test getting variable data types."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        assert fmu.get_variable_data_type(variable_name) == expected_datatype
+
+    def test_get_variable_data_type_missing(self):
+        """Test getting variable data type for missing variable."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        var_name = "x0"
+        err_msg = f"The variable {var_name} could not be found."
+        with pytest.raises(FMUException, match = err_msg):
+            fmu.get_variable_data_type(var_name)
 
 class TestFMI3CS:
     # TODO: Unsupported for now

@@ -22,10 +22,31 @@ cimport cython
 import os
 import logging
 
+import numpy as np
+cimport numpy as np
+
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi_base as FMI_BASE
 cimport pyfmi.util as pyfmi_util
+
+# TYPES
+# TODO: Import into fmi.pyx for convenience imports?
+FMI3_FLOAT64 = FMIL3.fmi3_base_type_float64
+FMI3_FLOAT32 = FMIL3.fmi3_base_type_float32
+FMI3_INT64   = FMIL3.fmi3_base_type_int64
+FMI3_INT32   = FMIL3.fmi3_base_type_int32
+FMI3_INT16   = FMIL3.fmi3_base_type_int16
+FMI3_INT8    = FMIL3.fmi3_base_type_int8
+FMI3_UINT64  = FMIL3.fmi3_base_type_uint64
+FMI3_UINT32  = FMIL3.fmi3_base_type_uint32
+FMI3_UINT16  = FMIL3.fmi3_base_type_uint16
+FMI3_UINT8   = FMIL3.fmi3_base_type_uint8
+FMI3_BOOL    = FMIL3.fmi3_base_type_bool
+FMI3_BINARY  = FMIL3.fmi3_base_type_binary
+FMI3_CLOCK   = FMIL3.fmi3_base_type_clock
+FMI3_STRING  = FMIL3.fmi3_base_type_str
+FMI3_ENUM    = FMIL3.fmi3_base_type_enum
 
 from pyfmi.exceptions import (
     FMUException,
@@ -319,6 +340,253 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         stop_time="Default"
     ):
         raise NotImplementedError
+
+    def _set(self, variable_name, value):
+        """
+        Helper method to set, see docstring on set.
+        """
+        cdef FMIL3.fmi3_value_reference_t ref
+        cdef FMIL3.fmi3_base_type_enu_t basetype
+
+        ref = self.get_variable_valueref(variable_name)
+        basetype = self.get_variable_data_type(variable_name)
+
+        if basetype == FMIL3.fmi3_base_type_float64:
+            self.set_float64([ref], [value])
+        elif basetype == FMIL3.fmi3_base_type_float32:
+            self.set_float32([ref], [value])
+        # TODO: Add more types
+        else: 
+            raise FMUException('Type not supported.')
+
+    cpdef set_float64(self, valueref, values):
+        """
+        Sets the float64-values in the FMU as defined by the valuereference(s).
+
+        Parameters::
+
+            valueref --
+                A list of valuereferences.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_float64([234, 235],[2.34, 10.4])
+
+        Calls the low-level FMI function: fmi3SetFloat64
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.double).ravel()
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_float64(
+            self._fmu, 
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
+            np.size(input_valueref), 
+            <FMIL3.fmi3_float64_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the Float64 values. See the log for possibly more information.')
+
+    cpdef set_float32(self, valueref, values):
+        """
+        Sets the float32-values in the FMU as defined by the valuereference(s).
+
+        Parameters::
+
+            valueref --
+                A list of valuereferences.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_float32([234, 235],[2.34, 10.4])
+
+        Calls the low-level FMI function: fmi3SetFloat32
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_float32_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.float32).ravel()
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_float32(
+            self._fmu, 
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
+            np.size(input_valueref), 
+            <FMIL3.fmi3_float32_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the Float32 values. See the log for possibly more information.')
+
+    def _get(self, variable_name):
+        """
+        Helper method to get, see docstring on get.
+        """
+        cdef FMIL3.fmi3_value_reference_t ref
+        cdef FMIL3.fmi3_base_type_enu_t basetype
+
+        ref  = self.get_variable_valueref(variable_name)
+        basetype = self.get_variable_data_type(variable_name)
+
+        if basetype == FMIL3.fmi3_base_type_float64:
+            return self.get_float64([ref])
+        elif basetype == FMIL3.fmi3_base_type_float32:
+            return self.get_float32([ref])
+        # TODO: more types
+        else:
+            raise FMUException('Type not supported.')
+
+    cpdef np.ndarray get_float64(self, valueref):
+        """
+        Returns the float64-values from the valuereference(s).
+
+        Parameters::
+
+            valueref --
+                A list of valuereferences.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_float64([232])
+
+        Calls the low-level FMI function: fmi3GetFloat64
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.double)
+
+        if nref == 0: # get_float64([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_float64(
+            self._fmu, 
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
+            nref, 
+            <FMIL3.fmi3_float64_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the Float64 values.')
+
+        return output_value
+
+    cpdef np.ndarray get_float32(self, valueref):
+        """
+        Returns the float32-values from the valuereference(s).
+
+        Parameters::
+
+            valueref --
+                A list of valuereferences.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_float32([232])
+
+        Calls the low-level FMI function: fmi3GetFloat32
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_float32_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.float32)
+
+        if nref == 0: # get_float32([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_float32(
+            self._fmu, 
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
+            nref, 
+            <FMIL3.fmi3_float32_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the Float32 values.')
+
+        return output_value
+
+    cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variable_name) except *:
+        """
+        Extract the ValueReference given a variable name.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The ValueReference for the variable passed as argument.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable
+        cdef FMIL3.fmi3_value_reference_t vr
+        variable_name = pyfmi_util.encode(variable_name)
+        cdef char* variablename = variable_name
+
+        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%pyfmi_util.decode(variablename))
+        vr =  FMIL3.fmi3_import_get_variable_vr(variable)
+
+        return vr
+
+    cpdef FMIL3.fmi3_base_type_enu_t get_variable_data_type(self, variable_name) except *:
+        """
+        Get data type of variable.
+
+        Parameter::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The type of the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable
+        cdef FMIL3.fmi3_base_type_enu_t basetype
+        variable_name = pyfmi_util.encode(variable_name)
+        cdef char* variablename = variable_name
+
+        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%pyfmi_util.decode(variablename))
+
+        basetype = FMIL3.fmi3_import_get_variable_base_type(variable)
+
+        return basetype
 
     def get_fmil_log_level(self):
         """
