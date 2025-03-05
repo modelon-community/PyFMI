@@ -23,6 +23,12 @@ class FMUException(Exception):
     """
     pass
 
+class FMIModel_Exception(Exception):
+    """
+    A FMIModel Exception.
+    """
+    pass
+
 class IOException(FMUException):
     """
         Exception covering issues related to writing/reading data.
