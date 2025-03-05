@@ -17,11 +17,8 @@
 
 import pytest
 import re
-<<<<<<< HEAD
 import logging
-=======
 import numpy as np
->>>>>>> 3b67cc5 (Implemented get & set for float32/64 variables)
 from io import StringIO
 from pyfmi import load_fmu
 from pathlib import Path
