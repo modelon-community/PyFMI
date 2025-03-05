@@ -382,6 +382,15 @@ class Test_FMI3ME:
         with pytest.raises(FMUException, match = err_msg):
             fmu.get_variable_data_type(var_name)
 
+    def test_set_array_variable(self):
+        """Test setting an array variable (not yet supported). """
+        fmu_path = FMI3_REF_FMU_PATH / "StateSpace.fmu"
+        fmu = FMUModelME3(fmu_path)
+        err_msg = "The length of valueref and values are inconsistent. Note: Array variables are not yet supported"
+        with pytest.raises(FMUException, match = err_msg):
+            fmu.set("x", np.array([1, 2, 3]))
+
+
 class TestFMI3CS:
     # TODO: Unsupported for now
     pass

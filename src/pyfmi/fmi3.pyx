@@ -361,12 +361,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef set_float64(self, valueref, values):
         """
-        Sets the float64-values in the FMU as defined by the valuereference(s).
+        Sets the float64-values in the FMU as defined by the value reference(s).
 
         Parameters::
 
             valueref --
-                A list of valuereferences.
+                A list of value references.
 
             values --
                 Values to be set.
@@ -380,6 +380,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.double).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_float64(
@@ -396,12 +399,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef set_float32(self, valueref, values):
         """
-        Sets the float32-values in the FMU as defined by the valuereference(s).
+        Sets the float32-values in the FMU as defined by the value reference(s).
 
         Parameters::
 
             valueref --
-                A list of valuereferences.
+                A list of value references.
 
             values --
                 Values to be set.
@@ -415,6 +418,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_float32_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.float32).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_float32(
@@ -449,12 +455,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef np.ndarray get_float64(self, valueref):
         """
-        Returns the float64-values from the valuereference(s).
+        Returns the float64-values from the value reference(s).
 
         Parameters::
 
             valueref --
-                A list of valuereferences.
+                A list of value references.
 
         Returns::
 
@@ -494,12 +500,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef np.ndarray get_float32(self, valueref):
         """
-        Returns the float32-values from the valuereference(s).
+        Returns the float32-values from the value reference(s).
 
         Parameters::
 
             valueref --
-                A list of valuereferences.
+                A list of value references.
 
         Returns::
 
@@ -539,7 +545,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variable_name) except *:
         """
-        Extract the ValueReference given a variable name.
+        Extract the value reference given a variable name.
 
         Parameters::
 
@@ -548,7 +554,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         Returns::
 
-            The ValueReference for the variable passed as argument.
+            The value reference for the variable passed as argument.
         """
         cdef FMIL3.fmi3_import_variable_t* variable
         cdef FMIL3.fmi3_value_reference_t vr
