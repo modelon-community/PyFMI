@@ -287,7 +287,6 @@ class AssimuloFMIAlg(AlgorithmBase):
 
         # import Assimulo dependent function
         from pyfmi.simulation.assimulo_interface import get_fmi_ode_problem
-        # from pyfmi.simulation.assimulo_interface import FMIODE, FMIODESENS, FMIODE2, FMIODESENS2
 
         # set start time, final time and input trajectory
         self.start_time = start_time
