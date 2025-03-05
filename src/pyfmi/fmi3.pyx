@@ -20,6 +20,7 @@
 cimport cython
 
 import os
+import logging
 
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3
@@ -84,6 +85,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
             A model as an object from the class FMUModelFMU3
         """
+        logging.warning("FMI3 support is experimental.")
         # Call super
         FMI_BASE.ModelBase.__init__(self)
 
