@@ -259,6 +259,12 @@ def check_extensions():
     ext_list += cythonize([os.path.join("src", "pyfmi", "simulation", "assimulo_interface.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
+    ext_list += cythonize([os.path.join("src", "pyfmi", "simulation", "assimulo_interface_fmi1.pyx")],
+                    include_path = incl_path,
+                    compiler_directives={'language_level' : "3str"})
+    ext_list += cythonize([os.path.join("src", "pyfmi", "simulation", "assimulo_interface_fmi2.pyx")],
+                    include_path = incl_path,
+                    compiler_directives={'language_level' : "3str"})
 
     # MASTER PYX
     compile_time_env = {'WITH_OPENMP': with_openmp}
