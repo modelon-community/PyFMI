@@ -58,7 +58,7 @@ class FMIODE(Explicit_Problem):
         self._adapt_input(input)
         self.timings = {"handle_result": 0.0}
 
-        #Set start time to the model
+        # Set start time to the model
         self._model.time = start_time
 
         self.t0 = start_time
@@ -74,12 +74,12 @@ class FMIODE(Explicit_Problem):
             self.state_events = self.g
         self.time_events = self.t
 
-        #If there is no state in the model, add a dummy
-        #state der(y)=0
+        # If there is no state in the model, add a dummy
+        # state der(y)=0
         if f_nbr == 0:
             self.y0 = np.array([0.0])
 
-        #Determine the result file name
+        # Determine the result file name
         if result_file_name == '':
             self.result_file_name = model.get_name()+'_result.txt'
         else:
@@ -87,10 +87,10 @@ class FMIODE(Explicit_Problem):
         self.debug_file_name = model.get_name().replace(".","_")+'_debug.txt'
         self.debug_file_object = None
 
-        #Default values
+        # Default values
         self.export = result_handler
 
-        #Internal values
+        # Internal values
         self._sol_time = []
         self._sol_real = []
         self._sol_int  = []
@@ -99,16 +99,16 @@ class FMIODE(Explicit_Problem):
         self._write_header = True
         self._logging = logging
 
-        ## If result handler support is available, logging turns into dynamic_diagnostics
+        # # If result handler support is available, logging turns into dynamic_diagnostics
         self._logging_as_dynamic_diagnostics = self._logging and result_handler.supports.get("dynamic_diagnostics", False)
 
-        #Stores the first time point
-        #[r,i,b] = self._model.save_time_point()
+        # Stores the first time point
+        # [r,i,b] = self._model.save_time_point()
 
-        #self._sol_time += [self._model.t]
-        #self._sol_real += [r]
-        #self._sol_int  += [i]
-        #self._sol_bool += b
+        # self._sol_time += [self._model.t]
+        # self._sol_real += [r]
+        # self._sol_int  += [i]
+        # self._sol_bool += b
 
         self._jm_fmu = self._model.get_generation_tool() == "JModelica.org"
 
@@ -134,23 +134,23 @@ class FMIODE(Explicit_Problem):
         """
         The rhs (right-hand-side) for an ODE problem.
         """
-        #Moving data to the model
+        # Moving data to the model
         self._model.time = t
-        #Check if there are any states
+        # Check if there are any states
         if self._f_nbr != 0:
             self._model.continuous_states = y
 
-        #Sets the inputs, if any
+        # Sets the inputs, if any
         if self.input is not None:
             self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
 
-        #Evaluating the rhs
+        # Evaluating the rhs
         try:
             rhs = self._model.get_derivatives()
         except FMUException:
             raise AssimuloRecoverableError
 
-        #If there is no state, use the dummy
+        # If there is no state, use the dummy
         if self._f_nbr == 0:
             rhs = np.array([0.0])
 
@@ -160,17 +160,17 @@ class FMIODE(Explicit_Problem):
         """
         The event indicator function for a ODE problem.
         """
-        #Moving data to the model
+        # Moving data to the model
         self._model.time = t
-        #Check if there are any states
+        # Check if there are any states
         if self._f_nbr != 0:
             self._model.continuous_states = y
 
-        #Sets the inputs, if any
+        # Sets the inputs, if any
         if self.input is not None:
             self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
 
-        #Evaluating the event indicators
+        # Evaluating the event indicators
         eventInd = self._model.get_event_indicators()
 
         return eventInd
@@ -193,19 +193,19 @@ class FMIODE(Explicit_Problem):
         """
         time_start = timer()
 
-        #Moving data to the model
+        # Moving data to the model
         if t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all()):
-            #Moving data to the model
+            # Moving data to the model
             self._model.time = t
-            #Check if there are any states
+            # Check if there are any states
             if self._f_nbr != 0:
                 self._model.continuous_states = y
 
-            #Sets the inputs, if any
+            # Sets the inputs, if any
             if self.input is not None:
                 self._model.set_real(self.input_value_refs, self.input[1].eval(t)[0,:]*self.input_alias_type)
 
-            #Evaluating the rhs (Have to evaluate the values in the model)
+            # Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
         if self.export is not None:
@@ -217,18 +217,18 @@ class FMIODE(Explicit_Problem):
         """
         This method is called when Assimulo finds an event.
         """
-        #Moving data to the model
+        # Moving data to the model
         if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == solver.y).all()):
             self._model.time = solver.t
-            #Check if there are any states
+            # Check if there are any states
             if self._f_nbr != 0:
                 self._model.continuous_states = solver.y
 
-            #Sets the inputs, if any
+            # Sets the inputs, if any
             if self.input is not None:
                 self._model.set_real(self.input_value_refs, self.input[1].eval(np.array([solver.t]))[0,:]*self.input_alias_type)
 
-            #Evaluating the rhs (Have to evaluate the values in the model)
+            # Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
         if self._logging:
@@ -256,27 +256,27 @@ class FMIODE(Explicit_Problem):
             self._model.event_update(intermediateResult=False)
 
             eInfo = self._model.get_event_info()
-            #Retrieve solutions (if needed)
-            #if not eInfo.iterationConverged:
+            # Retrieve solutions (if needed)
+            # if not eInfo.iterationConverged:
             #    pass
 
-        #Check if the event affected the state values and if so sets them
+        # Check if the event affected the state values and if so sets them
         if eInfo.stateValuesChanged:
             if self._f_nbr == 0:
                 solver.y[0] = 0.0
             else:
                 solver.y = self._model.continuous_states
 
-        #Get new nominal values.
+        # Get new nominal values.
         if eInfo.stateValueReferencesChanged:
             if self._f_nbr == 0:
                 solver.atol = 0.01*solver.rtol*1
             else:
                 solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
 
-        #Check if the simulation should be terminated
+        # Check if the simulation should be terminated
         if eInfo.terminateSimulation:
-            raise TerminateSimulation #Exception from Assimulo
+            raise TerminateSimulation # Exception from Assimulo
 
         if self._logging and not self._logging_as_dynamic_diagnostics:
             str_ind2 = ""
@@ -298,7 +298,7 @@ class FMIODE(Explicit_Problem):
             fwrite.write(" Derivatives (post): "+str_der2 + "\n\n")
 
             header = "Time (simulated) | Time (real) | "
-            if solver.__class__.__name__=="CVode": #Only available for CVode
+            if solver.__class__.__name__=="CVode": # Only available for CVode
                 header += "Order | Error (Weighted)"
             if self._g_nbr > 0:
                 header += "Indicators"
@@ -308,19 +308,19 @@ class FMIODE(Explicit_Problem):
         """
         Method which is called at each successful step.
         """
-        #Moving data to the model
+        # Moving data to the model
         if solver.t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == solver.y).all()):
             self._model.time = solver.t
-            #Check if there are any states
+            # Check if there are any states
             if self._f_nbr != 0:
                 self._model.continuous_states = solver.y
 
-            #Sets the inputs, if any
+            # Sets the inputs, if any
             if self.input is not None:
                 self._model.set_real(self.input_value_refs, self.input[1].eval(np.array([solver.t]))[0,:]*self.input_alias_type)
-                #self._model.set(self.input[0],self.input[1].eval(np.array([solver.t]))[0,:])
+                # self._model.set(self.input[0],self.input[1].eval(np.array([solver.t]))[0,:])
 
-            #Evaluating the rhs (Have to evaluate the values in the model)
+            # Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
         if self._logging:
@@ -340,14 +340,14 @@ class FMIODE(Explicit_Problem):
                     msg = preface + '  <vector name="order">%d</vector>'%solver.get_last_order()
                     self._model.append_log_message("Model", 6, msg)
 
-                #End tag
+                # End tag
                 msg = preface + "</%s>"%solver_name
                 self._model.append_log_message("Model", 6, msg)
 
             if not self._logging_as_dynamic_diagnostics:
                 data_line = "%.14E"%solver.t+" | %.14E"%(solver.get_elapsed_step_time())
 
-                if solver.__class__.__name__=="CVode": #Only available for CVode
+                if solver.__class__.__name__=="CVode": # Only available for CVode
                     ele = solver.get_local_errors()
                     eweight = solver.get_error_weights()
                     err = ele*eweight
@@ -367,10 +367,10 @@ class FMIODE(Explicit_Problem):
 
         if self._model.completed_integrator_step():
             self._logg_step_event += [solver.t]
-            #Event have been detect, call event iteration.
-            #print "Step event detected at: ", solver.t
-            #self.handle_event(solver,[0])
-            return 1 #Tell to reinitiate the solver.
+            # Event have been detect, call event iteration.
+            # print "Step event detected at: ", solver.t
+            # self.handle_event(solver,[0])
+            return 1 # Tell to reinitiate the solver.
         else:
             return 0
 
@@ -411,7 +411,7 @@ class FMIODE(Explicit_Problem):
             f.write("Initial values: y ="+str_y+"\n\n")
 
             header = "Time (simulated) | Time (real) | "
-            if solver.__class__.__name__=="CVode": #Only available for CVode
+            if solver.__class__.__name__=="CVode": # Only available for CVode
                 header += "Order | Error (Weighted)"
             f.write(header+"\n")
 
@@ -444,11 +444,11 @@ class FMIODESENS(FMIODE):
     def __init__(self, model, input=None, result_file_name='',
                  with_jacobian=False, start_time=0.0, parameters=None, logging=False, result_handler=None):
 
-        #Call FMIODE init method
+        # Call FMIODE init method
         FMIODE.__init__(self, model, input, result_file_name, with_jacobian,
                 start_time,logging,result_handler)
 
-        #Store the parameters
+        # Store the parameters
         if parameters is not None:
             if not isinstance(parameters,list):
                 raise FMIModel_Exception("Parameters must be a list of names.")
@@ -458,7 +458,7 @@ class FMIODESENS(FMIODE):
 
 
     def rhs(self, t, y, p=None, sw=None):
-        #Sets the parameters, if any
+        # Sets the parameters, if any
         if self.parameters is not None:
             self._model.set(self.parameters, p)
 
@@ -467,7 +467,7 @@ class FMIODESENS(FMIODE):
 
     def j(self, t, y, p=None, sw=None):
 
-        #Sets the parameters, if any
+        # Sets the parameters, if any
         if self.parameters is not None:
             self._model.set(self.parameters, p)
 
@@ -475,29 +475,29 @@ class FMIODESENS(FMIODE):
 
     def handle_result(self, solver, t, y):
         #
-        #Post processing (stores the time points).
+        # Post processing (stores the time points).
         #
         time_start = timer()
 
-        #Moving data to the model
+        # Moving data to the model
         if t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all()):
-            #Moving data to the model
+            # Moving data to the model
             self._model.time = t
-            #Check if there are any states
+            # Check if there are any states
             if self._f_nbr != 0:
                 self._model.continuous_states = y
 
-            #Sets the inputs, if any
+            # Sets the inputs, if any
             if self.input is not None:
                 self._model.set(self.input[0], self.input[1].eval(t)[0,:])
 
-            #Evaluating the rhs (Have to evaluate the values in the model)
+            # Evaluating the rhs (Have to evaluate the values in the model)
             rhs = self._model.get_derivatives()
 
-        #Sets the parameters, if any
+        # Sets the parameters, if any
         if self.parameters is not None:
             p_data = np.array(solver.interpolate_sensitivity(t, 0)).flatten()
 
-        self.export.integration_point(solver)#parameter_data=p_data)
+        self.export.integration_point(solver)# parameter_data=p_data)
 
         self.timings["handle_result"] += timer() - time_start

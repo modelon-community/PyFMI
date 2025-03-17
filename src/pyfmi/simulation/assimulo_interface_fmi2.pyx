@@ -65,13 +65,13 @@ cdef class FMIODE2(cExplicit_Problem):
         self.input_names = []
         self.timings = {"handle_result": 0.0}
 
-        if type(model) == FMI2.FMUModelME2: #if isinstance(model, FMUModelME2):
+        if type(model) == FMI2.FMUModelME2: # if isinstance(model, FMUModelME2):
             self.model_me2 = model
             self.model_me2_instance = 1
         else:
             self.model_me2_instance = 0
 
-        #Set start time to the model
+        # Set start time to the model
         self._model.time = start_time
 
         self.t0 = start_time
@@ -93,7 +93,7 @@ cdef class FMIODE2(cExplicit_Problem):
         if f_nbr == 0:
             self.y0 = np.array([0.0])
 
-        #Determine the result file name
+        # Determine the result file name
         if result_file_name == '':
             self.result_file_name = model.get_name()+'_result.txt'
         else:
@@ -101,25 +101,25 @@ cdef class FMIODE2(cExplicit_Problem):
         self.debug_file_name = model.get_name().replace(".","_")+'_debug.txt'
         self.debug_file_object = None
 
-        #Default values
+        # Default values
         self.export = result_handler
 
-        #Internal values
+        # Internal values
         self._logg_step_event = []
         self._write_header = True
         self._logging = logging
         self._sparse_representation = False
         self._with_jacobian = with_jacobian
 
-        ## If result handler support is available, logging turns into dynamic_diagnostics
+        # # If result handler support is available, logging turns into dynamic_diagnostics
         self._logging_as_dynamic_diagnostics = self._logging and result_handler.supports.get("dynamic_diagnostics", False)
         self._number_of_diagnostics_variables = number_of_diagnostics_variables
 
         self.jac_use = False
         if f_nbr > 0 and with_jacobian:
-            self.jac_use = True #Activates the jacobian
+            self.jac_use = True # Activates the jacobian
 
-            #Need to calculate the nnz.
+            # Need to calculate the nnz.
             [derv_state_dep, derv_input_dep] = model.get_derivatives_dependencies()
             self.jac_nnz = np.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+f_nbr
 
@@ -196,19 +196,19 @@ cdef class FMIODE2(cExplicit_Problem):
 
     cdef _update_model(self, double t, np.ndarray[double, ndim=1, mode="c"] y):
         if self.model_me2_instance:
-            #Moving data to the model
+            # Moving data to the model
             self.model_me2._set_time(t)
-            #Check if there are any states
+            # Check if there are any states
             if self._f_nbr != 0:
                 self.model_me2._set_continuous_states_fmil(y)
         else:
-            #Moving data to the model
+            # Moving data to the model
             self._model.time = t
-            #Check if there are any states
+            # Check if there are any states
             if self._f_nbr != 0:
                 self._model.continuous_states = y
 
-        #Sets the inputs, if any
+        # Sets the inputs, if any
         self._set_input_values(t)
 
     cdef int _compare(self, double t, np.ndarray[double, ndim=1, mode="c"] y):
@@ -243,7 +243,7 @@ cdef class FMIODE2(cExplicit_Problem):
 
         self._update_model(t, y)
 
-        #Evaluating the rhs
+        # Evaluating the rhs
         if self.model_me2_instance:
             status = self.model_me2._get_derivatives(self._state_temp_1)
             if status != 0:
@@ -259,7 +259,7 @@ cdef class FMIODE2(cExplicit_Problem):
             except FMUException:
                 raise AssimuloRecoverableError
 
-        #If there is no state, use the dummy
+        # If there is no state, use the dummy
         if self._f_nbr == 0:
             der = np.array([0.0])
 
@@ -285,9 +285,9 @@ cdef class FMIODE2(cExplicit_Problem):
 
         self._update_model(t, y)
 
-        #Evaluating the jacobian
+        # Evaluating the jacobian
 
-        #If there are no states return a dummy jacobian.
+        # If there are no states return a dummy jacobian.
         if self._f_nbr == 0:
             if self._logging:
                 msg = preface + '</%s>'%(solver_info_tag)
@@ -303,14 +303,14 @@ cdef class FMIODE2(cExplicit_Problem):
             if hasattr(self._extra_equations, "jac"):
                 if self._sparse_representation:
 
-                    Jac = A.tocoo() #Convert to COOrdinate
+                    Jac = A.tocoo() # Convert to COOrdinate
                     A2 = self._extra_equations.jac(y_extra).tocoo()
 
                     data = np.append(Jac.data, A2.data)
                     row  = np.append(Jac.row, A2.row+self._f_nbr)
                     col  = np.append(Jac.col, A2.col+self._f_nbr)
 
-                    #Convert to compressed sparse column
+                    # Convert to compressed sparse column
                     Jac = sps.coo_matrix((data, (row, col)))
                     Jac = Jac.tocsc()
                 else:
@@ -340,7 +340,7 @@ cdef class FMIODE2(cExplicit_Problem):
 
         self._update_model(t, y)
 
-        #Evaluating the event indicators
+        # Evaluating the event indicators
         if self.model_me2_instance:
             status = self.model_me2._get_event_indicators(self._event_temp_1)
 
@@ -374,11 +374,11 @@ cdef class FMIODE2(cExplicit_Problem):
             y_extra = y[-self._extra_f_nbr:]
             y       = y[:-self._extra_f_nbr]
 
-        #Moving data to the model
+        # Moving data to the model
         if self._compare(t, y):
             self._update_model(t, y)
 
-            #Evaluating the rhs (Have to evaluate the values in the model)
+            # Evaluating the rhs (Have to evaluate the values in the model)
             if self.model_me2_instance:
                 status = self.model_me2._get_derivatives(self._state_temp_1)
 
@@ -405,11 +405,11 @@ cdef class FMIODE2(cExplicit_Problem):
         else:
             y       = solver.y
 
-        #Moving data to the model
+        # Moving data to the model
         if self._compare(solver.t, y):
             self._update_model(solver.t, y)
 
-            #Evaluating the rhs (Have to evaluate the values in the model)
+            # Evaluating the rhs (Have to evaluate the values in the model)
             if self.model_me2_instance:
                 status = self.model_me2._get_derivatives(self._state_temp_1)
 
@@ -493,26 +493,26 @@ cdef class FMIODE2(cExplicit_Problem):
                 self.export.diagnostics_point(diag_data)
 
 
-        #Enter event mode
+        # Enter event mode
         self._model.enter_event_mode()
 
         self._model.event_update()
         eInfo = self._model.get_event_info()
 
-        #Check if the event affected the state values and if so sets them
+        # Check if the event affected the state values and if so sets them
         if eInfo.valuesOfContinuousStatesChanged:
             if self._extra_f_nbr > 0:
                 solver.y = self._model.continuous_states.append(solver.y[-self._extra_f_nbr:])
             else:
                 solver.y = self._model.continuous_states
 
-        #Get new nominal values.
+        # Get new nominal values.
         if eInfo.nominalsOfContinuousStatesChanged:
             solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
 
-        #Check if the simulation should be terminated
+        # Check if the simulation should be terminated
         if eInfo.terminateSimulation:
-            raise TerminateSimulation #Exception from Assimulo
+            raise TerminateSimulation # Exception from Assimulo
 
         if self._logging:
             str_ind2 = ""
@@ -536,13 +536,13 @@ cdef class FMIODE2(cExplicit_Problem):
                 fwrite.write(" Derivatives (post): "+str_der2 + "\n\n")
 
                 header = "Time (simulated) | Time (real) | "
-                if solver.__class__.__name__=="CVode" or solver.__class__.__name__=="Radau5ODE": #Only available for CVode
+                if solver.__class__.__name__=="CVode" or solver.__class__.__name__=="Radau5ODE": # Only available for CVode
                     header += "Order | Error (Weighted)"
                 if self._g_nbr > 0:
                     header += "Indicators"
                 fwrite.write(header+"\n")
 
-        #Enter continuous mode again
+        # Enter continuous mode again
         self._model.enter_continuous_time_mode()
 
     def step_events(self, solver):
@@ -557,11 +557,11 @@ cdef class FMIODE2(cExplicit_Problem):
         else:
             y       = solver.y
 
-        #Moving data to the model
+        # Moving data to the model
         if self._compare(solver.t, y):
             self._update_model(solver.t, y)
 
-            #Evaluating the rhs (Have to evaluate the values in the model)
+            # Evaluating the rhs (Have to evaluate the values in the model)
             if self.model_me2_instance:
                 self.model_me2._get_derivatives(self._state_temp_1)
             else:
@@ -664,9 +664,9 @@ cdef class FMIODE2(cExplicit_Problem):
         ret_flag = 0
         if enter_event_mode:
             self._logg_step_event += [solver.t]
-            #Event have been detect, call event iteration.
+            # Event have been detect, call event iteration.
             self.handle_event(solver,[0])
-            ret_flag =  1 #Tell to reinitiate the solver.
+            ret_flag =  1 # Tell to reinitiate the solver.
         
         if self._synchronize_factor > 0:
             under_run = solver.t/self._synchronize_factor - (timer()-self._start_time)
@@ -764,7 +764,7 @@ cdef class FMIODE2(cExplicit_Problem):
             f.write("Initial values: y ="+str_y+"\n\n")
 
             header = "Time (simulated) | Time (real) | "
-            if solver_name=="CVode" or solver_name=="Radau5ODE": #Only available for CVode and Radau5ODE
+            if solver_name=="CVode" or solver_name=="Radau5ODE": # Only available for CVode and Radau5ODE
                 header += "Order | Error (Weighted)"
             f.write(header+"\n")
 
@@ -797,12 +797,12 @@ class FMIODESENS2(FMIODE2):
                  result_handler=None, extra_equations=None, parameters=None,
                  number_of_diagnostics_variables = 0):
 
-        #Call FMIODE init method
+        # Call FMIODE init method
         FMIODE2.__init__(self, model, input, result_file_name, with_jacobian,
                 start_time, logging, result_handler, extra_equations,
                 number_of_diagnostics_variables = number_of_diagnostics_variables)
 
-        #Store the parameters
+        # Store the parameters
         if parameters is not None:
             if not isinstance(parameters,list):
                 raise FMIModel_Exception("Parameters must be a list of names.")
@@ -828,19 +828,19 @@ class FMIODESENS2(FMIODE2):
                             "equations using directional derivatives. Disabling and using finite differences instead.")
 
             if use_rhs_sens:
-                self.rhs_sens = self.s #Activates the jacobian
+                self.rhs_sens = self.s # Activates the jacobian
 
         super(FMIODESENS2, self).rhs(0.0,self.y0,None)
 
     def rhs(self, t, y, p=None, sw=None):
-        #Sets the parameters, if any
+        # Sets the parameters, if any
         if self.parameters is not None:
             self._model.set(self.parameters, p)
 
         return FMIODE2.rhs(self,t,y,sw)
 
     def jac(self, t, y, p=None, sw=None):
-        #Sets the parameters, if any
+        # Sets the parameters, if any
         if self.parameters is not None:
             self._model.set(self.parameters, p)
 
