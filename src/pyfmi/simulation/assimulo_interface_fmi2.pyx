@@ -89,7 +89,7 @@ cdef class FMIODE2(cExplicit_Problem):
             self.state_events_use = True
         self.time_events_use = True
 
-        #If there is no state in the model, add a dummy state der(y)=0
+        # If there is no state in the model, add a dummy state der(y)=0
         if f_nbr == 0:
             self.y0 = np.array([0.0])
 
@@ -359,8 +359,7 @@ cdef class FMIODE2(cExplicit_Problem):
 
         if eInfo.nextEventTimeDefined:
             return eInfo.nextEventTime
-        else:
-            return None
+        return None
 
 
     def handle_result(self, solver, t, y):
