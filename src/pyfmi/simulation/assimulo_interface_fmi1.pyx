@@ -27,7 +27,7 @@ from timeit import default_timer as timer
 import numpy as np
 cimport numpy as np
 
-from pyfmi.exceptions import FMUException, FMIModel_Exception
+from pyfmi.exceptions import FMUException, FMIModel_Exception, FMIModelException
 
 try:
     import assimulo
@@ -451,7 +451,7 @@ class FMIODESENS(FMIODE):
         # Store the parameters
         if parameters is not None:
             if not isinstance(parameters,list):
-                raise FMIModel_Exception("Parameters must be a list of names.")
+                raise FMIModelException("Parameters must be a list of names.")
             self.p0 = np.array(model.get(parameters)).flatten()
             self.pbar = np.array([np.abs(x) if np.abs(x) > 0 else 1.0 for x in self.p0])
         self.parameters = parameters

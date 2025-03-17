@@ -27,6 +27,13 @@ class FMIModel_Exception(Exception):
     """
     A FMIModel Exception.
     """
+    # TODO Future; remove
+    pass
+
+class FMIModelException(FMIModel_Exception):
+    """
+    A FMIModel Exception.
+    """
     pass
 
 class IOException(FMUException):

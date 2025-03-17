@@ -34,7 +34,12 @@ from timeit import default_timer as timer
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmi2 as FMI2
 from pyfmi.fmi2 import FMI2_REAL, FMI2_INPUT
-from pyfmi.exceptions import FMUException, InvalidOptionException, FMIModel_Exception
+from pyfmi.exceptions import (
+    FMUException,
+    InvalidOptionException,
+    FMIModel_Exception,
+    FMIModelException
+)
 
 try:
     import assimulo
@@ -805,7 +810,7 @@ class FMIODESENS2(FMIODE2):
         # Store the parameters
         if parameters is not None:
             if not isinstance(parameters,list):
-                raise FMIModel_Exception("Parameters must be a list of names.")
+                raise FMIModelException("Parameters must be a list of names.")
             self.p0 = np.array(model.get(parameters)).flatten()
             self.pbar = np.array([np.abs(x) if np.abs(x) > 0 else 1.0 for x in self.p0])
             self.param_valref = [model.get_variable_valueref(x) for x in parameters]
@@ -813,7 +818,7 @@ class FMIODESENS2(FMIODE2):
             for param in parameters:
                 if model.get_variable_causality(param) != FMI2_INPUT and \
                    (model.get_generation_tool() != "JModelica.org" and model.get_generation_tool() != "Optimica Compiler Toolkit"):
-                    raise FMIModel_Exception("The sensitivity parameters must be specified as inputs!")
+                    raise FMIModelException("The sensitivity parameters must be specified as inputs!")
 
         self.parameters = parameters
         self.derivatives = [v.value_reference for i,v in model.get_derivatives_list().items()]

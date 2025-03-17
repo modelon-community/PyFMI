@@ -16,7 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """
-This file contains code for mapping FMUs to the fmu_probem specifications
+This file contains code for mapping FMUs to the fmu_problem specifications
 required by Assimulo.
 """
 
@@ -29,7 +29,11 @@ from pyfmi.simulation.assimulo_interface_fmi2 import (
     FMIODE2,
     FMIODESENS2
 )
-from pyfmi.exceptions import FMIModel_Exception, FMUException
+from pyfmi.exceptions import (
+    FMIModel_Exception,
+    FMUException,
+    FMIModelException
+)
 
 from pyfmi.fmi1 import FMUModelME1
 from pyfmi.fmi2 import FMUModelME2
