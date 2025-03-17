@@ -461,7 +461,7 @@ cdef class FMUModelME1Extended(FMI1.FMUModelME1):
         self._allocated_fmu = True
         
         #Create an assimulo problem
-        from pyfmi.simulation.assimulo_interface import FMIODE
+        from pyfmi.simulation.assimulo_interface_fmi1 import FMIODE
         self._explicit_problem = FMIODE(self, input=None, result_file_name = '',
                                         with_jacobian=False, start_time=start_time)
         

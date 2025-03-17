@@ -285,8 +285,8 @@ class AssimuloFMIAlg(AlgorithmBase):
             raise FMUException(
                 'Could not find Assimulo package. Check pyfmi.check_packages()')
 
-        # import Assimulo dependent classes
-        from pyfmi.simulation.assimulo_interface import FMIODE, FMIODESENS, FMIODE2, FMIODESENS2
+        # import Assimulo dependent function
+        from pyfmi.simulation.assimulo_interface import get_fmi_ode_problem
 
         # set start time, final time and input trajectory
         self.start_time = start_time
@@ -403,87 +403,23 @@ class AssimuloFMIAlg(AlgorithmBase):
             if self.options["solver"] != "CVode":
                 raise FMUException("Sensitivity simulations currently only supported using the solver CVode.")
 
-            #Checks to see if all the sensitivities are inside the model
-            #else there will be an exception
+            # Checks to see if all the sensitivities are inside the model
+            # else there will be an exception
             self.model.get(self.options["sensitivities"])
 
-        if not self.input and (isinstance(self.model, (FMUModelME2, CoupledFMUModelME2))):
-            if self.options["sensitivities"]:
-                self.probl = FMIODESENS2(self.model,
-                                         result_file_name = self.result_file_name,
-                                         with_jacobian = self.with_jacobian,
-                                         start_time = self.start_time,
-                                         parameters = self.options["sensitivities"],
-                                         logging = self.options["logging"],
-                                         result_handler = self.result_handler,
-                                         number_of_diagnostics_variables = number_of_diagnostics_variables)
-            else:
-                self.probl = FMIODE2(self.model,
-                                     result_file_name = self.result_file_name,
-                                     with_jacobian = self.with_jacobian,
-                                     start_time = self.start_time,
-                                     logging = self.options["logging"],
-                                     result_handler = self.result_handler,
-                                     extra_equations = self.options["extra_equations"],
-                                     synchronize_simulation = self.options["synchronize_simulation"],
-                                     number_of_diagnostics_variables = number_of_diagnostics_variables)
-        elif isinstance(self.model, (FMUModelME2, CoupledFMUModelME2)):
-            if self.options["sensitivities"]:
-                self.probl = FMIODESENS2(self.model,
-                                         input_traj,
-                                         result_file_name = self.result_file_name,
-                                         with_jacobian = self.with_jacobian,
-                                         start_time = self.start_time,
-                                         parameters = self.options["sensitivities"],
-                                         logging = self.options["logging"],
-                                         result_handler = self.result_handler,
-                                         number_of_diagnostics_variables = number_of_diagnostics_variables)
-            else:
-                self.probl = FMIODE2(self.model,
-                                     input_traj,
-                                     result_file_name = self.result_file_name,
-                                     with_jacobian = self.with_jacobian,
-                                     start_time = self.start_time,
-                                     logging = self.options["logging"],
-                                     result_handler = self.result_handler,
-                                     extra_equations = self.options["extra_equations"],
-                                     synchronize_simulation = self.options["synchronize_simulation"],
-                                     number_of_diagnostics_variables = number_of_diagnostics_variables)
-
-        elif not self.input:
-            if self.options["sensitivities"]:
-                self.probl = FMIODESENS(self.model,
-                                        result_file_name = self.result_file_name,
-                                        with_jacobian = self.with_jacobian,
-                                        start_time = self.start_time,
-                                        parameters = self.options["sensitivities"],
-                                        logging = self.options["logging"],
-                                        result_handler = self.result_handler)
-            else:
-                self.probl = FMIODE(self.model,
-                                    result_file_name = self.result_file_name,
-                                    with_jacobian = self.with_jacobian,
-                                    start_time = self.start_time,
-                                    logging = self.options["logging"],
-                                    result_handler = self.result_handler)
-        else:
-            if self.options["sensitivities"]:
-                self.probl = FMIODESENS(self.model,
-                                        input_traj,
-                                        result_file_name = self.result_file_name,
-                                        with_jacobian = self.with_jacobian,
-                                        start_time = self.start_time,
-                                        parameters = self.options["sensitivities"],
-                                        logging = self.options["logging"],
-                                        result_handler = self.result_handler)
-            else:
-                self.probl = FMIODE(self.model,
-                                    input_traj,
-                                    result_file_name = self.result_file_name,
-                                    with_jacobian = self.with_jacobian,
-                                    start_time = self.start_time,
-                                    logging = self.options["logging"],
-                                    result_handler = self.result_handler)
+        self.probl = get_fmi_ode_problem(
+            model = self.model,
+            result_file_name = self.result_file_name,
+            with_jacobian = self.with_jacobian,
+            start_time = self.start_time,
+            logging = self.options["logging"],
+            result_handler = self.result_handler,
+            input_traj = input_traj,
+            number_of_diagnostics_variables = number_of_diagnostics_variables,
+            sensitivities = self.options["sensitivities"],
+            extra_equations = self.options["extra_equations"],
+            synchronize_simulation = self.options["synchronize_simulation"]
+        )
 
         # instantiate solver and set options
         self.simulator = self.solver(self.probl)

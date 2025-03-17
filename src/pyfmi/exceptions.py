@@ -23,6 +23,19 @@ class FMUException(Exception):
     """
     pass
 
+class FMIModel_Exception(Exception):
+    """
+    A FMIModel Exception.
+    """
+    # TODO Future; remove
+    pass
+
+class FMIModelException(FMIModel_Exception):
+    """
+    A FMIModel Exception.
+    """
+    pass
+
 class IOException(FMUException):
     """
         Exception covering issues related to writing/reading data.

@@ -16,6 +16,8 @@ src/pyfmi/fmi_extended.c
 src/pyfmi/master.c
 
 src/pyfmi/simulation/assimulo_interface.c
+src/pyfmi/simulation/assimulo_interface_fmi1.c
+src/pyfmi/simulation/assimulo_interface_fmi2.c
 
 src/pyfmi/fmi.c
 
