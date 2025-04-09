@@ -356,7 +356,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         elif basetype == FMIL3.fmi3_base_type_float32:
             self.set_float32([ref], [value])
         # TODO: Add more types
-        else: 
+        else:
             raise FMUException('Type not supported.')
 
     cpdef set_float64(self, valueref, values):
@@ -386,9 +386,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_float64(
-            self._fmu, 
-            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
-            np.size(input_valueref), 
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
             <FMIL3.fmi3_float64_t*> set_value.data,
             np.size(set_value)
         )
@@ -424,9 +424,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_float32(
-            self._fmu, 
-            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
-            np.size(input_valueref), 
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
             <FMIL3.fmi3_float32_t*> set_value.data,
             np.size(set_value)
         )
@@ -485,9 +485,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         # TODO: Array variables; if any valueref points to an array, output length will be larger
         status = FMIL3.fmi3_import_get_float64(
-            self._fmu, 
-            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
-            nref, 
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
             <FMIL3.fmi3_float64_t*> output_value.data,
             nref
         )
@@ -530,9 +530,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         # TODO: Array variables; if any valueref points to an array, output length will be larger
         status = FMIL3.fmi3_import_get_float32(
-            self._fmu, 
-            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
-            nref, 
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
             <FMIL3.fmi3_float32_t*> output_value.data,
             nref
         )
@@ -885,6 +885,77 @@ cdef class FMUModelME3(FMUModelBase3):
 
         if status != FMIL3.fmi3_status_ok:
             raise FMUException("Failed to enter event mode")
+
+    cdef int _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx):
+        cdef int status
+        if self._nContinuousStates > 0:
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+            status = FMIL3.fmi3_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+            return status
+        else:
+            return FMIL3.fmi3_status_ok
+
+    def _get_continuous_states(self):
+        """
+        Returns a vector with the values of the continuous states.
+
+        Returns::
+
+            The continuous states.
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] ndx = np.zeros(
+            self._nContinuousStates,
+            dtype = np.double
+        )
+
+        status = self._get_continuous_states_fmil(ndx)
+
+        if status != 0:
+            raise FMUException('Failed to retrieve the continuous states.')
+
+        return ndx
+
+    cdef int _set_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx):
+        cdef int status
+        if self._nContinuousStates > 0:
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+            status = FMIL3.fmi3_import_set_continuous_states(self._fmu, &ndx[0], self._nContinuousStates)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+            return status
+        else:
+            return FMIL3.fmi3_status_ok
+
+    def _set_continuous_states(self, np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode="c"] values):
+        """
+        Set the values of the continuous states.
+
+        Parameters::
+
+            values--
+                The new values of the continuous states.
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1,mode='c'] ndx = values
+
+        if np.size(ndx) != self._nContinuousStates:
+            raise FMUException(
+                'Failed to set the new continuous states. ' \
+                'The number of values are not consistent with the number of '\
+                f'continuous states, which are {self._nContinuousStates}.')
+
+        status = self._set_continuous_states_fmil(ndx)
+
+        if status >= 3:
+            raise FMUException('Failed to set the new continuous states.')
+
+    continuous_states = property(_get_continuous_states, _set_continuous_states,
+        doc=
+    """
+    Property for accessing the current values of the continuous states. Calls
+    the low-level FMI function: fmi3SetContinuousStates/fmi3GetContinuousStates.
+    """)
 
 cdef void _cleanup_on_load_error(
     FMIL3.fmi3_import_t* fmu_3,

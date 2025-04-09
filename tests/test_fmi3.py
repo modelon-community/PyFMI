@@ -390,6 +390,12 @@ class Test_FMI3ME:
         with pytest.raises(FMUException, match = err_msg):
             fmu.set("x", np.array([1, 2, 3]))
 
+    def test_get_continuous_states(self):
+        """Test retrieve the continuous states."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        fmu.initialize()
+        assert all(fmu.continuous_states == [2.0, 0.0])
 
 class TestFMI3CS:
     # TODO: Unsupported for now

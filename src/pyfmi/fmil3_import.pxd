@@ -127,10 +127,12 @@ cdef extern from 'fmilib.h':
 
     fmi3_status_t fmi3_import_set_float64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float64_t*, size_t)
     fmi3_status_t fmi3_import_set_float32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float32_t*, size_t)
+    fmi3_status_t fmi3_import_set_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t);
 
     # getting
     fmi3_status_t fmi3_import_get_float64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float64_t*, size_t);
     fmi3_status_t fmi3_import_get_float32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float32_t*, size_t);
+    fmi3_status_t fmi3_import_get_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t);
 
     double fmi3_import_get_default_experiment_start(fmi3_import_t*);
     double fmi3_import_get_default_experiment_stop(fmi3_import_t*);

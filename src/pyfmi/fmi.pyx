@@ -97,10 +97,10 @@ from pyfmi.fmi1 import (
     FMI_OUTPUT,
     FMI_INTERNAL,
     FMI_NONE,
-    # Misc 
+    # Misc
     FMI_ME,
     FMI_CS_STANDALONE,
-    FMI_CS_TOOL, 
+    FMI_CS_TOOL,
     GLOBAL_FMU_OBJECT,
     FMI_REGISTER_GLOBALLY,
     GLOBAL_LOG_LEVEL,
@@ -142,14 +142,14 @@ from pyfmi.fmi2 import (
     # Causality
     FMI2_INPUT,
     FMI2_OUTPUT,
-    FMI2_PARAMETER, 
+    FMI2_PARAMETER,
     FMI2_CALCULATED_PARAMETER,
     FMI2_LOCAL,
     FMI2_INDEPENDENT,
     # Dependency
     FMI2_KIND_DEPENDENT,
     FMI2_KIND_CONSTANT,
-    FMI2_KIND_FIXED, 
+    FMI2_KIND_FIXED,
     FMI2_KIND_TUNABLE,
     FMI2_KIND_DISCRETE,
     # Initial

@@ -54,8 +54,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef FMIL3.fmi3_base_type_enu_t get_variable_data_type(self, variable_name) except *
 
 cdef class FMUModelME3(FMUModelBase3):
-    cdef FMIL.size_t                _nEventIndicators
-    cdef FMIL.size_t                _nContinuousStates
+    cdef FMIL.size_t _nEventIndicators
+    cdef FMIL.size_t _nContinuousStates
+    cdef int _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
+    cdef int _set_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
 
 cdef void _cleanup_on_load_error(
     FMIL3.fmi3_import_t* fmu_3,
