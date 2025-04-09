@@ -606,6 +606,14 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         else:
             raise FMUException('Logging is not enabled')
 
+    def get_model_version(self):
+        """
+        Returns the version of the FMU.
+        """
+        cdef FMIL3.fmi3_string_t version
+        version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
+        return pyfmi_util.decode(version) if version != NULL else ""
+
     def get_version(self):
         """ Returns the FMI version of the Model which it was generated according. """
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -613,11 +621,17 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return pyfmi_util.decode(version)
 
+    def get_name(self):
+        """
+        Return the model name as used in the modeling environment.
+        """
+        return self._modelName
+
     def get_identifier(self):
         """ Return the model identifier, name of binary model file and prefix in
             the C-function names of the model.
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     def get_default_experiment_start_time(self):
         """ Returns the default experiment start time as defined the XML description. """

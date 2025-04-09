@@ -169,3 +169,4 @@ cdef extern from 'fmilib.h':
     fmi3_import_variable_t* fmi3_import_get_variable_by_name(fmi3_import_t*, char*)
     fmi3_value_reference_t fmi3_import_get_variable_vr(fmi3_import_variable_t*)
     fmi3_base_type_enu_t fmi3_import_get_variable_base_type(fmi3_import_variable_t*)
+    char * fmi3_import_get_model_version(fmi3_import_t*)
