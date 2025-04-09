@@ -51,7 +51,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef np.ndarray get_float64(self, valueref)
     cpdef np.ndarray get_float32(self, valueref)
 
-    cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variablename) except *
+    cpdef _get_time(self)
+    cpdef _set_time(self, FMIL3.fmi3_float64_t t)
+
+    cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variable_name) except *
     cpdef FMIL3.fmi3_base_type_enu_t get_variable_data_type(self, variable_name) except *
 
 cdef class FMUModelME3(FMUModelBase3):

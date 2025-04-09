@@ -212,9 +212,11 @@ class TestFMI3LoadFMU:
     def test_initialize_manually(self, ref_fmu):
         """Test initialize all the ME reference FMUs by entering/exiting initialization mode manually. """
         fmu = load_fmu(ref_fmu)
+        assert fmu.time is None
         # Should simply pass without any exceptions
         fmu.enter_initialization_mode()
         fmu.exit_initialization_mode()
+        assert fmu.time == 0.0
 
     def test_get_double_terminate(self):
         """Test invalid call sequence raises an error. """
@@ -245,7 +247,6 @@ class TestFMI3LoadFMU:
         """Test retrieving default experiment stop time. """
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
         assert fmu.get_default_experiment_stop_time() == 20.0
-
 
     def test_get_default_experiment_tolerance(self):
         """Test retrieving default experiment tolerance. """

@@ -281,6 +281,37 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if self._log_stream:
             self._log_stream = None
 
+    cpdef _get_time(self):
+        """
+        Returns the current time of the simulation.
+
+        Returns::
+            The time.
+        """
+        return self._t
+
+    cpdef _set_time(self, FMIL3.fmi3_float64_t t):
+        """
+        Sets the current time of the simulation.
+
+        Parameters::
+            t --
+                The time to set.
+        """
+        cdef int status
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_time(self._fmu, t)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the time.')
+        self._t = t
+
+    time = property(_get_time, _set_time,
+        doc = """
+            Property for accessing the current time of the simulation. Calls the low-level FMI function: fmi3SetTime.
+    """)
+
     def terminate(self):
         """
         Calls the FMI function fmi3Terminate() on the FMU.
@@ -977,10 +1008,9 @@ cdef class FMUModelME3(FMUModelBase3):
             raise FMUException('Failed to set the new continuous states.')
 
     continuous_states = property(_get_continuous_states, _set_continuous_states,
-        doc=
-    """
-    Property for accessing the current values of the continuous states. Calls
-    the low-level FMI function: fmi3SetContinuousStates/fmi3GetContinuousStates.
+        doc = """
+            Property for accessing the current values of the continuous states. Calls
+            the low-level FMI function: fmi3SetContinuousStates/fmi3GetContinuousStates.
     """)
 
 cdef void _cleanup_on_load_error(
