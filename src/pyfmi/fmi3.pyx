@@ -633,6 +633,18 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         """
         raise NotImplementedError
 
+    def get_ode_sizes(self):
+        """
+        Returns the number of continuous states and the number of event indicators.
+
+        Returns::
+
+            Tuple (The number of continuous states, The number of event indicators)
+
+            [n_states, n_event_ind] = model.get_ode_sizes()
+        """
+        return self._nContinuousStates, self._nEventIndicators
+
     def get_default_experiment_start_time(self):
         """ Returns the default experiment start time as defined the XML description. """
         return FMIL3.fmi3_import_get_default_experiment_start(self._fmu)

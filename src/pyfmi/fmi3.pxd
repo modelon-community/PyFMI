@@ -30,7 +30,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef FMIL3.fmi3_import_t*       _fmu
     cdef FMIL3.fmi3_fmu_kind_enu_t  _fmu_kind
     cdef FMIL.fmi_version_enu_t     _version
-
+    cdef FMIL.size_t _nEventIndicators  # rename to snake case?
+    cdef FMIL.size_t _nContinuousStates # rename to snake case?
 
     # Internal values
     cdef public float  _last_accepted_time
@@ -54,8 +55,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef FMIL3.fmi3_base_type_enu_t get_variable_data_type(self, variable_name) except *
 
 cdef class FMUModelME3(FMUModelBase3):
-    cdef FMIL.size_t _nEventIndicators
-    cdef FMIL.size_t _nContinuousStates
     cdef int _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
     cdef int _set_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
 

@@ -136,7 +136,7 @@ class TestFMI3LoadFMU:
         assert fmu.get_model_version() == ''
 
     def test_instantiation(self, tmpdir):
-        """ Test that instantiation works by verifying the output in the log."""
+        """Test that instantiation works by verifying the output in the log."""
         with temp_dir_context(tmpdir) as temp_path:
              # log_level set to 5 required by test
             fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", log_level=5)
@@ -362,29 +362,21 @@ class Test_FMI3ME:
         with pytest.raises(FMUException, match = err_msg):
             fmu.get_variable_valueref(var_name)
 
-    @pytest.mark.parametrize("variable_name, expected_datatype",
+    @pytest.mark.parametrize("ref_fmu, expected_ode_size",
         [
-            ("Float64_continuous_input", FMI3_FLOAT64),
-            ("Float32_continuous_input", FMI3_FLOAT32),
-            ("Int64_input", FMI3_INT64),
-            ("Int32_input", FMI3_INT32),
-            ("Int16_input", FMI3_INT16),
-            ("Int8_input" , FMI3_INT8),
-            ("UInt64_input", FMI3_UINT64),
-            ("UInt32_input", FMI3_UINT32),
-            ("UInt16_input", FMI3_UINT16),
-            ("UInt8_input",  FMI3_UINT8),
-            ("Boolean_input", FMI3_BOOL),
-            ("String_parameter", FMI3_STRING),
-            ("Binary_input", FMI3_BINARY),
-            ("Enumeration_input", FMI3_ENUM),
+            (FMI3_REF_FMU_PATH / "BouncingBall.fmu", (2, 1)),
+            (FMI3_REF_FMU_PATH / "Dahlquist.fmu",    (1, 0)),
+            (FMI3_REF_FMU_PATH / "Feedthrough.fmu",  (0, 0)),
+            (FMI3_REF_FMU_PATH / "Resource.fmu",     (0, 0)),
+            (FMI3_REF_FMU_PATH / "Stair.fmu" ,       (0, 0)),
+            (FMI3_REF_FMU_PATH / "StateSpace.fmu",   (1, 0)),
+            (FMI3_REF_FMU_PATH / "VanDerPol.fmu",    (2, 0)),
         ]
     )
-    def test_get_variable_data_type(self, variable_name, expected_datatype):
-        """Test getting variable data types."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = FMUModelME3(fmu_path, _connect_dll = False)
-        assert fmu.get_variable_data_type(variable_name) == expected_datatype
+    def test_get_ode_sizes(self, ref_fmu, expected_ode_size):
+        """Test get ode sizes."""
+        fmu = load_fmu(ref_fmu)
+        assert fmu.get_ode_sizes() == expected_ode_size
 
     def test_get_variable_data_type_missing(self):
         """Test getting variable data type for missing variable."""
@@ -409,6 +401,30 @@ class Test_FMI3ME:
         fmu = load_fmu(fmu_path)
         fmu.initialize()
         assert all(fmu.continuous_states == [2.0, 0.0])
+
+    @pytest.mark.parametrize("variable_name, expected_datatype",
+        [
+            ("Float64_continuous_input", FMI3_FLOAT64),
+            ("Float32_continuous_input", FMI3_FLOAT32),
+            ("Int64_input", FMI3_INT64),
+            ("Int32_input", FMI3_INT32),
+            ("Int16_input", FMI3_INT16),
+            ("Int8_input" , FMI3_INT8),
+            ("UInt64_input", FMI3_UINT64),
+            ("UInt32_input", FMI3_UINT32),
+            ("UInt16_input", FMI3_UINT16),
+            ("UInt8_input",  FMI3_UINT8),
+            ("Boolean_input", FMI3_BOOL),
+            ("String_parameter", FMI3_STRING),
+            ("Binary_input", FMI3_BINARY),
+            ("Enumeration_input", FMI3_ENUM),
+        ]
+    )
+    def test_get_variable_data_type(self, variable_name, expected_datatype):
+        """Test getting variable data types."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        assert fmu.get_variable_data_type(variable_name) == expected_datatype
 
 class TestFMI3CS:
     # TODO: Unsupported for now
