@@ -41,6 +41,7 @@ from pyfmi.fmi3 import (
     FMI3_CLOCK,
     FMI3_STRING,
     FMI3_ENUM,
+    EventInfo,
 )
 from pyfmi.exceptions import (
     FMUException,
@@ -97,6 +98,15 @@ class TestFMI3LoadFMU:
         """Test loading an FMU with kind 'ME'"""
         fmu = load_fmu(ref_fmu, kind = "ME")
         assert isinstance(fmu, FMUModelME3)
+
+    @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
+    def test_get_event_info(self, ref_fmu):
+        """Test that get_event_info() works as expected."""
+        fmu = load_fmu(ref_fmu, kind = "ME")
+        event_info = fmu.get_event_info()
+        # TODO: Update testing of get_event_info once support for events has been added
+        assert isinstance(event_info, EventInfo)
+        assert event_info.next_event_time_defined == 1
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
     def test_load_kind_CS(self, ref_fmu):

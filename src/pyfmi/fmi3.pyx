@@ -69,6 +69,16 @@ cdef void importlogger3(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log
     if c.context != NULL:
         (<FMUModelBase3>c.context)._logger(module, log_level, message)
 
+cdef class EventInfo:
+    """Class representing data related to event information."""
+    def __init__(self):
+        self.new_discrete_states_needed = False
+        self.terminate_simulation = False
+        self.nominals_of_continuous_states_changed = False
+        self.values_of_continuous_states_changed = False
+        self.next_event_time_defined = False
+        self.next_event_time = 0.0
+
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
     """
     FMI3 Model loaded from a dll.
@@ -128,6 +138,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         # Internal values
         self._enable_logging = False
+        self._event_info   = EventInfo()
 
         # Specify the general callback functions
         self.callbacks.malloc  = FMIL.malloc
@@ -932,6 +943,18 @@ cdef class FMUModelME3(FMUModelBase3):
 
         if status != FMIL3.fmi3_status_ok:
             raise FMUException("Failed to enter continuous time mode")
+
+    def get_event_info(self):
+        """
+        Returns the event information from the FMU.
+
+        Returns::
+            The event information as an instance of pyfmi.fmi3.EventInfo
+        """
+        # TODO: Below is temporary for testing until we've added support for events
+        self._event_info.next_event_time_defined = True
+        return self._event_info
+
 
     def enter_event_mode(self):
         """ Enter event mode by calling the low level FMI function fmi3EnterEventMode. """

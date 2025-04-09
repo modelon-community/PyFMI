@@ -24,6 +24,14 @@ cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi_base as FMI_BASE
 
+cdef class EventInfo:
+    cdef public FMIL3.fmi3_boolean_t new_discrete_states_needed
+    cdef public FMIL3.fmi3_boolean_t terminate_simulation
+    cdef public FMIL3.fmi3_boolean_t nominals_of_continuous_states_changed
+    cdef public FMIL3.fmi3_boolean_t values_of_continuous_states_changed
+    cdef public FMIL3.fmi3_boolean_t next_event_time_defined
+    cdef public FMIL3.fmi3_float64_t next_event_time
+
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
     # FMIL related variables
     cdef FMIL.fmi_import_context_t* _context
@@ -36,6 +44,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     # Internal values
     cdef public float  _last_accepted_time
     cdef public object _enable_logging
+    cdef public object _event_info
     cdef object     _fmu_full_path
     cdef object     _modelName
     cdef object     _t
