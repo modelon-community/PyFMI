@@ -72,11 +72,11 @@ cdef void importlogger3(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log
 cdef class EventInfo:
     """Class representing data related to event information."""
     def __init__(self):
-        self.new_discrete_states_needed = False
-        self.terminate_simulation = False
-        self.nominals_of_continuous_states_changed = False
-        self.values_of_continuous_states_changed = False
-        self.next_event_time_defined = False
+        self.new_discrete_states_needed = FMIL3.fmi3_false
+        self.terminate_simulation = FMIL3.fmi3_false
+        self.nominals_of_continuous_states_changed = FMIL3.fmi3_false
+        self.values_of_continuous_states_changed = FMIL3.fmi3_false
+        self.next_event_time_defined = FMIL3.fmi3_false
         self.next_event_time = 0.0
 
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
@@ -952,7 +952,7 @@ cdef class FMUModelME3(FMUModelBase3):
             The event information as an instance of pyfmi.fmi3.EventInfo
         """
         # TODO: Below is temporary for testing until we've added support for events
-        self._event_info.next_event_time_defined = True
+        self._event_info.next_event_time_defined = FMIL3.fmi3_true
         return self._event_info
 
 

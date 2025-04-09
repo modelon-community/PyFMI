@@ -106,7 +106,7 @@ class TestFMI3LoadFMU:
         event_info = fmu.get_event_info()
         # TODO: Update testing of get_event_info once support for events has been added
         assert isinstance(event_info, EventInfo)
-        assert event_info.next_event_time_defined == 1
+        assert event_info.next_event_time_defined
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
     def test_load_kind_CS(self, ref_fmu):
