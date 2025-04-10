@@ -966,6 +966,61 @@ cdef class FMUModelME3(FMUModelBase3):
         if status != FMIL3.fmi3_status_ok:
             raise FMUException("Failed to enter event mode")
 
+    cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
+            FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,
+            FMIL3.fmi3_boolean_t* enter_event_mode,
+            FMIL3.fmi3_boolean_t* terminate_simulation
+        ):
+        cdef FMIL3.fmi3_status_t status
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_completed_integrator_step(
+            self._fmu,
+            no_set_FMU_state_prior_to_current_point,
+            enter_event_mode,
+            terminate_simulation
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        self._last_accepted_time = self._get_time()
+        return status
+
+    def completed_integrator_step(self, no_set_FMU_state_prior_to_current_point = True):
+        """
+        This method must be called by the environment after every completed step
+        of the integrator. If returned value is True, then the environment must call
+        event_update() otherwise, no action is needed.
+
+        Returns::
+            A tuple of format (a, b) where a and b indicate:
+                If a is True -> Call event_update().
+                        False -> Do nothing.
+                If b is True -> The simulation should be terminated.
+                        False -> Do nothing.
+
+        Calls the low-level FMI function: fmi3CompletedIntegratorStep.
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef FMIL3.fmi3_boolean_t noSetFMUStatePriorToCurrentPoint = FMIL3.fmi3_true if no_set_FMU_state_prior_to_current_point else FMIL3.fmi3_false
+        cdef FMIL3.fmi3_boolean_t* enterEventMode
+        cdef FMIL3.fmi3_boolean_t* terminateSimulation
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_completed_integrator_step(
+            self._fmu,
+            noSetFMUStatePriorToCurrentPoint,
+            enterEventMode,
+            terminateSimulation
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        self._last_accepted_time = self._get_time()
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException('Failed to call FMI completed integrator step at time: %E.' % self.time)
+
+        return enterEventMode[0] == FMIL3.fmi3_true, terminateSimulation[0] == FMIL3.fmi3_true
+
     cdef int _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx):
         cdef int status
         if self._nContinuousStates > 0:

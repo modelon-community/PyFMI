@@ -104,6 +104,8 @@ cdef extern from 'fmilib.h':
         fmi3_boolean_t visible,
         fmi3_boolean_t loggingOn
     )
+    fmi3_status_t fmi3_import_completed_integrator_step(fmi3_import_t*, fmi3_boolean_t, fmi3_boolean_t*, fmi3_boolean_t*)
+
     # modes
     fmi3_status_t fmi3_import_enter_initialization_mode(
         fmi3_import_t* fmu,

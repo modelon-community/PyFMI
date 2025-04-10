@@ -38,8 +38,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef FMIL3.fmi3_import_t*       _fmu
     cdef FMIL3.fmi3_fmu_kind_enu_t  _fmu_kind
     cdef FMIL.fmi_version_enu_t     _version
-    cdef FMIL.size_t _nEventIndicators  # rename to snake case?
-    cdef FMIL.size_t _nContinuousStates # rename to snake case?
+    cdef FMIL.size_t _nEventIndicators  # format with snake case?
+    cdef FMIL.size_t _nContinuousStates # format with snake case?
 
     # Internal values
     cdef public float  _last_accepted_time
@@ -69,6 +69,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 cdef class FMUModelME3(FMUModelBase3):
     cdef int _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
     cdef int _set_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
+    cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
+        FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,
+        FMIL3.fmi3_boolean_t* enter_event_mode,
+        FMIL3.fmi3_boolean_t* terminate_simulation
+    )
 
 cdef void _cleanup_on_load_error(
     FMIL3.fmi3_import_t* fmu_3,
