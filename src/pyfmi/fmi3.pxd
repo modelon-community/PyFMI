@@ -24,6 +24,17 @@ cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi_base as FMI_BASE
 
+cdef class ScalarVariable3:
+    """ Class defining data structure based on the XML element ScalarVariable. """
+    cdef FMIL3.fmi3_value_reference_t _value_reference
+    cdef FMIL3.fmi3_base_type_enu_t           _type
+    cdef FMIL3.fmi3_variability_enu_t _variability
+    cdef FMIL3.fmi3_causality_enu_t _causality
+    cdef FMIL3.fmi3_initial_enu_t _initial
+    cdef object _name
+    cdef object _description
+
+
 cdef class EventInfo:
     cdef public FMIL3.fmi3_boolean_t new_discrete_states_needed
     cdef public FMIL3.fmi3_boolean_t terminate_simulation
@@ -65,6 +76,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variable_name) except *
     cpdef FMIL3.fmi3_base_type_enu_t get_variable_data_type(self, variable_name) except *
+    cdef _add_scalar_variable(self, FMIL3.fmi3_import_variable_t* variable)
+
 
 cdef class FMUModelME3(FMUModelBase3):
     cdef int _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
@@ -74,6 +87,8 @@ cdef class FMUModelME3(FMUModelBase3):
         FMIL3.fmi3_boolean_t* enter_event_mode,
         FMIL3.fmi3_boolean_t* terminate_simulation
     )
+    cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx)
+    cdef public object _preinit_nominal_continuous_states
 
 cdef void _cleanup_on_load_error(
     FMIL3.fmi3_import_t* fmu_3,

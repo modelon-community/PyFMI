@@ -20,7 +20,9 @@
 cimport cython
 
 import os
+from enum import Enum
 import logging
+from collections import OrderedDict
 
 import numpy as np
 cimport numpy as np
@@ -48,6 +50,30 @@ FMI3_CLOCK   = FMIL3.fmi3_base_type_clock
 FMI3_STRING  = FMIL3.fmi3_base_type_str
 FMI3_ENUM    = FMIL3.fmi3_base_type_enum
 
+class FMI3_Initial(Enum):
+    EXACT       = FMIL3.fmi3_initial_enu_exact
+    APPROX      = FMIL3.fmi3_initial_enu_approx
+    CALCULATED  = FMIL3.fmi3_initial_enu_calculated
+    UNKNOWN     = FMIL3.fmi3_initial_enu_unknown
+
+class FMI3_Variability(Enum):
+    CONSTANT    = FMIL3.fmi3_variability_enu_constant
+    FIXED       = FMIL3.fmi3_variability_enu_fixed
+    TUNABLE     = FMIL3.fmi3_variability_enu_tunable
+    DISCRETE    = FMIL3.fmi3_variability_enu_discrete
+    CONTINUOUS  = FMIL3.fmi3_variability_enu_continuous
+    UNKNOWN     = FMIL3.fmi3_variability_enu_unknown
+
+class FMI3_Causality(Enum):
+    STRUCTURAL_PARAMETER    = FMIL3.fmi3_causality_enu_structural_parameter
+    PARAMETER               = FMIL3.fmi3_causality_enu_parameter
+    CALCULATED_PARAMETER    = FMIL3.fmi3_causality_enu_calculated_parameter
+    INPUT                   = FMIL3.fmi3_causality_enu_input
+    OUTPUT                  = FMIL3.fmi3_causality_enu_output
+    LOCAL                   = FMIL3.fmi3_causality_enu_local
+    INDEPENDENT             = FMIL3.fmi3_causality_enu_independent
+    UNKNOWN                 = FMIL3.fmi3_causality_enu_unknown
+
 from pyfmi.exceptions import (
     FMUException,
     InvalidXMLException,
@@ -68,6 +94,123 @@ from pyfmi.common.core import create_temp_dir
 cdef void importlogger3(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     if c.context != NULL:
         (<FMUModelBase3>c.context)._logger(module, log_level, message)
+
+
+cdef class ScalarVariable3:
+    """ Class defining data structure based on the XML element ScalarVariable. """
+    def __init__(self, name, value_reference, data_type, description, variability, causality, initial):
+        """
+        Class collecting information about a scalar variable and its
+        attributes. The following attributes can be retrieved::
+
+            name
+            value_reference
+            type
+            description
+            variability
+            causality
+            initial
+
+        For further information about the attributes, see the info on a
+        specific attribute.
+        """
+        # TODO: All docstrings in this class
+        self._name            = name
+        self._value_reference = value_reference
+        self._type            = data_type
+        self._description     = description
+        self._variability     = variability
+        self._causality       = causality
+        self._initial         = initial
+
+    def _get_name(self):
+        """
+        Get the value of the name attribute.
+
+        Returns::
+
+            The name attribute value as string.
+        """
+        return self._name
+    name = property(_get_name)
+
+    def _get_value_reference(self):
+        """
+        Get the value of the value reference attribute.
+
+        Returns::
+
+            The value reference as unsigned int.
+        """
+        return self._value_reference
+    value_reference = property(_get_value_reference)
+
+    def _get_type(self):
+        """
+        Get the value of the data type attribute.
+
+        Returns::
+
+            The data type attribute value as enumeration:
+                FMI3_FLOAT64        = 1,
+                FMI3_FLOAT32        = 2,
+                FMI3_INTEGER64      = 3,
+                ...
+                FMI3_BOOLEAN        = 11,
+                FMI3_STRING         = 14,
+                FMI3_ENUMERATION    = 15.
+        """
+        return self._type
+    type = property(_get_type)
+
+    def _get_description(self):
+        """
+        Get the value of the description attribute.
+
+        Returns::
+
+            The description attribute value as string (empty string if
+            not set).
+        """
+        return self._description
+    description = property(_get_description)
+
+    def _get_variability(self):
+        """
+        Get the value of the variability attribute.
+
+        Returns::
+
+            The variability of the variable: FMI2_CONSTANT(0), FMI2_FIXED(1),
+            FMI2_TUNABLE(2), FMI2_DISCRETE(3), FMI2_CONTINUOUS(4) or FMI2_UNKNOWN(5)
+        """
+        return self._variability
+    variability = property(_get_variability)
+
+    def _get_causality(self):
+        """
+        Get the value of the causality attribute.
+
+        Returns::
+
+            The causality of the variable, FMI2_PARAMETER(0), FMI2_CALCULATED_PARAMETER(1), FMI2_INPUT(2),
+            FMI2_OUTPUT(3), FMI2_LOCAL(4), FMI2_INDEPENDENT(5), FMI2_UNKNOWN(6)
+        """
+        return self._causality
+    causality = property(_get_causality)
+
+    def _get_initial(self):
+        """
+        Get the value of the initial attribute.
+
+        Returns::
+
+            The initial attribute value as enumeration: FMI2_INITIAL_EXACT,
+                              FMI2_INITIAL_APPROX, FMI2_INITIAL_CALCULATED,
+                              FMI2_INITIAL_UNKNOWN
+        """
+        return self._initial
+    initial = property(_get_initial)
 
 cdef class EventInfo:
     """Class representing data related to event information."""
@@ -624,7 +767,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             The type of the variable.
         """
         cdef FMIL3.fmi3_import_variable_t* variable
-        cdef FMIL3.fmi3_base_type_enu_t basetype
         variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
@@ -632,9 +774,57 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found."%pyfmi_util.decode(variablename))
 
-        basetype = FMIL3.fmi3_import_get_variable_base_type(variable)
+        return FMIL3.fmi3_import_get_variable_base_type(variable)
 
-        return basetype
+    cdef _add_scalar_variable(self, FMIL3.fmi3_import_variable_t* variable):
+        cdef FMIL3.fmi3_string_t description
+
+        if variable == NULL:
+            raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
+
+        # TODO: Unnecessary to have alias_kind in FMI3?
+        #alias_kind = FMIL3.fmi3_import_get_variable_alias_kind(variable)
+        name        = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
+        value_ref   = FMIL3.fmi3_import_get_variable_vr(variable)
+        data_type   = FMIL3.fmi3_import_get_variable_base_type(variable)
+        variability = FMIL3.fmi3_import_get_variable_variability(variable)
+        causality   = FMIL3.fmi3_import_get_variable_causality(variable)
+        # TODO: Decode description? It is a byte-string when access from the ScalarVariable3 object
+        description = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_variable_description(variable)
+        initial     = FMIL3.fmi3_import_get_variable_initial(variable)
+
+        return ScalarVariable3(name, value_ref, data_type, description, variability, causality, initial)
+
+
+    def get_states_list(self):
+        """
+        Returns a dictionary with the states.
+
+        Returns::
+
+            An ordered dictionary with the state variables.
+        """
+        cdef FMIL3.fmi3_import_variable_list_t* variable_list
+        cdef FMIL.size_t                        variable_list_size
+        variable_dict = OrderedDict()
+
+        variable_list = FMIL3.fmi3_import_get_continuous_state_derivatives_list(self._fmu)
+        variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
+
+        if variable_list == NULL:
+            raise FMUException("The returned derivatives states list is NULL.")
+
+        for i in range(variable_list_size):
+            der_variable = FMIL3.fmi3_import_get_variable(variable_list, i)
+            variable     = FMIL3.fmi3_import_get_float64_variable_derivative_of(<FMIL3.fmi3_import_float64_variable_t*>der_variable)
+
+            scalar_variable = self._add_scalar_variable(<FMIL3.fmi3_import_variable_t*>variable)
+            variable_dict[scalar_variable.name] = scalar_variable
+
+        #Free the variable list
+        FMIL3.fmi3_import_free_variable_list(variable_list)
+
+        return variable_dict
 
     def get_fmil_log_level(self):
         """
@@ -752,6 +942,9 @@ cdef class FMUModelME3(FMUModelBase3):
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != FMIL3.fmi3_status_ok:
             raise InvalidFMUException("The FMU could not be instantiated, error retrieving number of continuous states.")
+
+        # State nominals retrieved before initialization
+        self._preinit_nominal_continuous_states = None
 
         if _connect_dll:
             self.instantiate()
@@ -965,6 +1158,54 @@ cdef class FMUModelME3(FMUModelBase3):
 
         if status != FMIL3.fmi3_status_ok:
             raise FMUException("Failed to enter event mode")
+
+
+    cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx):
+        cdef FMIL3.fmi3_status_t status
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_get_nominals_of_continuous_states(self._fmu, xnominal, nx)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+        return status
+
+    def _get_nominal_continuous_states(self):
+        """
+        Returns the nominal values of the continuous states.
+
+        Returns::
+            The nominal values.
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] xn = np.zeros(self._nContinuousStates, dtype=np.double)
+
+        status = self._get_nominal_continuous_states_fmil(<FMIL3.fmi3_float64_t*> xn.data, self._nContinuousStates)
+        if status != 0:
+            raise FMUException('Failed to get the nominal values.')
+
+        # Fallback - auto-correct the illegal nominal values:
+        xnames = list(self.get_states_list().keys())
+        for i in range(self._nContinuousStates):
+            if xn[i] == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning(f"The nominal value for {xnames[i]} is 0.0 which is illegal according " + \
+                                     "to the FMI specification. Setting the nominal to 1.0.")
+                xn[i] = 1.0
+            elif xn[i] < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning(f"The nominal value for {xnames[i]} is <0.0 which is illegal according " + \
+                                    f"to the FMI specification. Setting the nominal to abs({xn[i]}).")
+                xn[i] = abs(xn[i])
+
+        # If called before initialization, save values in order to later perform auto-correction
+        if self._initialized_fmu == 0:
+            self._preinit_nominal_continuous_states = xn
+
+        return xn
+
+    nominal_continuous_states = property(_get_nominal_continuous_states, doc =
+    """
+    Property for accessing the nominal values of the continuous states. Calls
+    the low-level FMI function: fmi3GetNominalContinuousStates.
+    """)
 
     cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
             FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,

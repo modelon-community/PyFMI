@@ -38,6 +38,12 @@ cdef extern from 'fmilib.h':
         fmi3_true = 1
         fmi3_false = 0
 
+    cdef enum fmi3_fmu_kind_enu_t:
+        fmi3_fmu_kind_unknown   = 1 << 0
+        fmi3_fmu_kind_me        = 1 << 1
+        fmi3_fmu_kind_cs        = 1 << 2
+        fmi3_fmu_kind_se        = 1 << 3
+
     cdef enum fmi3_base_type_enu_t:
         fmi3_base_type_float64 = 1,
         fmi3_base_type_float32 = 2,
@@ -55,17 +61,59 @@ cdef extern from 'fmilib.h':
         fmi3_base_type_str     = 14,
         fmi3_base_type_enum    = 15
 
+    cdef enum fmi3_causality_enu_t:
+        fmi3_causality_enu_structural_parameter = 0,
+        fmi3_causality_enu_parameter            = 1,
+        fmi3_causality_enu_calculated_parameter = 2,
+        fmi3_causality_enu_input                = 3,
+        fmi3_causality_enu_output               = 4,
+        fmi3_causality_enu_local                = 5,
+        fmi3_causality_enu_independent          = 6,
+        fmi3_causality_enu_unknown              = 7
+
+    cdef enum fmi3_variability_enu_t:
+        fmi3_variability_enu_constant    = 0,
+        fmi3_variability_enu_fixed       = 1,
+        fmi3_variability_enu_tunable     = 2,
+        fmi3_variability_enu_discrete    = 3,
+        fmi3_variability_enu_continuous  = 4,
+        fmi3_variability_enu_unknown     = 5
+
+    cdef enum fmi3_initial_enu_t:
+        fmi3_initial_enu_exact,
+        fmi3_initial_enu_approx,
+        fmi3_initial_enu_calculated,
+        fmi3_initial_enu_unknown # must be last
+
     cdef struct fmi3_xml_variable_t:
+        pass
+
+    cdef struct fmi3_import_variable_list_t:
         pass
     ctypedef fmi3_xml_variable_t fmi3_import_variable_t
 
-    # STATUS
-    cdef enum fmi3_fmu_kind_enu_t:
-        fmi3_fmu_kind_unknown = 1 << 0
-        fmi3_fmu_kind_me = 1 << 1
-        fmi3_fmu_kind_cs = 1 << 2
-        fmi3_fmu_kind_se = 1 << 3
+    cdef struct fmi3_xml_float64_variable_t:
+        pass
+    ctypedef fmi3_xml_float64_variable_t fmi3_import_float64_variable_t
 
+    cdef struct fmi3_xml_unit_t:
+        pass
+    ctypedef fmi3_xml_unit_t fmi3_import_unit_t
+
+    cdef struct fmi3_xml_display_unit_t:
+        pass
+    ctypedef fmi3_xml_display_unit_t fmi3_import_display_unit_t
+
+    cdef struct fmi3_xml_unit_definition_list_t:
+        pass
+    ctypedef fmi3_xml_unit_definition_list_t fmi3_import_unit_definitions_t
+
+    cdef struct fmi3_xml_variable_typedef_t:
+        pass
+    ctypedef fmi3_xml_variable_typedef_t fmi3_import_variable_typedef_t
+
+
+    # STATUS
     ctypedef enum fmi3_status_t:
         fmi3_status_ok = 0
         fmi3_status_warning = 1
@@ -125,7 +173,7 @@ cdef extern from 'fmilib.h':
     void fmi3_import_destroy_dllfmu(fmi3_import_t* fmu)
 
     # setting
-    fmi3_status_t fmi3_import_set_time(fmi3_import_t *, fmi3_float64_t)
+    fmi3_status_t fmi3_import_set_time(fmi3_import_t*, fmi3_float64_t)
 
     fmi3_status_t fmi3_import_set_float64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float64_t*, size_t)
     fmi3_status_t fmi3_import_set_float32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float32_t*, size_t)
@@ -135,6 +183,16 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_get_float64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float64_t*, size_t);
     fmi3_status_t fmi3_import_get_float32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float32_t*, size_t);
     fmi3_status_t fmi3_import_get_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t);
+    fmi3_status_t fmi3_import_get_nominals_of_continuous_states(fmi3_import_t* fmu, fmi3_float64_t*, size_t nx)
+    fmi3_import_variable_t* fmi3_import_get_variable(fmi3_import_variable_list_t *, size_t)
+    size_t fmi3_import_get_variable_list_size(fmi3_import_variable_list_t*)
+    fmi3_import_variable_list_t* fmi3_import_get_continuous_state_derivatives_list(fmi3_import_t* fmu)
+    fmi3_import_float64_variable_t* fmi3_import_get_float64_variable_derivative_of(fmi3_import_float64_variable_t* v);
+    const char* fmi3_import_get_variable_name(fmi3_import_variable_t*)
+    fmi3_variability_enu_t fmi3_import_get_variable_variability(fmi3_import_variable_t*)
+    fmi3_causality_enu_t fmi3_import_get_variable_causality(fmi3_import_variable_t*)
+    fmi3_initial_enu_t fmi3_import_get_variable_initial(fmi3_import_variable_t*)
+    const char* fmi3_import_get_variable_description(fmi3_import_variable_t*)
 
     double fmi3_import_get_default_experiment_start(fmi3_import_t*);
     double fmi3_import_get_default_experiment_stop(fmi3_import_t*);
@@ -166,9 +224,11 @@ cdef extern from 'fmilib.h':
     void fmi3_log_forwarding(fmi3_instance_environment_t, fmi3_status_t, fmi3_string_t, fmi3_string_t)
     char* fmi3_import_get_last_error(fmi3_import_t*)
     char* fmi3_import_get_model_identifier_ME(fmi3_import_t*)
+    void fmi3_import_free_variable_list(fmi3_import_variable_list_t*)
 
     # Getting variables attributes/types
+    fmi3_import_variable_t* fmi3_import_get_variable(fmi3_import_variable_list_t* vl, size_t index);
     fmi3_import_variable_t* fmi3_import_get_variable_by_name(fmi3_import_t*, char*)
     fmi3_value_reference_t fmi3_import_get_variable_vr(fmi3_import_variable_t*)
     fmi3_base_type_enu_t fmi3_import_get_variable_base_type(fmi3_import_variable_t*)
-    char * fmi3_import_get_model_version(fmi3_import_t*)
+    char* fmi3_import_get_model_version(fmi3_import_t*)

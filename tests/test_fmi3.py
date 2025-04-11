@@ -43,6 +43,8 @@ from pyfmi.fmi3 import (
     FMI3_ENUM,
     EventInfo,
 )
+
+from pyfmi.fmi3 import FMI3_Causality, FMI3_Variability, FMI3_Initial
 from pyfmi.exceptions import (
     FMUException,
     InvalidFMUException,
@@ -263,6 +265,30 @@ class TestFMI3LoadFMU:
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
         assert fmu.get_default_experiment_tolerance() == 0.0001
 
+    def test_get_states_list(self):
+        """Test retrieving states list and check its attributes. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        states = fmu.get_states_list()
+
+        assert len(states) == 2
+        x0 = states['x0']
+        x1 = states['x1']
+
+        assert x0.description == b'the first state'
+        assert x1.description == b'the second state'
+
+        assert x0.causality == FMI3_Causality.OUTPUT.value
+        assert x1.causality == FMI3_Causality.OUTPUT.value
+
+        assert x0.variability == FMI3_Variability.CONTINUOUS.value
+        assert x1.variability == FMI3_Variability.CONTINUOUS.value
+
+        assert x0.value_reference == 1
+        assert x1.value_reference == 3
+
+        assert x0.initial == FMI3_Initial.EXACT.value
+        assert x1.initial == FMI3_Initial.EXACT.value
+
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
@@ -277,6 +303,14 @@ class Test_FMI3ME:
         msg = "The FMU could not be loaded. This class only supports FMI 3.0 for Model Exchange."
         with pytest.raises(InvalidVersionException, match = msg):
             FMUModelME3(ref_fmu, _connect_dll = False)
+
+    def test_get_nominals_of_continuous_states(self):
+        """Test retrieve the nominals of the continuous states. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.initialize()
+        # TODO: Remove this test in the future when we can simulate the FMU fully
+        nominals = fmu._get_nominal_continuous_states()
+        assert all(nominals == np.array([1., 1.]))
 
     def test_logfile_content(self):
         """Test that we get the log content from FMIL parsing the modelDescription.xml."""
