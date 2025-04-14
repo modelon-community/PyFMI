@@ -278,6 +278,34 @@ class TestFMI3LoadFMU:
         assert x0.initial is FMI3_Initial.EXACT
         assert x1.initial is FMI3_Initial.EXACT
 
+    def test_get_relative_tolerance(self):
+        """Test get_relative_tolerance(). """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        assert fmu.get_relative_tolerance() == 0.0001
+
+    def test_get_absolute_tolerances(self):
+        """Test get_absolute_tolerances(). """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.initialize()
+        np.testing.assert_array_almost_equal(fmu.get_absolute_tolerances(), np.array([1e-6, 1e-6]))
+
+    def test_get_tolerances(self):
+        """Test get_tolerances(). """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.initialize()
+        tolerances = fmu.get_tolerances()
+        assert tolerances[0] == 0.0001
+        assert tolerances[0] == fmu.get_relative_tolerance()
+        np.testing.assert_array_almost_equal(tolerances[1], np.array([1e-6, 1e-6]))
+
+    def test_get_tolerances_exception(self):
+        """Test that FMUException is raised if FMU is not initialized before get_tolerances()."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        msg = "Unable to retrieve the absolute tolerance, FMU needs to be initialized."
+        with pytest.raises(FMUException, match = msg):
+            fmu.get_tolerances()
+
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
@@ -300,6 +328,14 @@ class Test_FMI3ME:
         # TODO: Remove this test in the future when we can simulate the FMU fully
         nominals = fmu._get_nominal_continuous_states()
         assert all(nominals == np.array([1., 1.]))
+
+    def test_get_nominals_of_continuous_states_pre_init(self):
+        """Test that Exception is raised if FMU is not initialized before retrieving nominals of continuous states."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        msg = "Unable to retrieve nominals of continuous states, FMU must first be initialized."
+        with pytest.raises(FMUException, match = msg):
+            fmu._get_nominal_continuous_states()
 
     def test_logfile_content(self):
         """Test that we get the log content from FMIL parsing the modelDescription.xml."""

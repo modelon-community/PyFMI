@@ -812,6 +812,67 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         """ Returns the default experiment tolerance as defined in the XML description. """
         return FMIL3.fmi3_import_get_default_experiment_tolerance(self._fmu)
 
+
+    def get_tolerances(self):
+        """
+        Returns the relative and absolute tolerances. If the relative tolerance
+        is defined in the XML-file it is used, otherwise a default of 1.e-4 is
+        used. The absolute tolerance is calculated and returned according to
+        the FMI specification, atol = 0.01*rtol*(nominal values of the
+        continuous states).
+
+        This method should not be called before initialization, since it depends on state nominals
+        which can change during initialization.
+
+        Returns::
+
+            rtol --
+                The relative tolerance.
+
+            atol --
+                The absolute tolerance.
+
+        Example::
+
+            [rtol, atol] = model.get_tolerances()
+        """
+        rtol = self.get_relative_tolerance()
+        atol = self.get_absolute_tolerances()
+
+        return [rtol, atol]
+
+    def get_relative_tolerance(self):
+        """
+        Returns the relative tolerance. If the relative tolerance
+        is defined in the XML-file it is used, otherwise a default of 1.e-4 is
+        used.
+
+        Returns::
+
+            rtol --
+                The relative tolerance.
+        """
+        return self.get_default_experiment_tolerance()
+
+    def get_absolute_tolerances(self):
+        """
+        Returns the absolute tolerances. They are calculated and returned according to
+        the FMI specification, atol = 0.01*rtol*(nominal values of the
+        continuous states)
+
+        This method should not be called before initialization, since it depends on state nominals.
+
+        Returns::
+
+            atol --
+                The absolute tolerances.
+        """
+        if self._initialized_fmu == 0:
+            raise FMUException("Unable to retrieve the absolute tolerance, FMU needs to be initialized.")
+
+        rtol = self.get_relative_tolerance()
+        return 0.01*rtol*self.nominal_continuous_states
+
 cdef class FMUModelME3(FMUModelBase3):
     """
     FMI3 ModelExchange model loaded from a dll
@@ -865,9 +926,6 @@ cdef class FMUModelME3(FMUModelBase3):
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != FMIL3.fmi3_status_ok:
             raise InvalidFMUException("The FMU could not be instantiated, error retrieving number of continuous states.")
-
-        # State nominals retrieved before initialization
-        self._preinit_nominal_continuous_states = None
 
         if _connect_dll:
             self.instantiate()
@@ -1100,6 +1158,9 @@ cdef class FMUModelME3(FMUModelBase3):
         cdef FMIL3.fmi3_status_t status
         cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] xn = np.zeros(self._nContinuousStates, dtype=np.double)
 
+        if self._initialized_fmu == 0:
+            raise FMUException("Unable to retrieve nominals of continuous states, FMU must first be initialized.")
+
         status = self._get_nominal_continuous_states_fmil(<FMIL3.fmi3_float64_t*> xn.data, self._nContinuousStates)
         if status != 0:
             raise FMUException('Failed to get the nominal values.')
@@ -1117,10 +1178,6 @@ cdef class FMUModelME3(FMUModelBase3):
                     logging.warning(f"The nominal value for {xnames[i]} is <0.0 which is illegal according " + \
                                     f"to the FMI specification. Setting the nominal to abs({xn[i]}).")
                 xn[i] = abs(xn[i])
-
-        # If called before initialization, save values in order to later perform auto-correction
-        if self._initialized_fmu == 0:
-            self._preinit_nominal_continuous_states = xn
 
         return xn
 

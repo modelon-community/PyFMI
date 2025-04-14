@@ -88,7 +88,6 @@ cdef class FMUModelME3(FMUModelBase3):
         FMIL3.fmi3_boolean_t* terminate_simulation
     )
     cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx)
-    cdef public object _preinit_nominal_continuous_states
 
 cdef void _cleanup_on_load_error(
     FMIL3.fmi3_import_t* fmu_3,
