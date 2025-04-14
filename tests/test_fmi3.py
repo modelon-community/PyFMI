@@ -22,29 +22,18 @@ import numpy as np
 from io import StringIO
 from pyfmi import load_fmu
 from pathlib import Path
+
 from pyfmi.fmi import (
     FMUModelME3,
 )
 from pyfmi.fmi3 import (
-    FMI3_FLOAT64,
-    FMI3_FLOAT32,
-    FMI3_INT64,
-    FMI3_INT32,
-    FMI3_INT16,
-    FMI3_INT8,
-    FMI3_UINT64,
-    FMI3_UINT32,
-    FMI3_UINT16,
-    FMI3_UINT8,
-    FMI3_BOOL,
-    FMI3_BINARY,
-    FMI3_CLOCK,
-    FMI3_STRING,
-    FMI3_ENUM,
+    FMI3_Type,
+    FMI3_Causality,
+    FMI3_Variability,
+    FMI3_Initial,
     EventInfo,
 )
 
-from pyfmi.fmi3 import FMI3_Causality, FMI3_Variability, FMI3_Initial
 from pyfmi.exceptions import (
     FMUException,
     InvalidFMUException,
@@ -277,17 +266,17 @@ class TestFMI3LoadFMU:
         assert x0.description == b'the first state'
         assert x1.description == b'the second state'
 
-        assert x0.causality == FMI3_Causality.OUTPUT.value
-        assert x1.causality == FMI3_Causality.OUTPUT.value
+        assert x0.causality is FMI3_Causality.OUTPUT
+        assert x1.causality is FMI3_Causality.OUTPUT
 
-        assert x0.variability == FMI3_Variability.CONTINUOUS.value
-        assert x1.variability == FMI3_Variability.CONTINUOUS.value
+        assert x0.variability is FMI3_Variability.CONTINUOUS
+        assert x1.variability is FMI3_Variability.CONTINUOUS
 
         assert x0.value_reference == 1
         assert x1.value_reference == 3
 
-        assert x0.initial == FMI3_Initial.EXACT.value
-        assert x1.initial == FMI3_Initial.EXACT.value
+        assert x0.initial is FMI3_Initial.EXACT
+        assert x1.initial is FMI3_Initial.EXACT
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
@@ -449,27 +438,27 @@ class Test_FMI3ME:
 
     @pytest.mark.parametrize("variable_name, expected_datatype",
         [
-            ("Float64_continuous_input", FMI3_FLOAT64),
-            ("Float32_continuous_input", FMI3_FLOAT32),
-            ("Int64_input", FMI3_INT64),
-            ("Int32_input", FMI3_INT32),
-            ("Int16_input", FMI3_INT16),
-            ("Int8_input" , FMI3_INT8),
-            ("UInt64_input", FMI3_UINT64),
-            ("UInt32_input", FMI3_UINT32),
-            ("UInt16_input", FMI3_UINT16),
-            ("UInt8_input",  FMI3_UINT8),
-            ("Boolean_input", FMI3_BOOL),
-            ("String_parameter", FMI3_STRING),
-            ("Binary_input", FMI3_BINARY),
-            ("Enumeration_input", FMI3_ENUM),
+            ("Float64_continuous_input", FMI3_Type.FLOAT64),
+            ("Float32_continuous_input", FMI3_Type.FLOAT32),
+            ("Int64_input", FMI3_Type.INT64),
+            ("Int32_input", FMI3_Type.INT32),
+            ("Int16_input", FMI3_Type.INT16),
+            ("Int8_input" , FMI3_Type.INT8),
+            ("UInt64_input", FMI3_Type.UINT64),
+            ("UInt32_input", FMI3_Type.UINT32),
+            ("UInt16_input", FMI3_Type.UINT16),
+            ("UInt8_input",  FMI3_Type.UINT8),
+            ("Boolean_input", FMI3_Type.BOOL),
+            ("String_parameter", FMI3_Type.STRING),
+            ("Binary_input", FMI3_Type.BINARY),
+            ("Enumeration_input", FMI3_Type.ENUM),
         ]
     )
     def test_get_variable_data_type(self, variable_name, expected_datatype):
         """Test getting variable data types."""
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = FMUModelME3(fmu_path, _connect_dll = False)
-        assert fmu.get_variable_data_type(variable_name) == expected_datatype
+        assert fmu.get_variable_data_type(variable_name) is expected_datatype
 
 class TestFMI3CS:
     # TODO: Unsupported for now

@@ -34,21 +34,22 @@ cimport pyfmi.util as pyfmi_util
 
 # TYPES
 # TODO: Import into fmi.pyx for convenience imports?
-FMI3_FLOAT64 = FMIL3.fmi3_base_type_float64
-FMI3_FLOAT32 = FMIL3.fmi3_base_type_float32
-FMI3_INT64   = FMIL3.fmi3_base_type_int64
-FMI3_INT32   = FMIL3.fmi3_base_type_int32
-FMI3_INT16   = FMIL3.fmi3_base_type_int16
-FMI3_INT8    = FMIL3.fmi3_base_type_int8
-FMI3_UINT64  = FMIL3.fmi3_base_type_uint64
-FMI3_UINT32  = FMIL3.fmi3_base_type_uint32
-FMI3_UINT16  = FMIL3.fmi3_base_type_uint16
-FMI3_UINT8   = FMIL3.fmi3_base_type_uint8
-FMI3_BOOL    = FMIL3.fmi3_base_type_bool
-FMI3_BINARY  = FMIL3.fmi3_base_type_binary
-FMI3_CLOCK   = FMIL3.fmi3_base_type_clock
-FMI3_STRING  = FMIL3.fmi3_base_type_str
-FMI3_ENUM    = FMIL3.fmi3_base_type_enum
+class FMI3_Type(Enum):
+    FLOAT64 = FMIL3.fmi3_base_type_float64
+    FLOAT32 = FMIL3.fmi3_base_type_float32
+    INT64   = FMIL3.fmi3_base_type_int64
+    INT32   = FMIL3.fmi3_base_type_int32
+    INT16   = FMIL3.fmi3_base_type_int16
+    INT8    = FMIL3.fmi3_base_type_int8
+    UINT64  = FMIL3.fmi3_base_type_uint64
+    UINT32  = FMIL3.fmi3_base_type_uint32
+    UINT16  = FMIL3.fmi3_base_type_uint16
+    UINT8   = FMIL3.fmi3_base_type_uint8
+    BOOL    = FMIL3.fmi3_base_type_bool
+    BINARY  = FMIL3.fmi3_base_type_binary
+    CLOCK   = FMIL3.fmi3_base_type_clock
+    STRING  = FMIL3.fmi3_base_type_str
+    ENUM    = FMIL3.fmi3_base_type_enum
 
 class FMI3_Initial(Enum):
     EXACT       = FMIL3.fmi3_initial_enu_exact
@@ -97,23 +98,8 @@ cdef void importlogger3(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log
 
 
 cdef class ScalarVariable3:
-    """ Class defining data structure based on the XML element ScalarVariable. """
+    """ Class defining data structure based on the XML elements of ModelVariables. """
     def __init__(self, name, value_reference, data_type, description, variability, causality, initial):
-        """
-        Class collecting information about a scalar variable and its
-        attributes. The following attributes can be retrieved::
-
-            name
-            value_reference
-            type
-            description
-            variability
-            causality
-            initial
-
-        For further information about the attributes, see the info on a
-        specific attribute.
-        """
         # TODO: All docstrings in this class
         self._name            = name
         self._value_reference = value_reference
@@ -124,92 +110,31 @@ cdef class ScalarVariable3:
         self._initial         = initial
 
     def _get_name(self):
-        """
-        Get the value of the name attribute.
-
-        Returns::
-
-            The name attribute value as string.
-        """
         return self._name
     name = property(_get_name)
 
     def _get_value_reference(self):
-        """
-        Get the value of the value reference attribute.
-
-        Returns::
-
-            The value reference as unsigned int.
-        """
         return self._value_reference
     value_reference = property(_get_value_reference)
 
     def _get_type(self):
-        """
-        Get the value of the data type attribute.
-
-        Returns::
-
-            The data type attribute value as enumeration:
-                FMI3_FLOAT64        = 1,
-                FMI3_FLOAT32        = 2,
-                FMI3_INTEGER64      = 3,
-                ...
-                FMI3_BOOLEAN        = 11,
-                FMI3_STRING         = 14,
-                FMI3_ENUMERATION    = 15.
-        """
-        return self._type
+        return FMI3_Type(self._type)
     type = property(_get_type)
 
     def _get_description(self):
-        """
-        Get the value of the description attribute.
-
-        Returns::
-
-            The description attribute value as string (empty string if
-            not set).
-        """
         return self._description
     description = property(_get_description)
 
     def _get_variability(self):
-        """
-        Get the value of the variability attribute.
-
-        Returns::
-
-            The variability of the variable: FMI2_CONSTANT(0), FMI2_FIXED(1),
-            FMI2_TUNABLE(2), FMI2_DISCRETE(3), FMI2_CONTINUOUS(4) or FMI2_UNKNOWN(5)
-        """
-        return self._variability
+        return FMI3_Variability(self._variability)
     variability = property(_get_variability)
 
     def _get_causality(self):
-        """
-        Get the value of the causality attribute.
-
-        Returns::
-
-            The causality of the variable, FMI2_PARAMETER(0), FMI2_CALCULATED_PARAMETER(1), FMI2_INPUT(2),
-            FMI2_OUTPUT(3), FMI2_LOCAL(4), FMI2_INDEPENDENT(5), FMI2_UNKNOWN(6)
-        """
-        return self._causality
+        return FMI3_Causality(self._causality)
     causality = property(_get_causality)
 
     def _get_initial(self):
-        """
-        Get the value of the initial attribute.
-
-        Returns::
-
-            The initial attribute value as enumeration: FMI2_INITIAL_EXACT,
-                              FMI2_INITIAL_APPROX, FMI2_INITIAL_CALCULATED,
-                              FMI2_INITIAL_UNKNOWN
-        """
-        return self._initial
+        return FMI3_Initial(self._initial)
     initial = property(_get_initial)
 
 cdef class EventInfo:
@@ -531,14 +456,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         Helper method to set, see docstring on set.
         """
         cdef FMIL3.fmi3_value_reference_t ref
-        cdef FMIL3.fmi3_base_type_enu_t basetype
 
         ref = self.get_variable_valueref(variable_name)
-        basetype = self.get_variable_data_type(variable_name)
+        basetype: FMI3_Type = self.get_variable_data_type(variable_name)
 
-        if basetype == FMIL3.fmi3_base_type_float64:
+        if basetype is FMI3_Type.FLOAT64:
             self.set_float64([ref], [value])
-        elif basetype == FMIL3.fmi3_base_type_float32:
+        elif basetype is FMI3_Type.FLOAT32:
             self.set_float32([ref], [value])
         # TODO: Add more types
         else:
@@ -625,14 +549,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         Helper method to get, see docstring on get.
         """
         cdef FMIL3.fmi3_value_reference_t ref
-        cdef FMIL3.fmi3_base_type_enu_t basetype
 
         ref  = self.get_variable_valueref(variable_name)
-        basetype = self.get_variable_data_type(variable_name)
+        basetype: FMI3_Type = self.get_variable_data_type(variable_name)
 
-        if basetype == FMIL3.fmi3_base_type_float64:
+        if basetype is FMI3_Type.FLOAT64:
             return self.get_float64([ref])
-        elif basetype == FMIL3.fmi3_base_type_float32:
+        elif basetype is FMI3_Type.FLOAT32:
             return self.get_float32([ref])
         # TODO: more types
         else:
@@ -753,28 +676,29 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return vr
 
-    cpdef FMIL3.fmi3_base_type_enu_t get_variable_data_type(self, variable_name) except *:
-        """
-        Get data type of variable.
-
-        Parameter::
-
-            variable_name --
-                The name of the variable.
-
-        Returns::
-
-            The type of the variable.
-        """
+    cdef FMIL3.fmi3_base_type_enu_t _get_variable_data_type(self, variable_name) except *:
         cdef FMIL3.fmi3_import_variable_t* variable
         variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
-            raise FMUException("The variable %s could not be found."%pyfmi_util.decode(variablename))
-
+            raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
         return FMIL3.fmi3_import_get_variable_base_type(variable)
+
+    def get_variable_data_type(self, variable_name):
+        """
+        Get data type of variable.
+
+        Parameter::
+            variable_name --
+                The name of the variable.
+
+        Returns::
+            The type of the variable, as an instance of pyfmi.fmi3.FMI3_Type.
+        """
+        variable_data_type = self._get_variable_data_type(variable_name)
+        return FMI3_Type(int(variable_data_type))
 
     cdef _add_scalar_variable(self, FMIL3.fmi3_import_variable_t* variable):
         cdef FMIL3.fmi3_string_t description
@@ -783,13 +707,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
 
         # TODO: Unnecessary to have alias_kind in FMI3?
-        #alias_kind = FMIL3.fmi3_import_get_variable_alias_kind(variable)
+        # alias_kind = ?
         name        = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
         value_ref   = FMIL3.fmi3_import_get_variable_vr(variable)
         data_type   = FMIL3.fmi3_import_get_variable_base_type(variable)
         variability = FMIL3.fmi3_import_get_variable_variability(variable)
         causality   = FMIL3.fmi3_import_get_variable_causality(variable)
-        # TODO: Decode description? It is a byte-string when access from the ScalarVariable3 object
         description = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_variable_description(variable)
         initial     = FMIL3.fmi3_import_get_variable_initial(variable)
 

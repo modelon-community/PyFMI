@@ -25,7 +25,7 @@ cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi_base as FMI_BASE
 
 cdef class ScalarVariable3:
-    """ Class defining data structure based on the XML element ScalarVariable. """
+    """ Class defining data structure based on the XML elements for ModelVariables. """
     cdef FMIL3.fmi3_value_reference_t _value_reference
     cdef FMIL3.fmi3_base_type_enu_t           _type
     cdef FMIL3.fmi3_variability_enu_t _variability
@@ -75,7 +75,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef _set_time(self, FMIL3.fmi3_float64_t t)
 
     cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variable_name) except *
-    cpdef FMIL3.fmi3_base_type_enu_t get_variable_data_type(self, variable_name) except *
+    cdef FMIL3.fmi3_base_type_enu_t _get_variable_data_type(self, variable_name) except *
     cdef _add_scalar_variable(self, FMIL3.fmi3_import_variable_t* variable)
 
 
