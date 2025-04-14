@@ -100,7 +100,6 @@ cdef void importlogger3(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log
 cdef class ScalarVariable3:
     """ Class defining data structure based on the XML elements of ModelVariables. """
     def __init__(self, name, value_reference, data_type, description, variability, causality, initial):
-        # TODO: All docstrings in this class
         self._name            = name
         self._value_reference = value_reference
         self._type            = data_type
@@ -138,7 +137,7 @@ cdef class ScalarVariable3:
     initial = property(_get_initial)
 
 cdef class EventInfo:
-    """Class representing data related to event information."""
+    """ Class representing data related to event information."""
     def __init__(self):
         self.new_discrete_states_needed = FMIL3.fmi3_false
         self.terminate_simulation = FMIL3.fmi3_false
@@ -361,21 +360,15 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             self._log_stream = None
 
     cpdef _get_time(self):
-        """
-        Returns the current time of the simulation.
-
-        Returns::
-            The time.
-        """
+        """ Returns the current time of the simulation. """
         return self._t
 
     cpdef _set_time(self, FMIL3.fmi3_float64_t t):
-        """
-        Sets the current time of the simulation.
+        """ Sets the current time of the simulation.
 
-        Parameters::
-            t --
-                The time to set.
+            Parameters::
+                t --
+                    The time to set.
         """
         cdef int status
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -388,13 +381,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     time = property(_get_time, _set_time,
         doc = """
-            Property for accessing the current time of the simulation. Calls the low-level FMI function: fmi3SetTime.
+            Property for accessing the current time of the simulation.
+            Calls the low-level FMI function: fmi3SetTime or fmi3GetTime.
     """)
 
     def terminate(self):
-        """
-        Calls the FMI function fmi3Terminate() on the FMU.
-        After this call, any call to a function changing the state of the FMU will fail.
+        """ Calls the FMI function fmi3Terminate() on the FMU.
+            After this call, any call to a function changing the state of the FMU will fail.
         """
         cdef FMIL3.fmi3_status_t status
 
@@ -406,17 +399,14 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise FMUException("Termination of FMU failed, see log for possible more information.")
 
     def free_instance(self):
-        """
-        Calls the FMI function fmi3FreeInstance() on the FMU. Note that this is not
-        needed generally.
-        """
+        """ Calls the FMI function fmi3FreeInstance() on the FMU. Note that this is not needed generally. """
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         FMIL3.fmi3_import_free_instance(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
     def reset(self):
         """ Resets the FMU back to its original state. Note that the environment
-        has to initialize the FMU again after this function-call.
+            has to initialize the FMU again after this function-call.
         """
         cdef FMIL3.fmi3_status_t status
 
@@ -718,14 +708,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return ScalarVariable3(name, value_ref, data_type, description, variability, causality, initial)
 
-
     def get_states_list(self):
-        """
-        Returns a dictionary with the states.
+        """ Returns a dictionary with the states.
 
-        Returns::
+            Returns::
 
-            An ordered dictionary with the state variables.
+                An ordered dictionary with the state variables.
         """
         cdef FMIL3.fmi3_import_variable_list_t* variable_list
         cdef FMIL.size_t                        variable_list_size
@@ -744,15 +732,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             scalar_variable = self._add_scalar_variable(<FMIL3.fmi3_import_variable_t*>variable)
             variable_dict[scalar_variable.name] = scalar_variable
 
-        #Free the variable list
         FMIL3.fmi3_import_free_variable_list(variable_list)
 
         return variable_dict
 
     def get_fmil_log_level(self):
-        """
-        Returns::
-            The current FMIL log-level.
+        """ Returns::
+                The current FMIL log-level.
         """
         cdef int level
         if self._enable_logging:
@@ -762,9 +748,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise FMUException('Logging is not enabled')
 
     def get_model_version(self):
-        """
-        Returns the version of the FMU.
-        """
+        """ Returns the version of the FMU. """
         cdef FMIL3.fmi3_string_t version
         version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
         return pyfmi_util.decode(version) if version != NULL else ""
@@ -777,26 +761,20 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         return pyfmi_util.decode(version)
 
     def get_name(self):
-        """
-        Return the model name as used in the modeling environment.
-        """
+        """ Return the model name as used in the modeling environment. """
         return self._modelName
 
     def get_identifier(self):
-        """ Return the model identifier, name of binary model file and prefix in
-            the C-function names of the model.
-        """
+        """ Return the model identifier, name of binary model file and prefix in the C-function names of the model. """
         raise NotImplementedError
 
     def get_ode_sizes(self):
-        """
-        Returns the number of continuous states and the number of event indicators.
+        """ Returns the number of continuous states and the number of event indicators.
 
-        Returns::
+            Returns::
 
-            Tuple (The number of continuous states, The number of event indicators)
-
-            [n_states, n_event_ind] = model.get_ode_sizes()
+                Tuple (The number of continuous states, The number of event indicators)
+                [n_states, n_event_ind] = model.get_ode_sizes()
         """
         return self._nContinuousStates, self._nEventIndicators
 
@@ -814,27 +792,26 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
 
     def get_tolerances(self):
-        """
-        Returns the relative and absolute tolerances. If the relative tolerance
-        is defined in the XML-file it is used, otherwise a default of 1.e-4 is
-        used. The absolute tolerance is calculated and returned according to
-        the FMI specification, atol = 0.01*rtol*(nominal values of the
-        continuous states).
+        """ Returns the relative and absolute tolerances. If the relative tolerance
+            is defined in the XML-file it is used, otherwise a default of 1.e-4 is
+            used. The absolute tolerance is calculated and returned according to
+            the FMI specification, atol = 0.01*rtol*(nominal values of the
+            continuous states).
 
-        This method should not be called before initialization, since it depends on state nominals
-        which can change during initialization.
+            This method should not be called before initialization, since it depends on state nominals
+            which can change during initialization.
 
-        Returns::
+            Returns::
 
-            rtol --
-                The relative tolerance.
+                rtol --
+                    The relative tolerance.
 
-            atol --
-                The absolute tolerance.
+                atol --
+                    The absolute tolerance.
 
-        Example::
+            Example::
 
-            [rtol, atol] = model.get_tolerances()
+                [rtol, atol] = model.get_tolerances()
         """
         rtol = self.get_relative_tolerance()
         atol = self.get_absolute_tolerances()
@@ -842,30 +819,28 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         return [rtol, atol]
 
     def get_relative_tolerance(self):
-        """
-        Returns the relative tolerance. If the relative tolerance
-        is defined in the XML-file it is used, otherwise a default of 1.e-4 is
-        used.
+        """ Returns the relative tolerance. If the relative tolerance
+            is defined in the XML-file it is used, otherwise a default of 1.e-4 is
+            used.
 
-        Returns::
+            Returns::
 
-            rtol --
-                The relative tolerance.
+                rtol --
+                    The relative tolerance.
         """
         return self.get_default_experiment_tolerance()
 
     def get_absolute_tolerances(self):
-        """
-        Returns the absolute tolerances. They are calculated and returned according to
-        the FMI specification, atol = 0.01*rtol*(nominal values of the
-        continuous states)
+        """ Returns the absolute tolerances. They are calculated and returned according to
+            the FMI specification, atol = 0.01*rtol*(nominal values of the
+            continuous states)
 
-        This method should not be called before initialization, since it depends on state nominals.
+            This method should not be called before initialization, since it depends on state nominals.
 
-        Returns::
+            Returns::
 
-            atol --
-                The absolute tolerances.
+                atol --
+                    The absolute tolerances.
         """
         if self._initialized_fmu == 0:
             raise FMUException("Unable to retrieve the absolute tolerance, FMU needs to be initialized.")
@@ -1052,15 +1027,11 @@ cdef class FMUModelME3(FMUModelBase3):
         stop_time_defined=False,
         stop_time="Default"
     ):
-        """
-        Enters initialization mode by calling the low level FMI function
-        fmi3EnterInitializationMode.
+        """ Enters initialization mode by calling the low level FMI function fmi3EnterInitializationMode.
+            Note that the method initialize() performs both the enter and exit of initialization mode.
 
-        Note that the method initialize() performs both the enter and
-        exit of initialization mode.
-
-        Args:
-            For a full description of the input arguments, see the docstring for method 'initialize'.
+            Args:
+                For a full description of the input arguments, see the docstring for method 'initialize'.
         """
         cdef FMIL3.fmi3_status_t status
 
@@ -1253,12 +1224,10 @@ cdef class FMUModelME3(FMUModelBase3):
             return FMIL3.fmi3_status_ok
 
     def _get_continuous_states(self):
-        """
-        Returns a vector with the values of the continuous states.
+        """ Returns a vector with the values of the continuous states.
 
-        Returns::
-
-            The continuous states.
+            Returns::
+                The continuous states.
         """
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] ndx = np.zeros(
@@ -1284,13 +1253,11 @@ cdef class FMUModelME3(FMUModelBase3):
             return FMIL3.fmi3_status_ok
 
     def _set_continuous_states(self, np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode="c"] values):
-        """
-        Set the values of the continuous states.
+        """ Set the values of the continuous states.
 
-        Parameters::
-
-            values--
-                The new values of the continuous states.
+            Parameters::
+                values--
+                    The new values of the continuous states.
         """
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1,mode='c'] ndx = values
@@ -1320,9 +1287,7 @@ cdef void _cleanup_on_load_error(
     bytes fmu_temp_dir,
     list log_data
 ):
-    """
-    To reduce some code duplication for various failures in _load_fmi3_fmu.
-    """
+    """ To reduce some code duplication for various failures in _load_fmi3_fmu. """
     if fmu_3 is not NULL:
         FMIL3.fmi3_import_free(fmu_3)
     FMIL.fmi_import_free_context(context)

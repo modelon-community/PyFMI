@@ -137,7 +137,7 @@ class TestFMI3LoadFMU:
         assert fmu.get_model_version() == ''
 
     def test_instantiation(self, tmpdir):
-        """Test that instantiation works by verifying the output in the log."""
+        """ Test that instantiation works by verifying the output in the log."""
         with temp_dir_context(tmpdir) as temp_path:
              # log_level set to 5 required by test
             fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", log_level=5)
