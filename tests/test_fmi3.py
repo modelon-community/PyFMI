@@ -31,7 +31,7 @@ from pyfmi.fmi3 import (
     FMI3_Causality,
     FMI3_Variability,
     FMI3_Initial,
-    EventInfo,
+    FMI3EventInfo,
 )
 
 from pyfmi.exceptions import (
@@ -96,7 +96,7 @@ class TestFMI3LoadFMU:
         fmu = load_fmu(ref_fmu, kind = "ME")
         event_info = fmu.get_event_info()
         # TODO: Update testing of get_event_info once support for events has been added
-        assert isinstance(event_info, EventInfo)
+        assert isinstance(event_info, FMI3EventInfo)
         assert event_info.next_event_time_defined
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
@@ -266,6 +266,9 @@ class TestFMI3LoadFMU:
         assert x0.description == b'the first state'
         assert x1.description == b'the second state'
 
+        assert x0.type == FMI3_Type.FLOAT64
+        assert x1.type == FMI3_Type.FLOAT64
+
         assert x0.causality is FMI3_Causality.OUTPUT
         assert x1.causality is FMI3_Causality.OUTPUT
 
@@ -305,6 +308,40 @@ class TestFMI3LoadFMU:
         msg = "Unable to retrieve the absolute tolerance, FMU needs to be initialized."
         with pytest.raises(FMUException, match = msg):
             fmu.get_tolerances()
+
+    def test_get_and_set_states(self):
+        """Test get and set of states."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+
+        assert fmu.get('x0') == np.array([2.])
+        fmu.set('x0', 3.0)
+        assert fmu.get('x0') == np.array([3.])
+
+        assert fmu.get('x1') == np.array([0.])
+        fmu.set('x1', 1.12)
+        assert fmu.get('x1') == np.array([1.12])
+
+    def test_get_derivatives_with_states_set(self):
+        """Test retrieve derivatives, verify values combined with setting of states."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        fmu.initialize()
+
+        # Note:
+        #   M(x0) = 2;
+        #   M(x1) = 0;
+        #   M(mu) = 1;
+
+        #   M(der_x0) = M(x1);
+        #   M(der_x1) = M(mu) * ((1.0 - M(x0) * M(x0)) * M(x1)) - M(x0);
+        assert all(fmu.get_derivatives() == np.array([0., -2.]))
+
+        fmu.set('x0', 5)
+        assert all(fmu.get_derivatives() == np.array([0., -5.]))
+
+        fmu.set('x1', 1)
+        assert all(fmu.get_derivatives() == np.array([1, -29]))
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
@@ -470,7 +507,7 @@ class Test_FMI3ME:
         fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
         fmu = load_fmu(fmu_path)
         fmu.initialize()
-        assert all(fmu.continuous_states == [2.0, 0.0])
+        assert all(fmu.continuous_states == np.array([2.0, 0.0]))
 
     @pytest.mark.parametrize("variable_name, expected_datatype",
         [
@@ -495,6 +532,7 @@ class Test_FMI3ME:
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = FMUModelME3(fmu_path, _connect_dll = False)
         assert fmu.get_variable_data_type(variable_name) is expected_datatype
+
 
 class TestFMI3CS:
     # TODO: Unsupported for now

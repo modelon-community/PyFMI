@@ -22,7 +22,6 @@ cimport cython
 import os
 from enum import Enum
 import logging
-from collections import OrderedDict
 
 import numpy as np
 cimport numpy as np
@@ -136,7 +135,7 @@ cdef class ScalarVariable3:
         return FMI3_Initial(self._initial)
     initial = property(_get_initial)
 
-cdef class EventInfo:
+cdef class FMI3EventInfo:
     """ Class representing data related to event information."""
     def __init__(self):
         self.new_discrete_states_needed = FMIL3.fmi3_false
@@ -205,7 +204,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         # Internal values
         self._enable_logging = False
-        self._event_info   = EventInfo()
+        self._event_info   = FMI3EventInfo()
 
         # Specify the general callback functions
         self.callbacks.malloc  = FMIL.malloc
@@ -690,7 +689,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         variable_data_type = self._get_variable_data_type(variable_name)
         return FMI3_Type(int(variable_data_type))
 
-    cdef _add_scalar_variable(self, FMIL3.fmi3_import_variable_t* variable):
+    cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable):
         cdef FMIL3.fmi3_string_t description
 
         if variable == NULL:
@@ -717,7 +716,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         """
         cdef FMIL3.fmi3_import_variable_list_t* variable_list
         cdef FMIL.size_t                        variable_list_size
-        variable_dict = OrderedDict()
+        variable_dict = {}
 
         variable_list = FMIL3.fmi3_import_get_continuous_state_derivatives_list(self._fmu)
         variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
@@ -729,7 +728,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             der_variable = FMIL3.fmi3_import_get_variable(variable_list, i)
             variable     = FMIL3.fmi3_import_get_float64_variable_derivative_of(<FMIL3.fmi3_import_float64_variable_t*>der_variable)
 
-            scalar_variable = self._add_scalar_variable(<FMIL3.fmi3_import_variable_t*>variable)
+            scalar_variable = self._add_variable(<FMIL3.fmi3_import_variable_t*>variable)
             variable_dict[scalar_variable.name] = scalar_variable
 
         FMIL3.fmi3_import_free_variable_list(variable_list)
@@ -1094,7 +1093,7 @@ cdef class FMUModelME3(FMUModelBase3):
         Returns the event information from the FMU.
 
         Returns::
-            The event information as an instance of pyfmi.fmi3.EventInfo
+            The event information as an instance of pyfmi.fmi3.FMI3EventInfo
         """
         # TODO: Below is temporary for testing until we've added support for events
         self._event_info.next_event_time_defined = FMIL3.fmi3_true
@@ -1158,6 +1157,45 @@ cdef class FMUModelME3(FMUModelBase3):
     the low-level FMI function: fmi3GetNominalContinuousStates.
     """)
 
+    cdef FMIL3.fmi3_status_t _get_derivatives(self, FMIL3.fmi3_float64_t[:] values):
+        cdef FMIL3.fmi3_status_t status
+        if self._nContinuousStates > 0:
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+            status = FMIL3.fmi3_import_get_derivatives(self._fmu, &values[0], self._nContinuousStates)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+            return status
+        else:
+            return FMIL3.fmi3_status_ok
+
+    cpdef get_derivatives(self):
+        """
+        Returns the derivative of the continuous states.
+
+        Returns::
+
+            dx --
+                The derivatives as an array.
+
+        Example::
+
+            dx = model.get_derivatives()
+
+        Calls the low-level FMI function: fmi3GetDerivatives
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] values = np.empty(
+            self._nContinuousStates,
+            dtype = np.double
+        )
+
+        status = self._get_derivatives(values)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException('Failed to get the derivative values at time: %E.'%self.time)
+
+        return values
+
+
     cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
             FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,
             FMIL3.fmi3_boolean_t* enter_event_mode,
@@ -1206,15 +1244,15 @@ cdef class FMUModelME3(FMUModelBase3):
         )
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
-        self._last_accepted_time = self._get_time()
-
         if status != FMIL3.fmi3_status_ok:
             raise FMUException('Failed to call FMI completed integrator step at time: %E.' % self.time)
 
+        self._last_accepted_time = self._get_time()
+
         return enterEventMode[0] == FMIL3.fmi3_true, terminateSimulation[0] == FMIL3.fmi3_true
 
-    cdef int _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx):
-        cdef int status
+    cdef FMIL3.fmi3_status_t _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx):
+        cdef FMIL3.fmi3_status_t status
         if self._nContinuousStates > 0:
             self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             status = FMIL3.fmi3_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
@@ -1242,8 +1280,8 @@ cdef class FMUModelME3(FMUModelBase3):
 
         return ndx
 
-    cdef int _set_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx):
-        cdef int status
+    cdef FMIL3.fmi3_status_t _set_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx):
+        cdef FMIL3.fmi3_status_t status
         if self._nContinuousStates > 0:
             self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
             status = FMIL3.fmi3_import_set_continuous_states(self._fmu, &ndx[0], self._nContinuousStates)
@@ -1259,7 +1297,7 @@ cdef class FMUModelME3(FMUModelBase3):
                 values--
                     The new values of the continuous states.
         """
-        cdef int status
+        cdef FMIL3.fmi3_status_t status
         cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1,mode='c'] ndx = values
 
         if np.size(ndx) != self._nContinuousStates:
@@ -1270,7 +1308,7 @@ cdef class FMUModelME3(FMUModelBase3):
 
         status = self._set_continuous_states_fmil(ndx)
 
-        if status >= 3:
+        if status >= FMIL3.fmi3_status_error:
             raise FMUException('Failed to set the new continuous states.')
 
     continuous_states = property(_get_continuous_states, _set_continuous_states,

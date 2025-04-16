@@ -35,13 +35,14 @@ cdef class ScalarVariable3:
     cdef object _description
 
 
-cdef class EventInfo:
+cdef class FMI3EventInfo:
     cdef public FMIL3.fmi3_boolean_t new_discrete_states_needed
     cdef public FMIL3.fmi3_boolean_t terminate_simulation
     cdef public FMIL3.fmi3_boolean_t nominals_of_continuous_states_changed
     cdef public FMIL3.fmi3_boolean_t values_of_continuous_states_changed
     cdef public FMIL3.fmi3_boolean_t next_event_time_defined
     cdef public FMIL3.fmi3_float64_t next_event_time
+    # This will be populated further once we add support for CS and Clocks in particular.
 
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
     # FMIL related variables
@@ -76,12 +77,14 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variable_name) except *
     cdef FMIL3.fmi3_base_type_enu_t _get_variable_data_type(self, variable_name) except *
-    cdef _add_scalar_variable(self, FMIL3.fmi3_import_variable_t* variable)
+    cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable)
 
 
 cdef class FMUModelME3(FMUModelBase3):
-    cdef int _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
-    cdef int _set_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
+    cpdef get_derivatives(self)
+    cdef FMIL3.fmi3_status_t _get_derivatives(self, FMIL3.fmi3_float64_t[:] values)
+    cdef FMIL3.fmi3_status_t _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
+    cdef FMIL3.fmi3_status_t _set_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
     cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
         FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,
         FMIL3.fmi3_boolean_t* enter_event_mode,

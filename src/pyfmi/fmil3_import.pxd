@@ -80,10 +80,10 @@ cdef extern from 'fmilib.h':
         fmi3_variability_enu_unknown     = 5
 
     cdef enum fmi3_initial_enu_t:
-        fmi3_initial_enu_exact,
-        fmi3_initial_enu_approx,
-        fmi3_initial_enu_calculated,
-        fmi3_initial_enu_unknown # must be last
+        fmi3_initial_enu_exact      = 1,
+        fmi3_initial_enu_approx     = 2,
+        fmi3_initial_enu_calculated = 3,
+        fmi3_initial_enu_unknown    = 4 # must be last
 
     cdef struct fmi3_xml_variable_t:
         pass
@@ -180,6 +180,7 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_set_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t);
 
     # getting
+    fmi3_status_t fmi3_import_get_derivatives(fmi3_import_t *, fmi3_float64_t *, size_t)
     fmi3_status_t fmi3_import_get_float64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float64_t*, size_t);
     fmi3_status_t fmi3_import_get_float32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float32_t*, size_t);
     fmi3_status_t fmi3_import_get_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t);
