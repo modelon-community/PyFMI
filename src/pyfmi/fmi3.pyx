@@ -792,7 +792,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     def get_tolerances(self):
         """ Returns the relative and absolute tolerances. If the relative tolerance
-            is defined in the XML-file it is used, otherwise a default of 1.e-4 is
+            is defined in modelDescription.xml, it is used, otherwise a default of 1.e-4 is
             used. The absolute tolerance is calculated and returned according to
             the FMI specification, atol = 0.01*rtol*(nominal values of the
             continuous states).
@@ -819,7 +819,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     def get_relative_tolerance(self):
         """ Returns the relative tolerance. If the relative tolerance
-            is defined in the XML-file it is used, otherwise a default of 1.e-4 is
+            is defined in modelDescription.xml, it is used, otherwise a default of 1.e-4 is
             used.
 
             Returns::
