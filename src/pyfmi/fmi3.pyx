@@ -96,7 +96,7 @@ cdef void importlogger3(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log
         (<FMUModelBase3>c.context)._logger(module, log_level, message)
 
 
-cdef class ScalarVariable3:
+cdef class FMI3ModelVariable:
     """ Class defining data structure based on the XML elements of ModelVariables. """
     def __init__(self, name, value_reference, data_type, description, variability, causality, initial):
         self._name            = name
@@ -705,7 +705,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         description = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_variable_description(variable)
         initial     = FMIL3.fmi3_import_get_variable_initial(variable)
 
-        return ScalarVariable3(name, value_ref, data_type, description, variability, causality, initial)
+        return FMI3ModelVariable(name, value_ref, data_type, description, variability, causality, initial)
 
     def get_states_list(self):
         """ Returns a dictionary with the states.

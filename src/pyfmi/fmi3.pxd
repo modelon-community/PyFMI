@@ -24,7 +24,7 @@ cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi_base as FMI_BASE
 
-cdef class ScalarVariable3:
+cdef class FMI3ModelVariable:
     """ Class defining data structure based on the XML elements for ModelVariables. """
     cdef FMIL3.fmi3_value_reference_t _value_reference
     cdef FMIL3.fmi3_base_type_enu_t           _type
