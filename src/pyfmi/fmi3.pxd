@@ -24,17 +24,39 @@ cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi_base as FMI_BASE
 
+cdef class FMI3ModelVariable:
+    """ Class defining data structure based on the XML elements for ModelVariables. """
+    cdef FMIL3.fmi3_value_reference_t _value_reference
+    cdef FMIL3.fmi3_base_type_enu_t           _type
+    cdef FMIL3.fmi3_variability_enu_t _variability
+    cdef FMIL3.fmi3_causality_enu_t _causality
+    cdef FMIL3.fmi3_initial_enu_t _initial
+    cdef object _name
+    cdef object _description
+
+
+cdef class FMI3EventInfo:
+    cdef public FMIL3.fmi3_boolean_t new_discrete_states_needed
+    cdef public FMIL3.fmi3_boolean_t terminate_simulation
+    cdef public FMIL3.fmi3_boolean_t nominals_of_continuous_states_changed
+    cdef public FMIL3.fmi3_boolean_t values_of_continuous_states_changed
+    cdef public FMIL3.fmi3_boolean_t next_event_time_defined
+    cdef public FMIL3.fmi3_float64_t next_event_time
+    # This will be populated further once we add support for CS and Clocks in particular.
+
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
     # FMIL related variables
     cdef FMIL.fmi_import_context_t* _context
     cdef FMIL3.fmi3_import_t*       _fmu
     cdef FMIL3.fmi3_fmu_kind_enu_t  _fmu_kind
     cdef FMIL.fmi_version_enu_t     _version
-
+    cdef FMIL.size_t _nEventIndicators  # format with snake case?
+    cdef FMIL.size_t _nContinuousStates # format with snake case?
 
     # Internal values
     cdef public float  _last_accepted_time
     cdef public object _enable_logging
+    cdef public object _event_info
     cdef object     _fmu_full_path
     cdef object     _modelName
     cdef object     _t
@@ -50,12 +72,25 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef np.ndarray get_float64(self, valueref)
     cpdef np.ndarray get_float32(self, valueref)
 
-    cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variablename) except *
-    cpdef FMIL3.fmi3_base_type_enu_t get_variable_data_type(self, variable_name) except *
+    cpdef _get_time(self)
+    cpdef _set_time(self, FMIL3.fmi3_float64_t t)
+
+    cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variable_name) except *
+    cdef FMIL3.fmi3_base_type_enu_t _get_variable_data_type(self, variable_name) except *
+    cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable)
+
 
 cdef class FMUModelME3(FMUModelBase3):
-    cdef FMIL.size_t                _nEventIndicators
-    cdef FMIL.size_t                _nContinuousStates
+    cpdef get_derivatives(self)
+    cdef FMIL3.fmi3_status_t _get_derivatives(self, FMIL3.fmi3_float64_t[:] values)
+    cdef FMIL3.fmi3_status_t _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
+    cdef FMIL3.fmi3_status_t _set_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
+    cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
+        FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,
+        FMIL3.fmi3_boolean_t* enter_event_mode,
+        FMIL3.fmi3_boolean_t* terminate_simulation
+    )
+    cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx)
 
 cdef void _cleanup_on_load_error(
     FMIL3.fmi3_import_t* fmu_3,

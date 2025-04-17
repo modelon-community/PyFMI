@@ -22,26 +22,18 @@ import numpy as np
 from io import StringIO
 from pyfmi import load_fmu
 from pathlib import Path
+
 from pyfmi.fmi import (
     FMUModelME3,
 )
 from pyfmi.fmi3 import (
-    FMI3_FLOAT64,
-    FMI3_FLOAT32,
-    FMI3_INT64,
-    FMI3_INT32,
-    FMI3_INT16,
-    FMI3_INT8,
-    FMI3_UINT64,
-    FMI3_UINT32,
-    FMI3_UINT16,
-    FMI3_UINT8,
-    FMI3_BOOL,
-    FMI3_BINARY,
-    FMI3_CLOCK,
-    FMI3_STRING,
-    FMI3_ENUM,
+    FMI3_Type,
+    FMI3_Causality,
+    FMI3_Variability,
+    FMI3_Initial,
+    FMI3EventInfo,
 )
+
 from pyfmi.exceptions import (
     FMUException,
     InvalidFMUException,
@@ -99,6 +91,15 @@ class TestFMI3LoadFMU:
         assert isinstance(fmu, FMUModelME3)
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
+    def test_get_event_info(self, ref_fmu):
+        """Test that get_event_info() works as expected."""
+        fmu = load_fmu(ref_fmu, kind = "ME")
+        event_info = fmu.get_event_info()
+        # TODO: Update testing of get_event_info once support for events has been added
+        assert isinstance(event_info, FMI3EventInfo)
+        assert event_info.next_event_time_defined
+
+    @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
     def test_load_kind_CS(self, ref_fmu):
         """Test loading an FMU with kind 'CS'"""
         msg = "Import of FMI3 Co-Simulation FMUs is not yet supported."
@@ -121,6 +122,19 @@ class TestFMI3LoadFMU:
         """Test that FMI version is retrieved as expected."""
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
         assert fmu.get_version() == '3.0'
+
+    def test_get_name(self):
+        """Test that FMI name is retrieved as expected."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        assert fmu.get_name() == 'van der Pol oscillator'
+
+    def test_get_model_version(self):
+        """Test that model version is retrieved as expected."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        # TODO: Update test with some FMU that has this field specified.
+        #       For now it at least verifies the call doesn't raise an exception
+        #       and all of the reference FMUs have omitted this field.
+        assert fmu.get_model_version() == ''
 
     def test_instantiation(self, tmpdir):
         """ Test that instantiation works by verifying the output in the log."""
@@ -199,9 +213,11 @@ class TestFMI3LoadFMU:
     def test_initialize_manually(self, ref_fmu):
         """Test initialize all the ME reference FMUs by entering/exiting initialization mode manually. """
         fmu = load_fmu(ref_fmu)
+        assert fmu.time is None
         # Should simply pass without any exceptions
         fmu.enter_initialization_mode()
         fmu.exit_initialization_mode()
+        assert fmu.time == 0.0
 
     def test_get_double_terminate(self):
         """Test invalid call sequence raises an error. """
@@ -233,11 +249,99 @@ class TestFMI3LoadFMU:
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
         assert fmu.get_default_experiment_stop_time() == 20.0
 
-
     def test_get_default_experiment_tolerance(self):
         """Test retrieving default experiment tolerance. """
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
         assert fmu.get_default_experiment_tolerance() == 0.0001
+
+    def test_get_states_list(self):
+        """Test retrieving states list and check its attributes. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        states = fmu.get_states_list()
+
+        assert len(states) == 2
+        x0 = states['x0']
+        x1 = states['x1']
+
+        assert x0.description == b'the first state'
+        assert x1.description == b'the second state'
+
+        assert x0.type == FMI3_Type.FLOAT64
+        assert x1.type == FMI3_Type.FLOAT64
+
+        assert x0.causality is FMI3_Causality.OUTPUT
+        assert x1.causality is FMI3_Causality.OUTPUT
+
+        assert x0.variability is FMI3_Variability.CONTINUOUS
+        assert x1.variability is FMI3_Variability.CONTINUOUS
+
+        assert x0.value_reference == 1
+        assert x1.value_reference == 3
+
+        assert x0.initial is FMI3_Initial.EXACT
+        assert x1.initial is FMI3_Initial.EXACT
+
+    def test_get_relative_tolerance(self):
+        """Test get_relative_tolerance(). """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        assert fmu.get_relative_tolerance() == 0.0001
+
+    def test_get_absolute_tolerances(self):
+        """Test get_absolute_tolerances(). """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.initialize()
+        np.testing.assert_array_almost_equal(fmu.get_absolute_tolerances(), np.array([1e-6, 1e-6]))
+
+    def test_get_tolerances(self):
+        """Test get_tolerances(). """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.initialize()
+        tolerances = fmu.get_tolerances()
+        assert tolerances[0] == 0.0001
+        assert tolerances[0] == fmu.get_relative_tolerance()
+        np.testing.assert_array_almost_equal(tolerances[1], np.array([1e-6, 1e-6]))
+
+    def test_get_tolerances_exception(self):
+        """Test that FMUException is raised if FMU is not initialized before get_tolerances()."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        msg = "Unable to retrieve the absolute tolerance, FMU needs to be initialized."
+        with pytest.raises(FMUException, match = msg):
+            fmu.get_tolerances()
+
+    def test_get_and_set_states(self):
+        """Test get and set of states."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+
+        assert fmu.get('x0') == np.array([2.])
+        fmu.set('x0', 3.0)
+        assert fmu.get('x0') == np.array([3.])
+
+        assert fmu.get('x1') == np.array([0.])
+        fmu.set('x1', 1.12)
+        assert fmu.get('x1') == np.array([1.12])
+
+    def test_get_derivatives_with_states_set(self):
+        """Test retrieve derivatives, verify values combined with setting of states."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        fmu.initialize()
+
+        # Note:
+        #   M(x0) = 2;
+        #   M(x1) = 0;
+        #   M(mu) = 1;
+
+        #   M(der_x0) = M(x1);
+        #   M(der_x1) = M(mu) * ((1.0 - M(x0) * M(x0)) * M(x1)) - M(x0);
+        assert all(fmu.get_derivatives() == np.array([0., -2.]))
+
+        fmu.set('x0', 5)
+        assert all(fmu.get_derivatives() == np.array([0., -5.]))
+
+        fmu.set('x1', 1)
+        assert all(fmu.get_derivatives() == np.array([1, -29]))
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
@@ -253,6 +357,22 @@ class Test_FMI3ME:
         msg = "The FMU could not be loaded. This class only supports FMI 3.0 for Model Exchange."
         with pytest.raises(InvalidVersionException, match = msg):
             FMUModelME3(ref_fmu, _connect_dll = False)
+
+    def test_get_nominals_of_continuous_states(self):
+        """Test retrieve the nominals of the continuous states. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.initialize()
+        # TODO: Remove this test in the future when we can simulate the FMU fully
+        nominals = fmu._get_nominal_continuous_states()
+        assert all(nominals == np.array([1., 1.]))
+
+    def test_get_nominals_of_continuous_states_pre_init(self):
+        """Test that Exception is raised if FMU is not initialized before retrieving nominals of continuous states."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        msg = "Unable to retrieve nominals of continuous states, FMU must first be initialized."
+        with pytest.raises(FMUException, match = msg):
+            fmu._get_nominal_continuous_states()
 
     def test_logfile_content(self):
         """Test that we get the log content from FMIL parsing the modelDescription.xml."""
@@ -349,29 +469,21 @@ class Test_FMI3ME:
         with pytest.raises(FMUException, match = err_msg):
             fmu.get_variable_valueref(var_name)
 
-    @pytest.mark.parametrize("variable_name, expected_datatype",
+    @pytest.mark.parametrize("ref_fmu, expected_ode_size",
         [
-            ("Float64_continuous_input", FMI3_FLOAT64),
-            ("Float32_continuous_input", FMI3_FLOAT32),
-            ("Int64_input", FMI3_INT64),
-            ("Int32_input", FMI3_INT32),
-            ("Int16_input", FMI3_INT16),
-            ("Int8_input" , FMI3_INT8),
-            ("UInt64_input", FMI3_UINT64),
-            ("UInt32_input", FMI3_UINT32),
-            ("UInt16_input", FMI3_UINT16),
-            ("UInt8_input",  FMI3_UINT8),
-            ("Boolean_input", FMI3_BOOL),
-            ("String_parameter", FMI3_STRING),
-            ("Binary_input", FMI3_BINARY),
-            ("Enumeration_input", FMI3_ENUM),
+            (FMI3_REF_FMU_PATH / "BouncingBall.fmu", (2, 1)),
+            (FMI3_REF_FMU_PATH / "Dahlquist.fmu",    (1, 0)),
+            (FMI3_REF_FMU_PATH / "Feedthrough.fmu",  (0, 0)),
+            (FMI3_REF_FMU_PATH / "Resource.fmu",     (0, 0)),
+            (FMI3_REF_FMU_PATH / "Stair.fmu" ,       (0, 0)),
+            (FMI3_REF_FMU_PATH / "StateSpace.fmu",   (1, 0)),
+            (FMI3_REF_FMU_PATH / "VanDerPol.fmu",    (2, 0)),
         ]
     )
-    def test_get_variable_data_type(self, variable_name, expected_datatype):
-        """Test getting variable data types."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = FMUModelME3(fmu_path, _connect_dll = False)
-        assert fmu.get_variable_data_type(variable_name) == expected_datatype
+    def test_get_ode_sizes(self, ref_fmu, expected_ode_size):
+        """Test get ode sizes."""
+        fmu = load_fmu(ref_fmu)
+        assert fmu.get_ode_sizes() == expected_ode_size
 
     def test_get_variable_data_type_missing(self):
         """Test getting variable data type for missing variable."""
@@ -389,6 +501,37 @@ class Test_FMI3ME:
         err_msg = "The length of valueref and values are inconsistent. Note: Array variables are not yet supported"
         with pytest.raises(FMUException, match = err_msg):
             fmu.set("x", np.array([1, 2, 3]))
+
+    def test_get_continuous_states(self):
+        """Test retrieve the continuous states."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        fmu.initialize()
+        assert all(fmu.continuous_states == np.array([2.0, 0.0]))
+
+    @pytest.mark.parametrize("variable_name, expected_datatype",
+        [
+            ("Float64_continuous_input", FMI3_Type.FLOAT64),
+            ("Float32_continuous_input", FMI3_Type.FLOAT32),
+            ("Int64_input", FMI3_Type.INT64),
+            ("Int32_input", FMI3_Type.INT32),
+            ("Int16_input", FMI3_Type.INT16),
+            ("Int8_input" , FMI3_Type.INT8),
+            ("UInt64_input", FMI3_Type.UINT64),
+            ("UInt32_input", FMI3_Type.UINT32),
+            ("UInt16_input", FMI3_Type.UINT16),
+            ("UInt8_input",  FMI3_Type.UINT8),
+            ("Boolean_input", FMI3_Type.BOOL),
+            ("String_parameter", FMI3_Type.STRING),
+            ("Binary_input", FMI3_Type.BINARY),
+            ("Enumeration_input", FMI3_Type.ENUM),
+        ]
+    )
+    def test_get_variable_data_type(self, variable_name, expected_datatype):
+        """Test getting variable data types."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        assert fmu.get_variable_data_type(variable_name) is expected_datatype
 
 
 class TestFMI3CS:

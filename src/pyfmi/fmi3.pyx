@@ -20,6 +20,7 @@
 cimport cython
 
 import os
+from enum import Enum
 import logging
 
 import numpy as np
@@ -32,21 +33,46 @@ cimport pyfmi.util as pyfmi_util
 
 # TYPES
 # TODO: Import into fmi.pyx for convenience imports?
-FMI3_FLOAT64 = FMIL3.fmi3_base_type_float64
-FMI3_FLOAT32 = FMIL3.fmi3_base_type_float32
-FMI3_INT64   = FMIL3.fmi3_base_type_int64
-FMI3_INT32   = FMIL3.fmi3_base_type_int32
-FMI3_INT16   = FMIL3.fmi3_base_type_int16
-FMI3_INT8    = FMIL3.fmi3_base_type_int8
-FMI3_UINT64  = FMIL3.fmi3_base_type_uint64
-FMI3_UINT32  = FMIL3.fmi3_base_type_uint32
-FMI3_UINT16  = FMIL3.fmi3_base_type_uint16
-FMI3_UINT8   = FMIL3.fmi3_base_type_uint8
-FMI3_BOOL    = FMIL3.fmi3_base_type_bool
-FMI3_BINARY  = FMIL3.fmi3_base_type_binary
-FMI3_CLOCK   = FMIL3.fmi3_base_type_clock
-FMI3_STRING  = FMIL3.fmi3_base_type_str
-FMI3_ENUM    = FMIL3.fmi3_base_type_enum
+class FMI3_Type(Enum):
+    FLOAT64 = FMIL3.fmi3_base_type_float64
+    FLOAT32 = FMIL3.fmi3_base_type_float32
+    INT64   = FMIL3.fmi3_base_type_int64
+    INT32   = FMIL3.fmi3_base_type_int32
+    INT16   = FMIL3.fmi3_base_type_int16
+    INT8    = FMIL3.fmi3_base_type_int8
+    UINT64  = FMIL3.fmi3_base_type_uint64
+    UINT32  = FMIL3.fmi3_base_type_uint32
+    UINT16  = FMIL3.fmi3_base_type_uint16
+    UINT8   = FMIL3.fmi3_base_type_uint8
+    BOOL    = FMIL3.fmi3_base_type_bool
+    BINARY  = FMIL3.fmi3_base_type_binary
+    CLOCK   = FMIL3.fmi3_base_type_clock
+    STRING  = FMIL3.fmi3_base_type_str
+    ENUM    = FMIL3.fmi3_base_type_enum
+
+class FMI3_Initial(Enum):
+    EXACT       = FMIL3.fmi3_initial_enu_exact
+    APPROX      = FMIL3.fmi3_initial_enu_approx
+    CALCULATED  = FMIL3.fmi3_initial_enu_calculated
+    UNKNOWN     = FMIL3.fmi3_initial_enu_unknown
+
+class FMI3_Variability(Enum):
+    CONSTANT    = FMIL3.fmi3_variability_enu_constant
+    FIXED       = FMIL3.fmi3_variability_enu_fixed
+    TUNABLE     = FMIL3.fmi3_variability_enu_tunable
+    DISCRETE    = FMIL3.fmi3_variability_enu_discrete
+    CONTINUOUS  = FMIL3.fmi3_variability_enu_continuous
+    UNKNOWN     = FMIL3.fmi3_variability_enu_unknown
+
+class FMI3_Causality(Enum):
+    STRUCTURAL_PARAMETER    = FMIL3.fmi3_causality_enu_structural_parameter
+    PARAMETER               = FMIL3.fmi3_causality_enu_parameter
+    CALCULATED_PARAMETER    = FMIL3.fmi3_causality_enu_calculated_parameter
+    INPUT                   = FMIL3.fmi3_causality_enu_input
+    OUTPUT                  = FMIL3.fmi3_causality_enu_output
+    LOCAL                   = FMIL3.fmi3_causality_enu_local
+    INDEPENDENT             = FMIL3.fmi3_causality_enu_independent
+    UNKNOWN                 = FMIL3.fmi3_causality_enu_unknown
 
 from pyfmi.exceptions import (
     FMUException,
@@ -68,6 +94,56 @@ from pyfmi.common.core import create_temp_dir
 cdef void importlogger3(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     if c.context != NULL:
         (<FMUModelBase3>c.context)._logger(module, log_level, message)
+
+
+cdef class FMI3ModelVariable:
+    """ Class defining data structure based on the XML elements of ModelVariables. """
+    def __init__(self, name, value_reference, data_type, description, variability, causality, initial):
+        self._name            = name
+        self._value_reference = value_reference
+        self._type            = data_type
+        self._description     = description
+        self._variability     = variability
+        self._causality       = causality
+        self._initial         = initial
+
+    def _get_name(self):
+        return self._name
+    name = property(_get_name)
+
+    def _get_value_reference(self):
+        return self._value_reference
+    value_reference = property(_get_value_reference)
+
+    def _get_type(self):
+        return FMI3_Type(self._type)
+    type = property(_get_type)
+
+    def _get_description(self):
+        return self._description
+    description = property(_get_description)
+
+    def _get_variability(self):
+        return FMI3_Variability(self._variability)
+    variability = property(_get_variability)
+
+    def _get_causality(self):
+        return FMI3_Causality(self._causality)
+    causality = property(_get_causality)
+
+    def _get_initial(self):
+        return FMI3_Initial(self._initial)
+    initial = property(_get_initial)
+
+cdef class FMI3EventInfo:
+    """ Class representing data related to event information."""
+    def __init__(self):
+        self.new_discrete_states_needed = FMIL3.fmi3_false
+        self.terminate_simulation = FMIL3.fmi3_false
+        self.nominals_of_continuous_states_changed = FMIL3.fmi3_false
+        self.values_of_continuous_states_changed = FMIL3.fmi3_false
+        self.next_event_time_defined = FMIL3.fmi3_false
+        self.next_event_time = 0.0
 
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
     """
@@ -128,6 +204,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         # Internal values
         self._enable_logging = False
+        self._event_info   = FMI3EventInfo()
 
         # Specify the general callback functions
         self.callbacks.malloc  = FMIL.malloc
@@ -281,10 +358,35 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if self._log_stream:
             self._log_stream = None
 
-    def terminate(self):
+    cpdef _get_time(self):
+        """ Returns the current time of the simulation. """
+        return self._t
+
+    cpdef _set_time(self, FMIL3.fmi3_float64_t t):
+        """ Sets the current time of the simulation.
+
+            Parameters::
+                t --
+                    The time to set.
         """
-        Calls the FMI function fmi3Terminate() on the FMU.
-        After this call, any call to a function changing the state of the FMU will fail.
+        cdef int status
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_time(self._fmu, t)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the time.')
+        self._t = t
+
+    time = property(_get_time, _set_time,
+        doc = """
+            Property for accessing the current time of the simulation.
+            Calls the low-level FMI function: fmi3SetTime or fmi3GetTime.
+    """)
+
+    def terminate(self):
+        """ Calls the FMI function fmi3Terminate() on the FMU.
+            After this call, any call to a function changing the state of the FMU will fail.
         """
         cdef FMIL3.fmi3_status_t status
 
@@ -296,17 +398,14 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise FMUException("Termination of FMU failed, see log for possible more information.")
 
     def free_instance(self):
-        """
-        Calls the FMI function fmi3FreeInstance() on the FMU. Note that this is not
-        needed generally.
-        """
+        """ Calls the FMI function fmi3FreeInstance() on the FMU. Note that this is not needed generally. """
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         FMIL3.fmi3_import_free_instance(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
     def reset(self):
         """ Resets the FMU back to its original state. Note that the environment
-        has to initialize the FMU again after this function-call.
+            has to initialize the FMU again after this function-call.
         """
         cdef FMIL3.fmi3_status_t status
 
@@ -346,17 +445,16 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         Helper method to set, see docstring on set.
         """
         cdef FMIL3.fmi3_value_reference_t ref
-        cdef FMIL3.fmi3_base_type_enu_t basetype
 
         ref = self.get_variable_valueref(variable_name)
-        basetype = self.get_variable_data_type(variable_name)
+        basetype: FMI3_Type = self.get_variable_data_type(variable_name)
 
-        if basetype == FMIL3.fmi3_base_type_float64:
+        if basetype is FMI3_Type.FLOAT64:
             self.set_float64([ref], [value])
-        elif basetype == FMIL3.fmi3_base_type_float32:
+        elif basetype is FMI3_Type.FLOAT32:
             self.set_float32([ref], [value])
         # TODO: Add more types
-        else: 
+        else:
             raise FMUException('Type not supported.')
 
     cpdef set_float64(self, valueref, values):
@@ -386,9 +484,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_float64(
-            self._fmu, 
-            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
-            np.size(input_valueref), 
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
             <FMIL3.fmi3_float64_t*> set_value.data,
             np.size(set_value)
         )
@@ -424,9 +522,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_float32(
-            self._fmu, 
-            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
-            np.size(input_valueref), 
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
             <FMIL3.fmi3_float32_t*> set_value.data,
             np.size(set_value)
         )
@@ -440,14 +538,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         Helper method to get, see docstring on get.
         """
         cdef FMIL3.fmi3_value_reference_t ref
-        cdef FMIL3.fmi3_base_type_enu_t basetype
 
         ref  = self.get_variable_valueref(variable_name)
-        basetype = self.get_variable_data_type(variable_name)
+        basetype: FMI3_Type = self.get_variable_data_type(variable_name)
 
-        if basetype == FMIL3.fmi3_base_type_float64:
+        if basetype is FMI3_Type.FLOAT64:
             return self.get_float64([ref])
-        elif basetype == FMIL3.fmi3_base_type_float32:
+        elif basetype is FMI3_Type.FLOAT32:
             return self.get_float32([ref])
         # TODO: more types
         else:
@@ -485,9 +582,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         # TODO: Array variables; if any valueref points to an array, output length will be larger
         status = FMIL3.fmi3_import_get_float64(
-            self._fmu, 
-            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
-            nref, 
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
             <FMIL3.fmi3_float64_t*> output_value.data,
             nref
         )
@@ -530,9 +627,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         # TODO: Array variables; if any valueref points to an array, output length will be larger
         status = FMIL3.fmi3_import_get_float32(
-            self._fmu, 
-            <FMIL3.fmi3_value_reference_t*> input_valueref.data, 
-            nref, 
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
             <FMIL3.fmi3_float32_t*> output_value.data,
             nref
         )
@@ -568,36 +665,79 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return vr
 
-    cpdef FMIL3.fmi3_base_type_enu_t get_variable_data_type(self, variable_name) except *:
-        """
-        Get data type of variable.
-
-        Parameter::
-
-            variable_name --
-                The name of the variable.
-
-        Returns::
-
-            The type of the variable.
-        """
+    cdef FMIL3.fmi3_base_type_enu_t _get_variable_data_type(self, variable_name) except *:
         cdef FMIL3.fmi3_import_variable_t* variable
-        cdef FMIL3.fmi3_base_type_enu_t basetype
         variable_name = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name
 
         variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
         if variable == NULL:
-            raise FMUException("The variable %s could not be found."%pyfmi_util.decode(variablename))
+            raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
+        return FMIL3.fmi3_import_get_variable_base_type(variable)
 
-        basetype = FMIL3.fmi3_import_get_variable_base_type(variable)
+    def get_variable_data_type(self, variable_name):
+        """
+        Get data type of variable.
 
-        return basetype
+        Parameter::
+            variable_name --
+                The name of the variable.
+
+        Returns::
+            The type of the variable, as an instance of pyfmi.fmi3.FMI3_Type.
+        """
+        variable_data_type = self._get_variable_data_type(variable_name)
+        return FMI3_Type(int(variable_data_type))
+
+    cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable):
+        cdef FMIL3.fmi3_string_t description
+
+        if variable == NULL:
+            raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
+
+        # TODO: Unnecessary to have alias_kind in FMI3?
+        # alias_kind = ?
+        name        = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
+        value_ref   = FMIL3.fmi3_import_get_variable_vr(variable)
+        data_type   = FMIL3.fmi3_import_get_variable_base_type(variable)
+        variability = FMIL3.fmi3_import_get_variable_variability(variable)
+        causality   = FMIL3.fmi3_import_get_variable_causality(variable)
+        description = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_variable_description(variable)
+        initial     = FMIL3.fmi3_import_get_variable_initial(variable)
+
+        return FMI3ModelVariable(name, value_ref, data_type, description, variability, causality, initial)
+
+    def get_states_list(self):
+        """ Returns a dictionary with the states.
+
+            Returns::
+
+                An ordered dictionary with the state variables.
+        """
+        cdef FMIL3.fmi3_import_variable_list_t* variable_list
+        cdef FMIL.size_t                        variable_list_size
+        variable_dict = {}
+
+        variable_list = FMIL3.fmi3_import_get_continuous_state_derivatives_list(self._fmu)
+        variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
+
+        if variable_list == NULL:
+            raise FMUException("The returned derivatives states list is NULL.")
+
+        for i in range(variable_list_size):
+            der_variable = FMIL3.fmi3_import_get_variable(variable_list, i)
+            variable     = FMIL3.fmi3_import_get_float64_variable_derivative_of(<FMIL3.fmi3_import_float64_variable_t*>der_variable)
+
+            scalar_variable = self._add_variable(<FMIL3.fmi3_import_variable_t*>variable)
+            variable_dict[scalar_variable.name] = scalar_variable
+
+        FMIL3.fmi3_import_free_variable_list(variable_list)
+
+        return variable_dict
 
     def get_fmil_log_level(self):
-        """
-        Returns::
-            The current FMIL log-level.
+        """ Returns::
+                The current FMIL log-level.
         """
         cdef int level
         if self._enable_logging:
@@ -606,6 +746,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         else:
             raise FMUException('Logging is not enabled')
 
+    def get_model_version(self):
+        """ Returns the version of the FMU. """
+        cdef FMIL3.fmi3_string_t version
+        version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
+        return pyfmi_util.decode(version) if version != NULL else ""
+
     def get_version(self):
         """ Returns the FMI version of the Model which it was generated according. """
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -613,11 +759,23 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return pyfmi_util.decode(version)
 
+    def get_name(self):
+        """ Return the model name as used in the modeling environment. """
+        return self._modelName
+
     def get_identifier(self):
-        """ Return the model identifier, name of binary model file and prefix in
-            the C-function names of the model.
+        """ Return the model identifier, name of binary model file and prefix in the C-function names of the model. """
+        raise NotImplementedError
+
+    def get_ode_sizes(self):
+        """ Returns the number of continuous states and the number of event indicators.
+
+            Returns::
+
+                Tuple (The number of continuous states, The number of event indicators)
+                [n_states, n_event_ind] = model.get_ode_sizes()
         """
-        return NotImplementedError
+        return self._nContinuousStates, self._nEventIndicators
 
     def get_default_experiment_start_time(self):
         """ Returns the default experiment start time as defined the XML description. """
@@ -630,6 +788,64 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     def get_default_experiment_tolerance(self):
         """ Returns the default experiment tolerance as defined in the XML description. """
         return FMIL3.fmi3_import_get_default_experiment_tolerance(self._fmu)
+
+
+    def get_tolerances(self):
+        """ Returns the relative and absolute tolerances. If the relative tolerance
+            is defined in modelDescription.xml, it is used, otherwise a default of 1.e-4 is
+            used. The absolute tolerance is calculated and returned according to
+            the FMI specification, atol = 0.01*rtol*(nominal values of the
+            continuous states).
+
+            This method should not be called before initialization, since it depends on state nominals
+            which can change during initialization.
+
+            Returns::
+
+                rtol --
+                    The relative tolerance.
+
+                atol --
+                    The absolute tolerance.
+
+            Example::
+
+                [rtol, atol] = model.get_tolerances()
+        """
+        rtol = self.get_relative_tolerance()
+        atol = self.get_absolute_tolerances()
+
+        return [rtol, atol]
+
+    def get_relative_tolerance(self):
+        """ Returns the relative tolerance. If the relative tolerance
+            is defined in modelDescription.xml, it is used, otherwise a default of 1.e-4 is
+            used.
+
+            Returns::
+
+                rtol --
+                    The relative tolerance.
+        """
+        return self.get_default_experiment_tolerance()
+
+    def get_absolute_tolerances(self):
+        """ Returns the absolute tolerances. They are calculated and returned according to
+            the FMI specification, atol = 0.01*rtol*(nominal values of the
+            continuous states)
+
+            This method should not be called before initialization, since it depends on state nominals.
+
+            Returns::
+
+                atol --
+                    The absolute tolerances.
+        """
+        if self._initialized_fmu == 0:
+            raise FMUException("Unable to retrieve the absolute tolerance, FMU needs to be initialized.")
+
+        rtol = self.get_relative_tolerance()
+        return 0.01*rtol*self.nominal_continuous_states
 
 cdef class FMUModelME3(FMUModelBase3):
     """
@@ -810,15 +1026,11 @@ cdef class FMUModelME3(FMUModelBase3):
         stop_time_defined=False,
         stop_time="Default"
     ):
-        """
-        Enters initialization mode by calling the low level FMI function
-        fmi3EnterInitializationMode.
+        """ Enters initialization mode by calling the low level FMI function fmi3EnterInitializationMode.
+            Note that the method initialize() performs both the enter and exit of initialization mode.
 
-        Note that the method initialize() performs both the enter and
-        exit of initialization mode.
-
-        Args:
-            For a full description of the input arguments, see the docstring for method 'initialize'.
+            Args:
+                For a full description of the input arguments, see the docstring for method 'initialize'.
         """
         cdef FMIL3.fmi3_status_t status
 
@@ -876,6 +1088,18 @@ cdef class FMUModelME3(FMUModelBase3):
         if status != FMIL3.fmi3_status_ok:
             raise FMUException("Failed to enter continuous time mode")
 
+    def get_event_info(self):
+        """
+        Returns the event information from the FMU.
+
+        Returns::
+            The event information as an instance of pyfmi.fmi3.FMI3EventInfo
+        """
+        # TODO: Below is temporary for testing until we've added support for events
+        self._event_info.next_event_time_defined = FMIL3.fmi3_true
+        return self._event_info
+
+
     def enter_event_mode(self):
         """ Enter event mode by calling the low level FMI function fmi3EnterEventMode. """
         cdef FMIL3.fmi3_status_t status
@@ -886,6 +1110,213 @@ cdef class FMUModelME3(FMUModelBase3):
         if status != FMIL3.fmi3_status_ok:
             raise FMUException("Failed to enter event mode")
 
+
+    cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx):
+        cdef FMIL3.fmi3_status_t status
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_get_nominals_of_continuous_states(self._fmu, xnominal, nx)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+        return status
+
+    def _get_nominal_continuous_states(self):
+        """
+        Returns the nominal values of the continuous states.
+
+        Returns::
+            The nominal values.
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] xn = np.zeros(self._nContinuousStates, dtype=np.double)
+
+        if self._initialized_fmu == 0:
+            raise FMUException("Unable to retrieve nominals of continuous states, FMU must first be initialized.")
+
+        status = self._get_nominal_continuous_states_fmil(<FMIL3.fmi3_float64_t*> xn.data, self._nContinuousStates)
+        if status != 0:
+            raise FMUException('Failed to get the nominal values.')
+
+        # Fallback - auto-correct the illegal nominal values:
+        xnames = list(self.get_states_list().keys())
+        for i in range(self._nContinuousStates):
+            if xn[i] == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning(f"The nominal value for {xnames[i]} is 0.0 which is illegal according " + \
+                                     "to the FMI specification. Setting the nominal to 1.0.")
+                xn[i] = 1.0
+            elif xn[i] < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning(f"The nominal value for {xnames[i]} is <0.0 which is illegal according " + \
+                                    f"to the FMI specification. Setting the nominal to abs({xn[i]}).")
+                xn[i] = abs(xn[i])
+
+        return xn
+
+    nominal_continuous_states = property(_get_nominal_continuous_states, doc =
+    """
+    Property for accessing the nominal values of the continuous states. Calls
+    the low-level FMI function: fmi3GetNominalContinuousStates.
+    """)
+
+    cdef FMIL3.fmi3_status_t _get_derivatives(self, FMIL3.fmi3_float64_t[:] values):
+        cdef FMIL3.fmi3_status_t status
+        if self._nContinuousStates > 0:
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+            status = FMIL3.fmi3_import_get_derivatives(self._fmu, &values[0], self._nContinuousStates)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+            return status
+        else:
+            return FMIL3.fmi3_status_ok
+
+    cpdef get_derivatives(self):
+        """
+        Returns the derivative of the continuous states.
+
+        Returns::
+
+            dx --
+                The derivatives as an array.
+
+        Example::
+
+            dx = model.get_derivatives()
+
+        Calls the low-level FMI function: fmi3GetDerivatives
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] values = np.empty(
+            self._nContinuousStates,
+            dtype = np.double
+        )
+
+        status = self._get_derivatives(values)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException('Failed to get the derivative values at time: %E.'%self.time)
+
+        return values
+
+
+    cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
+            FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,
+            FMIL3.fmi3_boolean_t* enter_event_mode,
+            FMIL3.fmi3_boolean_t* terminate_simulation
+        ):
+        cdef FMIL3.fmi3_status_t status
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_completed_integrator_step(
+            self._fmu,
+            no_set_FMU_state_prior_to_current_point,
+            enter_event_mode,
+            terminate_simulation
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        self._last_accepted_time = self._get_time()
+        return status
+
+    def completed_integrator_step(self, no_set_FMU_state_prior_to_current_point = True):
+        """
+        This method must be called by the environment after every completed step
+        of the integrator. If returned value is True, then the environment must call
+        event_update() otherwise, no action is needed.
+
+        Returns::
+            A tuple of format (a, b) where a and b indicate:
+                If a is True -> Call event_update().
+                        False -> Do nothing.
+                If b is True -> The simulation should be terminated.
+                        False -> Do nothing.
+
+        Calls the low-level FMI function: fmi3CompletedIntegratorStep.
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef FMIL3.fmi3_boolean_t noSetFMUStatePriorToCurrentPoint = FMIL3.fmi3_true if no_set_FMU_state_prior_to_current_point else FMIL3.fmi3_false
+        cdef FMIL3.fmi3_boolean_t* enterEventMode
+        cdef FMIL3.fmi3_boolean_t* terminateSimulation
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_completed_integrator_step(
+            self._fmu,
+            noSetFMUStatePriorToCurrentPoint,
+            enterEventMode,
+            terminateSimulation
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException('Failed to call FMI completed integrator step at time: %E.' % self.time)
+
+        self._last_accepted_time = self._get_time()
+
+        return enterEventMode[0] == FMIL3.fmi3_true, terminateSimulation[0] == FMIL3.fmi3_true
+
+    cdef FMIL3.fmi3_status_t _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx):
+        cdef FMIL3.fmi3_status_t status
+        if self._nContinuousStates > 0:
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+            status = FMIL3.fmi3_import_get_continuous_states(self._fmu, &ndx[0] ,self._nContinuousStates)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+            return status
+        else:
+            return FMIL3.fmi3_status_ok
+
+    def _get_continuous_states(self):
+        """ Returns a vector with the values of the continuous states.
+
+            Returns::
+                The continuous states.
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] ndx = np.zeros(
+            self._nContinuousStates,
+            dtype = np.double
+        )
+
+        status = self._get_continuous_states_fmil(ndx)
+
+        if status != 0:
+            raise FMUException('Failed to retrieve the continuous states.')
+
+        return ndx
+
+    cdef FMIL3.fmi3_status_t _set_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx):
+        cdef FMIL3.fmi3_status_t status
+        if self._nContinuousStates > 0:
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+            status = FMIL3.fmi3_import_set_continuous_states(self._fmu, &ndx[0], self._nContinuousStates)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+            return status
+        else:
+            return FMIL3.fmi3_status_ok
+
+    def _set_continuous_states(self, np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode="c"] values):
+        """ Set the values of the continuous states.
+
+            Parameters::
+                values--
+                    The new values of the continuous states.
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1,mode='c'] ndx = values
+
+        if np.size(ndx) != self._nContinuousStates:
+            raise FMUException(
+                'Failed to set the new continuous states. ' \
+                'The number of values are not consistent with the number of '\
+                f'continuous states, which are {self._nContinuousStates}.')
+
+        status = self._set_continuous_states_fmil(ndx)
+
+        if status >= FMIL3.fmi3_status_error:
+            raise FMUException('Failed to set the new continuous states.')
+
+    continuous_states = property(_get_continuous_states, _set_continuous_states,
+        doc = """
+            Property for accessing the current values of the continuous states. Calls
+            the low-level FMI function: fmi3SetContinuousStates/fmi3GetContinuousStates.
+    """)
+
 cdef void _cleanup_on_load_error(
     FMIL3.fmi3_import_t* fmu_3,
     FMIL.fmi_import_context_t* context,
@@ -894,9 +1325,7 @@ cdef void _cleanup_on_load_error(
     bytes fmu_temp_dir,
     list log_data
 ):
-    """
-    To reduce some code duplication for various failures in _load_fmi3_fmu.
-    """
+    """ To reduce some code duplication for various failures in _load_fmi3_fmu. """
     if fmu_3 is not NULL:
         FMIL3.fmi3_import_free(fmu_3)
     FMIL.fmi_import_free_context(context)
