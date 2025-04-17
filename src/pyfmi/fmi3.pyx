@@ -689,6 +689,36 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         variable_data_type = self._get_variable_data_type(variable_name)
         return FMI3_Type(int(variable_data_type))
 
+    cpdef get_variable_description(self, variable_name):
+        """
+        Get the description of a given variable.
+
+        Parameter::
+
+            variable_name --
+                The name of the variable
+
+        Returns::
+
+            The description of the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable
+        cdef FMIL3.fmi3_string_t desc
+
+        variable_name = pyfmi_util.encode(variable_name)
+        cdef char* var_name = variable_name
+
+        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, var_name)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found." % var_name)
+
+        desc = FMIL3.fmi3_import_get_variable_description(variable)
+        if desc == NULL:
+            desc = ""
+        desc = <FMIL3.fmi3_string_t>desc
+
+        return pyfmi_util.decode(desc)
+
     cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable):
         cdef FMIL3.fmi3_string_t description
 
@@ -702,7 +732,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         data_type   = FMIL3.fmi3_import_get_variable_base_type(variable)
         variability = FMIL3.fmi3_import_get_variable_variability(variable)
         causality   = FMIL3.fmi3_import_get_variable_causality(variable)
-        description = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_variable_description(variable)
+        description = FMIL3.fmi3_import_get_variable_description(variable)
+        if description == NULL:
+            description = ""
+        description = <FMIL3.fmi3_string_t>description
         initial     = FMIL3.fmi3_import_get_variable_initial(variable)
 
         return FMI3ModelVariable(name, value_ref, data_type, description, variability, causality, initial)

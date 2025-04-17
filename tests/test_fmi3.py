@@ -343,6 +343,14 @@ class TestFMI3LoadFMU:
         fmu.set('x1', 1)
         assert all(fmu.get_derivatives() == np.array([1, -29]))
 
+    def test_get_description(self):
+        """Test get descriptions."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        assert fmu.get_variable_description('x0') == 'the first state'
+        assert fmu.get_variable_description('x1') == 'the second state'
+        assert fmu.get_variable_description('mu') == ''
+
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
