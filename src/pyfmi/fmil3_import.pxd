@@ -83,7 +83,7 @@ cdef extern from 'fmilib.h':
         fmi3_initial_enu_exact      = 1,
         fmi3_initial_enu_approx     = 2,
         fmi3_initial_enu_calculated = 3,
-        fmi3_initial_enu_unknown    = 4 # must be last
+        fmi3_initial_enu_unknown    = 4
 
     cdef struct fmi3_xml_variable_t:
         pass
