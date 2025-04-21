@@ -193,7 +193,7 @@ cdef extern from 'fmilib.h':
     fmi3_variability_enu_t fmi3_import_get_variable_variability(fmi3_import_variable_t*)
     fmi3_causality_enu_t fmi3_import_get_variable_causality(fmi3_import_variable_t*)
     fmi3_initial_enu_t fmi3_import_get_variable_initial(fmi3_import_variable_t*)
-    const char* fmi3_import_get_variable_description(fmi3_import_variable_t*)
+    fmi3_string_t fmi3_import_get_variable_description(fmi3_import_variable_t*)
 
     double fmi3_import_get_default_experiment_start(fmi3_import_t*);
     double fmi3_import_get_default_experiment_stop(fmi3_import_t*);

@@ -1431,7 +1431,20 @@ cdef object _load_fmi3_fmu(
     if model is None:
         _cleanup_on_load_error(fmu_3, context, allow_unzipped_fmu,
                                callbacks, fmu_temp_dir, log_data)
-        raise FMUException("FMU is a {} and not a {}".format(pyfmi_util.decode(FMIL3.fmi3_fmu_kind_to_string(fmu_3_kind)),  pyfmi_util.decode(kind.upper())))
+
+        # TODO, from FMIL we get without blank spaces, i.e. we get 'ModelExchange' and not 'Model Exchange'
+        # when we invoke fmi3_fmu_kind_to_string, perhaps we should format accordingly here?
+        kind_name = kind.upper()
+        if kind.upper() == 'SE':
+            kind_name = 'ScheduledExecution'
+        elif kind.upper() == 'CS':
+            kind_name = 'CoSimulation'
+        elif kind.upper() == 'ME':
+            kind_name = 'ModelExchange'
+        raise FMUException("FMU is a {} and not a {}".format(
+            pyfmi_util.decode(FMIL3.fmi3_fmu_kind_to_string(fmu_3_kind)),
+            pyfmi_util.decode(kind_name)
+        ))
 
     FMIL3.fmi3_import_free(fmu_3)
     FMIL.fmi_import_free_context(context)
