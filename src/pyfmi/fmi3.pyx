@@ -689,6 +689,36 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         variable_data_type = self._get_variable_data_type(variable_name)
         return FMI3_Type(int(variable_data_type))
 
+    cpdef get_variable_description(self, variable_name):
+        """
+        Get the description of a given variable.
+
+        Parameter::
+
+            variable_name --
+                The name of the variable
+
+        Returns::
+
+            The description of the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable
+        cdef FMIL3.fmi3_string_t desc
+
+        variable_name = pyfmi_util.encode(variable_name)
+        cdef char* var_name = variable_name
+
+        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, var_name)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found." % pyfmi_util.decode(variable_name))
+
+        desc = FMIL3.fmi3_import_get_variable_description(variable)
+        if desc == NULL:
+            desc = ""
+        desc = <FMIL3.fmi3_string_t>desc
+
+        return pyfmi_util.decode(desc)
+
     cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable):
         cdef FMIL3.fmi3_string_t description
 
@@ -702,10 +732,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         data_type   = FMIL3.fmi3_import_get_variable_base_type(variable)
         variability = FMIL3.fmi3_import_get_variable_variability(variable)
         causality   = FMIL3.fmi3_import_get_variable_causality(variable)
-        description = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_variable_description(variable)
+        description = FMIL3.fmi3_import_get_variable_description(variable)
+        if description == NULL:
+            description = ""
+        description = <FMIL3.fmi3_string_t>description
         initial     = FMIL3.fmi3_import_get_variable_initial(variable)
 
-        return FMI3ModelVariable(name, value_ref, data_type, description, variability, causality, initial)
+        return FMI3ModelVariable(name, value_ref, data_type, pyfmi_util.decode(description), variability, causality, initial)
 
     def get_states_list(self):
         """ Returns a dictionary with the states.
@@ -1398,7 +1431,20 @@ cdef object _load_fmi3_fmu(
     if model is None:
         _cleanup_on_load_error(fmu_3, context, allow_unzipped_fmu,
                                callbacks, fmu_temp_dir, log_data)
-        raise FMUException("FMU is a {} and not a {}".format(pyfmi_util.decode(FMIL3.fmi3_fmu_kind_to_string(fmu_3_kind)),  pyfmi_util.decode(kind.upper())))
+
+        # TODO, from FMIL we get without blank spaces, i.e. we get 'ModelExchange' and not 'Model Exchange'
+        # when we invoke fmi3_fmu_kind_to_string, perhaps we should format accordingly here?
+        kind_name = kind.upper()
+        if kind.upper() == 'SE':
+            kind_name = 'ScheduledExecution'
+        elif kind.upper() == 'CS':
+            kind_name = 'CoSimulation'
+        elif kind.upper() == 'ME':
+            kind_name = 'ModelExchange'
+        raise FMUException("FMU is a {} and not a {}".format(
+            pyfmi_util.decode(FMIL3.fmi3_fmu_kind_to_string(fmu_3_kind)),
+            pyfmi_util.decode(kind_name)
+        ))
 
     FMIL3.fmi3_import_free(fmu_3)
     FMIL.fmi_import_free_context(context)

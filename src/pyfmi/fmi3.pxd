@@ -77,6 +77,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variable_name) except *
     cdef FMIL3.fmi3_base_type_enu_t _get_variable_data_type(self, variable_name) except *
+    cpdef get_variable_description(self, variable_name)
     cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable)
 
 
