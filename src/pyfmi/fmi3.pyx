@@ -710,7 +710,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, var_name)
         if variable == NULL:
-            raise FMUException("The variable %s could not be found." % var_name)
+            raise FMUException("The variable %s could not be found." % pyfmi_util.decode(variable_name))
 
         desc = FMIL3.fmi3_import_get_variable_description(variable)
         if desc == NULL:
@@ -738,7 +738,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         description = <FMIL3.fmi3_string_t>description
         initial     = FMIL3.fmi3_import_get_variable_initial(variable)
 
-        return FMI3ModelVariable(name, value_ref, data_type, description, variability, causality, initial)
+        return FMI3ModelVariable(name, value_ref, data_type, pyfmi_util.decode(description), variability, causality, initial)
 
     def get_states_list(self):
         """ Returns a dictionary with the states.

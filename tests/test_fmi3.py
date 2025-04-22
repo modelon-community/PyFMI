@@ -263,8 +263,8 @@ class TestFMI3LoadFMU:
         x0 = states['x0']
         x1 = states['x1']
 
-        assert x0.description == b'the first state'
-        assert x1.description == b'the second state'
+        assert x0.description == 'the first state'
+        assert x1.description == 'the second state'
 
         assert x0.type == FMI3_Type.FLOAT64
         assert x1.type == FMI3_Type.FLOAT64
@@ -350,6 +350,13 @@ class TestFMI3LoadFMU:
         assert fmu.get_variable_description('x0') == 'the first state'
         assert fmu.get_variable_description('x1') == 'the second state'
         assert fmu.get_variable_description('mu') == ''
+
+    def test_get_description_variable_not_found(self):
+        """Test get description on a variable that does not exist."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        with pytest.raises(FMUException, match = "The variable idontexist could not be found."):
+            fmu.get_variable_description('idontexist')
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
