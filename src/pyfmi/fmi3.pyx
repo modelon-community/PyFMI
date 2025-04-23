@@ -880,6 +880,17 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         rtol = self.get_relative_tolerance()
         return 0.01*rtol*self.nominal_continuous_states
 
+    cpdef get_variable_unbounded(self, variable_name):
+        """TODO:"""
+        return False
+
+    def get_generation_tool(self):
+        """
+        Return the model generation tool.
+        """
+        cdef FMIL3.fmi3_string_t gen = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_generation_tool(self._fmu)
+        return pyfmi_util.decode(gen) if gen != NULL else ""
+
 cdef class FMUModelME3(FMUModelBase3):
     """
     FMI3 ModelExchange model loaded from a dll
@@ -933,6 +944,9 @@ cdef class FMUModelME3(FMUModelBase3):
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         if status != FMIL3.fmi3_status_ok:
             raise InvalidFMUException("The FMU could not be instantiated, error retrieving number of continuous states.")
+
+        # State nominals retrieved before initialization
+        self._preinit_nominal_continuous_states = None
 
         if _connect_dll:
             self.instantiate()
@@ -1051,6 +1065,9 @@ cdef class FMUModelME3(FMUModelBase3):
 
         self._initialized_fmu = 1
 
+        # TODO: Ugly workaround
+        self._preinit_nominal_continuous_states = np.array([1.]*self.get_ode_sizes()[0])
+
     def enter_initialization_mode(
         self,
         tolerance_defined=True,
@@ -1144,6 +1161,29 @@ cdef class FMUModelME3(FMUModelBase3):
             raise FMUException("Failed to enter event mode")
 
 
+    def event_update(self, intermediateResult=False):
+        """
+        Updates the event information at the current time-point. If
+        intermediateResult is set to True the update_event will stop at each
+        event iteration which would require to loop until
+        event_info.newDiscreteStatesNeeded == fmiFalse.
+
+        Parameters::
+
+            intermediateResult --
+                If set to True, the update_event will stop at each event
+                iteration.
+                Default: False.
+
+        Example::
+
+            model.event_update()
+
+        Calls the low-level FMI function: TODO
+        """
+        pass
+
+
     cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx):
         cdef FMIL3.fmi3_status_t status
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -1228,6 +1268,103 @@ cdef class FMUModelME3(FMUModelBase3):
 
         return values
 
+    def simulate(self,
+                 start_time="Default",
+                 final_time="Default",
+                 input=(),
+                 algorithm='AssimuloFMIAlg',
+                 options={}):
+        """
+        Compact function for model simulation.
+
+        The simulation method depends on which algorithm is used, this can be
+        set with the function argument 'algorithm'. Options for the algorithm
+        are passed as option classes or as pure dicts. See
+        FMUModel.simulate_options for more details.
+
+        The default algorithm for this function is AssimuloFMIAlg.
+
+        Parameters::
+
+            start_time --
+                Start time for the simulation.
+                Default: Start time defined in the default experiment from
+                        the ModelDescription file.
+
+            final_time --
+                Final time for the simulation.
+                Default: Stop time defined in the default experiment from
+                        the ModelDescription file.
+
+            input --
+                Input signal for the simulation. The input should be a 2-tuple
+                consisting of first the names of the input variable(s) and then
+                the data matrix or a function. If a data matrix, the first
+                column should be a time vector and then the variable vectors as
+                columns. If instead a function, the argument should correspond
+                to time and the output the variable data. See the users-guide
+                for examples.
+                Default: Empty tuple.
+
+            algorithm --
+                The algorithm which will be used for the simulation is specified
+                by passing the algorithm class as string or class object in this
+                argument. 'algorithm' can be any class which implements the
+                abstract class AlgorithmBase (found in algorithm_drivers.py). In
+                this way it is possible to write own algorithms and use them
+                with this function.
+                Default: 'AssimuloFMIAlg'
+
+            options --
+                The options that should be used in the algorithm. For details on
+                the options do:
+
+                    >> myModel = load_fmu(...)
+                    >> opts = myModel.simulate_options()
+                    >> opts?
+
+                Valid values are:
+                    - A dict which gives AssimuloFMIAlgOptions with
+                      default values on all options except the ones
+                      listed in the dict. Empty dict will thus give all
+                      options with default values.
+                    - An options object.
+                Default: Empty dict
+
+        Returns::
+
+            Result object, subclass of common.algorithm_drivers.ResultBase.
+        """
+        if start_time == "Default":
+            start_time = self.get_default_experiment_start_time()
+        if final_time == "Default":
+            final_time = self.get_default_experiment_stop_time()
+
+        return self._exec_simulate_algorithm(start_time,
+                                             final_time,
+                                             input,
+                                             'pyfmi.fmi_algorithm_drivers',
+                                             algorithm,
+                                             options)
+
+    def simulate_options(self, algorithm='AssimuloFMIAlg'):
+        """
+        Get an instance of the simulate options class, filled with default
+        values. If called without argument then the options class for the
+        default simulation algorithm will be returned.
+
+        Parameters::
+
+            algorithm --
+                The algorithm for which the options class should be fetched.
+                Possible values are: 'AssimuloFMIAlg'.
+                Default: 'AssimuloFMIAlg'
+
+        Returns::
+
+            Options class for the algorithm specified with default values.
+        """
+        return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
     cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
             FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,

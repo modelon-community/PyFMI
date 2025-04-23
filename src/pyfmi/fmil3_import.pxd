@@ -204,6 +204,7 @@ cdef extern from 'fmilib.h':
     fmi3_fmu_kind_enu_t fmi3_import_get_fmu_kind(fmi3_import_t*)
     char* fmi3_fmu_kind_to_string(fmi3_fmu_kind_enu_t)
     char* fmi3_import_get_model_name(fmi3_import_t*)
+    const char* fmi3_import_get_generation_tool(fmi3_import_t *)
 
     # FMI XML METHODS
     # Parsing/logging basics

@@ -29,6 +29,9 @@ from pyfmi.simulation.assimulo_interface_fmi2 import (
     FMIODE2,
     FMIODESENS2
 )
+from pyfmi.simulation.assimulo_interface_fmi3 import (
+    FMIODE3,
+)
 from pyfmi.exceptions import (
     FMIModel_Exception,
     FMUException,
@@ -37,6 +40,7 @@ from pyfmi.exceptions import (
 
 from pyfmi.fmi1 import FMUModelME1
 from pyfmi.fmi2 import FMUModelME2
+from pyfmi.fmi3 import FMUModelME3
 from pyfmi.fmi_coupled import CoupledFMUModelME2
 
 def get_fmi_ode_problem(
@@ -53,8 +57,23 @@ def get_fmi_ode_problem(
     synchronize_simulation = False
 ):
     """Convenience function for getting the correct FMIODEX class instance."""
-
-    if isinstance(model, (FMUModelME2, CoupledFMUModelME2)):
+    if isinstance(model, FMUModelME3):
+        if sensitivities:
+            raise FMUException("Sensitivities not yet supported for FMI3")
+        else:
+            fmu_prob = FMIODE3(
+                model = model,
+                input = input_traj,
+                result_file_name = result_file_name,
+                with_jacobian = with_jacobian,
+                start_time = start_time,
+                logging = logging,
+                result_handler = result_handler,
+                extra_equations = extra_equations,
+                synchronize_simulation = synchronize_simulation,
+                number_of_diagnostics_variables = number_of_diagnostics_variables
+            )
+    elif isinstance(model, (FMUModelME2, CoupledFMUModelME2)):
         if sensitivities:
             fmu_prob = FMIODESENS2(
                 model = model,
