@@ -112,7 +112,7 @@ cdef class FMIODE3(cExplicit_Problem):
         self._write_header = True
         self._logging = logging
         self._sparse_representation = False
-        # self._with_jacobian = with_jacobian
+        # self._with_jacobian = with_jacobian # TODO
         self._with_jacobian = False
 
         # # If result handler support is available, logging turns into dynamic_diagnostics
