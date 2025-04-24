@@ -943,9 +943,6 @@ cdef class FMUModelME3(FMUModelBase3):
         if status != FMIL3.fmi3_status_ok:
             raise InvalidFMUException("The FMU could not be instantiated, error retrieving number of continuous states.")
 
-        # State nominals retrieved before initialization
-        self._preinit_nominal_continuous_states = None
-
         if _connect_dll:
             self.instantiate()
 
@@ -1062,9 +1059,6 @@ cdef class FMUModelME3(FMUModelBase3):
             self._close_log_file()
 
         self._initialized_fmu = 1
-
-        # TODO: Ugly workaround
-        self._preinit_nominal_continuous_states = np.array([1.]*self.get_ode_sizes()[0])
 
     def enter_initialization_mode(
         self,
