@@ -21,16 +21,7 @@ cimport numpy as np
 import logging
 cimport pyfmi.fmi3 as FMI3
 
-try:
-    import assimulo
-    assimulo_present = True
-except Exception:
-    logging.warning(
-        'Could not load Assimulo module. Check pyfmi.check_packages()')
-    assimulo_present = False
-
-if assimulo_present:
-    from assimulo.problem cimport cExplicit_Problem
+from assimulo.problem cimport cExplicit_Problem
 
 cdef class FMIODE3(cExplicit_Problem):
     """

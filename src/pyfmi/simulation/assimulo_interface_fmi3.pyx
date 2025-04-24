@@ -40,30 +40,17 @@ from pyfmi.exceptions import (
     FMIModelException
 )
 
-try:
-    import assimulo
-    assimulo_present = True
-except Exception:
-    logging_module.warning(
-        'Could not load Assimulo module. Check pyfmi.check_packages()')
-    assimulo_present = False
-
-if assimulo_present:
-    from assimulo.problem cimport cExplicit_Problem
-    from assimulo.exception import AssimuloRecoverableError, TerminateSimulation
+from assimulo.problem cimport cExplicit_Problem
+from assimulo.exception import AssimuloRecoverableError, TerminateSimulation
 
 cdef class FMIODE3(cExplicit_Problem):
-    """
-    An Assimulo Explicit Model extended to FMI3 interface.
-    """
+    """ An Assimulo Explicit Model extended to FMI3 interface. """
 
     def __init__(self, model, input = None, result_file_name = "",
                  with_jacobian = False, start_time = 0.0, logging = False,
                  result_handler = None, extra_equations = None, synchronize_simulation = False,
                  number_of_diagnostics_variables = 0):
-        """
-        Initialize the problem.
-        """
+        # Initialize the problem.
         self._model = model
         self._adapt_input(input)
         self.input_names = []
@@ -101,8 +88,6 @@ cdef class FMIODE3(cExplicit_Problem):
             self.result_file_name = model.get_name()+'_result.txt'
         else:
             self.result_file_name = result_file_name
-        self.debug_file_name = model.get_name().replace(".","_")+'_debug.txt'
-        self.debug_file_object = None
 
         # Default values
         self.export = result_handler
@@ -159,6 +144,7 @@ cdef class FMIODE3(cExplicit_Problem):
 
     def _adapt_input(self, input):
         pass
+        # TODO: Should one rename the internal class attributes from real to floatX?
         # if input is not None:
         #     input_names = input[0]
         #     self.input_len_names = len(input_names)
@@ -238,9 +224,7 @@ cdef class FMIODE3(cExplicit_Problem):
             return t != self._model.time or (not self._f_nbr == 0 and not (self._model.continuous_states == y).all())
 
     def rhs(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
-        """
-        The rhs (right-hand-side) for an ODE problem.
-        """
+        """ The rhs (right-hand-side) for an ODE problem. """
         cdef int status
 
         if self._extra_f_nbr > 0:
@@ -275,9 +259,7 @@ cdef class FMIODE3(cExplicit_Problem):
         return der
 
     def jac(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
-        """
-        The jacobian function for an ODE problem.
-        """
+        """ The jacobian function for an ODE problem. """
         pass
         # if self._logging:
         #     preface = "[INFO][FMU status:OK] "
@@ -336,9 +318,7 @@ cdef class FMIODE3(cExplicit_Problem):
         # return Jac
 
     def state_events(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
-        """
-        The event indicator function for a ODE problem.
-        """
+        """ The event indicator function for a ODE problem. """
         return 0
         # cdef int status
 
@@ -360,9 +340,7 @@ cdef class FMIODE3(cExplicit_Problem):
         #     return self._model.get_event_indicators()
 
     def time_events(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
-        """
-        Time event function.
-        """
+        """ Time event function. """
         # eInfo = self._model.get_event_info()
 
         # if eInfo.nextEventTimeDefined:
@@ -370,9 +348,7 @@ cdef class FMIODE3(cExplicit_Problem):
         return None
 
     def handle_result(self, solver, t, y):
-        """
-        Post processing (stores the time points).
-        """
+        """ Post processing (stores the time points). """
         pass
         # cdef int status
 
@@ -402,9 +378,7 @@ cdef class FMIODE3(cExplicit_Problem):
         # self.timings["handle_result"] += timer() - time_start
 
     def handle_event(self, solver, event_info):
-        """
-        This method is called when Assimulo finds an event.
-        """
+        """ This method is called when Assimulo finds an event. """
         pass
         # cdef int status
 
@@ -494,9 +468,7 @@ cdef class FMIODE3(cExplicit_Problem):
         # self._model.enter_continuous_time_mode()
 
     def step_events(self, solver):
-        """
-        Method which is called at each successful step.
-        """
+        """ Method which is called at each successful step. """
         return 0
         # cdef int enter_event_mode = 0, terminate_simulation = 0
 
@@ -566,16 +538,8 @@ cdef class FMIODE3(cExplicit_Problem):
         
         # return ret_flag
 
-    def _get_debug_file_object(self):
-        if not self.debug_file_object:
-            self.debug_file_object = open(self.debug_file_name, 'a')
-
-        return self.debug_file_object
-
     def print_step_info(self):
-        """
-        Prints the information about step events.
-        """
+        """ Prints the information about step events. """
         print('\nStep-event information:\n')
         for i in range(len(self._logg_step_event)):
             print('Event at time: %e'%self._logg_step_event[i])
@@ -592,10 +556,6 @@ cdef class FMIODE3(cExplicit_Problem):
     def finalize(self, solver):
         pass
         # self.export.simulation_end()
-
-        # if self.debug_file_object:
-        #     self.debug_file_object.close()
-        #     self.debug_file_object = None
 
     def _set_input(self, input):
         self.__input = input
