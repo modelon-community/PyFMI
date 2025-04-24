@@ -885,9 +885,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         return False
 
     def get_generation_tool(self):
-        """
-        Return the model generation tool.
-        """
+        """ Return the model generation tool. """
         cdef FMIL3.fmi3_string_t gen = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_generation_tool(self._fmu)
         return pyfmi_util.decode(gen) if gen != NULL else ""
 
