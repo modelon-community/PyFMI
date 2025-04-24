@@ -113,7 +113,7 @@ class AssimuloFMIAlgOptions(OptionBase):
             directory and enables logging of diagnostics data to logfile or resultfile,
             based on simulation option 'result_handling'.
 
-            FMI3: Only logging to resultfile supported.
+            FMI3: Only logging to result file is supported.
 
             The diagnostics data is available via the simulation results similar to FMU model variables
             only if 'result_handler' supports 'dynamic_diagnostics'.

@@ -59,7 +59,7 @@ def get_fmi_ode_problem(
     """Convenience function for getting the correct FMIODEX class instance."""
     if isinstance(model, FMUModelME3):
         if sensitivities:
-            raise FMUException("Sensitivities not yet supported for FMI3")
+            raise FMUException("Sensitivities are not yet supported for FMI3")
         else:
             fmu_prob = FMIODE3(
                 model = model,
