@@ -24,11 +24,9 @@ cimport pyfmi.fmi3 as FMI3
 from assimulo.problem cimport cExplicit_Problem
 
 cdef class FMIODE3(cExplicit_Problem):
-    """
-    An Assimulo Explicit Model extended to FMI3 interface.
-    """
+    """ An Assimulo Explicit Model extended to FMI3 interface. """
     cdef public int _f_nbr, _g_nbr, _input_activated, _extra_f_nbr, jac_nnz, input_len_names
-    cdef public object _model, problem_name, result_file_name, __input, _A, debug_file_name, debug_file_object
+    cdef public object _model, problem_name, result_file_name, __input, _A
     cdef public object export, _sparse_representation, _with_jacobian, _logging, _write_header, _start_time
     cdef public dict timings
     cdef public np.ndarray y0, input_real_mask, input_other_mask
