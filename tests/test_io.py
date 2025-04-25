@@ -1959,23 +1959,35 @@ class TestResultDymolaBinary:
         opts = fmu.simulate_options()
         opts['dynamic_diagnostics'] = True
         opts["result_file_name"] = "TestCPUTime.mat"
-        res = fmu.simulate(options = opts)
+        fmu.simulate(options = opts)
 
         rdb = ResultDymolaBinary(opts["result_file_name"])
         cpu_time = rdb.get_variable_data(f"{DIAGNOSTICS_PREFIX}cpu_time").x
         cpu_time_2, _ = rdb.get_variables_data([f"{DIAGNOSTICS_PREFIX}cpu_time"])
         cpu_time_2 = cpu_time_2[f"{DIAGNOSTICS_PREFIX}cpu_time"].x
-        first_value = -1 # initialize to any negative value since the first cpu_time value is 0.0
 
         # Test that the data is never decreasing (since we return it using numpy cumulative sum)
-        for value in cpu_time:
-            assert value >= first_value
-            first_value = value
+        assert all(np.diff(cpu_time) >= 0)
+        assert all(np.diff(cpu_time_2) >= 0)
 
-        first_value = -1
-        for value in cpu_time_2:
-            assert value >= first_value
-            first_value = value
+    def test_get_cpu_time_partial(self):
+        """ Test that the accumulated variable cpu_time is non-decreasing over several get_variables_data calls. """
+        fmu = Dummy_FMUModelME2(
+            [],
+            os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False
+        )
+        opts = fmu.simulate_options()
+        opts['dynamic_diagnostics'] = True
+        opts["result_file_name"] = "TestCPUTime.mat"
+        fmu.simulate(options = opts)
+
+        rdb = ResultDymolaBinary(opts["result_file_name"])
+        var_name = f"{DIAGNOSTICS_PREFIX}cpu_time"
+        cpu_time_1 = rdb.get_variables_data([var_name], start_index = 0, stop_index = 100)[0][var_name].x
+        cpu_time_2 = rdb.get_variables_data([var_name], start_index = 100, stop_index = 200)[0][var_name].x
+
+        cpu_time = [*cpu_time_1, *cpu_time_2]
+        assert all(np.diff(cpu_time) >= 0)
 
 @pytest.mark.assimulo
 class TestFileSizeLimit:
