@@ -127,15 +127,16 @@ cdef class FMIODE3(cExplicit_Problem):
         #     self._extra_f_nbr = 0
         
         if synchronize_simulation:
+            msg = f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0."
             try:
                 if synchronize_simulation is True:
                     self._synchronize_factor = 1.0
                 elif synchronize_simulation > 0:
                     self._synchronize_factor = synchronize_simulation
                 else:
-                    raise InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.")
+                    raise InvalidOptionException(msg)
             except Exception:
-                raise InvalidOptionException(f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0.") 
+                raise InvalidOptionException(msg) 
         else:
             self._synchronize_factor = 0.0
 
