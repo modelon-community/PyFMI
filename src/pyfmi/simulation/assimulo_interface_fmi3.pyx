@@ -32,6 +32,7 @@ import scipy.sparse as sps
 from timeit import default_timer as timer
 
 cimport pyfmi.fmil_import as FMIL
+cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi3 as FMI3
 from pyfmi.exceptions import (
     FMUException,
@@ -470,24 +471,23 @@ cdef class FMIODE3(cExplicit_Problem):
 
     def step_events(self, solver):
         """ Method which is called at each successful step. """
-        return 0
-        # cdef int enter_event_mode = 0, terminate_simulation = 0
+        cdef FMIL3.fmi3_boolean_t enter_event_mode = False, terminate_simulation = False
 
-        # if self._extra_f_nbr > 0:
-        #     y_extra = solver.y[-self._extra_f_nbr:]
-        #     y       = solver.y[:-self._extra_f_nbr]
-        # else:
-        #     y       = solver.y
+        if self._extra_f_nbr > 0:
+            y_extra = solver.y[-self._extra_f_nbr:]
+            y       = solver.y[:-self._extra_f_nbr]
+        else:
+            y       = solver.y
 
-        # # Moving data to the model
-        # if self._compare(solver.t, y):
-        #     self._update_model(solver.t, y)
+        # Moving data to the model
+        if self._compare(solver.t, y):
+            self._update_model(solver.t, y)
 
-        #     # Evaluating the rhs (Have to evaluate the values in the model)
-        #     if self.model_me3_instance:
-        #         self.model_me3._get_derivatives(self._state_temp_1)
-        #     else:
-        #         rhs = self._model.get_derivatives()
+            # Evaluating the rhs (Have to evaluate the values in the model)
+            if self.model_me3_instance:
+                self.model_me3._get_derivatives(self._state_temp_1)
+            else:
+                rhs = self._model.get_derivatives()
 
         # if self._logging_as_dynamic_diagnostics:
         #     diag_data = np.ndarray(self._number_of_diagnostics_variables, dtype=float)
@@ -520,10 +520,11 @@ cdef class FMIODE3(cExplicit_Problem):
         #     self.export.diagnostics_point(diag_data)
 
 
-        # if self.model_me3_instance:
-        #     self.model_me3._completed_integrator_step(&enter_event_mode, &terminate_simulation)
-        # else:
-        #     enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
+        if self.model_me3_instance:
+            # TODO: Revisit "no_set_FMU_state_prior_to_current_point", first input
+            self.model_me3._completed_integrator_step(True, &enter_event_mode, &terminate_simulation)
+        else:
+            enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
         
         # ret_flag = 0
         # if enter_event_mode:
