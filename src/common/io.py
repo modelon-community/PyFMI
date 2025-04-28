@@ -1546,7 +1546,7 @@ class ResultDymolaBinary(ResultDymola):
                 name == f'{DIAGNOSTICS_PREFIX}cpu_time'
             ):
             return Trajectory(
-                time, np.cumsum(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x[start_index:stop_index]))
+                time, np.cumsum(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x)[start_index:stop_index])
 
         factor, data_index, data_mat = self._map_index_to_data_properties(name)
 

@@ -3,6 +3,7 @@
     * Refactored internal files, this does affect a small number of secondary imports.
     * New function `get_unpacked_fmu_path` for the `FMUModel(CS|ME)X` classes. Returns
       the absolute path of the unpacked FMU.
+    * Fixed an issue with retrieving `@Diagnostics.cpu_time` via `get_variables_data`.
 
 --- PyFMI-2.16.3 ---
     * Changed default log and file size limitations from 2 GiB (2*1024**3) to 2 GB (2e9).
