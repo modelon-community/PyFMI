@@ -41,17 +41,8 @@ from pyfmi.exceptions import (
     FMIModelException
 )
 
-try:
-    import assimulo
-    assimulo_present = True
-except Exception:
-    logging_module.warning(
-        'Could not load Assimulo module. Check pyfmi.check_packages()')
-    assimulo_present = False
-
-if assimulo_present:
-    from assimulo.problem cimport cExplicit_Problem
-    from assimulo.exception import AssimuloRecoverableError, TerminateSimulation
+from assimulo.problem cimport cExplicit_Problem
+from assimulo.exception import AssimuloRecoverableError, TerminateSimulation
 
 cdef class FMIODE2(cExplicit_Problem):
     """

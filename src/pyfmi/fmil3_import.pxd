@@ -204,6 +204,7 @@ cdef extern from 'fmilib.h':
     fmi3_fmu_kind_enu_t fmi3_import_get_fmu_kind(fmi3_import_t*)
     char* fmi3_fmu_kind_to_string(fmi3_fmu_kind_enu_t)
     char* fmi3_import_get_model_name(fmi3_import_t*)
+    const char* fmi3_import_get_generation_tool(fmi3_import_t *)
 
     # FMI XML METHODS
     # Parsing/logging basics
@@ -222,7 +223,6 @@ cdef extern from 'fmilib.h':
 
     fmi3_status_t fmi3_import_get_number_of_event_indicators(fmi3_import_t*, size_t*)
     fmi3_status_t fmi3_import_get_number_of_continuous_states(fmi3_import_t*, size_t*)
-    void fmi3_log_forwarding(fmi3_instance_environment_t, fmi3_status_t, fmi3_string_t, fmi3_string_t)
     char* fmi3_import_get_last_error(fmi3_import_t*)
     char* fmi3_import_get_model_identifier_ME(fmi3_import_t*)
     void fmi3_import_free_variable_list(fmi3_import_variable_list_t*)

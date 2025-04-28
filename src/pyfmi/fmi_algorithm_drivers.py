@@ -26,6 +26,7 @@ import scipy.optimize as spopt
 
 from pyfmi.fmi1 import FMUModelME1, FMUModelCS1, FMI_ERROR, FMI_DISCARD, FMI1_LAST_SUCCESSFUL_TIME # TODO
 from pyfmi.fmi2 import FMUModelME2, FMUModelCS2, FMI2_INPUT, FMI2_LAST_SUCCESSFUL_TIME
+from pyfmi.fmi3 import FMUModelME3
 from pyfmi.fmi_coupled import CoupledFMUModelME2
 from pyfmi.fmi_extended import FMUModelME1Extended
 from pyfmi.fmi_util import parameter_estimation_f
@@ -111,6 +112,8 @@ class AssimuloFMIAlgOptions(OptionBase):
             If True, creates a logfile from the solver in the current
             directory and enables logging of diagnostics data to logfile or resultfile,
             based on simulation option 'result_handling'.
+
+            FMI3: Only logging to result file is supported.
 
             The diagnostics data is available via the simulation results similar to FMU model variables
             only if 'result_handler' supports 'dynamic_diagnostics'.
@@ -340,10 +343,13 @@ class AssimuloFMIAlg(AlgorithmBase):
             if isinstance(self.model, FMUModelME1):
                 self.model.time = start_time #Set start time before initialization
                 self.model.initialize(tolerance=self.rtol)
-
             elif isinstance(self.model, ((FMUModelME2, CoupledFMUModelME2))):
                 self.model.setup_experiment(tolerance=self.rtol, start_time=self.start_time, stop_time=self.final_time)
                 self.model.initialize()
+                self.model.event_update()
+                self.model.enter_continuous_time_mode()
+            elif isinstance(self.model, FMUModelME3):
+                self.model.initialize(tolerance=self.rtol, start_time=self.start_time, stop_time=self.final_time)
                 self.model.event_update()
                 self.model.enter_continuous_time_mode()
             else:
@@ -571,7 +577,6 @@ class AssimuloFMIAlg(AlgorithmBase):
         """
         try:
             atol = self.solver_options["atol"]
-            preinit_nominals = self.model._preinit_nominal_continuous_states
             if isinstance(atol, str) and atol == "Default":
                 fnbr, _ = self.model.get_ode_sizes()
                 rtol = self.solver_options["rtol"]
@@ -579,7 +584,11 @@ class AssimuloFMIAlg(AlgorithmBase):
                     self.solver_options["atol"] = 0.01*self.rtol
                 else:
                     self.solver_options["atol"] = 0.01*self.rtol*self.model.nominal_continuous_states
-            elif isinstance(preinit_nominals, np.ndarray) and (np.size(preinit_nominals) > 0):
+                return
+            if not hasattr(self.model, "_preinit_nominal_continuous_states"):
+                return
+            preinit_nominals = self.model._preinit_nominal_continuous_states
+            if isinstance(preinit_nominals, np.ndarray) and (np.size(preinit_nominals) > 0):
                 # Heuristic:
                 # Try to find if atol was specified as "atol = factor * model.nominal_continuous_states",
                 # and if that's the case, recompute atol with nominals from after initialization.

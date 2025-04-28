@@ -41,7 +41,7 @@ from pyfmi.exceptions import (
 )
 
 # TODO: A lot of the tests here could be parameterized with the tests in test_fmi.py
-# This would however require on of the following:
+# This would however require one of the following:
 # a) Changing the tests in test_fmi.py to use the FMI1/2 reference FMUs
 # b) Mocking the FMUs in some capacity
 
@@ -547,6 +547,24 @@ class Test_FMI3ME:
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = FMUModelME3(fmu_path, _connect_dll = False)
         assert fmu.get_variable_data_type(variable_name) is expected_datatype
+
+    def test_simulate(self):
+        """Test basic simulation of an FMU, no result handling."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = FMUModelME3(fmu_path)
+        options = fmu.simulate_options()
+        options["result_handling"] = None
+        fmu.simulate(0, 20, options = options)
+        
+        # reference values taken from FMI2 VDP simulation
+        assert fmu.get("x0")[0] == pytest.approx(2.0081433709107324)
+        assert fmu.get("x1")[0] == pytest.approx(-0.0427704789503908)
+
+    def test_generation_tool(self):
+        """Test getting generation tool."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = FMUModelME3(fmu_path)
+        assert "Reference FMUs" in fmu.get_generation_tool()
 
 
 class TestFMI3CS:
