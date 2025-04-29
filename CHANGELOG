@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+
+--- PyFMI-2.17.0 ---
     * Refactored internal files, this does affect a small number of secondary imports.
     * New function `get_unpacked_fmu_path` for the `FMUModel(CS|ME)X` classes. Returns
       the absolute path of the unpacked FMU.
