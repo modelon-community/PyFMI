@@ -35,8 +35,8 @@ jobs:
         cd /tmp/sundials
         echo "target_link_libraries(sundials_idas_shared lapack blas superlu_mt_OPENMP)" >> src/idas/CMakeLists.txt
         echo "target_link_libraries(sundials_kinsol_shared lapack blas superlu_mt_OPENMP)" >> src/kinsol/CMakeLists.txt
-        mkdir build && cd build
-        cmake -LAH -DSUPERLUMT_BLAS_LIBRARIES=blas -DSUPERLUMT_INCLUDE_DIR=/usr/include -DSUPERLUMT_LIBRARY=/usr/lib/libsuperlu_mt_OPENMP.a -DSUPERLUMT_THREAD_TYPE=OpenMP -DCMAKE_INSTALL_PREFIX=/usr -DSUPERLUMT_ENABLE=ON -DLAPACK_ENABLE=ON -DEXAMPLES_ENABLE=OFF ..
+        cmake -LAH -DSUPERLUMT_BLAS_LIBRARIES=blas -DSUPERLUMT_INCLUDE_DIR=/usr/include -DSUPERLUMT_LIBRARY=/usr/lib/libsuperlu_mt_OPENMP.a -DSUPERLUMT_THREAD_TYPE=OpenMP -DCMAKE_INSTALL_PREFIX=/usr -DSUPERLUMT_ENABLE=ON -DLAPACK_ENABLE=ON -DEXAMPLES_ENABLE=OFF -B build .
+        cd build
         make -j4
         sudo make install
     - name: Install assimulo
@@ -48,11 +48,10 @@ jobs:
     - name: Install fmilib
       run: |
         cd /tmp
-        curl -fSsL https://github.com/modelon-community/fmi-library/archive/3.0a5.tar.gz | tar xz
-        cd fmi-library-3.0a5
-        sed -i "/CMAKE_INSTALL_PREFIX/d" CMakeLists.txt
-        mkdir -p build && cd build
-        cmake -DCMAKE_INSTALL_PREFIX=/usr ..
+        curl -fSsL https://github.com/modelon-community/fmi-library/archive/3.0.1.tar.gz | tar xz
+        cd fmi-library-3.0.1
+        cmake -DCMAKE_INSTALL_PREFIX=/usr -B build .
+        cd build
         make -j4
         sudo make install
     - name: Build
