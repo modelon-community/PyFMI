@@ -358,23 +358,6 @@ class TestFMI3LoadFMU:
         with pytest.raises(FMUException, match = "The variable idontexist could not be found."):
             fmu.get_variable_description('idontexist')
 
-    def _verify_variable(self,
-        variable,
-        description,
-        name,
-        value_reference,
-        initial,
-        causality,
-        variable_type,
-        variability):
-        """ Helper function to check variable properties. """
-        assert variable.description == description
-        assert variable.name == name
-        assert variable.causality is causality
-        assert variable.type is variable_type
-        assert variable.initial is initial
-        assert variable.variability is variability
-
     def test_get_model_variables(self):
         """ Test get_model_variables with default arguments. """
         fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
