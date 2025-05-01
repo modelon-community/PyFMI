@@ -42,7 +42,7 @@ import numpy as np
 cimport numpy as np
 
 cimport pyfmi.fmil_import as FMIL
-cimport pyfmi.util as pyfmi_util 
+cimport pyfmi.util as pyfmi_util
 from pyfmi.exceptions import FMUException
 
 int   = np.int32
@@ -393,7 +393,7 @@ cdef class ModelBase:
 
         for i in range(N):
             print(log[i])
-    
+
     def _get_module_name(self):
         return "Model"
 
@@ -694,7 +694,7 @@ cdef class ModelBase:
                 regex = regex + fnmatch.translate(i) + "|"
             regexp = [re.compile(regex[:-1])]
         else:
-            raise FMUException("Unknown input.")
+            raise NotImplementedError(f"Unable to convert filter: {expression=}")
         return regexp
 
 class PyEventInfo(): # TODO: Should this be a cpdef + FMIX variants?

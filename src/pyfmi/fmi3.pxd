@@ -80,6 +80,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef get_variable_description(self, variable_name)
     cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable)
     cpdef get_variable_unbounded(self, variablename)
+    cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t*)
 
 
 cdef class FMUModelME3(FMUModelBase3):
