@@ -33,6 +33,7 @@ cdef class FMI3ModelVariable:
     cdef FMIL3.fmi3_initial_enu_t _initial
     cdef object _name
     cdef object _description
+    cdef int _alias # dummy for now
 
 
 cdef class FMI3EventInfo:
@@ -71,6 +72,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef np.ndarray get_float64(self, valueref)
     cpdef np.ndarray get_float32(self, valueref)
+    cpdef np.ndarray get_int64(self,   valueref)
+    cpdef np.ndarray get_int32(self,   valueref)
+    cpdef np.ndarray get_boolean(self, valueref)
 
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL3.fmi3_float64_t t)

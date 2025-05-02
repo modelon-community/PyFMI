@@ -21,8 +21,7 @@
 # This file contains FMIL header content specific to FMI3
 cimport pyfmi.fmil_import as FMIL
 from libcpp cimport bool # TODO: Possible issue due to https://github.com/cython/cython/issues/5730 ??
-from libc.stdint cimport uint32_t
-
+from libc.stdint cimport uint32_t, int32_t
 
 cdef extern from 'fmilib.h':
     # FMI VARIABLE TYPE DEFINITIONS
@@ -31,6 +30,8 @@ cdef extern from 'fmilib.h':
     ctypedef bool     fmi3_boolean_t
     ctypedef double   fmi3_float64_t
     ctypedef float    fmi3_float32_t
+    ctypedef int      fmi3_int64_t
+    ctypedef int32_t  fmi3_int32_t
     ctypedef uint32_t fmi3_value_reference_t
 
     # STRUCTS
@@ -183,6 +184,9 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_get_derivatives(fmi3_import_t *, fmi3_float64_t *, size_t)
     fmi3_status_t fmi3_import_get_float64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float64_t*, size_t);
     fmi3_status_t fmi3_import_get_float32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float32_t*, size_t);
+    fmi3_status_t fmi3_import_get_int64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int64_t*, size_t);
+    fmi3_status_t fmi3_import_get_int32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int32_t*, size_t);
+    fmi3_status_t fmi3_import_get_boolean(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_boolean_t*, size_t);
     fmi3_status_t fmi3_import_get_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t);
     fmi3_status_t fmi3_import_get_nominals_of_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t nx)
     fmi3_import_variable_t* fmi3_import_get_variable(fmi3_import_variable_list_t *, size_t)
