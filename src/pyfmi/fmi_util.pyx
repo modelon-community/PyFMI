@@ -28,6 +28,7 @@ cimport numpy as np
 
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmi2 as FMI2 # TODO
+cimport pyfmi.fmi3 as FMI3 # TODO
 from pyfmi.fmi3 import FMUModelBase3, FMI3_Type, FMI3_Causality, FMI3_Initial, FMI3_Variability
 from pyfmi.fmi1 import ( # TODO
     FMI_NEGATED_ALIAS, FMI_PARAMETER, FMI_CONSTANT,
@@ -169,8 +170,6 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         else:
             alias = 1
 
-
-
         if last_vref == var.value_reference:
             data_info[0,i] = last_data_matrix
             data_info[1,i] = alias*last_index
@@ -185,7 +184,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
             last_vref   = var.value_reference
 
             if is_fmi3:
-                cond = var.causality is FMI3_Causality.PARAMETER or var.variability is FMI3_Variability.CONSTANT
+                cond = var.variability is FMI3_Variability.FIXED or var.variability is FMI3_Variability.CONSTANT
             else:
                 cond = variability == _FMI_PARAMETER or variability == _FMI_CONSTANT
 
@@ -967,8 +966,12 @@ cdef class DumpData:
         if type(model) == FMI2.FMUModelME2: #isinstance(model, FMUModelME2):
             self.model_me2 = model
             self.model_me2_instance = 1
+        elif type(model) == FMI3.FMUModelME3:
+            self.model_me3 = model
+            self.model_me3_instance = 1
         else:
             self.model_me2_instance = 0
+            self.model_me3_instance = 0
             self.model = model
 
         self._with_diagnostics = with_diagnostics
@@ -994,6 +997,23 @@ cdef class DumpData:
             if self.bool_size > 0:
                 self.model_me2._get_boolean(self.bool_var_ref, self.bool_size, self.bool_var_tmp)
                 self.dump_data(self.bool_var_tmp)
+        elif self.model_me3_instance:
+
+            self.time_tmp[0] = self.model_me3.time
+            self.dump_data(self.time_tmp)
+
+            # TODO: Discuss differences with above
+            if self.real_size > 0:
+                r = self.model_me3.get_float64(self.real_var_ref)
+                self.dump_data(r)
+
+            if self.int_size > 0:
+                i = self.model_me3.get_int64(self.int_var_ref).astype(float)
+                self.dump_data(i)
+
+            if self.bool_size > 0:
+                b = self.model_me3.get_boolean(self.bool_var_ref).astype(float)
+                self.dump_data(b)
         else:
             self.dump_data(np.array(float(self.model.time)))
 
@@ -1015,6 +1035,9 @@ cdef class DumpData:
         self.dump_data(np.array(float(2.0)))
         if self.model_me2_instance:
             self.time_tmp[0] = self.model_me2.time
+            self.dump_data(self.time_tmp)
+        elif self.model_me3_instance:
+            self.time_tmp[0] = self.model_me3.time
             self.dump_data(self.time_tmp)
         else:
             self.dump_data(np.array(float(self.model.time)))

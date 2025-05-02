@@ -20,6 +20,7 @@ from libc.stdio cimport FILE
 import numpy as np
 cimport numpy as np
 cimport pyfmi.fmi2 as FMI2
+cimport pyfmi.fmi3 as FMI3
 
 # TODO: Should this be split further into e.g., fmi_io_util & fmi_coupled_util?
 
@@ -54,7 +55,9 @@ cdef class DumpData:
     cdef np.ndarray real_var_tmp, int_var_tmp, bool_var_tmp
     cdef np.ndarray time_tmp
     cdef public FMI2.FMUModelME2 model_me2
+    cdef public FMI3.FMUModelME3 model_me3
     cdef public int model_me2_instance
+    cdef public int model_me3_instance
     cdef public object _file, model
     cdef size_t real_size, int_size, bool_size
     cdef int _with_diagnostics

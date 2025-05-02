@@ -38,6 +38,7 @@ else:
 
 import pyfmi.fmi as fmi # TODO
 import pyfmi.fmi_util as fmi_util
+from pyfmi.fmi3 import FMUModelBase3, FMI3_Type
 from pyfmi.common import encode, decode
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, DiagnosticsBase
 from pyfmi.exceptions import FMUException
@@ -102,6 +103,7 @@ class ResultHandler:
         # should be UPDATED, not REPLACED, for stating supported capabilities
         self.supports = {"dynamic_diagnostics": False,
                          "result_max_size": False}
+        self.is_fmi3 = isinstance(model, FMUModelBase3)
 
     def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
         """
@@ -2730,10 +2732,21 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.dump_data(aclass_data)
 
         # Open file
-        vars_real = self.model.get_model_variables(type=fmi.FMI_REAL,    filter=self.options["filter"], _as_list=True)#.values()
-        vars_int  = self.model.get_model_variables(type=fmi.FMI_INTEGER, filter=self.options["filter"], _as_list=True)#.values()
-        vars_bool = self.model.get_model_variables(type=fmi.FMI_BOOLEAN, filter=self.options["filter"], _as_list=True)#.values()
-        vars_enum = self.model.get_model_variables(type=fmi.FMI_ENUMERATION, filter=self.options["filter"], _as_list=True)#.values()
+        if self.is_fmi3:
+            real_t = FMI3_Type.FLOAT64
+            int_t = FMI3_Type.INT64
+            bool_t = FMI3_Type.BOOL
+            enum_t = FMI3_Type.ENUM
+        else:
+            real_t = fmi.FMI_REAL
+            int_t = fmi.FMI_INTEGER
+            bool_t = fmi.FMI_BOOLEAN
+            enum_t = fmi.FMI_ENUMERATION
+
+        vars_real = self.model.get_model_variables(type=real_t,    filter=self.options["filter"], _as_list=True)#.values()
+        vars_int  = self.model.get_model_variables(type=int_t, filter=self.options["filter"], _as_list=True)#.values()
+        vars_bool = self.model.get_model_variables(type=bool_t, filter=self.options["filter"], _as_list=True)#.values()
+        vars_enum = self.model.get_model_variables(type=enum_t, filter=self.options["filter"], _as_list=True)#.values()
 
         sorted_vars_real = sorted(vars_real, key=attrgetter("value_reference"))
         sorted_vars_int  = sorted(vars_int,  key=attrgetter("value_reference"))
@@ -2789,8 +2802,10 @@ class ResultHandlerBinaryFile(ResultHandler):
         #Record the position so that we can later modify the number of result points stored
         self.data_2_header_position = self._file.tell()
         self._len_vars_ref =  len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref)+1
+
         self._data_2_header = self._data_header("data_2", self._len_vars_ref, 1, "double")
         self._data_2_header["ncols"] = self.nbr_points
+
         self.__write_header(self._data_2_header, "data_2")
         self.data_2_header_end_position = self._file.tell()
 
@@ -2842,6 +2857,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         f.seek(self.data_1_header_position)
         t = np.array([float(self.model.time)])
         self.dump_data(t)
+
 
         if not diag:
             f.seek(self.data_2_header_position)
