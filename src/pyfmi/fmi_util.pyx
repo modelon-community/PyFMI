@@ -170,8 +170,6 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         else:
             alias = 1
 
-
-
         if last_vref == var.value_reference:
             data_info[0,i] = last_data_matrix
             data_info[1,i] = alias*last_index
@@ -1003,7 +1001,6 @@ cdef class DumpData:
 
             self.time_tmp[0] = self.model_me3.time
             self.dump_data(self.time_tmp)
-
 
             if self.real_size > 0:
                 # TODO: Do we want a get_float64_by_list also for performance reasons?
