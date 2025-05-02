@@ -170,6 +170,8 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         else:
             alias = 1
 
+
+
         if last_vref == var.value_reference:
             data_info[0,i] = last_data_matrix
             data_info[1,i] = alias*last_index
