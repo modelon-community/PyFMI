@@ -28,6 +28,7 @@ cimport numpy as np
 
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmi2 as FMI2 # TODO
+from pyfmi.fmi3 import FMUModelBase3, FMI3_Type, FMI3_Causality, FMI3_Initial, FMI3_Variability
 from pyfmi.fmi1 import ( # TODO
     FMI_NEGATED_ALIAS, FMI_PARAMETER, FMI_CONSTANT,
     FMI_REAL, FMI_INTEGER, FMI_ENUMERATION, FMI_BOOLEAN
@@ -120,6 +121,25 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
 
     return output
 
+def _is_real_or_float(variable, model):
+    if isinstance(model, FMUModelBase3):
+        return variable.type is FMI3_Type.FLOAT64
+    else:
+        return variable.type == FMI_REAL
+
+def _is_int_or_enum(variable, model):
+    if isinstance(model, FMUModelBase3):
+        return variable.type is FMI3_Type.INT64 or variable.type is FMI3_Type.ENUM
+    else:
+        return variable.type == FMI_INTEGER or variable.type == FMI_ENUMERATION
+
+def _is_bool(variable, model):
+    if isinstance(model, FMUModelBase3):
+        return variable.type is FMI3_Type.BOOL
+    else:
+        return variable.type == FMI_BOOLEAN
+
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, list diagnostics_param_values, int nof_diag_vars, model):
@@ -137,6 +157,8 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
     cdef list varia_real = [], varia_int = [], varia_bool = []
     last_vref = -1
 
+    is_fmi3 = isinstance(model, FMUModelBase3)
+
     for i in range(1, nof_sorted_vars + 1):
         var = sorted_vars[i-1]
         data_info[2,i] = 0
@@ -147,24 +169,36 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         else:
             alias = 1
 
+
+
         if last_vref == var.value_reference:
             data_info[0,i] = last_data_matrix
             data_info[1,i] = alias*last_index
         else:
-            variability = var.variability
+            # TODO cleanup and improve
+            if is_fmi3:
+                variability = var.variability.value
+                data_type = var.type.value
+            else:
+                variability = var.variability
+                data_type   = var.type
             last_vref   = var.value_reference
-            data_type   = var.type
 
-            if variability == _FMI_PARAMETER or variability == _FMI_CONSTANT:
+            if is_fmi3:
+                cond = var.causality is FMI3_Causality.PARAMETER or var.variability is FMI3_Variability.CONSTANT
+            else:
+                cond = variability == _FMI_PARAMETER or variability == _FMI_CONSTANT
+
+            if cond:
                 last_data_matrix = 1
                 index_fixed = index_fixed + 1
                 last_index = index_fixed
 
-                if data_type == _FMI_REAL:
+                if _is_real_or_float(var, model):
                     param_real.append(last_vref)
-                elif data_type == _FMI_INTEGER or data_type == _FMI_ENUMERATION:
+                elif _is_int_or_enum(var, model):
                     param_int.append(last_vref)
-                elif data_type == _FMI_BOOLEAN:
+                elif _is_bool(var, model):
                     param_bool.append(last_vref)
                 else:
                     raise FMUException("Unknown type detected for variable %s when writing the results."%var.name)
@@ -173,11 +207,11 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
                 index_variable = index_variable + 1
                 last_index = index_variable
 
-                if data_type == _FMI_REAL:
+                if _is_real_or_float(var, model):
                     varia_real.append(last_vref)
-                elif data_type == _FMI_INTEGER or data_type == _FMI_ENUMERATION:
+                elif _is_int_or_enum(var, model):
                     varia_int.append(last_vref)
-                elif data_type == _FMI_BOOLEAN:
+                elif _is_bool(var, model):
                     varia_bool.append(last_vref)
                 else:
                     raise FMUException("Unknown type detected for variable %s when writing the results."%var.name)
@@ -205,14 +239,30 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         last_index = last_index + 1
         data_info[1,i] = last_index
 
-    data = np.append(model.time, np.concatenate(
-                                    (model.get_real(param_real),
-                                    model.get_integer(param_int).astype(float),
-                                    model.get_boolean(param_bool).astype(float),
-                                    np.array(diagnostics_param_values).astype(float)),
-                                    axis = 0
-                                )
-                    )
+    if is_fmi3:
+        data = np.append(
+            model.time,
+            np.concatenate(
+                (model.get_float64(param_real),
+                 model.get_int64(param_int).astype(float),
+                 model.get_boolean(param_bool).astype(float),
+                 np.array(diagnostics_param_values).astype(float)
+                ),
+                axis = 0
+            )
+        )
+    else:
+        data = np.append(
+            model.time,
+            np.concatenate(
+                (model.get_real(param_real),
+                 model.get_integer(param_int).astype(float),
+                 model.get_boolean(param_bool).astype(float),
+                 np.array(diagnostics_param_values).astype(float)
+                ),
+                axis = 0
+            )
+        )
 
     return data, varia_real, varia_int, varia_bool
 
