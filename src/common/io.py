@@ -2743,7 +2743,7 @@ class ResultHandlerBinaryFile(ResultHandler):
             bool_t = fmi.FMI_BOOLEAN
             enum_t = fmi.FMI_ENUMERATION
 
-        vars_real = self.model.get_model_variables(type=real_t,    filter=self.options["filter"], _as_list=True)#.values()
+        vars_real = self.model.get_model_variables(type=real_t, filter=self.options["filter"], _as_list=True)#.values()
         vars_int  = self.model.get_model_variables(type=int_t, filter=self.options["filter"], _as_list=True)#.values()
         vars_bool = self.model.get_model_variables(type=bool_t, filter=self.options["filter"], _as_list=True)#.values()
         vars_enum = self.model.get_model_variables(type=enum_t, filter=self.options["filter"], _as_list=True)#.values()

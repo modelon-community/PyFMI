@@ -1002,8 +1002,9 @@ cdef class DumpData:
             self.time_tmp[0] = self.model_me3.time
             self.dump_data(self.time_tmp)
 
-            # TODO: Discuss differences with above
+
             if self.real_size > 0:
+                # TODO: Do we want a get_float64_by_list also for performance reasons?
                 r = self.model_me3.get_float64(self.real_var_ref)
                 self.dump_data(r)
 
