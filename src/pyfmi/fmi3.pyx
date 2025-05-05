@@ -687,8 +687,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         variability: Optional[FMI3_Variability] = None,
         only_start: bool = False,
         only_fixed: bool = False,
-        filter = None,
-        _as_list: bool = False) -> Dict[str, FMI3ModelVariable]:
+        filter = None) -> Dict[str, FMI3ModelVariable]:
         """
         Extract the names of the variables in a model.
 
@@ -752,7 +751,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         """
             TODO: If we decide to force user to use FMI3_* enums as input we need to also error check
                   such that user doesn't specify for example causality = FMI3_Type.X or similar.
-                  Also let's remove '_as_list'?
         """
 
         for index in range(variable_list_size):
@@ -809,10 +807,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         FMIL3.fmi3_import_free_variable_list(variable_list)
 
-        if _as_list:
-            return list(variable_dict.values())
-        else:
-            return variable_dict
+        return variable_dict
 
     def get_input_list(self):
         """
