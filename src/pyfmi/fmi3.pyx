@@ -20,9 +20,9 @@
 cimport cython
 
 import os
-from enum import Enum
+from enum import IntEnum
 import logging
-from typing import Optional
+from typing import Union
 
 import numpy as np
 cimport numpy as np
@@ -36,7 +36,7 @@ from pyfmi.util import enable_caching
 
 # TYPES
 # TODO: Import into fmi.pyx for convenience imports?
-class FMI3_Type(Enum):
+class FMI3_Type(IntEnum):
     FLOAT64 = FMIL3.fmi3_base_type_float64
     FLOAT32 = FMIL3.fmi3_base_type_float32
     INT64   = FMIL3.fmi3_base_type_int64
@@ -53,13 +53,13 @@ class FMI3_Type(Enum):
     STRING  = FMIL3.fmi3_base_type_str
     ENUM    = FMIL3.fmi3_base_type_enum
 
-class FMI3_Initial(Enum):
+class FMI3_Initial(IntEnum):
     EXACT       = FMIL3.fmi3_initial_enu_exact
     APPROX      = FMIL3.fmi3_initial_enu_approx
     CALCULATED  = FMIL3.fmi3_initial_enu_calculated
     UNKNOWN     = FMIL3.fmi3_initial_enu_unknown
 
-class FMI3_Variability(Enum):
+class FMI3_Variability(IntEnum):
     CONSTANT    = FMIL3.fmi3_variability_enu_constant
     FIXED       = FMIL3.fmi3_variability_enu_fixed
     TUNABLE     = FMIL3.fmi3_variability_enu_tunable
@@ -67,7 +67,7 @@ class FMI3_Variability(Enum):
     CONTINUOUS  = FMIL3.fmi3_variability_enu_continuous
     UNKNOWN     = FMIL3.fmi3_variability_enu_unknown
 
-class FMI3_Causality(Enum):
+class FMI3_Causality(IntEnum):
     STRUCTURAL_PARAMETER    = FMIL3.fmi3_causality_enu_structural_parameter
     PARAMETER               = FMIL3.fmi3_causality_enu_parameter
     CALCULATED_PARAMETER    = FMIL3.fmi3_causality_enu_calculated_parameter
@@ -678,13 +678,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
         return FMIL3.fmi3_import_get_variable_base_type(variable)
 
-
-    #@enable_caching TODO: Doesnt work using enums with members with C-types, lets discuss
     def get_model_variables(self,
-        type: Optional[FMI3_Type] = None,
+        type: Union[FMI3_Type, int, None] = None,
         include_alias: bool = True,
-        causality: Optional[FMI3_Causality] = None,
-        variability: Optional[FMI3_Variability] = None,
+        causality: Union[FMI3_Causality, int, None] = None,
+        variability: Union[FMI3_Variability, int, None] = None,
         only_start: bool = False,
         only_fixed: bool = False,
         filter = None) -> Dict[str, FMI3ModelVariable]:
@@ -694,7 +692,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         Parameters::
 
             type --
-                The type of the variables as an instance of pyfmi.fmi3.FMI3_Type.
+                The type of the variables as an instance of pyfmi.fmi3.FMI3_Type, int, or None.
                 Default: None (i.e all).
 
             include_alias --
@@ -703,11 +701,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 Default: True
 
             causality --
-                The causality of the variables as an instance of pyfmi.fmi3.FMI3_Causality.
+                The causality of the variables as an instance of pyfmi.fmi3.FMI3_Causality, int, or None.
                 Default: None (i.e all).
 
             variability --
-                The variability of the variables as an instance of pyfmi.fmi3.FMI3_Variability.
+                The variability of the variables as an instance of pyfmi.fmi3.FMI3_Variability, int, or None.
                 Default: None (i.e all).
 
             only_start --
@@ -728,6 +726,25 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
             Dict with variable name as key and a pyfmi.fmi3.FMI3ModelVariable class as value.
         """
+        return self._get_model_variables(
+            type = int(type) if type is not None else None,
+            include_alias = include_alias,
+            causality = int(causality) if causality is not None else None,
+            variability = int(variability) if variability is not None else None,
+            only_start = only_start,
+            only_fixed = only_fixed,
+            filter = filter
+        )
+
+    @enable_caching
+    def _get_model_variables(self,
+        type,
+        include_alias,
+        causality,
+        variability,
+        only_start,
+        only_fixed,
+        filter):
         cdef FMIL3.fmi3_import_variable_t*        variable
         cdef FMIL3.fmi3_import_variable_list_t*   variable_list
         cdef FMIL.size_t                          variable_list_size
@@ -748,10 +765,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         variable_list      = FMIL3.fmi3_import_get_variable_list(self._fmu, 0)
         variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
 
-        """
-            TODO: If we decide to force user to use FMI3_* enums as input we need to also error check
-                  such that user doesn't specify for example causality = FMI3_Type.X or similar.
-        """
+        if variable_filter:
+            filter_list = self._convert_filter(variable_filter)
 
         for index in range(variable_list_size):
             variable = FMIL3.fmi3_import_get_variable(variable_list, index)
@@ -766,7 +781,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 # fixed variability requires start-value
                 if has_start == 0:
                     continue
-                elif data_variability != FMI3_Variability.FIXED.value:
+                elif data_variability != FMI3_Variability.FIXED:
                     continue
 
             name             = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
@@ -778,15 +793,14 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             #If only variables with start are wanted, check if the variable has start
 
             # TODO: Discuss if we want to support also regular integers as inputs
-            if isinstance(variable_type, FMI3_Type) and (data_type != variable_type.value):
+            if isinstance(variable_type, int) and (data_type != variable_type):
                 continue
-            if isinstance(variability, FMI3_Variability) and (data_variability != variability.value):
+            if isinstance(variability, int) and (data_variability != variability):
                 continue
-            if isinstance(causality, FMI3_Causality) and (data_causality != causality.value):
+            if isinstance(causality, int) and (data_causality != causality):
                 continue
 
             if variable_filter:
-                filter_list = self._convert_filter(variable_filter)
                 for pattern in filter_list:
                     if pattern.match(name):
                         break

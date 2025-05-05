@@ -367,62 +367,62 @@ class TestFMI3LoadFMU:
         assert len(variables) == 6
 
         v = variables['time']
-        v.description     == 'Simulation time'
-        v.name            == 'time'
-        v.value_reference == 0
-        v.causality       is FMI3_Causality.INDEPENDENT
-        v.initial         is FMI3_Initial.UNKNOWN
-        v.type            is FMI3_Type.FLOAT64
-        v.variability     is FMI3_Variability.CONTINUOUS
+        assert v.description     == 'Simulation time'
+        assert v.name            == 'time'
+        assert v.value_reference == 0
+        assert v.causality       is FMI3_Causality.INDEPENDENT
+        assert v.initial         is FMI3_Initial.UNKNOWN
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.CONTINUOUS
 
 
         v = variables['x0']
-        v.description     == 'the first state'
-        v.name            == 'x0'
-        v.value_reference == 1
-        v.causality       is FMI3_Causality.OUTPUT
-        v.initial         is FMI3_Initial.EXACT
-        v.type            is FMI3_Type.FLOAT64
-        v.variability     is FMI3_Variability.CONTINUOUS
+        assert v.description     == 'the first state'
+        assert v.name            == 'x0'
+        assert v.value_reference == 1
+        assert v.causality       is FMI3_Causality.OUTPUT
+        assert v.initial         is FMI3_Initial.EXACT
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.CONTINUOUS
 
 
         v = variables['der(x0)']
-        v.description     == ''
-        v.name            == 'der(x0)'
-        v.value_reference == 2
-        v.causality       is FMI3_Causality.LOCAL
-        v.initial         is FMI3_Initial.CALCULATED
-        v.type            is FMI3_Type.FLOAT64
-        v.variability     is FMI3_Variability.CONTINUOUS,
+        assert v.description     == ''
+        assert v.name            == 'der(x0)'
+        assert v.value_reference == 2
+        assert v.causality       is FMI3_Causality.LOCAL
+        assert v.initial         is FMI3_Initial.CALCULATED
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.CONTINUOUS
 
 
         v = variables['x1']
-        v.description     == 'the second state'
-        v.name            == 'x1'
-        v.value_reference == 3
-        v.causality       is FMI3_Causality.OUTPUT
-        v.initial         is FMI3_Initial.EXACT
-        v.type            is FMI3_Type.FLOAT64
-        v.variability     is FMI3_Variability.CONTINUOUS
+        assert v.description     == 'the second state'
+        assert v.name            == 'x1'
+        assert v.value_reference == 3
+        assert v.causality       is FMI3_Causality.OUTPUT
+        assert v.initial         is FMI3_Initial.EXACT
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.CONTINUOUS
 
 
         v = variables['der(x1)']
-        v.description     == ''
-        v.name            == 'der(x1)'
-        v.value_reference == 4
-        v.causality       is FMI3_Causality.LOCAL
-        v.initial         is FMI3_Initial.CALCULATED
-        v.type            is FMI3_Type.FLOAT64
-        v.variability     is FMI3_Variability.CONTINUOUS
+        assert v.description     == ''
+        assert v.name            == 'der(x1)'
+        assert v.value_reference == 4
+        assert v.causality       is FMI3_Causality.LOCAL
+        assert v.initial         is FMI3_Initial.CALCULATED
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.CONTINUOUS
 
         v = variables['mu']
-        v.description     == ''
-        v.name            == 'mu'
-        v.value_reference == 5
-        v.causality       is FMI3_Causality.PARAMETER
-        v.initial         is FMI3_Initial.EXACT
-        v.type            is FMI3_Type.FLOAT64
-        v.variability     is FMI3_Variability.FIXED
+        assert v.description     == ''
+        assert v.name            == 'mu'
+        assert v.value_reference == 5
+        assert v.causality       is FMI3_Causality.PARAMETER
+        assert v.initial         is FMI3_Initial.EXACT
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.FIXED
 
     def test_get_model_variables_causality(self):
         """ Test get_model_variables by specifying causality. """
