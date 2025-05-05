@@ -768,6 +768,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if variable_filter:
             filter_list = self._convert_filter(variable_filter)
 
+        user_specified_type        = isinstance(variable_type, int)
+        user_specified_variability = isinstance(variability, int)
+        user_specified_causality   = isinstance(causality, int)
+
         for index in range(variable_list_size):
             variable = FMIL3.fmi3_import_get_variable(variable_list, index)
 
@@ -793,11 +797,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             #If only variables with start are wanted, check if the variable has start
 
             # TODO: Discuss if we want to support also regular integers as inputs
-            if isinstance(variable_type, int) and (data_type != variable_type):
+            if user_specified_type        and (data_type        != variable_type):
                 continue
-            if isinstance(variability, int) and (data_variability != variability):
+            if user_specified_variability and (data_variability != variability):
                 continue
-            if isinstance(causality, int) and (data_causality != causality):
+            if user_specified_causality   and (data_causality   != causality):
                 continue
 
             if variable_filter:
