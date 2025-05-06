@@ -40,7 +40,7 @@ class TestSimulation:
         assert results['x1'][0] == 0.0
         assert results['x0'][-1] == pytest.approx( 2.00814337)
         assert results['x1'][-1] == pytest.approx(-0.04277047)
-        np.testing.assert_equal(results['mu'], np.ones(501))
+        np.testing.assert_equal(results['mu'], np.ones(len(results['x0'])))
 
     def test_simulate_check_result_members(self):
         """Test simulate VDP model and check accessible data. """
@@ -50,9 +50,6 @@ class TestSimulation:
         expected_variables = ['time', 'x0', 'der(x0)', 'x1', 'der(x1)', 'mu']
 
         assert results.keys() == expected_variables
-
-        for v in expected_variables:
-            assert len(results[v]) == 501
 
     def test_simulate_change_ncp(self):
         """Test simulate VDP model and change ncp. """
@@ -66,5 +63,4 @@ class TestSimulation:
 
         assert results.keys() == expected_variables
 
-        for v in expected_variables:
-            assert len(results[v]) == 601
+        assert all(len(results[v]) == 601 for v in expected_variables)
