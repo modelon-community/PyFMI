@@ -20,8 +20,9 @@
 cimport cython
 
 import os
-from enum import Enum
+from enum import IntEnum
 import logging
+from typing import Union
 
 import numpy as np
 cimport numpy as np
@@ -30,10 +31,12 @@ cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi_base as FMI_BASE
 cimport pyfmi.util as pyfmi_util
+from pyfmi.util import enable_caching
+
 
 # TYPES
 # TODO: Import into fmi.pyx for convenience imports?
-class FMI3_Type(Enum):
+class FMI3_Type(IntEnum):
     FLOAT64 = FMIL3.fmi3_base_type_float64
     FLOAT32 = FMIL3.fmi3_base_type_float32
     INT64   = FMIL3.fmi3_base_type_int64
@@ -50,13 +53,13 @@ class FMI3_Type(Enum):
     STRING  = FMIL3.fmi3_base_type_str
     ENUM    = FMIL3.fmi3_base_type_enum
 
-class FMI3_Initial(Enum):
+class FMI3_Initial(IntEnum):
     EXACT       = FMIL3.fmi3_initial_enu_exact
     APPROX      = FMIL3.fmi3_initial_enu_approx
     CALCULATED  = FMIL3.fmi3_initial_enu_calculated
     UNKNOWN     = FMIL3.fmi3_initial_enu_unknown
 
-class FMI3_Variability(Enum):
+class FMI3_Variability(IntEnum):
     CONSTANT    = FMIL3.fmi3_variability_enu_constant
     FIXED       = FMIL3.fmi3_variability_enu_fixed
     TUNABLE     = FMIL3.fmi3_variability_enu_tunable
@@ -64,7 +67,7 @@ class FMI3_Variability(Enum):
     CONTINUOUS  = FMIL3.fmi3_variability_enu_continuous
     UNKNOWN     = FMIL3.fmi3_variability_enu_unknown
 
-class FMI3_Causality(Enum):
+class FMI3_Causality(IntEnum):
     STRUCTURAL_PARAMETER    = FMIL3.fmi3_causality_enu_structural_parameter
     PARAMETER               = FMIL3.fmi3_causality_enu_parameter
     CALCULATED_PARAMETER    = FMIL3.fmi3_causality_enu_calculated_parameter
@@ -675,6 +678,168 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
         return FMIL3.fmi3_import_get_variable_base_type(variable)
 
+    def get_model_variables(self,
+        type: Union[FMI3_Type, int, None] = None,
+        include_alias: bool = True,
+        causality: Union[FMI3_Causality, int, None] = None,
+        variability: Union[FMI3_Variability, int, None] = None,
+        only_start: bool = False,
+        only_fixed: bool = False,
+        filter = None) -> Dict[str, FMI3ModelVariable]:
+        """
+        Extract the names of the variables in a model.
+
+        Parameters::
+
+            type --
+                The type of the variables as an instance of pyfmi.fmi3.FMI3_Type, int, or None.
+                Default: None (i.e all).
+
+            include_alias --
+                Currently not supported (does nothing).
+                If alias should be included or not.
+                Default: True
+
+            causality --
+                The causality of the variables as an instance of pyfmi.fmi3.FMI3_Causality, int, or None.
+                Default: None (i.e all).
+
+            variability --
+                The variability of the variables as an instance of pyfmi.fmi3.FMI3_Variability, int, or None.
+                Default: None (i.e all).
+
+            only_start --
+                If only variables that has a start value should be returned.
+                Default: False
+
+            only_fixed --
+                If only variables that has a start value that is fixed should be returned.
+                Default: False
+
+            filter --
+                Filter the variables using a unix filename pattern
+                matching (filter="*der*"). Can also be a list of filters
+                See http://docs.python.org/2/library/fnmatch.html.
+                Default: None
+
+        Returns::
+
+            Dict with variable name as key and a pyfmi.fmi3.FMI3ModelVariable class as value.
+        """
+        return self._get_model_variables(
+            type = int(type) if type is not None else None,
+            include_alias = include_alias,
+            causality = int(causality) if causality is not None else None,
+            variability = int(variability) if variability is not None else None,
+            only_start = only_start,
+            only_fixed = only_fixed,
+            filter = filter
+        )
+
+    @enable_caching
+    def _get_model_variables(self,
+        type,
+        include_alias,
+        causality,
+        variability,
+        only_start,
+        only_fixed,
+        filter):
+        cdef FMIL3.fmi3_import_variable_t*        variable
+        cdef FMIL3.fmi3_import_variable_list_t*   variable_list
+        cdef FMIL.size_t                          variable_list_size
+        cdef FMIL3.fmi3_value_reference_t         value_ref
+        cdef FMIL3.fmi3_base_type_enu_t           data_type
+        cdef FMIL3.fmi3_variability_enu_t         data_variability
+        cdef FMIL3.fmi3_causality_enu_t           data_causality
+        cdef FMIL3.fmi3_initial_enu_t             data_initial
+
+        cdef int has_start = 0
+        # TODO: Can we rename the keyword arg 'filter' to variable_filter?
+        variable_filter = filter
+        # TODO: Can we rename the keyword arg 'type' to variable_type?
+        variable_type = type
+        cdef list filter_list, variable_return_list = []
+        variable_dict = {}
+
+        variable_list      = FMIL3.fmi3_import_get_variable_list(self._fmu, 0)
+        variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
+
+        if variable_filter:
+            filter_list = self._convert_filter(variable_filter)
+
+        user_specified_type        = isinstance(variable_type, int)
+        user_specified_variability = isinstance(variability, int)
+        user_specified_causality   = isinstance(causality, int)
+
+        for index in range(variable_list_size):
+            variable = FMIL3.fmi3_import_get_variable(variable_list, index)
+
+            has_start = FMIL3.fmi3_import_get_variable_has_start(variable)
+            if only_start and has_start == 0:
+                continue
+
+            data_variability = FMIL3.fmi3_import_get_variable_variability(variable)
+
+            if only_fixed:
+                # fixed variability requires start-value
+                if has_start == 0:
+                    continue
+                elif data_variability != FMI3_Variability.FIXED:
+                    continue
+
+            name             = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
+            value_ref        = FMIL3.fmi3_import_get_variable_vr(variable)
+            description      = self._get_variable_description(variable)
+            data_causality   = FMIL3.fmi3_import_get_variable_causality(variable)
+            data_initial     = FMIL3.fmi3_import_get_variable_initial(variable)
+            data_type        = FMIL3.fmi3_import_get_variable_base_type(variable)
+            #If only variables with start are wanted, check if the variable has start
+
+            # TODO: Discuss if we want to support also regular integers as inputs
+            if user_specified_type        and (data_type        != variable_type):
+                continue
+            if user_specified_variability and (data_variability != variability):
+                continue
+            if user_specified_causality   and (data_causality   != causality):
+                continue
+
+            if variable_filter:
+                for pattern in filter_list:
+                    if pattern.match(name):
+                        break
+                else:
+                    continue
+
+            var_is_not_alias = True # TODO, change later when we support alias
+            if include_alias or var_is_not_alias:
+                variable_dict[name] = FMI3ModelVariable(
+                    name,
+                    value_ref,
+                    data_type,
+                    description,
+                    data_variability,
+                    data_causality,
+                    data_initial
+                )
+
+        FMIL3.fmi3_import_free_variable_list(variable_list)
+
+        return variable_dict
+
+    def get_input_list(self):
+        """
+        Returns a dictionary with input variables
+
+        Returns::
+            An dictionary with the (float64, continuous) input variables.
+        """
+        return self.get_model_variables(
+            type=FMI3_Type.FLOAT64,
+            include_alias = False,
+            causality = FMI3_Causality.INPUT,
+            variability = FMI3_Variability.CONTINUOUS)
+
     def get_variable_data_type(self, variable_name):
         """
         Get data type of variable.
@@ -688,6 +853,14 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         """
         variable_data_type = self._get_variable_data_type(variable_name)
         return FMI3_Type(int(variable_data_type))
+
+    cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t* variable):
+        cdef FMIL3.fmi3_string_t desc = FMIL3.fmi3_import_get_variable_description(variable)
+        if desc == NULL:
+            desc = ""
+        desc = <FMIL3.fmi3_string_t>desc
+
+        return pyfmi_util.decode(desc)
 
     cpdef get_variable_description(self, variable_name):
         """
@@ -712,15 +885,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if variable == NULL:
             raise FMUException("The variable %s could not be found." % pyfmi_util.decode(variable_name))
 
-        desc = FMIL3.fmi3_import_get_variable_description(variable)
-        if desc == NULL:
-            desc = ""
-        desc = <FMIL3.fmi3_string_t>desc
-
-        return pyfmi_util.decode(desc)
+        return self._get_variable_description(variable)
 
     cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable):
-        cdef FMIL3.fmi3_string_t description
 
         if variable == NULL:
             raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
@@ -732,13 +899,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         data_type   = FMIL3.fmi3_import_get_variable_base_type(variable)
         variability = FMIL3.fmi3_import_get_variable_variability(variable)
         causality   = FMIL3.fmi3_import_get_variable_causality(variable)
-        description = FMIL3.fmi3_import_get_variable_description(variable)
-        if description == NULL:
-            description = ""
-        description = <FMIL3.fmi3_string_t>description
+        description = self._get_variable_description(variable)
         initial     = FMIL3.fmi3_import_get_variable_initial(variable)
 
-        return FMI3ModelVariable(name, value_ref, data_type, pyfmi_util.decode(description), variability, causality, initial)
+        return FMI3ModelVariable(name, value_ref, data_type, description, variability, causality, initial)
 
     def get_states_list(self):
         """ Returns a dictionary with the states.
@@ -811,15 +975,15 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         return self._nContinuousStates, self._nEventIndicators
 
     def get_default_experiment_start_time(self):
-        """ Returns the default experiment start time as defined the XML description. """
+        """ Returns the default experiment start time as defined in modelDescription.xml. """
         return FMIL3.fmi3_import_get_default_experiment_start(self._fmu)
 
     def get_default_experiment_stop_time(self):
-        """ Returns the default experiment stop time as defined the XML description. """
+        """ Returns the default experiment stop time as defined in modelDescription.xml. """
         return FMIL3.fmi3_import_get_default_experiment_stop(self._fmu)
 
     def get_default_experiment_tolerance(self):
-        """ Returns the default experiment tolerance as defined in the XML description. """
+        """ Returns the default experiment tolerance as defined in modelDescription.xml. """
         return FMIL3.fmi3_import_get_default_experiment_tolerance(self._fmu)
 
 

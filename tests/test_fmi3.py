@@ -358,6 +358,229 @@ class TestFMI3LoadFMU:
         with pytest.raises(FMUException, match = "The variable idontexist could not be found."):
             fmu.get_variable_description('idontexist')
 
+    def test_get_model_variables(self):
+        """ Test get_model_variables with default arguments. """
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        variables = fmu.get_model_variables()
+
+        assert len(variables) == 6
+
+        v = variables['time']
+        assert v.description     == 'Simulation time'
+        assert v.name            == 'time'
+        assert v.value_reference == 0
+        assert v.causality       is FMI3_Causality.INDEPENDENT
+        assert v.initial         is FMI3_Initial.UNKNOWN
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.CONTINUOUS
+
+
+        v = variables['x0']
+        assert v.description     == 'the first state'
+        assert v.name            == 'x0'
+        assert v.value_reference == 1
+        assert v.causality       is FMI3_Causality.OUTPUT
+        assert v.initial         is FMI3_Initial.EXACT
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.CONTINUOUS
+
+
+        v = variables['der(x0)']
+        assert v.description     == ''
+        assert v.name            == 'der(x0)'
+        assert v.value_reference == 2
+        assert v.causality       is FMI3_Causality.LOCAL
+        assert v.initial         is FMI3_Initial.CALCULATED
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.CONTINUOUS
+
+
+        v = variables['x1']
+        assert v.description     == 'the second state'
+        assert v.name            == 'x1'
+        assert v.value_reference == 3
+        assert v.causality       is FMI3_Causality.OUTPUT
+        assert v.initial         is FMI3_Initial.EXACT
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.CONTINUOUS
+
+
+        v = variables['der(x1)']
+        assert v.description     == ''
+        assert v.name            == 'der(x1)'
+        assert v.value_reference == 4
+        assert v.causality       is FMI3_Causality.LOCAL
+        assert v.initial         is FMI3_Initial.CALCULATED
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.CONTINUOUS
+
+        v = variables['mu']
+        assert v.description     == ''
+        assert v.name            == 'mu'
+        assert v.value_reference == 5
+        assert v.causality       is FMI3_Causality.PARAMETER
+        assert v.initial         is FMI3_Initial.EXACT
+        assert v.type            is FMI3_Type.FLOAT64
+        assert v.variability     is FMI3_Variability.FIXED
+
+    def test_get_model_variables_causality(self):
+        """ Test get_model_variables by specifying causality. """
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        variables = fmu.get_model_variables(causality=FMI3_Causality.PARAMETER)
+
+        assert len(variables) == 1
+        assert 'mu' in variables
+
+    def test_get_model_variables_type(self):
+        """ Test get_model_variables by specifying type. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        variables = fmu.get_model_variables(type=FMI3_Type.FLOAT64)
+
+        assert len(variables) == 7
+        expected = [
+            'time',
+            'Float64_fixed_parameter',
+            'Float64_tunable_parameter',
+            'Float64_continuous_input',
+            'Float64_continuous_output',
+            'Float64_discrete_input',
+            'Float64_discrete_output',
+        ]
+
+        assert expected == list(variables.keys())
+
+    def test_get_model_variables_variability(self):
+        """ Test get_model_variables by specifying variability. """
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        variables = fmu.get_model_variables(variability=FMI3_Variability.CONTINUOUS)
+
+        assert len(variables) == 5
+        assert 'mu' not in variables
+
+    def test_get_model_variables_multiple(self):
+        """ Test get_model_variables by specifying multiple arguments. """
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        variables = fmu.get_model_variables(type=FMI3_Type.FLOAT64, variability=FMI3_Variability.FIXED)
+
+        assert len(variables) == 1
+        assert 'mu' in variables
+
+    def test_get_model_variables_several(self):
+        """ Test get_model_variables by specifying several arguments. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        variables = fmu.get_model_variables(
+            type=FMI3_Type.FLOAT64,
+            causality=FMI3_Causality.INPUT,
+            variability=FMI3_Variability.DISCRETE)
+
+        assert len(variables) == 1
+        assert 'Float64_discrete_input' in variables
+
+    def test_get_model_variables_only_start(self):
+        """ Test get_model_variables by specifying 'only_start'. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        variables = fmu.get_model_variables(only_start = True)
+
+        expected = [
+            'Float32_continuous_input',
+            'Float32_discrete_input',
+            'Float64_fixed_parameter',
+            'Float64_tunable_parameter',
+            'Float64_continuous_input',
+            'Float64_discrete_input',
+            'Int8_input',
+            'UInt8_input',
+            'Int16_input',
+            'UInt16_input',
+            'Int32_input',
+            'UInt32_input',
+            'Int64_input',
+            'UInt64_input',
+            'Boolean_input',
+            'String_parameter',
+            'Binary_input',
+            'Enumeration_input']
+
+        assert expected == list(variables.keys())
+
+    def test_get_model_variables_only_fixed(self):
+        """ Test get_model_variables by specifying 'only_fixed'. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        variables = fmu.get_model_variables(only_fixed = True)
+
+        expected = [
+            'Float64_fixed_parameter',
+            'String_parameter']
+
+        assert expected == list(variables.keys())
+
+    def test_get_model_variables_filter(self):
+        """ Test get_model_variables by specifying filter. """
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        variables = fmu.get_model_variables(filter="der*")
+
+        assert len(variables) == 2
+        assert 'der(x0)' in variables
+        assert 'der(x1)' in variables
+
+    def test_get_model_variables_multiple_filters(self):
+        """ Test get_model_variables by specifying multiple filters. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        variables = fmu.get_model_variables(filter=['*parameter', 'UInt16*'])
+
+        expected = [
+            'Float64_fixed_parameter',
+            'Float64_tunable_parameter',
+            'UInt16_input',
+            'UInt16_output',
+            'String_parameter']
+
+        assert expected == list(variables.keys())
+
+    def test_get_model_variables_many_args(self):
+        """ Test get_model_variables by specifying almost all inputs. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        variables = fmu.get_model_variables(
+            type=FMI3_Type.FLOAT64,
+            causality=FMI3_Causality.PARAMETER,
+            variability=FMI3_Variability.FIXED)
+
+        expected = [
+            'Float64_fixed_parameter']
+
+        assert expected == list(variables.keys())
+
+        variables = fmu.get_model_variables(
+            type=FMI3_Type.FLOAT64,
+            causality=FMI3_Causality.PARAMETER,
+            variability=FMI3_Variability.FIXED,
+            filter="idontexist")
+
+        expected = []
+
+        assert expected == list(variables.keys())
+
+    def test_get_input_list(self):
+        """ Test get_input_list. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        inputs = fmu.get_input_list()
+
+        expected = ['Float64_continuous_input']
+
+        assert expected == list(inputs.keys())
+
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
@@ -555,7 +778,7 @@ class Test_FMI3ME:
         options = fmu.simulate_options()
         options["result_handling"] = None
         fmu.simulate(0, 20, options = options)
-        
+
         # reference values taken from FMI2 VDP simulation
         assert fmu.get("x0")[0] == pytest.approx(2.0081433709107324)
         assert fmu.get("x1")[0] == pytest.approx(-0.0427704789503908)
