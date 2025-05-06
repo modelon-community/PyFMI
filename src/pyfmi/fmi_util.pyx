@@ -155,6 +155,9 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
     cdef int _FMI_REAL = FMI_REAL, _FMI_INTEGER = FMI_INTEGER # TODO
     cdef int _FMI_ENUMERATION = FMI_ENUMERATION, _FMI_BOOLEAN = FMI_BOOLEAN # TODO
     cdef list param_real = [], param_int = [], param_bool = []
+    cdef list param_float64 = [], param_float32 = [], param_int64 = [], param_int32 = []
+    # Note that for FMI3 we can put all the value references in the same lists
+    # regardless of bitness since they are written to the simulation results as floats.
     cdef list varia_real = [], varia_int = [], varia_bool = []
     last_vref = -1
 
@@ -193,10 +196,27 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
                 index_fixed = index_fixed + 1
                 last_index = index_fixed
 
+                # Make make sure we add the parameters to the correct list of value references
                 if _is_real_or_float(var, model):
-                    param_real.append(last_vref)
+                    if is_fmi3:
+                        if var.type == FMI3_Type.FLOAT64:
+                            param_float64.append(last_vref)
+                        elif var.type == FMI3_Type.FLOAT32:
+                            param_float32.append(last_vref)
+                        else:
+                            raise NotImplementedError
+                    else:
+                        param_real.append(last_vref)
                 elif _is_int_or_enum(var, model):
-                    param_int.append(last_vref)
+                    if is_fmi3:
+                        if var.type == FMI3_Type.INT64:
+                            param_int64.append(last_vref)
+                        elif var.type == FMI3_Type.INT32:
+                            param_int32.append(last_vref)
+                        else:
+                            raise NotImplementedError
+                    else:
+                        param_int.append(last_vref)
                 elif _is_bool(var, model):
                     param_bool.append(last_vref)
                 else:
@@ -206,6 +226,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
                 index_variable = index_variable + 1
                 last_index = index_variable
 
+                # No need to consider bitness of the variable here
                 if _is_real_or_float(var, model):
                     varia_real.append(last_vref)
                 elif _is_int_or_enum(var, model):
@@ -242,8 +263,10 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         data = np.append(
             model.time,
             np.concatenate(
-                (model.get_float64(param_real),
-                 model.get_int64(param_int).astype(float),
+                (model.get_float64(param_float64),
+                 model.get_float64(param_float32),
+                 model.get_int64(param_int64).astype(float),
+                 model.get_int32(param_int32).astype(float),
                  model.get_boolean(param_bool).astype(float),
                  np.array(diagnostics_param_values).astype(float)
                 ),
