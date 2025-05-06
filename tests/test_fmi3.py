@@ -15,14 +15,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import pytest
 import re
 import logging
-import numpy as np
 from io import StringIO
-from pyfmi import load_fmu
 from pathlib import Path
+import contextlib
 
+import pytest
+import numpy as np
+
+from pyfmi import load_fmu
 from pyfmi.fmi import (
     FMUModelME3,
 )
@@ -33,7 +35,6 @@ from pyfmi.fmi3 import (
     FMI3_Initial,
     FMI3EventInfo,
 )
-
 from pyfmi.exceptions import (
     FMUException,
     InvalidFMUException,
@@ -49,8 +50,6 @@ this_dir = Path(__file__).parent.absolute()
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
 
-import contextlib
-from pathlib import Path
 
 @contextlib.contextmanager
 def temp_dir_context(tmpdir):

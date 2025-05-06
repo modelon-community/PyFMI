@@ -2715,6 +2715,7 @@ class ResultHandlerBinaryFile(ResultHandler):
             self.file_name=self.model.get_identifier() + '_result.mat'
         self.model._result_file = self.file_name
 
+        # Open file
         file_name = self.file_name
         if isinstance(self.file_name, str):
             self._file = open(file_name,'wb')
@@ -2731,7 +2732,6 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._write_header("Aclass", aclass_data.shape[0], aclass_data.shape[1], "char")
         self.dump_data(aclass_data)
 
-        # Open file
         if self.is_fmi3:
             real_t = FMI3_Type.FLOAT64
             int_t = FMI3_Type.INT64
@@ -2743,10 +2743,10 @@ class ResultHandlerBinaryFile(ResultHandler):
             bool_t = fmi.FMI_BOOLEAN
             enum_t = fmi.FMI_ENUMERATION
 
-        vars_real = self.model.get_model_variables(type=real_t, filter=self.options["filter"], _as_list=True)#.values()
-        vars_int  = self.model.get_model_variables(type=int_t, filter=self.options["filter"], _as_list=True)#.values()
-        vars_bool = self.model.get_model_variables(type=bool_t, filter=self.options["filter"], _as_list=True)#.values()
-        vars_enum = self.model.get_model_variables(type=enum_t, filter=self.options["filter"], _as_list=True)#.values()
+        vars_real = list(self.model.get_model_variables(type=real_t, filter=self.options["filter"]).values())
+        vars_int  = list(self.model.get_model_variables(type=int_t, filter=self.options["filter"]).values())
+        vars_bool = list(self.model.get_model_variables(type=bool_t, filter=self.options["filter"]).values())
+        vars_enum = list(self.model.get_model_variables(type=enum_t, filter=self.options["filter"]).values())
 
         sorted_vars_real = sorted(vars_real, key=attrgetter("value_reference"))
         sorted_vars_int  = sorted(vars_int,  key=attrgetter("value_reference"))

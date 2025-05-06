@@ -124,19 +124,19 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
 
 def _is_real_or_float(variable, model):
     if isinstance(model, FMUModelBase3):
-        return variable.type is FMI3_Type.FLOAT64
+        return variable.type == FMI3_Type.FLOAT64
     else:
         return variable.type == FMI_REAL
 
 def _is_int_or_enum(variable, model):
     if isinstance(model, FMUModelBase3):
-        return variable.type is FMI3_Type.INT64 or variable.type is FMI3_Type.ENUM
+        return (variable.type == FMI3_Type.INT64) or (variable.type == FMI3_Type.ENUM)
     else:
-        return variable.type == FMI_INTEGER or variable.type == FMI_ENUMERATION
+        return (variable.type == FMI_INTEGER) or (variable.type == FMI_ENUMERATION)
 
 def _is_bool(variable, model):
     if isinstance(model, FMUModelBase3):
-        return variable.type is FMI3_Type.BOOL
+        return variable.type == FMI3_Type.BOOL
     else:
         return variable.type == FMI_BOOLEAN
 
@@ -215,15 +215,15 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
                 else:
                     raise FMUException("Unknown type detected for variable %s when writing the results."%var.name)
 
-            data_info[1,i] = alias*last_index
-            data_info[0,i] = last_data_matrix
+            data_info[1, i] = alias*last_index
+            data_info[0, i] = last_data_matrix
 
     data_info[0, 0] = 0
     data_info[1, 0] = 1
     data_info[2, 0] = 0
     data_info[3, 0] = -1
 
-    for i in range(nof_sorted_vars+1, nof_sorted_vars+1+nof_diag_params):
+    for i in range(nof_sorted_vars+1, nof_sorted_vars + 1 + nof_diag_params):
         data_info[0,i] = 1
         data_info[2,i] = 0
         data_info[3,i] = -1
