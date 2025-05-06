@@ -580,19 +580,27 @@ class TestFMI3LoadFMU:
 
         assert expected == list(inputs.keys())
 
-    def test_get_int32_and_64(self):
-        """ Test get int32 and int64. """
+    def test_get_int32(self):
+        """ Test get int32. """
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = load_fmu(fmu_path)
-        int64_vals = fmu.get_int64([23, 24])
         int32_vals = fmu.get_int32([19, 20])
 
-        np.testing.assert_equal(np.array([0, 0]), int64_vals)
         np.testing.assert_equal(np.array([0, 0], dtype=np.int32), int32_vals)
 
         # Since above doesnt verify the data type, also check below separately
-        assert int64_vals.dtype == np.int64
         assert int32_vals.dtype == np.int32
+
+    def test_get_int64(self):
+        """ Test get int64. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        int64_vals = fmu.get_int64([23, 24])
+
+        np.testing.assert_equal(np.array([0, 0]), int64_vals)
+
+        # Since above doesnt verify the data type, also check below separately
+        assert int64_vals.dtype == np.int64
 
     def test_get_boolean(self):
         """ Test get boolean. """

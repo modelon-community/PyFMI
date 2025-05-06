@@ -264,7 +264,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
             model.time,
             np.concatenate(
                 (model.get_float64(param_float64),
-                 model.get_float64(param_float32),
+                 model.get_float32(param_float32),
                  model.get_int64(param_int64).astype(float),
                  model.get_int32(param_int32).astype(float),
                  model.get_boolean(param_bool).astype(float),
