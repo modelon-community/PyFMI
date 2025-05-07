@@ -2732,38 +2732,24 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._write_header("Aclass", aclass_data.shape[0], aclass_data.shape[1], "char")
         self.dump_data(aclass_data)
 
-        if self.is_fmi3:
-            real_t = FMI3_Type.FLOAT64
-            int_t = FMI3_Type.INT64
-            bool_t = FMI3_Type.BOOL
-            enum_t = FMI3_Type.ENUM
-        else:
-            real_t = fmi.FMI_REAL
-            int_t = fmi.FMI_INTEGER
-            bool_t = fmi.FMI_BOOLEAN
-            enum_t = fmi.FMI_ENUMERATION
-
-        vars_real = list(self.model.get_model_variables(type=real_t, filter=self.options["filter"]).values())
-        vars_int  = list(self.model.get_model_variables(type=int_t, filter=self.options["filter"]).values())
-        vars_bool = list(self.model.get_model_variables(type=bool_t, filter=self.options["filter"]).values())
-        vars_enum = list(self.model.get_model_variables(type=enum_t, filter=self.options["filter"]).values())
-
-        sorted_vars_real = sorted(vars_real, key=attrgetter("value_reference"))
-        sorted_vars_int  = sorted(vars_int,  key=attrgetter("value_reference"))
-        sorted_vars_bool = sorted(vars_bool, key=attrgetter("value_reference"))
-        sorted_vars_enum = sorted(vars_enum, key=attrgetter("value_reference"))
-
-        sorted_vars = sorted_vars_real+sorted_vars_int+sorted_vars_enum+sorted_vars_bool
-        self._sorted_vars = sorted_vars
+        sorted_vars = self._get_sorted_vars()
         len_name_items = len(sorted_vars)+len(diagnostics_params)+len(diagnostics_vars)+1
         len_desc_items = len_name_items
 
         if opts["result_store_variable_description"]:
             var_desc = [(name, diagnostics_vars[name][1]) for name in diagnostics_vars]
             param_desc =  [(name, diagnostics_params[name][1]) for name in diagnostics_params]
-            len_name_data, name_data, len_desc_data, desc_data = fmi_util.convert_sorted_vars_name_desc(sorted_vars, param_desc, var_desc)
+            len_name_data, name_data, len_desc_data, desc_data = fmi_util.convert_sorted_vars_name_desc(
+                sorted_vars,
+                param_desc,
+                var_desc
+            )
         else:
-            len_name_data, name_data = fmi_util.convert_sorted_vars_name(sorted_vars, list(diagnostics_params.keys()), list(diagnostics_vars.keys()))
+            len_name_data, name_data = fmi_util.convert_sorted_vars_name(
+                sorted_vars,
+                list(diagnostics_params.keys()),
+                list(diagnostics_vars.keys())
+            )
             len_desc_data = 1
             desc_data = encode(" "*len_desc_items)
 
@@ -2775,8 +2761,23 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         #Create the data info structure (and return parameters)
         data_info = np.zeros((4, len_name_items), dtype=np.int32)
-        [parameter_data, sorted_vars_real_vref, sorted_vars_int_vref, sorted_vars_bool_vref]  = fmi_util.prepare_data_info(data_info, sorted_vars,
-                                                                                                    [val[0] for val in diagnostics_params.values()], self.nof_diag_vars, self.model)
+
+        if self.is_fmi3:
+            parameter_data, value_references = fmi_util.prepare_data_info_fmi3(
+                data_info,
+                sorted_vars,
+                [val[0] for val in diagnostics_params.values()],
+                self.nof_diag_vars,
+                self.model
+            )
+        else:
+            [parameter_data, sorted_vars_real_vref, sorted_vars_int_vref, sorted_vars_bool_vref]  = fmi_util.prepare_data_info(
+                data_info,
+                sorted_vars,
+                [val[0] for val in diagnostics_params.values()],
+                self.nof_diag_vars,
+                self.model
+            )
 
         self._write_header("dataInfo", data_info.shape[0], data_info.shape[1], "int")
         self.dump_data(data_info)
@@ -2801,7 +2802,11 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         #Record the position so that we can later modify the number of result points stored
         self.data_2_header_position = self._file.tell()
-        self._len_vars_ref =  len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref)+1
+
+        if self.is_fmi3:
+            self._len_vars_ref = sum(len(l) for l in value_references.values()) + 1
+        else:
+            self._len_vars_ref =  len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref) + 1
 
         self._data_2_header = self._data_header("data_2", self._len_vars_ref, 1, "double")
         self._data_2_header["ncols"] = self.nbr_points
@@ -2809,14 +2814,48 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.__write_header(self._data_2_header, "data_2")
         self.data_2_header_end_position = self._file.tell()
 
-        self.real_var_ref = np.array(sorted_vars_real_vref)
-        self.int_var_ref  = np.array(sorted_vars_int_vref)
-        self.bool_var_ref = np.array(sorted_vars_bool_vref)
-        self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref, self._with_diagnostics)
+        if self.is_fmi3:
+            self.dump_data_internal = fmi_util.DumpDataFMI3(self.model, self._file, value_references, self._with_diagnostics)
+        else:
+            # TODO: Do these 3 need to be class variables?
+            self.real_var_ref = np.array(sorted_vars_real_vref)
+            self.int_var_ref  = np.array(sorted_vars_int_vref)
+            self.bool_var_ref = np.array(sorted_vars_bool_vref)
+            self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref, self._with_diagnostics)
 
         if self._with_diagnostics:
             diag_data = np.array([val[0] for val in diagnostics_vars.values()], dtype=float)
             self.diagnostics_point(diag_data)
+
+    def _get_sorted_vars(self):
+        """ Returns a list of all model variable value references for those data types that are
+            written to the results, sorted in increasing order, and ordered by data type.
+        """
+        sorted_vars = []
+        if self.is_fmi3:
+            data_types = [
+                FMI3_Type.FLOAT64,
+                FMI3_Type.FLOAT32,
+                FMI3_Type.INT64,
+                FMI3_Type.INT32,
+                FMI3_Type.BOOL,
+                FMI3_Type.ENUM
+            ]
+        else:
+            data_types = [
+                fmi.FMI_REAL,
+                fmi.FMI_INTEGER,
+                fmi.FMI_BOOLEAN,
+                fmi.FMI_ENUMERATION
+            ]
+
+        for data_type in data_types:
+            sorted_vars += sorted(
+                list(self.model.get_model_variables(type=data_type, filter=self.options["filter"]).values()),
+                key=attrgetter("value_reference")
+            )
+
+        return sorted_vars
 
     def integration_point(self, solver = None):
         """
@@ -2931,6 +2970,11 @@ def verify_result_size(file_name, first_point, current_size, previous_size, max_
 def get_result_handler(model, opts):
     result_handler = None
 
+    if isinstance(model, FMUModelBase3) and (opts['result_handling'] not in ["binary", "custom", None]):
+        raise NotImplementedError(
+            f"For FMI3: 'result_handling' set to '{opts['result_handling']}' is not supported. " + \
+            "Consider setting this option to 'binary', 'custom' or None to continue.")
+
     if opts["result_handling"] == "file":
         result_handler = ResultHandlerFile(model)
     elif opts["result_handling"] == "binary":
@@ -2949,9 +2993,7 @@ def get_result_handler(model, opts):
             raise FMUException("The result handler needs to be specified when using a custom result handling.")
         if not isinstance(result_handler, ResultHandler):
             raise FMUException("The result handler needs to be a subclass of ResultHandler.")
-    elif (opts["result_handling"] is None) or (opts["result_handling"] == 'none'): #No result handling (for performance)
-        if opts["result_handling"] == 'none': ## TODO: Future; remove this
-            logging_module.warning("result_handling = 'none' is deprecated. Please use None instead.")
+    elif opts["result_handling"] is None:
         result_handler = ResultHandlerDummy(model)
     else:
         raise FMUException("Unknown option to result_handling.")

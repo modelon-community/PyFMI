@@ -29,7 +29,7 @@ cimport numpy as np
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmi2 as FMI2 # TODO
 cimport pyfmi.fmi3 as FMI3 # TODO
-from pyfmi.fmi3 import FMUModelBase3, FMI3_Type, FMI3_Causality, FMI3_Initial, FMI3_Variability
+from pyfmi.fmi3 import FMI3_Type, FMI3_Causality, FMI3_Initial, FMI3_Variability
 from pyfmi.fmi1 import ( # TODO
     FMI_NEGATED_ALIAS, FMI_PARAMETER, FMI_CONSTANT,
     FMI_REAL, FMI_INTEGER, FMI_ENUMERATION, FMI_BOOLEAN
@@ -122,24 +122,6 @@ cpdef list convert_array_names_list_names_int(np.ndarray[int, ndim=2] names):
 
     return output
 
-def _is_real_or_float(variable, model):
-    if isinstance(model, FMUModelBase3):
-        return variable.type == FMI3_Type.FLOAT64
-    else:
-        return variable.type == FMI_REAL
-
-def _is_int_or_enum(variable, model):
-    if isinstance(model, FMUModelBase3):
-        return (variable.type == FMI3_Type.INT64) or (variable.type == FMI3_Type.ENUM)
-    else:
-        return (variable.type == FMI_INTEGER) or (variable.type == FMI_ENUMERATION)
-
-def _is_bool(variable, model):
-    if isinstance(model, FMUModelBase3):
-        return variable.type == FMI3_Type.BOOL
-    else:
-        return variable.type == FMI_BOOLEAN
-
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -155,13 +137,8 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
     cdef int _FMI_REAL = FMI_REAL, _FMI_INTEGER = FMI_INTEGER # TODO
     cdef int _FMI_ENUMERATION = FMI_ENUMERATION, _FMI_BOOLEAN = FMI_BOOLEAN # TODO
     cdef list param_real = [], param_int = [], param_bool = []
-    cdef list param_float64 = [], param_float32 = [], param_int64 = [], param_int32 = []
-    # Note that for FMI3 we can put all the value references in the same lists
-    # regardless of bitness since they are written to the simulation results as floats.
     cdef list varia_real = [], varia_int = [], varia_bool = []
     last_vref = -1
-
-    is_fmi3 = isinstance(model, FMUModelBase3)
 
     for i in range(1, nof_sorted_vars + 1):
         var = sorted_vars[i-1]
@@ -177,47 +154,19 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
             data_info[0,i] = last_data_matrix
             data_info[1,i] = alias*last_index
         else:
-            # TODO cleanup and improve
-            if is_fmi3:
-                variability = var.variability.value
-                data_type = var.type.value
-            else:
-                variability = var.variability
-                data_type   = var.type
             last_vref   = var.value_reference
 
-            if is_fmi3:
-                cond = var.variability is FMI3_Variability.FIXED or var.variability is FMI3_Variability.CONSTANT
-            else:
-                cond = variability == _FMI_PARAMETER or variability == _FMI_CONSTANT
-
-            if cond:
+            if var.variability == _FMI_PARAMETER or var.variability == _FMI_CONSTANT:
                 last_data_matrix = 1
                 index_fixed = index_fixed + 1
                 last_index = index_fixed
 
                 # Make make sure we add the parameters to the correct list of value references
-                if _is_real_or_float(var, model):
-                    if is_fmi3:
-                        if var.type == FMI3_Type.FLOAT64:
-                            param_float64.append(last_vref)
-                        elif var.type == FMI3_Type.FLOAT32:
-                            param_float32.append(last_vref)
-                        else:
-                            raise NotImplementedError
-                    else:
-                        param_real.append(last_vref)
-                elif _is_int_or_enum(var, model):
-                    if is_fmi3:
-                        if var.type == FMI3_Type.INT64:
-                            param_int64.append(last_vref)
-                        elif var.type == FMI3_Type.INT32:
-                            param_int32.append(last_vref)
-                        else:
-                            raise NotImplementedError
-                    else:
-                        param_int.append(last_vref)
-                elif _is_bool(var, model):
+                if var.type == FMI_REAL:
+                    param_real.append(last_vref)
+                elif (var.type == FMI_INTEGER) or (var.type == FMI_ENUMERATION):
+                    param_int.append(last_vref)
+                elif var.type == FMI_BOOLEAN:
                     param_bool.append(last_vref)
                 else:
                     raise FMUException("Unknown type detected for variable %s when writing the results."%var.name)
@@ -227,11 +176,11 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
                 last_index = index_variable
 
                 # No need to consider bitness of the variable here
-                if _is_real_or_float(var, model):
+                if var.type == FMI_REAL:
                     varia_real.append(last_vref)
-                elif _is_int_or_enum(var, model):
+                elif (var.type == FMI_INTEGER) or (var.type == FMI_ENUMERATION):
                     varia_int.append(last_vref)
-                elif _is_bool(var, model):
+                elif var.type == FMI_BOOLEAN:
                     varia_bool.append(last_vref)
                 else:
                     raise FMUException("Unknown type detected for variable %s when writing the results."%var.name)
@@ -259,34 +208,129 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         last_index = last_index + 1
         data_info[1,i] = last_index
 
-    if is_fmi3:
-        data = np.append(
-            model.time,
-            np.concatenate(
-                (model.get_float64(param_float64),
-                 model.get_float32(param_float32),
-                 model.get_int64(param_int64).astype(float),
-                 model.get_int32(param_int32).astype(float),
-                 model.get_boolean(param_bool).astype(float),
-                 np.array(diagnostics_param_values).astype(float)
-                ),
-                axis = 0
-            )
+    data = np.append(
+        model.time,
+        np.concatenate(
+            (model.get_real(param_real),
+             model.get_integer(param_int).astype(float),
+             model.get_boolean(param_bool).astype(float),
+             np.array(diagnostics_param_values).astype(float)
+            ),
+            axis = 0
         )
-    else:
-        data = np.append(
-            model.time,
-            np.concatenate(
-                (model.get_real(param_real),
-                 model.get_integer(param_int).astype(float),
-                 model.get_boolean(param_bool).astype(float),
-                 np.array(diagnostics_param_values).astype(float)
-                ),
-                axis = 0
-            )
-        )
+    )
 
     return data, varia_real, varia_int, varia_bool
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars, list diagnostics_param_values, int nof_diag_vars, model):
+    cdef int index_fixed    = 1
+    cdef int index_variable = 1
+    cdef int nof_sorted_vars = len(sorted_vars)
+    cdef int nof_diag_params = len(diagnostics_param_values)
+    cdef int i, alias
+    cdef int last_data_matrix = -1, last_index = -1
+    cdef dict params = {
+        FMI3_Type.FLOAT64: [],
+        FMI3_Type.FLOAT32: [],
+        FMI3_Type.INT64: [],
+        FMI3_Type.INT32: [],
+        FMI3_Type.BOOL: [],
+        # TODO: Additional types
+    }
+    cdef dict variables = {
+        FMI3_Type.FLOAT64: [],
+        FMI3_Type.FLOAT32: [],
+        FMI3_Type.INT64: [],
+        FMI3_Type.INT32: [],
+        FMI3_Type.BOOL: [],
+        # TODO: Additional types
+    }
+    # "To set or inquire variables of type Enumeration, fmi3SetInt64 and fmi3GetInt64 must be used"
+    params[FMI3_Type.ENUM] = params[FMI3_Type.INT64]
+    variables[FMI3_Type.ENUM] = variables[FMI3_Type.INT64]
+
+    last_vref = -1
+
+    for i in range(1, nof_sorted_vars + 1):
+        var = sorted_vars[i-1]
+        data_info[2,i] = 0
+        data_info[3,i] = -1
+
+        # TODO
+        #if var.alias == _FMI_NEGATED_ALIAS:
+        #    alias = -1
+        #else:
+        #    alias = 1
+        alias = 1
+
+        if last_vref == var.value_reference:
+            data_info[0,i] = last_data_matrix
+            data_info[1,i] = alias*last_index
+        else:
+            last_vref = var.value_reference
+            is_fixed_or_const = var.variability in (FMI3_Variability.FIXED,  FMI3_Variability.CONSTANT)
+
+            if is_fixed_or_const:
+                last_data_matrix = 1
+                index_fixed = index_fixed + 1
+                last_index = index_fixed
+            else:
+                last_data_matrix = 2
+                index_variable = index_variable + 1
+                last_index = index_variable
+
+            try:
+                if is_fixed_or_const:
+                    params[var.type].append(last_vref)
+                else:
+                    variables[var.type].append(last_vref)
+            except KeyError:
+                raise FMUException(
+                    f"Unknown type {var.type} detected for variable {var.name} when writing the results."
+                )
+
+            data_info[1, i] = alias*last_index
+            data_info[0, i] = last_data_matrix
+
+    data_info[0, 0] = 0
+    data_info[1, 0] = 1
+    data_info[2, 0] = 0
+    data_info[3, 0] = -1
+
+    for i in range(nof_sorted_vars+1, nof_sorted_vars + 1 + nof_diag_params):
+        data_info[0,i] = 1
+        data_info[2,i] = 0
+        data_info[3,i] = -1
+        index_fixed = index_fixed + 1
+        data_info[1,i] = index_fixed
+
+    last_index = 0
+    for i in range(nof_sorted_vars + 1 + nof_diag_params, nof_sorted_vars + 1 + nof_diag_params + nof_diag_vars):
+        data_info[0,i] = 3
+        data_info[2,i] = 0
+        data_info[3,i] = -1
+        last_index = last_index + 1
+        data_info[1,i] = last_index
+
+    data = np.append(
+        model.time,
+        np.concatenate(
+            (model.get_float64(params[FMI3_Type.FLOAT64]),
+             model.get_float32(params[FMI3_Type.FLOAT32]),
+             model.get_int64(params[FMI3_Type.INT64]).astype(float), # also handles enums automatically
+             model.get_int32(params[FMI3_Type.INT32]).astype(float),
+             model.get_boolean(params[FMI3_Type.BOOL]).astype(float),
+             np.array(diagnostics_param_values).astype(float)
+            ),
+            axis = 0
+        )
+    )
+
+    return data, variables
+
 
 cpdef convert_str_list(list data):
     cdef int length = 0
@@ -964,6 +1008,58 @@ class Graph:
                     f.write(' "%s" [color=none, label="%s"] \n'%(node, node))
             f.write('}')
 
+cdef class DumpDataFMI3:
+    def __init__(self, model, filep, value_references, with_diagnostics):
+        self.value_references = {
+            k: np.array(v, dtype=np.uint32, ndmin=1).ravel() for k,v in value_references.items()
+        }
+
+        self.time_tmp = np.zeros(1)
+
+        self._file = filep
+        self.model = model
+
+        self._with_diagnostics = with_diagnostics
+
+        # For quick access when writing data
+        self.type_getters = {
+            FMI3_Type.FLOAT64: self.model.get_float64,
+            FMI3_Type.FLOAT32: self.model.get_float32,
+            FMI3_Type.INT64:   self.model.get_int64,
+            FMI3_Type.INT32:   self.model.get_int32,
+            FMI3_Type.BOOL:    self.model.get_boolean,
+            FMI3_Type.ENUM:    self.model.get_int64
+        }
+
+    cdef dump_data(self, np.ndarray data):
+        self._file.write(data.tobytes(order="F"))
+
+    def save_point(self):
+        """ Saves a point of simulation data to the result. """
+        if self._with_diagnostics:
+            self.dump_data(np.array(float(1.0)))
+
+        self.time_tmp[0] = self.model.time
+        self.dump_data(self.time_tmp)
+
+        for data_type, value_references in self.value_references.items():
+            if np.size(value_references) > 0:
+                if (data_type == FMI3_Type.FLOAT64) or (data_type == FMI3_Type.FLOAT32):
+                    self.dump_data(
+                        self.type_getters[data_type](value_references)
+                    )
+                else:
+                    self.dump_data(
+                        self.type_getters[data_type](value_references).astype(float)
+                    )
+
+    def save_diagnostics_point(self, diag_data):
+        """ Saves a point of diagnostics data to the result. """
+        self.dump_data(np.array(float(2.0)))
+        self.time_tmp[0] = self.model.time
+        self.dump_data(self.time_tmp)
+        self.dump_data(diag_data)
+
 cdef class DumpData:
     def __init__(self, model, filep, real_var_ref, int_var_ref, bool_var_ref, with_diagnostics):
         if type(model) == FMI2.FMUModelME2:
@@ -989,12 +1085,8 @@ cdef class DumpData:
         if type(model) == FMI2.FMUModelME2: #isinstance(model, FMUModelME2):
             self.model_me2 = model
             self.model_me2_instance = 1
-        elif type(model) == FMI3.FMUModelME3:
-            self.model_me3 = model
-            self.model_me3_instance = 1
         else:
             self.model_me2_instance = 0
-            self.model_me3_instance = 0
             self.model = model
 
         self._with_diagnostics = with_diagnostics
@@ -1020,23 +1112,6 @@ cdef class DumpData:
             if self.bool_size > 0:
                 self.model_me2._get_boolean(self.bool_var_ref, self.bool_size, self.bool_var_tmp)
                 self.dump_data(self.bool_var_tmp)
-        elif self.model_me3_instance:
-
-            self.time_tmp[0] = self.model_me3.time
-            self.dump_data(self.time_tmp)
-
-            if self.real_size > 0:
-                # TODO: Do we want a get_float64_by_list also for performance reasons?
-                r = self.model_me3.get_float64(self.real_var_ref)
-                self.dump_data(r)
-
-            if self.int_size > 0:
-                i = self.model_me3.get_int64(self.int_var_ref).astype(float)
-                self.dump_data(i)
-
-            if self.bool_size > 0:
-                b = self.model_me3.get_boolean(self.bool_var_ref).astype(float)
-                self.dump_data(b)
         else:
             self.dump_data(np.array(float(self.model.time)))
 
@@ -1052,15 +1127,11 @@ cdef class DumpData:
                 b = self.model.get_boolean(self.bool_var_ref).astype(float)
                 self.dump_data(b)
 
-
     def save_diagnostics_point(self, diag_data):
         """ Saves a point of diagnostics data to the result. """
         self.dump_data(np.array(float(2.0)))
         if self.model_me2_instance:
             self.time_tmp[0] = self.model_me2.time
-            self.dump_data(self.time_tmp)
-        elif self.model_me3_instance:
-            self.time_tmp[0] = self.model_me3.time
             self.dump_data(self.time_tmp)
         else:
             self.dump_data(np.array(float(self.model.time)))

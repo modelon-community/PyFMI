@@ -50,14 +50,22 @@ ELSE:
     cdef inline long long os_specific_ftell(FILE *stream):
         return ftello(stream)
 
+cdef class DumpDataFMI3:
+    cdef np.ndarray time_tmp
+    # TODO: Would make more sense if 'model' is declared as FMI3.FMUModelME3
+    # but then it doesnt compile
+    cdef public object model
+    cdef public dict value_references, type_getters
+    cdef public object _file
+    cdef int _with_diagnostics
+    cdef dump_data(self, np.ndarray data)
+
 cdef class DumpData:
     cdef np.ndarray real_var_ref, int_var_ref, bool_var_ref
     cdef np.ndarray real_var_tmp, int_var_tmp, bool_var_tmp
     cdef np.ndarray time_tmp
     cdef public FMI2.FMUModelME2 model_me2
-    cdef public FMI3.FMUModelME3 model_me3
     cdef public int model_me2_instance
-    cdef public int model_me3_instance
     cdef public object _file, model
     cdef size_t real_size, int_size, bool_size
     cdef int _with_diagnostics
