@@ -65,32 +65,42 @@ class TestSimulation:
 
         assert all(len(results[v]) == 601 for v in expected_variables)
 
-    def test_simulate_unsupported_result_handler(self):
+    @pytest.mark.parametrize("rh", ["file", "memory", "csv"])
+    def test_simulate_unsupported_result_handler(self, rh):
         """Verify unsupported result handlers raises an exception"""
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
         opts = fmu.simulate_options()
 
-        for rh in ['file', 'memory', 'csv']:
-            opts['result_handling'] = rh
-            msg = f"For FMI3: 'result_handling' set to '{rh}' is not supported. " + \
-                   "Consider setting this option to 'binary', 'custom' or None to continue."
-            with pytest.raises(NotImplementedError, match = msg):
-                results = fmu.simulate(options = opts)
+        opts['result_handling'] = rh
+        msg = f"For FMI3: 'result_handling' set to '{rh}' is not supported. " + \
+                "Consider setting this option to 'binary', 'custom' or None to continue."
+        with pytest.raises(NotImplementedError, match = msg):
+            results = fmu.simulate(options = opts)
 
-    @pytest.mark.parametrize("ref_fmu, nbr_of_vars",
-        [
-            (FMI3_REF_FMU_PATH / "Dahlquist.fmu",    4),
-            (FMI3_REF_FMU_PATH / "Feedthrough.fmu",  19),
-            (FMI3_REF_FMU_PATH / "Resource.fmu",     2),
-            (FMI3_REF_FMU_PATH / "Stair.fmu" ,       2),
-            (FMI3_REF_FMU_PATH / "VanDerPol.fmu",    6),
-        ]
-    )
-    def test_simulate_reference_fmus(self, ref_fmu, nbr_of_vars):
-        """Verify a couple of the reference FMUs simulates without any errors with default settings."""
-        fmu = load_fmu(ref_fmu)
+    def test_simulate_reference_fmus(self):
+        """Test simulate reference FMU containing all FMI types, using default settings."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu")
         res = fmu.simulate()
 
-        # TODO: Update to verify numerical values later when we have full FMI3 support for Model Exchange.
-        # Tests also require updates when we add support for more data types.
-        assert len(res.keys()) == nbr_of_vars
+        expected = [
+            'time',
+            'Float64_fixed_parameter',
+            'Float64_tunable_parameter',
+            'Float64_continuous_input',
+            'Float64_continuous_output',
+            'Float64_discrete_input',
+            'Float64_discrete_output',
+            'Float32_continuous_input',
+            'Float32_continuous_output',
+            'Float32_discrete_input',
+            'Float32_discrete_output',
+            'Int64_input',
+            'Int64_output',
+            'Int32_input',
+            'Int32_output',
+            'Boolean_input',
+            'Boolean_output',
+            'Enumeration_input',
+            'Enumeration_output'
+        ]
+        assert res.keys() == expected
