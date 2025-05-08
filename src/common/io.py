@@ -2804,7 +2804,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.data_2_header_position = self._file.tell()
 
         if self.is_fmi3:
-            self._len_vars_ref = sum(len(l) for l in value_references.values()) + 1
+            self._len_vars_ref = sum(len(v) for v in value_references.values()) + 1
         else:
             self._len_vars_ref =  len(sorted_vars_real_vref)+len(sorted_vars_int_vref)+len(sorted_vars_bool_vref) + 1
 
@@ -2817,11 +2817,10 @@ class ResultHandlerBinaryFile(ResultHandler):
         if self.is_fmi3:
             self.dump_data_internal = fmi_util.DumpDataFMI3(self.model, self._file, value_references, self._with_diagnostics)
         else:
-            # TODO: Do these 3 need to be class variables?
-            self.real_var_ref = np.array(sorted_vars_real_vref)
-            self.int_var_ref  = np.array(sorted_vars_int_vref)
-            self.bool_var_ref = np.array(sorted_vars_bool_vref)
-            self.dump_data_internal = fmi_util.DumpData(self.model, self._file, self.real_var_ref, self.int_var_ref, self.bool_var_ref, self._with_diagnostics)
+            real_var_ref = np.array(sorted_vars_real_vref)
+            int_var_ref  = np.array(sorted_vars_int_vref)
+            bool_var_ref = np.array(sorted_vars_bool_vref)
+            self.dump_data_internal = fmi_util.DumpData(self.model, self._file, real_var_ref, int_var_ref, bool_var_ref, self._with_diagnostics)
 
         if self._with_diagnostics:
             diag_data = np.array([val[0] for val in diagnostics_vars.values()], dtype=float)

@@ -271,7 +271,7 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
             data_info[1,i] = alias*last_index
         else:
             last_vref = var.value_reference
-            is_fixed_or_const = var.variability in (FMI3_Variability.FIXED,  FMI3_Variability.CONSTANT)
+            is_fixed_or_const = var.variability in (FMI3_Variability.FIXED, FMI3_Variability.CONSTANT)
 
             if is_fixed_or_const:
                 last_data_matrix = 1
