@@ -1079,9 +1079,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise FMUException("The variable %s could not be found." % variable_name)
 
     cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable):
-        """Not to be used for creating aliased."""
-        # XXX: Alias would require having the desired name as input
-
         if variable == NULL:
             raise FMUException("Unknown variable. Please verify the correctness of the XML file and check the log.")
 
