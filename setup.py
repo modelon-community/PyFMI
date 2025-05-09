@@ -99,6 +99,7 @@ else:
 
 static = False
 debug_flag = False
+fmil_name = "fmilib_shared"
 fmilib_shared = ""
 copy_gcc_lib = False
 gcc_lib = None
@@ -120,6 +121,9 @@ for x in sys.argv[1:]:
         incdirs = [os.path.join(x[12:],'include')]
         libdirs = [os.path.join(x[12:],'lib'), os.path.join(x[12:],'lib64')]
         bindirs = [os.path.join(x[12:],'bin')]
+        copy_args.remove(x)
+    if not x.find('--fmil-name'):
+        fmil_name = x[12:]
         copy_args.remove(x)
     if not x.find('--copy-libgcc'):
         if x[14:].upper() == "TRUE":
@@ -291,7 +295,7 @@ def check_extensions():
         ext_list[i].include_dirs = [np.get_include(), "src", os.path.join("src", "pyfmi")] + incdirs
         ext_list[i].library_dirs = libdirs
         ext_list[i].language = "c"
-        ext_list[i].libraries = ["fmilib_shared"] if sys.platform.startswith("win") else ["fmilib"] #If windows shared, else static
+        ext_list[i].libraries = [fmil_name]
 
         if debug_flag:
             ext_list[i].extra_compile_args = ["-g", "-fno-strict-aliasing", "-ggdb"]
