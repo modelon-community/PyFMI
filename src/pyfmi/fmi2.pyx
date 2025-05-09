@@ -1562,7 +1562,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
     def get_variable_alias(self, variable_name):
         """
         Return a dict of all alias variables belonging to the provided variable
-        where the key are the names and the value indicati whether the variable
+        where the key are the names and the value indicating whether the variable
         is an alias or not.
 
         Parameters::
