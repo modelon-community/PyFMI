@@ -52,8 +52,8 @@ ELSE:
 
 cdef class DumpDataFMI3:
     cdef np.ndarray time_tmp
-    # TODO: Would make more sense if 'model' is declared as FMI3.FMUModelME3
-    # but then it doesnt compile
+    # TODO: Investigate if there is a difference in performance by declaring 'model'
+    #       as an object instead of FMI3.FMUModelME3
     cdef public object model
     cdef public dict value_references, type_getters
     cdef public object _file
