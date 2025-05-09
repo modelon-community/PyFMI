@@ -826,9 +826,9 @@ class Test_FMI3Alias:
         path = str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "alias")
         cls.fmu = FMUModelME3(path, allow_unzipped_fmu = True, _connect_dll = False)
         
-    def test_get_model_variables(self):
-        """Test get_model_variables with respect to aliases."""
-        model_vars = self.fmu.get_model_variables()
+    def test_get_model_variables_with_alias(self):
+        """Test get_model_variables including aliases."""
+        model_vars = self.fmu.get_model_variables(include_alias = True)
         assert "v5" in model_vars
         assert "v5_a1" in model_vars
         assert "v5_a2" in model_vars
@@ -836,7 +836,9 @@ class Test_FMI3Alias:
         assert model_vars["v5"].description == "v5_desc"
         assert model_vars["v5_a1"].description == ""
         assert model_vars["v5_a2"].description == "v5_a2_desc"
-
+    
+    def test_get_model_variables_without_alias(self):
+        """Test get_model_variables not including aliases."""
         model_vars = self.fmu.get_model_variables(include_alias = False)
         assert "v5_a1" not in model_vars
         assert "v5_a2" not in model_vars
