@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fmiModelDescription fmiVersion="3.0" modelName="" instantiationToken="">
+<ModelExchange modelIdentifier="modelIdentifier"/>
+
+<UnitDefinitions>
+    <Unit name="K">
+        <BaseUnit K="1" />
+        <DisplayUnit name="degC" offset="-273.15" />
+    </Unit>
+</UnitDefinitions>
+
+<ModelVariables>
+    <Float64 name="v4" valueReference="4" description="v4_desc" />
+    <Float64 name="v5" valueReference="5" description="v5_desc">
+        <Alias name="v5_a1" displayUnit="degC"/>
+        <Alias name="v5_a2" description="v5_a2_desc"/>
+    </Float64>
+</ModelVariables>
+
+<ModelStructure/>
+</fmiModelDescription>
