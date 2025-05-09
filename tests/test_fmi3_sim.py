@@ -82,7 +82,7 @@ class TestSimulation:
         fmu = load_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu")
         res = fmu.simulate()
 
-        expected = [
+        expected = set([
             'time',
             'Float64_fixed_parameter',
             'Float64_tunable_parameter',
@@ -102,5 +102,5 @@ class TestSimulation:
             'Boolean_output',
             'Enumeration_input',
             'Enumeration_output'
-        ]
-        assert res.keys() == expected
+        ])
+        assert set(res.keys()) == expected

@@ -132,10 +132,6 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
     cdef int nof_diag_params = len(diagnostics_param_values)
     cdef int i, alias, data_type, variability
     cdef int last_data_matrix = -1, last_index = -1
-    cdef int _FMI_NEGATED_ALIAS = FMI_NEGATED_ALIAS # TODO
-    cdef int _FMI_PARAMETER = FMI_PARAMETER, _FMI_CONSTANT = FMI_CONSTANT # TODO
-    cdef int _FMI_REAL = FMI_REAL, _FMI_INTEGER = FMI_INTEGER # TODO
-    cdef int _FMI_ENUMERATION = FMI_ENUMERATION, _FMI_BOOLEAN = FMI_BOOLEAN # TODO
     cdef list param_real = [], param_int = [], param_bool = []
     cdef list varia_real = [], varia_int = [], varia_bool = []
     last_vref = -1
@@ -145,7 +141,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         data_info[2,i] = 0
         data_info[3,i] = -1
 
-        if var.alias == _FMI_NEGATED_ALIAS:
+        if var.alias == FMI_NEGATED_ALIAS:
             alias = -1
         else:
             alias = 1
@@ -156,7 +152,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
         else:
             last_vref   = var.value_reference
 
-            if var.variability == _FMI_PARAMETER or var.variability == _FMI_CONSTANT:
+            if var.variability == FMI_PARAMETER or var.variability == FMI_CONSTANT:
                 last_data_matrix = 1
                 index_fixed = index_fixed + 1
                 last_index = index_fixed
@@ -238,6 +234,7 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
         FMI3_Type.INT64: [],
         FMI3_Type.INT32: [],
         FMI3_Type.BOOL: [],
+        FMI3_Type.ENUM: [],
         # TODO: Additional types
     }
     cdef dict variables = {
@@ -246,11 +243,9 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
         FMI3_Type.INT64: [],
         FMI3_Type.INT32: [],
         FMI3_Type.BOOL: [],
+        FMI3_Type.ENUM: [],
         # TODO: Additional types
     }
-    # "To set or inquire variables of type Enumeration, fmi3SetInt64 and fmi3GetInt64 must be used"
-    params[FMI3_Type.ENUM] = params[FMI3_Type.INT64]
-    variables[FMI3_Type.ENUM] = variables[FMI3_Type.INT64]
 
     last_vref = -1
 
@@ -260,7 +255,7 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
         data_info[3,i] = -1
 
         # TODO
-        #if var.alias == _FMI_NEGATED_ALIAS:
+        #if var.alias == FMI_NEGATED_ALIAS:
         #    alias = -1
         #else:
         #    alias = 1
@@ -287,6 +282,7 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
                     params[var.type].append(last_vref)
                 else:
                     variables[var.type].append(last_vref)
+
             except KeyError:
                 raise FMUException(
                     f"Unknown type {var.type} detected for variable {var.name} when writing the results."
@@ -320,9 +316,10 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
         np.concatenate(
             (model.get_float64(params[FMI3_Type.FLOAT64]),
              model.get_float32(params[FMI3_Type.FLOAT32]),
-             model.get_int64(params[FMI3_Type.INT64]).astype(float), # also handles enums automatically
+             model.get_int64(params[FMI3_Type.INT64]).astype(float),
              model.get_int32(params[FMI3_Type.INT32]).astype(float),
              model.get_boolean(params[FMI3_Type.BOOL]).astype(float),
+             model.get_int64(params[FMI3_Type.ENUM]).astype(float),
              np.array(diagnostics_param_values).astype(float)
             ),
             axis = 0
