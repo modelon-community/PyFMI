@@ -1558,15 +1558,15 @@ cdef class FMUModelME3(FMUModelBase3):
         """
         cdef FMIL3.fmi3_status_t status
         cdef FMIL3.fmi3_boolean_t noSetFMUStatePriorToCurrentPoint = FMIL3.fmi3_true if no_set_FMU_state_prior_to_current_point else FMIL3.fmi3_false
-        cdef FMIL3.fmi3_boolean_t* enterEventMode
-        cdef FMIL3.fmi3_boolean_t* terminateSimulation
+        cdef FMIL3.fmi3_boolean_t enterEventMode = FMIL3.fmi3_false
+        cdef FMIL3.fmi3_boolean_t terminateSimulation = FMIL3.fmi3_false
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_completed_integrator_step(
             self._fmu,
             noSetFMUStatePriorToCurrentPoint,
-            enterEventMode,
-            terminateSimulation
+            &enterEventMode,
+            &terminateSimulation
         )
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
@@ -1575,7 +1575,7 @@ cdef class FMUModelME3(FMUModelBase3):
 
         self._last_accepted_time = self._get_time()
 
-        return enterEventMode[0] == FMIL3.fmi3_true, terminateSimulation[0] == FMIL3.fmi3_true
+        return enterEventMode == FMIL3.fmi3_true, terminateSimulation == FMIL3.fmi3_true
 
     cdef FMIL3.fmi3_status_t _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx):
         cdef FMIL3.fmi3_status_t status
