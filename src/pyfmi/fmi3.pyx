@@ -109,10 +109,15 @@ cdef class FMI3ModelVariable:
         self._variability     = variability
         self._causality       = causality
         self._initial         = initial
+        self._alias           = 1 # dummy for now
 
     def _get_name(self):
         return self._name
     name = property(_get_name)
+
+    def _get_alias(self):
+        return self._alias
+    alias = property(_get_alias)
 
     def _get_value_reference(self):
         return self._value_reference
@@ -387,6 +392,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             Calls the low-level FMI function: fmi3SetTime or fmi3GetTime.
     """)
 
+
     def terminate(self):
         """ Calls the FMI function fmi3Terminate() on the FMU.
             After this call, any call to a function changing the state of the FMU will fail.
@@ -640,6 +646,143 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         if status != 0:
             raise FMUException('Failed to get the Float32 values.')
+
+        return output_value
+
+
+    cpdef np.ndarray get_int64(self, valueref):
+        """
+        Returns the int64-values from the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_int64([232])
+
+        Calls the low-level FMI function: fmi3GetInt64
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_int64_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.int64)
+
+        if nref == 0: # get_int64([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_int64(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
+            <FMIL3.fmi3_int64_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the Int64 values.')
+
+        return output_value
+
+    cpdef np.ndarray get_int32(self, valueref):
+        """
+        Returns the int32-values from the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_int32([232])
+
+        Calls the low-level FMI function: fmi3GetInt32
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_int32_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.int32)
+
+        if nref == 0: # get_int32([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_int32(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
+            <FMIL3.fmi3_int32_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the Int32 values.')
+
+        return output_value
+
+
+    cpdef np.ndarray get_boolean(self, valueref):
+        """
+        Returns the boolean-values from the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_boolean([232])
+
+        Calls the low-level FMI function: fmi3Getboolean
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_boolean_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.bool_)
+
+        if nref == 0: # get_boolean([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_boolean(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
+            <FMIL3.fmi3_boolean_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the Boolean values.')
 
         return output_value
 
