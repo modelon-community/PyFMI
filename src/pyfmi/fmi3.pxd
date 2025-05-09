@@ -33,8 +33,7 @@ cdef class FMI3ModelVariable:
     cdef FMIL3.fmi3_initial_enu_t _initial
     cdef object _name
     cdef object _description
-    cdef int _alias # dummy for now
-
+    cdef FMIL3.fmi3_boolean_t _alias
 
 cdef class FMI3EventInfo:
     cdef public FMIL3.fmi3_boolean_t new_discrete_states_needed
@@ -85,6 +84,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable)
     cpdef get_variable_unbounded(self, variablename)
     cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t*)
+    cdef _get_alias_description(self, FMIL3.fmi3_import_alias_variable_t*)
 
 
 cdef class FMUModelME3(FMUModelBase3):
