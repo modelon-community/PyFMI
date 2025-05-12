@@ -834,8 +834,11 @@ class Test_FMI3Alias:
         assert "v5_a2" in model_vars
 
         assert model_vars["v5"].description == "v5_desc"
+        assert not model_vars["v5"].alias
         assert model_vars["v5_a1"].description == ""
+        assert model_vars["v5_a1"].alias
         assert model_vars["v5_a2"].description == "v5_a2_desc"
+        assert model_vars["v5_a2"].alias
     
     def test_get_model_variables_without_alias(self):
         """Test get_model_variables not including aliases."""

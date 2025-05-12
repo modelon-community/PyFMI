@@ -943,7 +943,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             data_type        = FMIL3.fmi3_import_get_variable_base_type(variable)
             # If only variables with start are wanted, check if the variable has start
 
-            # TODO: Discuss if we want to support also regular integers as inputs
             if user_specified_type        and (data_type        != variable_type):
                 continue
             if user_specified_variability and (data_variability != variability):
@@ -1022,19 +1021,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t* variable):
         cdef FMIL3.fmi3_string_t desc = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_variable_description(variable)
-        if desc == NULL:
-            desc = ""
-        desc = <FMIL3.fmi3_string_t>desc
-
-        return pyfmi_util.decode(desc)
+        return pyfmi_util.decode(desc) if desc != NULL else ""
 
     cdef _get_alias_description(self, FMIL3.fmi3_import_alias_variable_t* alias_variable):
         cdef FMIL3.fmi3_string_t desc = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_alias_variable_description(alias_variable)
-        if desc == NULL:
-            desc = ""
-        desc = <FMIL3.fmi3_string_t>desc
-
-        return pyfmi_util.decode(desc)
+        return pyfmi_util.decode(desc) if desc != NULL else ""
 
     cpdef get_variable_description(self, variable_name):
         """
@@ -1134,8 +1125,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     def get_model_version(self):
         """ Returns the version of the FMU. """
-        cdef FMIL3.fmi3_string_t version
-        version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
+        cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
         return pyfmi_util.decode(version) if version != NULL else ""
 
     def get_version(self):
