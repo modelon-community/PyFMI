@@ -20,6 +20,7 @@ from libc.stdio cimport FILE
 import numpy as np
 cimport numpy as np
 cimport pyfmi.fmi2 as FMI2
+cimport pyfmi.fmi3 as FMI3
 
 # TODO: Should this be split further into e.g., fmi_io_util & fmi_coupled_util?
 
@@ -48,6 +49,16 @@ ELSE:
         return fseeko(stream, offset, whence)
     cdef inline long long os_specific_ftell(FILE *stream):
         return ftello(stream)
+
+cdef class DumpDataFMI3:
+    cdef np.ndarray time_tmp
+    # TODO: Investigate if there is a difference in performance by declaring 'model'
+    #       as an object instead of FMI3.FMUModelME3
+    cdef public object model
+    cdef public dict value_references, type_getters
+    cdef public object _file
+    cdef int _with_diagnostics
+    cdef dump_data(self, np.ndarray data)
 
 cdef class DumpData:
     cdef np.ndarray real_var_ref, int_var_ref, bool_var_ref

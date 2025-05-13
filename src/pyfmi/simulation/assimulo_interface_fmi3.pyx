@@ -126,7 +126,7 @@ cdef class FMIODE3(cExplicit_Problem):
         #             self.jac_nnz += len(self._extra_f_nbr)*len(self._extra_f_nbr)
         # else:
         #     self._extra_f_nbr = 0
-        
+
         if synchronize_simulation:
             msg = f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0."
             try:
@@ -137,7 +137,7 @@ cdef class FMIODE3(cExplicit_Problem):
                 else:
                     raise InvalidOptionException(msg)
             except Exception:
-                raise InvalidOptionException(msg) 
+                raise InvalidOptionException(msg)
         else:
             self._synchronize_factor = 0.0
 
@@ -269,7 +269,7 @@ cdef class FMIODE3(cExplicit_Problem):
 
         #     msg = preface + '<%s>Starting Jacobian calculation at <value name="t">        %.14E</value>.'%(solver_info_tag, t)
         #     self._model.append_log_message("Model", 4, msg)
-        
+
         # if self._extra_f_nbr > 0:
         #     y_extra = y[-self._extra_f_nbr:]
         #     y       = y[:-self._extra_f_nbr]
@@ -283,7 +283,7 @@ cdef class FMIODE3(cExplicit_Problem):
         #     if self._logging:
         #         msg = preface + '</%s>'%(solver_info_tag)
         #         self._model.append_log_message("Model", 6, msg)
-            
+
         #     return np.array([[0.0]])
 
         # A = self._model._get_A(add_diag=True, output_matrix=self._A)
@@ -312,7 +312,7 @@ cdef class FMIODE3(cExplicit_Problem):
         #         raise FMUException("No Jacobian provided for the extra equations")
         # else:
         #     Jac = A
-            
+
         # if self._logging:
         #     msg = preface + '</%s>'%(solver_info_tag)
         #     self._model.append_log_message("Model", 4, msg)
@@ -351,33 +351,32 @@ cdef class FMIODE3(cExplicit_Problem):
 
     def handle_result(self, solver, t, y):
         """ Post processing (stores the time points). """
-        pass
-        # cdef int status
+        cdef FMIL3.fmi3_status_t status
 
-        # time_start = timer()
+        time_start = timer()
 
-        # if self._extra_f_nbr > 0:
-        #     y_extra = y[-self._extra_f_nbr:]
-        #     y       = y[:-self._extra_f_nbr]
+        if self._extra_f_nbr > 0:
+            y_extra = y[-self._extra_f_nbr:]
+            y       = y[:-self._extra_f_nbr]
 
-        # # Moving data to the model
-        # if self._compare(t, y):
-        #     self._update_model(t, y)
+        # Moving data to the model
+        if self._compare(t, y):
+            self._update_model(t, y)
 
-        #     # Evaluating the rhs (Have to evaluate the values in the model)
-        #     if self.model_me3_instance:
-        #         status = self.model_me3._get_derivatives(self._state_temp_1)
+            # Evaluating the rhs (Have to evaluate the values in the model)
+            if self.model_me3_instance:
+                status = self.model_me3._get_derivatives(self._state_temp_1)
 
-        #         if status != 0:
-        #             raise FMUException('Failed to get the derivatives at time: %E during handling of the result.'%t)
-        #     else:
-        #         rhs = self._model.get_derivatives()
+                if status != FMIL3.fmi3_status_ok:
+                    raise FMUException('Failed to get the derivatives at time: %E during handling of the result.'%t)
+            else:
+                rhs = self._model.get_derivatives()
 
-        # self.export.integration_point(solver)
-        # if self._extra_f_nbr > 0:
-        #     self._extra_equations.handle_result(self.export, y_extra)
+        self.export.integration_point(solver)
+        if self._extra_f_nbr > 0:
+            self._extra_equations.handle_result(self.export, y_extra)
 
-        # self.timings["handle_result"] += timer() - time_start
+        self.timings["handle_result"] += timer() - time_start
 
     def handle_event(self, solver, event_info):
         """ This method is called when Assimulo finds an event. """
@@ -525,19 +524,19 @@ cdef class FMIODE3(cExplicit_Problem):
             self.model_me3._completed_integrator_step(True, &enter_event_mode, &terminate_simulation)
         else:
             enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
-        
+
         # ret_flag = 0
         # if enter_event_mode:
         #     self._logg_step_event += [solver.t]
         #     # Event have been detect, call event iteration.
         #     self.handle_event(solver,[0])
         #     ret_flag =  1 # Tell to reinitiate the solver.
-        
+
         # if self._synchronize_factor > 0:
         #     under_run = solver.t/self._synchronize_factor - (timer()-self._start_time)
         #     if under_run > 0:
         #         time.sleep(under_run)
-        
+
         # return ret_flag
 
     def print_step_info(self):
@@ -551,7 +550,7 @@ cdef class FMIODE3(cExplicit_Problem):
         # if hasattr(solver,"linear_solver"):
         #     if solver.linear_solver == "SPARSE":
         #         self._sparse_representation = True
-        
+
         if self._synchronize_factor > 0:
             self._start_time = timer()
 

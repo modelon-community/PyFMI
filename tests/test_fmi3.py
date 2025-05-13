@@ -15,14 +15,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import pytest
 import re
 import logging
-import numpy as np
 from io import StringIO
-from pyfmi import load_fmu
 from pathlib import Path
+import contextlib
 
+import pytest
+import numpy as np
+
+from pyfmi import load_fmu
 from pyfmi.fmi import (
     FMUModelME3,
 )
@@ -33,7 +35,6 @@ from pyfmi.fmi3 import (
     FMI3_Initial,
     FMI3EventInfo,
 )
-
 from pyfmi.exceptions import (
     FMUException,
     InvalidFMUException,
@@ -49,8 +50,6 @@ this_dir = Path(__file__).parent.absolute()
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
 
-import contextlib
-from pathlib import Path
 
 @contextlib.contextmanager
 def temp_dir_context(tmpdir):
@@ -580,6 +579,36 @@ class TestFMI3LoadFMU:
         expected = ['Float64_continuous_input']
 
         assert expected == list(inputs.keys())
+
+    def test_get_int32(self):
+        """ Test get int32. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        int32_vals = fmu.get_int32([19, 20])
+
+        np.testing.assert_equal(np.array([0, 0], dtype=np.int32), int32_vals)
+
+        # Since above doesnt verify the data type, also check below separately
+        assert int32_vals.dtype == np.int32
+
+    def test_get_int64(self):
+        """ Test get int64. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        int64_vals = fmu.get_int64([23, 24])
+
+        np.testing.assert_equal(np.array([0, 0]), int64_vals)
+
+        # Since above doesnt verify the data type, also check below separately
+        assert int64_vals.dtype == np.int64
+
+    def test_get_boolean(self):
+        """ Test get boolean. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        boolean_vals = fmu.get_boolean([27, 28])
+
+        np.testing.assert_equal(np.array([False, False]), boolean_vals)
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
