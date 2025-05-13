@@ -580,6 +580,8 @@ class TestFMI3LoadFMU:
 
         assert expected == list(inputs.keys())
 
+    # TODO: Also do these for the other int types; parameterize?
+
     def test_get_int32(self):
         """ Test get int32. """
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
@@ -691,8 +693,19 @@ class Test_FMI3ME:
         [
             ("Float64_continuous_input", 3.14, np.double),
             ("Float32_continuous_input", np.float32(3.14), np.float32),
+            ("Int64_input", 9_223_372_036_854_775_806, np.int64),
+            ("Int32_input", 2_147_483_647, np.int32),
+            ("Int16_input", 32_766, np.int16),
+            ("Int8_input", 126, np.int8),
+            ("UInt64_input", 18_446_744_073_709_551_615, np.uint64),
+            ("UInt32_input", 4_294_967_294, np.uint32),
+            ("UInt16_input", 65_534, np.uint16),
+            ("UInt8_input", 254, np.uint8),
+            ("Boolean_input", True, np.bool_),
+            ("Enumeration_input", 2, np.int64),
         ]
     )
+    # TODO: For the various int types; have tests for values out of bounds? Such that we know/establish what the behavior will be
     def test_set_get(self, variable_name, value, expected_dtype):
         """Test getting and setting variables of various types."""
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"

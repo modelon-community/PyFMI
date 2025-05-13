@@ -462,7 +462,27 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             self.set_float64([ref], [value])
         elif basetype is FMI3_Type.FLOAT32:
             self.set_float32([ref], [value])
-        # TODO: Add more types
+        elif basetype is FMI3_Type.INT64:
+            self.set_int64([ref], [value])
+        elif basetype is FMI3_Type.INT32:
+            self.set_int32([ref], [value])
+        elif basetype is FMI3_Type.INT16:
+            self.set_int16([ref], [value])
+        elif basetype is FMI3_Type.INT8:
+            self.set_int8([ref], [value])
+        elif basetype is FMI3_Type.UINT64:
+            self.set_uint64([ref], [value])
+        elif basetype is FMI3_Type.UINT32:
+            self.set_uint32([ref], [value])
+        elif basetype is FMI3_Type.UINT16:
+            self.set_uint16([ref], [value])
+        elif basetype is FMI3_Type.UINT8:
+            self.set_uint8([ref], [value])
+        elif basetype is FMI3_Type.BOOL:
+            self.set_boolean([ref], [value])
+        elif basetype is FMI3_Type.ENUM:
+            self.set_enum([ref], [value])
+        # TODO: Enum
         else:
             raise FMUException('Type not supported.')
 
@@ -542,6 +562,386 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if status != 0:
             raise FMUException('Failed to set the Float32 values. See the log for possibly more information.')
 
+    cpdef set_int64(self, valueref, values):
+        """
+        Sets the int64-values in the FMU as defined by the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_int64([234, 235],[2, 10])
+
+        Calls the low-level FMI function: fmi3SetInt64
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_int64_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.int64).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_int64(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
+            <FMIL3.fmi3_int64_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the Int64 values. See the log for possibly more information.')
+
+    cpdef set_int32(self, valueref, values):
+        """
+        Sets the int32-values in the FMU as defined by the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_int32([234, 235],[2, 10])
+
+        Calls the low-level FMI function: fmi3SetInt32
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_int32_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.int32).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_int32(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
+            <FMIL3.fmi3_int32_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the Int32 values. See the log for possibly more information.')
+
+    cpdef set_int16(self, valueref, values):
+        """
+        Sets the int16-values in the FMU as defined by the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_int16([234, 235],[2, 10])
+
+        Calls the low-level FMI function: fmi3SetInt16
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_int16_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.int16).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_int16(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
+            <FMIL3.fmi3_int16_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the Int16 values. See the log for possibly more information.')
+
+    cpdef set_int8(self, valueref, values):
+        """
+        Sets the int8-values in the FMU as defined by the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_int8([234, 235],[2, 10])
+
+        Calls the low-level FMI function: fmi3SetInt8
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_int8_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.int8).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_int8(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
+            <FMIL3.fmi3_int8_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the Int8 values. See the log for possibly more information.')
+
+    cpdef set_uint64(self, valueref, values):
+        """
+        Sets the uint64-values in the FMU as defined by the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_uint64([234, 235],[2, 10])
+
+        Calls the low-level FMI function: fmi3SetUInt64
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_uint64_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.uint64).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_uint64(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
+            <FMIL3.fmi3_uint64_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the UInt64 values. See the log for possibly more information.')
+
+    cpdef set_uint32(self, valueref, values):
+        """
+        Sets the uint32-values in the FMU as defined by the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_uint32([234, 235],[2, 10])
+
+        Calls the low-level FMI function: fmi3SetUInt32
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_uint32_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.uint32).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_uint32(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
+            <FMIL3.fmi3_uint32_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the UInt32 values. See the log for possibly more information.')
+
+    cpdef set_uint16(self, valueref, values):
+        """
+        Sets the uint16-values in the FMU as defined by the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_uint16([234, 235],[2, 10])
+
+        Calls the low-level FMI function: fmi3SetUInt16
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_uint16_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.uint16).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_uint16(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
+            <FMIL3.fmi3_uint16_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the UInt16 values. See the log for possibly more information.')
+
+    cpdef set_uint8(self, valueref, values):
+        """
+        Sets the uint8-values in the FMU as defined by the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_uint8([234, 235],[2, 10])
+
+        Calls the low-level FMI function: fmi3SetUInt8
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_uint8_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.uint8).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_uint8(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
+            <FMIL3.fmi3_uint8_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the UInt8 values. See the log for possibly more information.')
+
+    cpdef set_boolean(self, valueref, values):
+        """
+        Sets the boolean-values in the FMU as defined by the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_boolean([234, 235],[True, False])
+
+        Calls the low-level FMI function: fmi3SetBoolean
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_boolean_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.bool_).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_boolean(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
+            <FMIL3.fmi3_boolean_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the Boolean values. See the log for possibly more information.')
+
+    cpdef set_enum(self, valueref, values):
+        """
+        Sets the enum-values in the FMU as defined by the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_enum([234, 235],[2, 10])
+
+        Calls the low-level FMI function: fmi3SetInt64
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef np.ndarray[FMIL3.fmi3_int64_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.int64).ravel()
+
+        if np.size(input_valueref) != np.size(set_value):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_int64(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
+            <FMIL3.fmi3_int64_t*> set_value.data,
+            np.size(set_value)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the Enum values. See the log for possibly more information.')
+
     def _get(self, variable_name):
         """
         Helper method to get, see docstring on get.
@@ -555,7 +955,27 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             return self.get_float64([ref])
         elif basetype is FMI3_Type.FLOAT32:
             return self.get_float32([ref])
-        # TODO: more types
+        elif basetype is FMI3_Type.INT64:
+            return self.get_int64([ref])
+        elif basetype is FMI3_Type.INT32:
+            return self.get_int32([ref])
+        elif basetype is FMI3_Type.INT16:
+            return self.get_int16([ref])
+        elif basetype is FMI3_Type.INT8:
+            return self.get_int8([ref])
+        elif basetype is FMI3_Type.UINT64:
+            return self.get_uint64([ref])
+        elif basetype is FMI3_Type.UINT32:
+            return self.get_uint32([ref])
+        elif basetype is FMI3_Type.UINT16:
+            return self.get_uint16([ref])
+        elif basetype is FMI3_Type.UINT8:
+            return self.get_uint8([ref])
+        elif basetype is FMI3_Type.BOOL:
+            return self.get_boolean([ref])
+        elif basetype is FMI3_Type.ENUM:
+            return self.get_enum([ref])
+        # TODO: enum
         else:
             raise FMUException('Type not supported.')
 
@@ -649,7 +1069,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return output_value
 
-
     cpdef np.ndarray get_int64(self, valueref):
         """
         Returns the int64-values from the value reference(s).
@@ -740,6 +1159,275 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return output_value
 
+    cpdef np.ndarray get_int16(self, valueref):
+        """
+        Returns the int16-values from the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_int16([232])
+
+        Calls the low-level FMI function: fmi3GetInt16
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_int16_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.int16)
+
+        if nref == 0: # get_int16([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_int16(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
+            <FMIL3.fmi3_int16_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the Int16 values.')
+
+        return output_value
+
+    cpdef np.ndarray get_int8(self, valueref):
+        """
+        Returns the int8-values from the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_int8([232])
+
+        Calls the low-level FMI function: fmi3GetInt8
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_int8_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.int8)
+
+        if nref == 0: # get_int8([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_int8(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
+            <FMIL3.fmi3_int8_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the Int8 values.')
+
+        return output_value
+
+    cpdef np.ndarray get_uint64(self, valueref):
+        """
+        Returns the uint64-values from the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_uint64([232])
+
+        Calls the low-level FMI function: fmi3GetUInt64
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_uint64_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.uint64)
+
+        if nref == 0: # get_uint64([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_uint64(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
+            <FMIL3.fmi3_uint64_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the UInt64 values.')
+
+        return output_value
+
+    cpdef np.ndarray get_uint32(self, valueref):
+        """
+        Returns the uint32-values from the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_uint32([232])
+
+        Calls the low-level FMI function: fmi3GetUInt32
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_uint32_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.uint32)
+
+        if nref == 0: # get_uint32([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_uint32(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
+            <FMIL3.fmi3_uint32_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the UInt32 values.')
+
+        return output_value
+
+    cpdef np.ndarray get_uint16(self, valueref):
+        """
+        Returns the uint16-values from the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_uint16([232])
+
+        Calls the low-level FMI function: fmi3GetUInt16
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_uint16_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.uint16)
+
+        if nref == 0: # get_uint16([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_uint16(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
+            <FMIL3.fmi3_uint16_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the UInt16 values.')
+
+        return output_value
+
+    cpdef np.ndarray get_uint8(self, valueref):
+        """
+        Returns the uint8-values from the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_uint8([232])
+
+        Calls the low-level FMI function: fmi3GetUInt8
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_uint8_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.uint8)
+
+        if nref == 0: # get_uint8([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_uint8(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
+            <FMIL3.fmi3_uint8_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the UInt8 values.')
+
+        return output_value
 
     cpdef np.ndarray get_boolean(self, valueref):
         """
@@ -783,6 +1471,51 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         if status != 0:
             raise FMUException('Failed to get the Boolean values.')
+
+        return output_value
+
+    cpdef np.ndarray get_enum(self, valueref):
+        """
+        Returns the enum-values from the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_enum([232])
+
+        Calls the low-level FMI function: fmi3GetInt64
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+        cdef np.ndarray[FMIL3.fmi3_int64_t, ndim=1, mode='c'] output_value = np.zeros(nref, dtype = np.int64)
+
+        if nref == 0: # get_enum([]); do not invoke call to FMU
+            return output_value
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_int64(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
+            <FMIL3.fmi3_int64_t*> output_value.data,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the Enum values.')
 
         return output_value
 
