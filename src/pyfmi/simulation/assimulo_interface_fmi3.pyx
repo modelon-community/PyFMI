@@ -555,8 +555,7 @@ cdef class FMIODE3(cExplicit_Problem):
             self._start_time = timer()
 
     def finalize(self, solver):
-        pass
-        # self.export.simulation_end()
+        self.export.simulation_end()
 
     def _set_input(self, input):
         self.__input = input
