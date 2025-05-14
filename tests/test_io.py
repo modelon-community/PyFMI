@@ -89,15 +89,8 @@ class TestResultFileText_Simulation:
         opts["solver"] = "ExplicitEuler"
         opts["result_file_name"]  = result_file_name
 
-        successful_simulation = False
-        try:
-            res = simple_alias.simulate(options=opts)
-            successful_simulation = True #The above simulation should fail...
-        except Exception:
-            pass
-
-        if successful_simulation:
-            raise Exception
+        with pytest.raises(Exception):
+            simple_alias.simulate(options=opts)
 
         result = ResultDymolaTextual(result_file_name)
 
@@ -405,15 +398,8 @@ class TestResultFileBinary_Simulation:
         opts["result_file_name"] = result_file_name
         opts["solver"] = "ExplicitEuler"
 
-        successful_simulation = False
-        try:
-            res = simple_alias.simulate(options=opts)
-            successful_simulation = True #The above simulation should fail...
-        except Exception:
-            pass
-
-        if successful_simulation:
-            raise Exception
+        with pytest.raises(Exception):
+            simple_alias.simulate(options=opts)
 
         result = ResultDymolaBinary(result_file_name)
 
@@ -1254,17 +1240,7 @@ class TestResultFileBinary:
         opts["result_handling"] = "custom" # set to anything except "binary"
 
         opts["result_handler"] = ResultHandlerBinaryFile(model)
-        no_error = False
-        exception_msg = ""
-        try:
-            model.simulate(options = opts)
-            no_error = True
-        except Exception as e:
-            no_error = False
-            exception_msg = str(e)
-            raise e
-        # In case error did not stop the test run
-        assert no_error, "Error occurred: {}".format(exception_msg)
+        model.simulate(options = opts)
 
     def test_custom_result_handler_dynamic_diagnostics(self):
         """ Test dynamic diagnostics with a custom results handler that supports it. """
