@@ -209,6 +209,7 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_set_uint32 (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint32_t*, size_t)
     fmi3_status_t fmi3_import_set_uint16 (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint16_t*, size_t)
     fmi3_status_t fmi3_import_set_uint8  (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint8_t*, size_t)
+    fmi3_status_t fmi3_import_set_string (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_string_t*, size_t)
     fmi3_status_t fmi3_import_set_boolean(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_boolean_t*, size_t)
     fmi3_status_t fmi3_import_set_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t);
 
@@ -224,6 +225,7 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_get_uint32 (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint32_t*, size_t);
     fmi3_status_t fmi3_import_get_uint16 (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint16_t*, size_t);
     fmi3_status_t fmi3_import_get_uint8  (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint8_t*, size_t);
+    fmi3_status_t fmi3_import_get_string (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_string_t*, size_t);
     fmi3_status_t fmi3_import_get_boolean(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_boolean_t*, size_t);
     fmi3_status_t fmi3_import_get_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t);
     fmi3_status_t fmi3_import_get_nominals_of_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t nx)

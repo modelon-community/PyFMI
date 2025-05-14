@@ -480,6 +480,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             self.set_uint8([ref], [value])
         elif basetype is FMI3_Type.BOOL:
             self.set_boolean([ref], [value])
+        elif basetype is FMI3_Type.STRING:
+            self.set_string([ref], [value])
         elif basetype is FMI3_Type.ENUM:
             self.set_enum([ref], [value])
         # TODO: Enum
@@ -904,6 +906,50 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if status != 0:
             raise FMUException('Failed to set the Boolean values. See the log for possibly more information.')
 
+    cpdef set_string(self, valueref, values):
+        """
+        Sets the string-values in the FMU as defined by the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+            values --
+                Values to be set.
+
+        Example::
+
+            model.set_enum([234, 235],["hello", "fmu"])
+
+        Calls the low-level FMI function: fmi3SetString
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
+        cdef FMIL3.fmi3_string_t* val = <FMIL3.fmi3_string_t*>FMIL.malloc(sizeof(FMIL3.fmi3_string_t)*np.size(values))
+
+        if np.size(input_valueref) != np.size(values):
+            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+        values = [pyfmi_util.encode(item) for item in values]
+        for i in range(np.size(input_valueref)):
+            val[i] = values[i]
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_string(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            np.size(input_valueref),
+            val,
+            np.size(values)
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        FMIL.free(val)
+
+        if status != 0:
+            raise FMUException('Failed to set the Enum values. See the log for possibly more information.')
+
     cpdef set_enum(self, valueref, values):
         """
         Sets the enum-values in the FMU as defined by the value reference(s).
@@ -973,9 +1019,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             return self.get_uint8([ref])
         elif basetype is FMI3_Type.BOOL:
             return self.get_boolean([ref])
+        elif basetype is FMI3_Type.STRING:
+            return self.get_string([ref])
         elif basetype is FMI3_Type.ENUM:
             return self.get_enum([ref])
-        # TODO: enum
         else:
             raise FMUException('Type not supported.')
 
@@ -1473,6 +1520,58 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise FMUException('Failed to get the Boolean values.')
 
         return output_value
+
+    cpdef list get_string(self, valueref):
+        """
+        Returns the string-values from the value reference(s).
+
+        Parameters::
+
+            valueref --
+                A list of value references.
+
+        Returns::
+
+            values --
+                The values retrieved from the FMU.
+
+        Example::
+
+            val = model.get_string([232])
+
+        Calls the low-level FMI function: fmi3GetString
+        TODO: Currently does not support array variables
+        """
+        cdef int status
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.array(valueref, dtype = np.uint32).ravel()
+        cdef FMIL.size_t nref = np.size(input_valueref)
+
+        if nref == 0: # get_string([]); do not invoke call to FMU
+            return []
+
+        cdef FMIL3.fmi3_string_t* output_value = <FMIL3.fmi3_string_t*>FMIL.malloc(sizeof(FMIL3.fmi3_string_t)*nref)
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # TODO: Array variables; if any valueref points to an array, output length will be larger
+        status = FMIL3.fmi3_import_get_string(
+            self._fmu,
+            <FMIL3.fmi3_value_reference_t*> input_valueref.data,
+            nref,
+            output_value,
+            nref
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to get the String values.')
+
+        out = []
+        for i in range(nref):
+            out.append(pyfmi_util.decode(output_value[i]))
+
+        FMIL.free(output_value)
+
+        return out
 
     cpdef np.ndarray get_enum(self, valueref):
         """

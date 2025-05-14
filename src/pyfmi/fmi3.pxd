@@ -64,7 +64,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef int _allocated_context, _allocated_dll, _allocated_fmu, _allocated_xml
 
     cdef int _initialized_fmu
-    cdef object  _has_entered_init_mode # this is public in FMI2 but I don't see why
+    cdef object _has_entered_init_mode # this is public in FMI2 but I don't see why
 
     cpdef set_float64(self, valueref, values)
     cpdef set_float32(self, valueref, values)
@@ -77,6 +77,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef set_uint16 (self, valueref, values)
     cpdef set_uint8  (self, valueref, values)
     cpdef set_boolean(self, valueref, values)
+    cpdef set_string (self, valueref, values)
     cpdef set_enum   (self, valueref, values)
 
     cpdef np.ndarray get_float64(self, valueref)
@@ -90,6 +91,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef np.ndarray get_uint16 (self, valueref)
     cpdef np.ndarray get_uint8  (self, valueref)
     cpdef np.ndarray get_boolean(self, valueref)
+    cpdef list       get_string (self, valueref)
     cpdef np.ndarray get_enum   (self, valueref)
 
     cpdef _get_time(self)
