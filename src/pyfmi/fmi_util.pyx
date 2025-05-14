@@ -233,18 +233,28 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
         FMI3_Type.FLOAT32: [],
         FMI3_Type.INT64: [],
         FMI3_Type.INT32: [],
+        FMI3_Type.INT16: [],
+        FMI3_Type.INT8: [],
+        FMI3_Type.UINT64: [],
+        FMI3_Type.UINT32: [],
+        FMI3_Type.UINT16: [],
+        FMI3_Type.UINT8: [],
         FMI3_Type.BOOL: [],
         FMI3_Type.ENUM: [],
-        # TODO: Additional types
     }
     cdef dict variables = {
         FMI3_Type.FLOAT64: [],
         FMI3_Type.FLOAT32: [],
         FMI3_Type.INT64: [],
         FMI3_Type.INT32: [],
+        FMI3_Type.INT16: [],
+        FMI3_Type.INT8: [],
+        FMI3_Type.UINT64: [],
+        FMI3_Type.UINT32: [],
+        FMI3_Type.UINT16: [],
+        FMI3_Type.UINT8: [],
         FMI3_Type.BOOL: [],
         FMI3_Type.ENUM: [],
-        # TODO: Additional types
     }
 
     last_vref = -1
@@ -318,6 +328,12 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
              model.get_float32(params[FMI3_Type.FLOAT32]),
              model.get_int64(params[FMI3_Type.INT64]).astype(float),
              model.get_int32(params[FMI3_Type.INT32]).astype(float),
+             model.get_int16(params[FMI3_Type.INT16]).astype(float),
+             model.get_int8(params[FMI3_Type.INT8]).astype(float),
+             model.get_uint64(params[FMI3_Type.UINT64]).astype(float),
+             model.get_uint32(params[FMI3_Type.UINT32]).astype(float),
+             model.get_uint16(params[FMI3_Type.UINT16]).astype(float),
+             model.get_uint8(params[FMI3_Type.UINT8]).astype(float),
              model.get_boolean(params[FMI3_Type.BOOL]).astype(float),
              model.get_int64(params[FMI3_Type.ENUM]).astype(float),
              np.array(diagnostics_param_values).astype(float)
@@ -1024,6 +1040,12 @@ cdef class DumpDataFMI3:
             FMI3_Type.FLOAT32: self.model.get_float32,
             FMI3_Type.INT64:   self.model.get_int64,
             FMI3_Type.INT32:   self.model.get_int32,
+            FMI3_Type.INT16:   self.model.get_int16,
+            FMI3_Type.INT8:    self.model.get_int8,
+            FMI3_Type.UINT64:  self.model.get_uint64,
+            FMI3_Type.UINT32:  self.model.get_uint32,
+            FMI3_Type.UINT16:  self.model.get_uint16,
+            FMI3_Type.UINT8:   self.model.get_uint8,
             FMI3_Type.BOOL:    self.model.get_boolean,
             FMI3_Type.ENUM:    self.model.get_int64
         }
@@ -1041,7 +1063,7 @@ cdef class DumpDataFMI3:
 
         for data_type, value_references in self.value_references.items():
             if np.size(value_references) > 0:
-                if (data_type == FMI3_Type.FLOAT64) or (data_type == FMI3_Type.FLOAT32):
+                if data_type == FMI3_Type.FLOAT64:
                     self.dump_data(
                         self.type_getters[data_type](value_references)
                     )
