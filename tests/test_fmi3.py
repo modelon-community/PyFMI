@@ -49,6 +49,22 @@ from pyfmi.exceptions import (
 this_dir = Path(__file__).parent.absolute()
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
+NUMPY_MAJOR_VERSION = int(np.__version__[0])
+OVERFLOW_TEST_SET = [ # parameters for overflow testing
+        ("Int32_input", 2_147_483_650),
+        ("Int32_input", -2_147_483_650),
+        ("Int16_input", 32_770),
+        ("Int16_input", -32_770),
+        ("Int8_input", 200),
+        ("Int8_input", -200),
+        ("UInt64_input", -1),
+        ("UInt32_input", 4_294_967_300),
+        ("UInt32_input", -1),
+        ("UInt16_input", 65_540),
+        ("UInt16_input", -1),
+        ("UInt8_input", 260),
+        ("UInt8_input", -1),
+    ]
 
 
 @contextlib.contextmanager
@@ -639,34 +655,24 @@ class TestFMI3LoadFMU:
         assert res.dtype == expected_dtype
         assert res[0] == value
 
-    @pytest.mark.parametrize("variable_name, value",
-        [
-            ("Int32_input", 2_147_483_650),
-            ("Int32_input", -2_147_483_650),
-            ("Int16_input", 32_770),
-            ("Int16_input", -32_770),
-            ("Int8_input", 200),
-            ("Int8_input", -200),
-
-            ("UInt64_input", -1),
-            ("UInt32_input", 4_294_967_300),
-            ("UInt32_input", -1),
-            ("UInt16_input", 65_540),
-            ("UInt16_input", -1),
-            ("UInt8_input", 260),
-            ("UInt8_input", -1),
-        ]
-    )
-    def test_set_get_out_of_bounds_overflow(self, variable_name, value):
+    @pytest.mark.skipif(NUMPY_MAJOR_VERSION > 1, reason = "Error for numpy>=2")
+    @pytest.mark.parametrize("variable_name, value", OVERFLOW_TEST_SET)
+    # XXX: Redundant in the future
+    def test_set_get_out_of_bounds_overflow_old_numpy(self, variable_name, value):
         """Test setting too large/small value for various integer types."""
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = load_fmu(fmu_path)
-        if int(np.__version__[0]) > 1:
-            with pytest.raises(OverflowError):
-                fmu.set(variable_name, value)
-        else: # TODO; Future; remove the else part
-            with pytest.warns(DeprecationWarning, match = "overflow"):
-                fmu.set(variable_name, value)
+        with pytest.warns(DeprecationWarning, match = "overflow"):
+            fmu.set(variable_name, value)
+
+    @pytest.mark.skipif(NUMPY_MAJOR_VERSION < 2, reason = "Only deprecated for numpy<2")
+    @pytest.mark.parametrize("variable_name, value", OVERFLOW_TEST_SET)
+    def test_set_get_out_of_bounds_overflow_new_numpy(self, variable_name, value):
+        """Test setting too large/small value for various integer types."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        with pytest.raises(OverflowError):
+            fmu.set(variable_name, value)
 
     @pytest.mark.parametrize("variable_name, value",
         [
