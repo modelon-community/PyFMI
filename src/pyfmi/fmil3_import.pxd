@@ -113,6 +113,14 @@ cdef extern from 'fmilib.h':
         pass
     ctypedef fmi3_xml_variable_typedef_t fmi3_import_variable_typedef_t
 
+    # Alias
+    cdef struct fmi3_xml_alias_variable_list_t:
+        pass
+    ctypedef fmi3_xml_alias_variable_list_t fmi3_import_alias_variable_list_t
+
+    cdef struct fmi3_xml_alias_variable_t:
+        pass
+    ctypedef fmi3_xml_alias_variable_t fmi3_import_alias_variable_t
 
     # STATUS
     ctypedef enum fmi3_status_t:
@@ -239,3 +247,10 @@ cdef extern from 'fmilib.h':
     fmi3_value_reference_t fmi3_import_get_variable_vr(fmi3_import_variable_t*)
     fmi3_base_type_enu_t fmi3_import_get_variable_base_type(fmi3_import_variable_t*)
     char* fmi3_import_get_model_version(fmi3_import_t*)
+
+    # Alias
+    fmi3_import_alias_variable_list_t* fmi3_import_get_variable_alias_list(fmi3_import_variable_t* v)
+    size_t fmi3_import_get_alias_variable_list_size(fmi3_import_alias_variable_list_t* aliases);
+    fmi3_import_alias_variable_t* fmi3_import_get_alias(fmi3_import_alias_variable_list_t* aliases, size_t index);
+    const char* fmi3_import_get_alias_variable_name(fmi3_import_alias_variable_t* alias);
+    const char* fmi3_import_get_alias_variable_description(fmi3_import_alias_variable_t* alias);

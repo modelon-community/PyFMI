@@ -230,8 +230,7 @@ cdef class ScalarVariable2:
 
         Returns::
 
-            The alias attribute value as enumeration: FMI_NO_ALIAS,
-            FMI_ALIAS or FMI_NEGATED_ALIAS.
+            The alias attribute value as enumeration: FMI_NO_ALIAS or FMI_ALIAS.
         """
         return self._alias
     alias = property(_get_alias)
@@ -1564,7 +1563,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         """
         Return a dict of all alias variables belonging to the provided variable
         where the key are the names and the value indicating whether the variable
-        should be negated or not.
+        is an alias or not.
 
         Parameters::
 
@@ -1574,7 +1573,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         Returns::
 
             A dict consisting of the alias variables along with no alias variable.
-            The values indicate whether or not the variable should be negated or not.
+            The values indicate whether or not the variable is an alias or not.
 
         Raises::
 
