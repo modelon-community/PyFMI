@@ -484,7 +484,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             self.set_string([ref], [value])
         elif basetype is FMI3_Type.ENUM:
             self.set_enum([ref], [value])
-        # TODO: Enum
         else:
             raise FMUException('Type not supported.')
 

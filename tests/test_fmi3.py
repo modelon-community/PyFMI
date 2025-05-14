@@ -639,44 +639,44 @@ class TestFMI3LoadFMU:
         assert res.dtype == expected_dtype
         assert res[0] == value
 
-    @pytest.mark.parametrize("variable_name, value, expected_dtype",
+    @pytest.mark.parametrize("variable_name, value",
         [
-            ("Int32_input", 2_147_483_650, np.int32),
-            ("Int32_input", -2_147_483_650, np.int32),
-            ("Int16_input", 32_770, np.int16),
-            ("Int16_input", -32_770, np.int16),
-            ("Int8_input", 200, np.int8),
-            ("Int8_input", -200, np.int8),
+            ("Int32_input", 2_147_483_650),
+            ("Int32_input", -2_147_483_650),
+            ("Int16_input", 32_770),
+            ("Int16_input", -32_770),
+            ("Int8_input", 200),
+            ("Int8_input", -200),
 
-            ("UInt64_input", -1, np.uint64),
-            ("UInt32_input", 4_294_967_300, np.uint32),
-            ("UInt32_input", -1, np.uint32),
-            ("UInt16_input", 65_540, np.uint16),
-            ("UInt16_input", -1, np.uint16),
-            ("UInt8_input", 260, np.uint8),
-            ("UInt8_input", -1, np.uint8),
+            ("UInt64_input", -1),
+            ("UInt32_input", 4_294_967_300),
+            ("UInt32_input", -1),
+            ("UInt16_input", 65_540),
+            ("UInt16_input", -1),
+            ("UInt8_input", 260),
+            ("UInt8_input", -1),
         ]
     )
-    # XXX: These will be errors with future numpy versions; likely the intended behavior
-    def test_set_get_out_of_bounds_overflow(self, variable_name, value, expected_dtype):
-        """Test getting and setting too large/small value for various integer types."""
+    def test_set_get_out_of_bounds_overflow(self, variable_name, value):
+        """Test setting too large/small value for various integer types."""
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = load_fmu(fmu_path)
-        with pytest.warns(DeprecationWarning, match = "overflow"):
-            fmu.set(variable_name, value)
-        res = fmu.get(variable_name)
-        assert res.dtype == expected_dtype
-        assert res[0] != value
+        if int(np.__version__[0]) > 1:
+            with pytest.raises(OverflowError):
+                fmu.set(variable_name, value)
+        else: # TODO; Future; remove the else part
+            with pytest.warns(DeprecationWarning, match = "overflow"):
+                fmu.set(variable_name, value)
 
-    @pytest.mark.parametrize("variable_name, value, expected_dtype",
+    @pytest.mark.parametrize("variable_name, value",
         [
-            ("Int64_input", 9_223_372_036_854_775_810, np.int64),
-            ("Int64_input", -9_223_372_036_854_775_810, np.int64),
-            ("UInt64_input", 18_446_744_073_709_551_620, np.uint64),
+            ("Int64_input", 9_223_372_036_854_775_810),
+            ("Int64_input", -9_223_372_036_854_775_810),
+            ("UInt64_input", 18_446_744_073_709_551_620),
         ]
     )
-    def test_set_large_int_overflow(self, variable_name, value, expected_dtype):
-        """Test getting and setting too large/small value for various integer types."""
+    def test_set_large_int_overflow(self, variable_name, value):
+        """Test setting too large/small value for various integer types."""
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = load_fmu(fmu_path)
         with pytest.raises(OverflowError):

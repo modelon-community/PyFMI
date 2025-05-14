@@ -2603,6 +2603,9 @@ class ResultHandlerBinaryFile(ResultHandler):
     """
     Export an optimization or simulation result to file in Dymola's binary result file
     format (MATLAB v4 format).
+
+    All solution points are stored as float64s, this may lead to precision loss 
+    for large integers. Result storage of strings not supported.
     """
     def __init__(self, model):
         super().__init__(model)
