@@ -947,7 +947,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         FMIL.free(val)
 
         if status != 0:
-            raise FMUException('Failed to set the Enum values. See the log for possibly more information.')
+            raise FMUException('Failed to set the String values. See the log for possibly more information.')
 
     cpdef set_enum(self, valueref, values):
         """
@@ -1023,7 +1023,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         elif basetype is FMI3_Type.ENUM:
             return self.get_enum([ref])
         else:
-            raise FMUException('Type not supported.')
+            raise FMUException(f'Type '{basetype}' is not supported.')
 
     cpdef np.ndarray get_float64(self, valueref):
         """
