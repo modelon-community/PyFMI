@@ -2606,7 +2606,7 @@ class ResultHandlerBinaryFile(ResultHandler):
 
     All solution points are stored as float64s, this may lead to precision loss 
     for very large values of (U)Int64 variables in FMI3.
-    Result storage of strings not supported.
+    Result storage of strings is not supported.
     """
     def __init__(self, model):
         super().__init__(model)
