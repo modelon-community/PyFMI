@@ -153,6 +153,10 @@ cdef class FMI3EventInfo:
         self.next_event_time_defined = FMIL3.fmi3_false
         self.next_event_time = 0.0
 
+cdef inline void _check_input_sizes(np.ndarray input_valueref, np.ndarray set_value):
+    if np.size(input_valueref) != np.size(set_value):
+        raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
     """
     FMI3 Model loaded from a dll.
@@ -508,9 +512,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.double).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_float64(
@@ -546,9 +548,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_float32_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.float32).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_float32(
@@ -584,9 +584,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_int64_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.int64).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_int64(
@@ -622,9 +620,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_int32_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.int32).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_int32(
@@ -660,9 +656,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_int16_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.int16).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_int16(
@@ -698,9 +692,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_int8_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.int8).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_int8(
@@ -736,9 +728,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_uint64_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.uint64).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_uint64(
@@ -774,9 +764,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_uint32_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.uint32).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_uint32(
@@ -812,9 +800,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_uint16_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.uint16).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_uint16(
@@ -850,9 +836,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_uint8_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.uint8).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_uint8(
@@ -888,9 +872,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_boolean_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.bool_).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_boolean(
@@ -970,9 +952,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef int status
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
         cdef np.ndarray[FMIL3.fmi3_int64_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.int64).ravel()
-
-        if np.size(input_valueref) != np.size(set_value):
-            raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+        _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_set_int64(
@@ -987,13 +967,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if status != 0:
             raise FMUException('Failed to set the Enum values. See the log for possibly more information.')
 
-    def _get(self, variable_name):
+    def _get(self, variable_name: str):
         """
         Helper method to get, see docstring on get.
         """
-        cdef FMIL3.fmi3_value_reference_t ref
-
-        ref  = self.get_variable_valueref(variable_name)
+        cdef FMIL3.fmi3_value_reference_t ref = self.get_variable_valueref(variable_name)
         basetype: FMI3_Type = self.get_variable_data_type(variable_name)
 
         if basetype is FMI3_Type.FLOAT64:
