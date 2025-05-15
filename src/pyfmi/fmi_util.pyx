@@ -27,10 +27,10 @@ import numpy as np
 cimport numpy as np
 
 cimport pyfmi.fmil_import as FMIL
-cimport pyfmi.fmi2 as FMI2 # TODO
-cimport pyfmi.fmi3 as FMI3 # TODO
+cimport pyfmi.fmi2 as FMI2
+cimport pyfmi.fmi3 as FMI3
 from pyfmi.fmi3 import FMI3_Type, FMI3_Causality, FMI3_Initial, FMI3_Variability
-from pyfmi.fmi1 import ( # TODO
+from pyfmi.fmi1 import (
     FMI_NEGATED_ALIAS, FMI_PARAMETER, FMI_CONSTANT,
     FMI_REAL, FMI_INTEGER, FMI_ENUMERATION, FMI_BOOLEAN
 )
@@ -48,7 +48,7 @@ cimport cython
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef double quad_err(np.ndarray[double, ndim=1] sim, np.ndarray[double, ndim=1] est, int n):
-#def quad_err(sim, est, int n):
+# def quad_err(sim, est, int n):
     cdef double s = 0
     for i in range(n):
         s += (sim[i]-est[i])**2
@@ -150,7 +150,7 @@ cpdef prepare_data_info(np.ndarray[int, ndim=2] data_info, list sorted_vars, lis
             data_info[0,i] = last_data_matrix
             data_info[1,i] = alias*last_index
         else:
-            last_vref   = var.value_reference
+            last_vref = var.value_reference
 
             if var.variability == FMI_PARAMETER or var.variability == FMI_CONSTANT:
                 last_data_matrix = 1
@@ -226,7 +226,7 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
     cdef int index_variable = 1
     cdef int nof_sorted_vars = len(sorted_vars)
     cdef int nof_diag_params = len(diagnostics_param_values)
-    cdef int i, alias
+    cdef int i
     cdef int last_data_matrix = -1, last_index = -1
     cdef dict params = {
         FMI3_Type.FLOAT64: [],
@@ -260,20 +260,13 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
     last_vref = -1
 
     for i in range(1, nof_sorted_vars + 1):
-        var = sorted_vars[i-1]
-        data_info[2,i] = 0
-        data_info[3,i] = -1
+        var = sorted_vars[i - 1]
+        data_info[2, i] = 0
+        data_info[3, i] = -1
 
-        # TODO
-        #if var.alias == FMI_NEGATED_ALIAS:
-        #    alias = -1
-        #else:
-        #    alias = 1
-        alias = 1
-
-        if last_vref == var.value_reference:
-            data_info[0,i] = last_data_matrix
-            data_info[1,i] = alias*last_index
+        if last_vref == var.value_reference: # alias
+            data_info[0, i] = last_data_matrix
+            data_info[1, i] = last_index
         else:
             last_vref = var.value_reference
             is_fixed_or_const = var.variability in (FMI3_Variability.FIXED, FMI3_Variability.CONSTANT)
@@ -298,7 +291,7 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
                     f"Unknown type {var.type} detected for variable {var.name} when writing the results."
                 )
 
-            data_info[1, i] = alias*last_index
+            data_info[1, i] = last_index
             data_info[0, i] = last_data_matrix
 
     data_info[0, 0] = 0
@@ -306,20 +299,20 @@ cpdef prepare_data_info_fmi3(np.ndarray[int, ndim=2] data_info, list sorted_vars
     data_info[2, 0] = 0
     data_info[3, 0] = -1
 
-    for i in range(nof_sorted_vars+1, nof_sorted_vars + 1 + nof_diag_params):
-        data_info[0,i] = 1
-        data_info[2,i] = 0
-        data_info[3,i] = -1
+    for i in range(nof_sorted_vars + 1, nof_sorted_vars + 1 + nof_diag_params):
+        data_info[0, i] = 1
+        data_info[2, i] = 0
+        data_info[3, i] = -1
         index_fixed = index_fixed + 1
-        data_info[1,i] = index_fixed
+        data_info[1, i] = index_fixed
 
     last_index = 0
     for i in range(nof_sorted_vars + 1 + nof_diag_params, nof_sorted_vars + 1 + nof_diag_params + nof_diag_vars):
-        data_info[0,i] = 3
-        data_info[2,i] = 0
-        data_info[3,i] = -1
+        data_info[0, i] = 3
+        data_info[2, i] = 0
+        data_info[3, i] = -1
         last_index = last_index + 1
-        data_info[1,i] = last_index
+        data_info[1, i] = last_index
 
     data = np.append(
         model.time,
@@ -367,7 +360,7 @@ cpdef convert_str_list(list data):
         k = i*length
 
         FMIL.memcpy(&output[k], tmp, tmp_length)
-        #FMIL.memset(&output[k+tmp_length], ' ', length-tmp_length) #Adding padding, seems to be necessary :(
+        # FMIL.memset(&output[k+tmp_length], ' ', length-tmp_length) # Adding padding, seems to be necessary :(
 
     py_string = output[:items*length]
 
@@ -498,7 +491,7 @@ cpdef convert_scalarvariable_name_to_str(list data):
         k = i*length
 
         FMIL.memcpy(&output[k], tmp, tmp_length)
-        #FMIL.memset(&output[k+tmp_length], ' ', length-tmp_length) #Adding padding, seems to be necessary :(
+        # FMIL.memset(&output[k+tmp_length], ' ', length-tmp_length) # Adding padding, seems to be necessary :(
 
     py_string = output[:items*length]
 
@@ -526,7 +519,7 @@ class Graph:
         self.stack.append(node)
 
         for v,w in (edge for edge in self.edges if edge[0] == node):
-            if self.number[w] < 0: #Not numbered
+            if self.number[w] < 0: # Not numbered
                 self._strongly_connected_components(w)
                 self.lowlink[node] = min(self.lowlink[node], self.lowlink[w])
             elif self.number[w] < self.number[v]:
@@ -534,8 +527,8 @@ class Graph:
                     self.lowlink[node] = min(self.lowlink[node], self.number[w])
 
         if self.lowlink[node] == self.number[node]:
-            #node is the root of a component
-            #Start new strong component
+            # node is the root of a component
+            # Start new strong component
             self.connected_components.append([])
             while self.stack and self.number[self.stack[-1]] >= self.number[node]:
                 self.connected_components[-1].append(self.stack.pop())
@@ -648,7 +641,7 @@ class Graph:
         return self.visited_nodes
 
     def join_output_trees(self, connected_components):
-        #Reverse order
+        # Reverse order
         connected_components = connected_components[::-1]
 
         trees = {}
@@ -666,14 +659,14 @@ class Graph:
                     joined_nodes[node] = [node]
                 else:
                     included = False
-                    #spanning_tree = self.dfs(node)
+                    # spanning_tree = self.dfs(node)
                     for out in trees[model].keys():
-                        if node in trees[model][out]: #Node is in a previouos spanning tree (cannot join them)
+                        if node in trees[model][out]: # Node is in a previouos spanning tree (cannot join them)
                             pass
                         else:
                             print("Joining: ", out, node)
                             joined_nodes[out].append(node)
-                            trees[model][out].update(self.dfs(node)) #Can be needed if they are not in the same tree
+                            trees[model][out].update(self.dfs(node)) # Can be needed if they are not in the same tree
                             included = True
                             break
                     if not included:
@@ -681,7 +674,7 @@ class Graph:
                         trees[model][node] = self.dfs(node)# spanning_tree
         return trees, joined_nodes
 
-    def simple_loop(self, start_node): #Must be output
+    def simple_loop(self, start_node): # Must be output
         visited_nodes = {}
         loop = False
 
@@ -707,7 +700,7 @@ class Graph:
 
         if node in self.edges_0_edge:
             for v,w in self.edges_0_edge[node]:
-                if self.number[w] < 0: #Not numbered
+                if self.number[w] < 0: # Not numbered
                     self._strongly_connected_components(w)
                     self.lowlink[node] = min(self.lowlink[node], self.lowlink[w])
                 elif self.number[w] < self.number[v]:
@@ -715,8 +708,8 @@ class Graph:
                         self.lowlink[node] = min(self.lowlink[node], self.number[w])
 
         if self.lowlink[node] == self.number[node]:
-            #node is the root of a component
-            #Start new strong component
+            # node is the root of a component
+            # Start new strong component
             self.connected_components.append([])
             while self.stack and self.number[self.stack[-1]] >= self.number[node]:
                 self.connected_components[-1].append(self.stack.pop())
@@ -761,7 +754,7 @@ class Graph:
         self.graph_info[new_node] = {"type": GRAPH_OUTPUT if output else GRAPH_SCC, "model": self.graph_info[connected_component[0]]["model"] if model else self._unknown_index}
         for j,edge in enumerate(edges):
             if edge[0] in connected_component_dict and edge[1] in connected_component_dict:
-                edges[j] = (None, None) #Necessary to remove the current edges
+                edges[j] = (None, None) # Necessary to remove the current edges
             elif edge[0] in connected_component_dict:
                 edges[j] = (new_node, edge[1])
             elif edge[1] in connected_component_dict:
@@ -770,22 +763,22 @@ class Graph:
             nodes.discard(node)
             self.graph_info.pop(node)
 
-        #Get unique list
+        # Get unique list
         self.edges = list(OrderedSet([x for x in edges if x != (None,None)]))
 
         return new_node
 
     def tear_node(self, node):
-        #Remove edges that belong to node (is output) and that are connected to outputs in the same model
+        # Remove edges that belong to node (is output) and that are connected to outputs in the same model
         for j, edge in enumerate(self.edges):
             if (edge[0] == node or edge[1] == node) and self.graph_info[edge[0]]["model"] == self.graph_info[edge[1]]["model"]:
                 self.edges[j] = (None, None)
 
-        #Get unique list
+        # Get unique list
         self.edges = list(OrderedSet([x for x in self.edges if x != (None,None)]))
 
     def group_connected_components(self, connected_components):
-        #Update edges and nodes
+        # Update edges and nodes
         for i,conn in enumerate(connected_components):
             if len(conn) > 1:
                 self.group_node(conn)
@@ -797,8 +790,8 @@ class Graph:
                 model = self.graph_info[node]["model"]
                 for companion_output in self.graph_info[model]["outputs"]:
                     try:
-                        self.graph_info[companion_output] #Node is still available? i.e. not in a SCC
-                        if node != companion_output: #No edge to itself
+                        self.graph_info[companion_output] # Node is still available? i.e. not in a SCC
+                        if node != companion_output: # No edge to itself
                             self.edges.append((node, companion_output))
                     except Exception:
                         pass
@@ -806,33 +799,33 @@ class Graph:
 
     def tear_graph(self, connected_components):
         torn_graph = False
-        #Update edges and nodes
+        # Update edges and nodes
         for i,conn in enumerate(connected_components):
-            if len(conn) > 1: #More than one node
+            if len(conn) > 1: # More than one node
                 same_model = True
                 model = self.graph_info[conn[0]]["model"]
                 for node in conn:
                     if model != self.graph_info[node]["model"]:
                         same_model = False
                         break
-                if same_model: #Component complete, only outputs from the same model
+                if same_model: # Component complete, only outputs from the same model
                     self.group_node(conn)
                 else:
                     torn_graph = True
-                    #Needs tearing
+                    # Needs tearing
                     choices = {}
                     for node in conn:
-                        if self.graph_info[node]["type"] == GRAPH_OUTPUT: #Possible choice
+                        if self.graph_info[node]["type"] == GRAPH_OUTPUT: # Possible choice
                             try:
-                                choices[self.graph_info[node]["model"]].append(node) #Weight (external)
+                                choices[self.graph_info[node]["model"]].append(node) # Weight (external)
                             except KeyError:
-                                choices[self.graph_info[node]["model"]] = [node] #Weight (external)
+                                choices[self.graph_info[node]["model"]] = [node] # Weight (external)
                     valid_choices = {}
                     for model in choices.keys():
-                        if len(choices[model]) > 1: #There are nodes that are possible choices for tearing here
+                        if len(choices[model]) > 1: # There are nodes that are possible choices for tearing here
                             for node in choices[model]:
-                                if self.simple_loop(node): #Produces a loop? At least one node does
-                                    valid_choices[node] = 0 #Zero weight
+                                if self.simple_loop(node): # Produces a loop? At least one node does
+                                    valid_choices[node] = 0 # Zero weight
                     for edge in self.edges:
                         try:
                             if self.graph_info[edge[1]]["model"] != self.graph_info[edge[0]]["model"]:
@@ -841,7 +834,7 @@ class Graph:
                             pass
                     torn_node = valid_choices.keys()[0]
                     for node in valid_choices.keys():
-                        if valid_choices[node] > valid_choices[torn_node]: #If the weight is greater
+                        if valid_choices[node] > valid_choices[torn_node]: # If the weight is greater
                             torn_node = node
 
                     print("Variable to tear: ", torn_node)
@@ -868,7 +861,7 @@ class Graph:
                 model = self.graph_info[node]["model"]
                 list_of_connections = []
 
-                if node in self.edges_1: #The node is in a direct feed-through
+                if node in self.edges_1: # The node is in a direct feed-through
                     potential = False
 
                 if potential:
@@ -877,7 +870,7 @@ class Graph:
                     else:
                         connected_components_first[model] = [node]
                 else:
-                    list_of_connections = self.edges_0[node] #The node is connected somewhere
+                    list_of_connections = self.edges_0[node] # The node is connected somewhere
 
                     if len(list_of_connections) > 0:
                         potential_second = not self._check_feed_through(list_of_connections)
@@ -897,7 +890,7 @@ class Graph:
     def split_components(self, connected_components):
         blocks = []
         for scc in connected_components:
-            if isinstance(scc, list): #The scc is a list of components
+            if isinstance(scc, list): # The scc is a list of components
                 blocks.append([])
                 for node in scc:
                     blocks[-1].extend(node.split("+"))
@@ -908,8 +901,8 @@ class Graph:
 
     def compute_evaluation_order_old(self):
         SCCs = self.strongly_connected_components()
-        self.group_connected_components(SCCs) #Group the SCCs
-        self.add_edges_between_outputs() #Add edges between outputs
+        self.group_connected_components(SCCs) # Group the SCCs
+        self.add_edges_between_outputs() # Add edges between outputs
 
         while True:
             SCCs = self.strongly_connected_components()
@@ -945,13 +938,13 @@ class Graph:
         return self.split_components(self.strongly_connected_components())
 
     def grouped_order(self, connected_components):
-        #Update edges and nodes
+        # Update edges and nodes
         self.group_connected_components(connected_components)
 
         roots = []
         for node in self.nodes:
             for edge in self.edges:
-                if edge[1] == node: #Not root node
+                if edge[1] == node: # Not root node
                     break
             else:
                 roots.append(node)
@@ -1101,7 +1094,7 @@ cdef class DumpData:
 
         self._file = filep
 
-        if type(model) == FMI2.FMUModelME2: #isinstance(model, FMUModelME2):
+        if type(model) == FMI2.FMUModelME2: # isinstance(model, FMUModelME2):
             self.model_me2 = model
             self.model_me2_instance = 1
         else:
@@ -1230,7 +1223,7 @@ cdef _read_trajectory32(
     data_ptr = <DTYPE32_t*>data.data
 
     os_specific_fseek(cfile, file_position, 0)
-    #for offset in range(start_point, end_point, interval):
+    # for offset in range(start_point, end_point, interval):
     for offset from start_point <= offset < end_point by interval:
         os_specific_fseek(cfile, file_position + offset, 0)
         fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
@@ -1266,7 +1259,7 @@ cdef _read_trajectory64(
 
     cfile = fopen(file_name, 'rb')
     os_specific_fseek(cfile, file_position, 0)
-    #for offset in range(start_point, end_point, interval):
+    # for offset in range(start_point, end_point, interval):
     for offset from start_point <= offset < end_point by interval:
         os_specific_fseek(cfile, file_position + offset, 0)
         fread(<void*>(data_ptr + i), sizeof_dtype, 1, cfile)
