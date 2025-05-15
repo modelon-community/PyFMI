@@ -1023,7 +1023,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         elif basetype is FMI3_Type.ENUM:
             return self.get_enum([ref])
         else:
-            raise FMUException(f'Type '{basetype}' is not supported.')
+            raise FMUException(f"Type '{basetype}' is not supported.")
 
     cpdef np.ndarray get_float64(self, valueref):
         """
