@@ -919,7 +919,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         Example::
 
-            model.set_enum([234, 235],["hello", "fmu"])
+            model.set_string([234, 235],["hello", "fmu"])
 
         Calls the low-level FMI function: fmi3SetString
         """
