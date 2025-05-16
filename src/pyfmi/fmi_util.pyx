@@ -48,7 +48,6 @@ cimport cython
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef double quad_err(np.ndarray[double, ndim=1] sim, np.ndarray[double, ndim=1] est, int n):
-# def quad_err(sim, est, int n):
     cdef double s = 0
     for i in range(n):
         s += (sim[i]-est[i])**2
@@ -360,7 +359,6 @@ cpdef convert_str_list(list data):
         k = i*length
 
         FMIL.memcpy(&output[k], tmp, tmp_length)
-        # FMIL.memset(&output[k+tmp_length], ' ', length-tmp_length) # Adding padding, seems to be necessary :(
 
     py_string = output[:items*length]
 
@@ -491,7 +489,6 @@ cpdef convert_scalarvariable_name_to_str(list data):
         k = i*length
 
         FMIL.memcpy(&output[k], tmp, tmp_length)
-        # FMIL.memset(&output[k+tmp_length], ' ', length-tmp_length) # Adding padding, seems to be necessary :(
 
     py_string = output[:items*length]
 
