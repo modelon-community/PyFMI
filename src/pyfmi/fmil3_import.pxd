@@ -21,7 +21,16 @@
 # This file contains FMIL header content specific to FMI3
 cimport pyfmi.fmil_import as FMIL
 from libcpp cimport bool # TODO: Possible issue due to https://github.com/cython/cython/issues/5730 ??
-from libc.stdint cimport uint32_t, int32_t, int64_t
+from libc.stdint cimport (
+    int64_t,
+    int32_t,
+    int16_t,
+    int8_t,
+    uint64_t,
+    uint32_t,
+    uint16_t,
+    uint8_t,
+)
 
 cdef extern from 'fmilib.h':
     # FMI VARIABLE TYPE DEFINITIONS
@@ -30,8 +39,14 @@ cdef extern from 'fmilib.h':
     ctypedef bool     fmi3_boolean_t
     ctypedef double   fmi3_float64_t
     ctypedef float    fmi3_float32_t
-    ctypedef int64_t      fmi3_int64_t
+    ctypedef int64_t  fmi3_int64_t
     ctypedef int32_t  fmi3_int32_t
+    ctypedef int16_t  fmi3_int16_t
+    ctypedef int8_t   fmi3_int8_t
+    ctypedef uint64_t fmi3_uint64_t
+    ctypedef uint32_t fmi3_uint32_t
+    ctypedef uint16_t fmi3_uint16_t
+    ctypedef uint8_t  fmi3_uint8_t
     ctypedef uint32_t fmi3_value_reference_t
 
     # STRUCTS
@@ -186,14 +201,31 @@ cdef extern from 'fmilib.h':
 
     fmi3_status_t fmi3_import_set_float64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float64_t*, size_t)
     fmi3_status_t fmi3_import_set_float32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float32_t*, size_t)
+    fmi3_status_t fmi3_import_set_int64  (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int64_t*, size_t)
+    fmi3_status_t fmi3_import_set_int32  (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int32_t*, size_t)
+    fmi3_status_t fmi3_import_set_int16  (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int16_t*, size_t)
+    fmi3_status_t fmi3_import_set_int8   (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int8_t*, size_t)
+    fmi3_status_t fmi3_import_set_uint64 (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint64_t*, size_t)
+    fmi3_status_t fmi3_import_set_uint32 (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint32_t*, size_t)
+    fmi3_status_t fmi3_import_set_uint16 (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint16_t*, size_t)
+    fmi3_status_t fmi3_import_set_uint8  (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint8_t*, size_t)
+    fmi3_status_t fmi3_import_set_string (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_string_t*, size_t)
+    fmi3_status_t fmi3_import_set_boolean(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_boolean_t*, size_t)
     fmi3_status_t fmi3_import_set_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t);
 
     # getting
     fmi3_status_t fmi3_import_get_derivatives(fmi3_import_t *, fmi3_float64_t *, size_t)
     fmi3_status_t fmi3_import_get_float64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float64_t*, size_t);
     fmi3_status_t fmi3_import_get_float32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float32_t*, size_t);
-    fmi3_status_t fmi3_import_get_int64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int64_t*, size_t);
-    fmi3_status_t fmi3_import_get_int32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int32_t*, size_t);
+    fmi3_status_t fmi3_import_get_int64  (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int64_t*, size_t);
+    fmi3_status_t fmi3_import_get_int32  (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int32_t*, size_t);
+    fmi3_status_t fmi3_import_get_int16  (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int16_t*, size_t);
+    fmi3_status_t fmi3_import_get_int8   (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int8_t*, size_t);
+    fmi3_status_t fmi3_import_get_uint64 (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint64_t*, size_t);
+    fmi3_status_t fmi3_import_get_uint32 (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint32_t*, size_t);
+    fmi3_status_t fmi3_import_get_uint16 (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint16_t*, size_t);
+    fmi3_status_t fmi3_import_get_uint8  (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_uint8_t*, size_t);
+    fmi3_status_t fmi3_import_get_string (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_string_t*, size_t);
     fmi3_status_t fmi3_import_get_boolean(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_boolean_t*, size_t);
     fmi3_status_t fmi3_import_get_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t);
     fmi3_status_t fmi3_import_get_nominals_of_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t nx)

@@ -49,6 +49,22 @@ from pyfmi.exceptions import (
 this_dir = Path(__file__).parent.absolute()
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
+NUMPY_MAJOR_VERSION = int(np.__version__[0])
+OVERFLOW_TEST_SET = [ # parameters for overflow testing
+        ("Int32_input", 2_147_483_650),
+        ("Int32_input", -2_147_483_650),
+        ("Int16_input", 32_770),
+        ("Int16_input", -32_770),
+        ("Int8_input", 200),
+        ("Int8_input", -200),
+        ("UInt64_input", -1),
+        ("UInt32_input", 4_294_967_300),
+        ("UInt32_input", -1),
+        ("UInt16_input", 65_540),
+        ("UInt16_input", -1),
+        ("UInt8_input", 260),
+        ("UInt8_input", -1),
+    ]
 
 
 @contextlib.contextmanager
@@ -580,35 +596,109 @@ class TestFMI3LoadFMU:
 
         assert expected == list(inputs.keys())
 
-    def test_get_int32(self):
-        """ Test get int32. """
+    @pytest.mark.parametrize("function_name, valuerefs, expected_result, expected_dtype",
+        [
+            ("get_float64", [5, 6], np.array([0, 0], dtype=np.float64), np.float64),
+            ("get_float32", [1, 2], np.array([0, 0], dtype=np.float32), np.float32),
+            ("get_int64", [23, 24], np.array([0, 0], dtype=np.int64), np.int64),
+            ("get_int32", [19, 20], np.array([0, 0], dtype=np.int32), np.int32),
+            ("get_int16", [15, 16], np.array([0, 0], dtype=np.int16), np.int16),
+            ("get_int8", [11, 12], np.array([0, 0], dtype=np.int8), np.int8),
+            ("get_uint64", [25, 26], np.array([0, 0], dtype=np.uint64), np.uint64),
+            ("get_uint32", [21, 22], np.array([0, 0], dtype=np.uint32), np.uint32),
+            ("get_uint16", [17, 18], np.array([0, 0], dtype=np.uint16), np.uint16),
+            ("get_uint8", [13, 14], np.array([0, 0], dtype=np.uint8), np.uint8),
+            ("get_boolean", [27, 28], np.array([False, False], dtype=np.bool_), np.bool_),
+            ("get_enum", [32, 33], np.array([1, 1], dtype=np.int64), np.int64),
+        ]
+    )
+    def test_getX(self, function_name, valuerefs, expected_result, expected_dtype):
+        """Test the various get_TYPE([<valueref>]) functions."""
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = load_fmu(fmu_path)
-        int32_vals = fmu.get_int32([19, 20])
+        res = getattr(fmu, function_name)(valuerefs) # fmu.<function_name>(valuerefs)
 
-        np.testing.assert_equal(np.array([0, 0], dtype=np.int32), int32_vals)
+        np.testing.assert_equal(res, expected_result)
+        assert res.dtype == expected_dtype
 
-        # Since above doesnt verify the data type, also check below separately
-        assert int32_vals.dtype == np.int32
-
-    def test_get_int64(self):
-        """ Test get int64. """
+    def test_get_string(self):
+        """Test the get_string function."""
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = load_fmu(fmu_path)
-        int64_vals = fmu.get_int64([23, 24])
+        res = fmu.get_string([29])
 
-        np.testing.assert_equal(np.array([0, 0]), int64_vals)
+        np.testing.assert_equal(res, ["Set me!"])
+        assert type(res) == list
 
-        # Since above doesnt verify the data type, also check below separately
-        assert int64_vals.dtype == np.int64
-
-    def test_get_boolean(self):
-        """ Test get boolean. """
+    @pytest.mark.parametrize("variable_name, value, expected_dtype",
+        [
+            ("Float64_continuous_input", 3.14, np.double),
+            ("Float32_continuous_input", np.float32(3.14), np.float32),
+            ("Int64_input", 9_223_372_036_854_775_806, np.int64),
+            ("Int32_input", 2_147_483_647, np.int32),
+            ("Int16_input", 32_766, np.int16),
+            ("Int8_input", 126, np.int8),
+            ("UInt64_input", 18_446_744_073_709_551_615, np.uint64),
+            ("UInt32_input", 4_294_967_294, np.uint32),
+            ("UInt16_input", 65_534, np.uint16),
+            ("UInt8_input", 254, np.uint8),
+            ("Boolean_input", True, np.bool_),
+            ("Enumeration_input", 2, np.int64),
+        ]
+    )
+    def test_set_get(self, variable_name, value, expected_dtype):
+        """Test getting and setting variables of various types."""
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = load_fmu(fmu_path)
-        boolean_vals = fmu.get_boolean([27, 28])
+        fmu.set(variable_name, value)
+        res = fmu.get(variable_name)
+        assert res.dtype == expected_dtype
+        assert res[0] == value
 
-        np.testing.assert_equal(np.array([False, False]), boolean_vals)
+    @pytest.mark.skipif(NUMPY_MAJOR_VERSION > 1, reason = "Error for numpy>=2")
+    @pytest.mark.parametrize("variable_name, value", OVERFLOW_TEST_SET)
+    # XXX: Redundant in the future
+    def test_set_get_out_of_bounds_overflow_old_numpy(self, variable_name, value):
+        """Test setting too large/small value for various integer types."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        with pytest.warns(DeprecationWarning, match = "overflow"):
+            fmu.set(variable_name, value)
+
+    @pytest.mark.skipif(NUMPY_MAJOR_VERSION < 2, reason = "Only deprecated for numpy<2")
+    @pytest.mark.parametrize("variable_name, value", OVERFLOW_TEST_SET)
+    def test_set_get_out_of_bounds_overflow_new_numpy(self, variable_name, value):
+        """Test setting too large/small value for various integer types."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        with pytest.raises(OverflowError):
+            fmu.set(variable_name, value)
+
+    @pytest.mark.parametrize("variable_name, value",
+        [
+            ("Int64_input", 9_223_372_036_854_775_810),
+            ("Int64_input", -9_223_372_036_854_775_810),
+            ("UInt64_input", 18_446_744_073_709_551_620),
+        ]
+    )
+    def test_set_large_int_overflow(self, variable_name, value):
+        """Test setting too large/small value for various integer types."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        with pytest.raises(OverflowError):
+            fmu.set(variable_name, value)
+
+    def test_set_get_string(self):
+        """Test getting and setting of string variables."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        variable_name = "String_parameter"
+        value = "hello string"
+        fmu.set(variable_name, value)
+        res = fmu.get(variable_name)
+        assert type(res) == list
+        assert res[0] == value
+
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
@@ -686,21 +776,6 @@ class Test_FMI3ME:
         msg = "The log level must be an integer between 0 and 7"
         with pytest.raises(FMUException, match = msg):
             FMUModelME3(fmu_path, log_level = log_level, _connect_dll = False)
-
-    @pytest.mark.parametrize("variable_name, value, expected_dtype",
-        [
-            ("Float64_continuous_input", 3.14, np.double),
-            ("Float32_continuous_input", np.float32(3.14), np.float32),
-        ]
-    )
-    def test_set_get(self, variable_name, value, expected_dtype):
-        """Test getting and setting variables of various types."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = FMUModelME3(fmu_path)
-        fmu.set(variable_name, value)
-        res = fmu.get(variable_name)
-        assert res.dtype == expected_dtype
-        assert res[0] == value
 
     def test_set_missing_variable(self):
         """Test setting a variable that does not exists."""

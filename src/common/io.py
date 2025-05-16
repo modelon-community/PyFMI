@@ -2603,6 +2603,10 @@ class ResultHandlerBinaryFile(ResultHandler):
     """
     Export an optimization or simulation result to file in Dymola's binary result file
     format (MATLAB v4 format).
+
+    All solution points are stored as float64s, this may lead to precision loss 
+    for very large values of (U)Int64 variables in FMI3.
+    Result storage of strings is not supported.
     """
     def __init__(self, model):
         super().__init__(model)
@@ -2837,6 +2841,12 @@ class ResultHandlerBinaryFile(ResultHandler):
                 FMI3_Type.FLOAT32,
                 FMI3_Type.INT64,
                 FMI3_Type.INT32,
+                FMI3_Type.INT16,
+                FMI3_Type.INT8,
+                FMI3_Type.UINT64,
+                FMI3_Type.UINT32,
+                FMI3_Type.UINT16,
+                FMI3_Type.UINT8,
                 FMI3_Type.BOOL,
                 FMI3_Type.ENUM
             ]
