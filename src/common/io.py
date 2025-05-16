@@ -60,7 +60,7 @@ def get_available_disk_space(local_path):
     try:
         free_space = disk_usage(local_path).free - DISK_PROTECTION
 
-    #If the user is saving to a stream or something else than a file - catch it here and return a large value.
+    # If the user is saving to a stream or something else than a file - catch it here and return a large value.
     except (FileNotFoundError, TypeError):
         free_space = sys.maxsize
     return free_space
@@ -181,7 +181,7 @@ class ResultDymola:
 
             In integer index.
         """
-        #Strip name of spaces, for instance a[2, 1] to a[2,1]
+        # Strip name of spaces, for instance a[2, 1] to a[2,1]
         name = name.replace(" ", "")
 
         try:
@@ -190,12 +190,12 @@ class ResultDymola:
             else:
                 return self.name_lookup[name]
         except KeyError:
-            #Variable was not found so check if it was a derivative variable
-            #and check if there exists a variable with another naming
-            #convention
+            # Variable was not found so check if it was a derivative variable
+            # and check if there exists a variable with another naming
+            # convention
             if self._check_if_derivative_variable(name):
                 try:
-                    #First do a simple search for the other naming convention
+                    # First do a simple search for the other naming convention
                     if isinstance(self, ResultDymolaBinary):
                         return self.name_lookup[encode(self._convert_dx_name(name))]
                     else:
@@ -226,18 +226,18 @@ class ResultDymola:
         first retrieving the underlying state and for each its alias
         check if there exists a derivative variable.
         """
-        #Find alias for name
+        # Find alias for name
         state = self._find_underlying_state(name)
         index = self.get_variable_index(state)
 
         alias_index = np.where(self.dataInfo[:,1]==self.dataInfo[index,1])[0]
 
-        #Loop through all alias
+        # Loop through all alias
         for ind in alias_index:
-            #Get the trial name
+            # Get the trial name
             trial_name = list(self.name_lookup.keys())[ind]
 
-            #Create the derivative name
+            # Create the derivative name
             if isinstance(self, ResultDymolaBinary):
                 der_trial_name = self._create_derivative_from_state(decode(trial_name))
             else:
@@ -268,12 +268,12 @@ class ResultDymola:
         spl = name.split(".")
 
         if spl[0].startswith("der("):
-            spl[0] = spl[0][4:] #Remove der(
-            spl[-1] = spl[-1][:-1] #Remove )
+            spl[0] = spl[0][4:] # Remove der(
+            spl[-1] = spl[-1][:-1] # Remove )
             return ".".join(spl)
         elif spl[-1].startswith("der("):
-            spl[-1] = spl[-1][4:] #Remove der(
-            spl[-1] = spl[-1][:-1] #Remove )
+            spl[-1] = spl[-1][4:] # Remove der(
+            spl[-1] = spl[-1][:-1] # Remove )
             return ".".join(spl)
         else:
             return name
@@ -293,21 +293,21 @@ class ResultDymola:
 
         Returns the original name if the name was not a derivative name.
         """
-        spl = name.split(".") #Split name
+        spl = name.split(".") # Split name
 
-        if spl[0].startswith("der("): #der(PI.x)
-            spl[0] = spl[0][4:] #Remove der
-            spl[-1] = "der("+spl[-1] #Add der
+        if spl[0].startswith("der("): # der(PI.x)
+            spl[0] = spl[0][4:] # Remove der
+            spl[-1] = "der("+spl[-1] # Add der
 
-            return ".".join(spl) #PI.der(x)
+            return ".".join(spl) # PI.der(x)
 
-        elif spl[-1].startswith("der("): #PI.der(x)
-            spl[0] = "der("+spl[0] #Add der
-            spl[-1] = spl[-1][4:] #Remove der
+        elif spl[-1].startswith("der("): # PI.der(x)
+            spl[0] = "der("+spl[0] # Add der
+            spl[-1] = spl[-1][4:] # Remove der
 
             return ".".join(spl)
 
-        else: #Variable was not a derivative variable
+        else: # Variable was not a derivative variable
             return name
 
 class ResultCSVTextual:
@@ -329,7 +329,7 @@ class ResultCSVTextual:
 
         if isinstance(filename, str):
             fid = codecs.open(filename,'r','utf-8')
-        else: #assume stream
+        else: # assume stream
             if not(hasattr(filename, 'readline') and hasattr(filename, 'seek')):
                 raise JIOError("Given stream needs to support 'readline' and 'seek' in order to retrieve the results.")
             fid = filename
@@ -446,7 +446,7 @@ class ResultWriterDymola(ResultWriter):
         if format!='txt':
             raise JIOError('The format is currently not supported.')
 
-        #Internal values
+        # Internal values
         self._file_open = False
         self._npoints = 0
 
@@ -716,7 +716,7 @@ class ResultWriterDymola(ResultWriter):
         f.write(' '*(14+4+14))
         f.write('\n')
 
-        #f.write('%s,%d)\n' % (' '*14, self._nvariables))
+        # f.write('%s,%d)\n' % (' '*14, self._nvariables))
 
         self._file = f
         self._data_order = valueref_of_continuous_states
@@ -738,13 +738,13 @@ class ResultWriterDymola(ResultWriter):
         f = self._file
         data_order = self._data_order
 
-        #If data is none, store the current point from the model
+        # If data is none, store the current point from the model
         if data is None:
-            #Retrieves the time-point
+            # Retrieves the time-point
             [r,i,b] = self.model.save_time_point()
             data = np.append(np.append(np.append(self.model.time,r),i),b)
 
-        #Write the point
+        # Write the point
         str_text = (" %.14E" % data[0])
         for j in range(self._nvariables-1):
             str_text = str_text + (" %.14E" % (data[1+data_order[j]]))
@@ -752,7 +752,7 @@ class ResultWriterDymola(ResultWriter):
             str_text = str_text + (" %.14E" % (parameter_data[j]))
         f.write(str_text+'\n')
 
-        #Update number of points
+        # Update number of points
         self._npoints+=1
 
     def write_finalize(self):
@@ -761,7 +761,7 @@ class ResultWriterDymola(ResultWriter):
         blanks consists of the number of points and the final time (in data set
         1). Also closes the file.
         """
-        #If open, finalize and close
+        # If open, finalize and close
         if self._file_open:
 
             f = self._file
@@ -772,9 +772,9 @@ class ResultWriterDymola(ResultWriter):
 
             f.seek(self._point_npoints)
             f.write('%d,%d)' % (self._npoints, self._nvariables+self._nvariables_sens))
-            #f.write('%d'%self._npoints)
+            # f.write('%d'%self._npoints)
             f.seek(-1,2)
-            #Close the file
+            # Close the file
             f.write('\n')
             f.close()
             self._file_open = False
@@ -801,7 +801,7 @@ class ResultStorageMemory(ResultDymola):
         self.data = {}
         self.data_matrix = data
 
-        #time real integer boolean
+        # time real integer boolean
         real_val_ref    = vars_ref[0]
         integer_val_ref = vars_ref[1]
         boolean_val_ref = vars_ref[2]
@@ -961,7 +961,7 @@ class ResultDymolaTextual(ResultDymola):
         self.dataInfo = np.array([list(map(int,fid.readline().split()[0:nCols])) for i in range(nLines)])
 
         # Find out how many data matrices there are
-        if len(self._name) == 1: #Only time
+        if len(self._name) == 1: # Only time
             nData = 2
         else:
             nData = max(self.dataInfo[:,0])
@@ -988,7 +988,7 @@ class ResultDymolaTextual(ResultDymola):
                     info.extend(line.split())
                 try:
                     data.append(list(map(float,info[0:nCols])))
-                except ValueError: #Handle 1.#INF's and such
+                except ValueError: # Handle 1.#INF's and such
                     data.append(list(map(robust_float,info[0:nCols])))
                 if len(info) == 0 and i < nLines-1:
                     raise JIOError("Inconsistent number of lines in the result data.")
@@ -1146,7 +1146,7 @@ class ResultDymolaTextual(ResultDymola):
         self.data[1] = np.vstack((self.data[1],res.data[1]))
         self.data[1][n_points:,0] = self.data[1][n_points:,0] + time_shift
 
-#Overriding SCIPYs default reader for MATLAB v4 format
+# Overriding SCIPYs default reader for MATLAB v4 format
 class DelayedVarReader4(VarReader4):
     def read_sub_array(self, hdr, copy=True):
         if hdr.name == b"data_2":
@@ -1170,7 +1170,7 @@ class DelayedVarReader4(VarReader4):
     def read_char_array(self, hdr):
         return self.read_sub_array(hdr)
 
-#Need to hook in the variable reader above
+# Need to hook in the variable reader above
 class DelayedVariableLoad(MatFile4Reader):
     def initialize_read(self):
         self.dtypes = convert_dtypes(mdtypes_template, self.byte_order)
@@ -1265,7 +1265,7 @@ class ResultDymolaBinary(ResultDymola):
             if self._contains_diagnostic_data:
                 self._file_pos_model_var = np.empty(self._data_2_info["nbr_points"], dtype=np.longlong)
                 self._file_pos_diag_var = np.empty(self._data_3_info.shape[0], dtype=np.longlong)
-            self._name_info   = self.raw["name"]
+            self._name_info = self.raw["name"]
 
             self.name_lookup = self._get_name_dict()
         else:
@@ -1826,7 +1826,7 @@ class ResultHandlerMemory(ResultHandler):
 
         self.vars = model.get_model_variables(filter=opts["filter"])
 
-        #Store the continuous and discrete variables for result writing
+        # Store the continuous and discrete variables for result writing
         self.real_var_ref, self.int_var_ref, self.bool_var_ref = model.get_model_time_varying_value_references(filter=opts["filter"])
 
         self.real_sol = []
@@ -1858,13 +1858,13 @@ class ResultHandlerMemory(ResultHandler):
                            sys.getsizeof(self.int_sol)  + sys.getsizeof(self.bool_sol) + \
                            sys.getsizeof(self.param_sol)
 
-        #Retrieves the time-point
+        # Retrieves the time-point
         self.time_sol += [model.time]
         self.real_sol += [model.get_real(self.real_var_ref)]
         self.int_sol  += [model.get_integer(self.int_var_ref)]
         self.bool_sol += [model.get_boolean(self.bool_var_ref)]
 
-        #Sets the parameters, if any
+        # Sets the parameters, if any
         if solver and self.options["sensitivities"]:
             self.param_sol += [np.array(solver.interpolate_sensitivity(model.time, 0)).flatten()]
 
@@ -1920,7 +1920,7 @@ class ResultHandlerCSV(ResultHandler):
         opts = self.options
         model = self.model
 
-        #Internal values
+        # Internal values
         self.file_open = False
         self.nbr_points = 0
         delimiter = self.delimiter
@@ -1993,7 +1993,7 @@ class ResultHandlerCSV(ResultHandler):
         else:
             if not hasattr(self.file_name, 'write'):
                 raise FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports writing to through the 'write' method.")
-            f = self.file_name #assume it is a stream
+            f = self.file_name # assume it is a stream
             self.file_open = False
         self._file = f
 
@@ -2036,7 +2036,7 @@ class ResultHandlerCSV(ResultHandler):
         delimiter = self.delimiter
         previous_size = self._current_file_size
 
-        #Retrieves the time-point
+        # Retrieves the time-point
         t = model.time
         r = model.get_real(self.cont_valref_real)*self.cont_alias_real
         i = model.get_integer(self.cont_valref_int)*self.cont_alias_int
@@ -2068,7 +2068,7 @@ class ResultHandlerCSV(ResultHandler):
         """
         Finalize the writing by closing the file.
         """
-        #If open, finalize and close
+        # If open, finalize and close
         if self.file_open:
             self._file.close()
             self.file_open = False
@@ -2104,7 +2104,7 @@ class ResultHandlerFile(ResultHandler):
         opts = self.options
         model = self.model
 
-        #Internal values
+        # Internal values
         self.file_open = False
         self._is_stream = False
         self.nbr_points = 0
@@ -2119,7 +2119,7 @@ class ResultHandlerFile(ResultHandler):
             self.file_name=self.model.get_identifier() + '_result.txt'
         self.model._result_file = self.file_name
 
-        #Store the continuous and discrete variables for result writing
+        # Store the continuous and discrete variables for result writing
         self.real_var_ref, self.int_var_ref, self.bool_var_ref = model.get_model_time_varying_value_references(filter=opts["filter"])
 
         parameters = self.parameters
@@ -2130,7 +2130,7 @@ class ResultHandlerFile(ResultHandler):
         else:
             if not (hasattr(self.file_name, 'write') and hasattr(self.file_name, 'seek')):
                 raise FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write' and 'seek'.")
-            f = self.file_name #assume it is a stream
+            f = self.file_name # assume it is a stream
             self._is_stream = True
         self.file_open = True
         self._file = f
@@ -2339,7 +2339,7 @@ class ResultHandlerFile(ResultHandler):
                         list_of_parameters.append((types[i][0],types[i][1]))
                     else:
                         cnt_2 += 1
-                        #valueref_of_continuous_states.append(
+                        # valueref_of_continuous_states.append(
                         #    list_of_continuous_states[name[0]])
                         if types[i][1] == fmi.FMI_REAL:
                             valueref_of_continuous_states.append(lst_real_cont[name[0]])
@@ -2362,7 +2362,7 @@ class ResultHandlerFile(ResultHandler):
                         list_of_parameters.append((types[i][0],types[i][1]))
                     else:
                         cnt_2 += 1
-                        #valueref_of_continuous_states.append(
+                        # valueref_of_continuous_states.append(
                         #    list_of_continuous_states[name[0]])
                         if types[i][1] == fmi.FMI_REAL:
                             valueref_of_continuous_states.append(lst_real_cont[name[0]])
@@ -2373,19 +2373,19 @@ class ResultHandlerFile(ResultHandler):
                         datatable1 = False
 
             if aliases[i][1] == 0: # no alias
-                #if variabilities[i][1] == fmi.FMI_PARAMETER or \
+                # if variabilities[i][1] == fmi.FMI_PARAMETER or \
                 #    variabilities[i][1] == fmi.FMI_CONSTANT:
                 if datatable1:
-                    #cnt_1 += 1
-                    #n_parameters += 1
+                    # cnt_1 += 1
+                    # n_parameters += 1
                     self._write('1 %d 0 -1 # ' % cnt_1 + name[1]+'\n')
-                    #datatable1 = True
+                    # datatable1 = True
                 else:
-                    #cnt_2 += 1
-                    #valueref_of_continuous_states.append(
+                    # cnt_2 += 1
+                    # valueref_of_continuous_states.append(
                     #    list_of_continuous_states[name[0]])
                     self._write('2 %d 0 -1 # ' % cnt_2 + name[1] +'\n')
-                    #datatable1 = False
+                    # datatable1 = False
 
             elif aliases[i][1] == 1: # alias
                 if datatable1:
@@ -2450,7 +2450,7 @@ class ResultHandlerFile(ResultHandler):
         self._current_file_size = self._current_file_size+len(msg)
         self._file.write(msg)
 
-    def integration_point(self, solver = None):#parameter_data=[]):
+    def integration_point(self, solver = None):# parameter_data=[]):
         """
         Writes the current status of the model to file. If the header has not
         been written previously it is written now. If data is specified it is
@@ -2468,17 +2468,17 @@ class ResultHandlerFile(ResultHandler):
         model = self.model
         previous_size = self._current_file_size
 
-        #Retrieves the time-point
+        # Retrieves the time-point
         r = model.get_real(self.real_var_ref)
         i = model.get_integer(self.int_var_ref)
         b = model.get_boolean(self.bool_var_ref)
 
         data = np.append(np.append(r,i),b)
 
-        #Write the point
+        # Write the point
         str_text = (" %.14E" % self.model.time) + ''.join([" %.14E" % (data[data_order[j]]) for j in range(self._nvariables-1)])
 
-        #Sets the parameters, if any
+        # Sets the parameters, if any
         if solver and self.options["sensitivities"]:
             parameter_data = np.array(solver.interpolate_sensitivity(model.time, 0)).flatten()
             for j in range(len(parameter_data)):
@@ -2486,7 +2486,7 @@ class ResultHandlerFile(ResultHandler):
 
         self._write(str_text+'\n')
 
-        #Update number of points
+        # Update number of points
         self.nbr_points+=1
 
         max_size = self.options.get("result_max_size", None)
@@ -2500,7 +2500,7 @@ class ResultHandlerFile(ResultHandler):
         blanks consists of the number of points and the final time (in data set
         1). Also closes the file.
         """
-        #If open, finalize and close
+        # If open, finalize and close
         if self.file_open:
 
             f = self._file
@@ -2512,12 +2512,12 @@ class ResultHandlerFile(ResultHandler):
             f.seek(self._point_npoints)
             f.write('%d,%d)' % (self.nbr_points, self._nvariables+self._nvariables_sens))
 
-            if self._is_stream: #Seek relative to file end to allowed for string streams
+            if self._is_stream: # Seek relative to file end to allowed for string streams
                 f.seek(0, os.SEEK_END)
                 f.seek(f.tell()-1, os.SEEK_SET)
             else:
                 f.seek(-1,2)
-                #Close the file
+                # Close the file
                 f.write('\n')
                 f.close()
             self.file_open = False
@@ -2682,7 +2682,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         """
         opts = self.options
 
-        #Internal values
+        # Internal values
         self.file_open = False
         self._is_stream = False
         self.nbr_points = 0
@@ -2726,7 +2726,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         else:
             if not (hasattr(self.file_name, 'write') and hasattr(self.file_name, 'seek') and (hasattr(self.file_name, 'tell'))):
                 raise FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write', 'tell' and 'seek'.")
-            self._file = self.file_name #assume it is a stream
+            self._file = self.file_name # assume it is a stream
             self._is_stream = True
         self.file_open = True
 
@@ -2737,7 +2737,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.dump_data(aclass_data)
 
         sorted_vars = self._get_sorted_vars()
-        len_name_items = len(sorted_vars)+len(diagnostics_params)+len(diagnostics_vars)+1
+        len_name_items = len(sorted_vars) + len(diagnostics_params) + len(diagnostics_vars) + 1
         len_desc_items = len_name_items
 
         if opts["result_store_variable_description"]:
@@ -2763,7 +2763,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._write_header("description", len_desc_data, len_desc_items, "char")
         self.dump_native_data(desc_data)
 
-        #Create the data info structure (and return parameters)
+        # Create the data info structure (and return parameters)
         data_info = np.zeros((4, len_name_items), dtype=np.int32)
 
         if self.is_fmi3:
@@ -2786,11 +2786,11 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._write_header("dataInfo", data_info.shape[0], data_info.shape[1], "int")
         self.dump_data(data_info)
 
-        #Dump parameters to file
+        # Dump parameters to file
         self._write_header("data_1", len(parameter_data), 2, "double")
         self.dump_data(parameter_data)
 
-        #Record the position so that we can later modify the end time
+        # Record the position so that we can later modify the end time
         self.data_1_header_position = self._file.tell()
         self.dump_data(parameter_data)
 
@@ -2804,7 +2804,7 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         self.nbr_points = 0
 
-        #Record the position so that we can later modify the number of result points stored
+        # Record the position so that we can later modify the number of result points stored
         self.data_2_header_position = self._file.tell()
 
         if self.is_fmi3:
@@ -2876,10 +2876,10 @@ class ResultHandlerBinaryFile(ResultHandler):
         if self._size_point == -1:
             self._size_point = self._file.tell() - pos
 
-        #Increment number of points
+        # Increment number of points
         self.nbr_points += 1
 
-        #Make sure that file is always consistent
+        # Make sure that file is always consistent
         self._make_consistent()
 
     def diagnostics_point(self, diag_data):
@@ -2899,7 +2899,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         """
         f = self._file
 
-        #Get current position
+        # Get current position
         file_pos = f.tell()
 
         f.seek(self.data_1_header_position)
@@ -2916,13 +2916,13 @@ class ResultHandlerBinaryFile(ResultHandler):
             self._data_3_header["mrows"] = self.nbr_diag_points
             self.__write_header(self._data_3_header, "data_3")
 
-        #Reset file pointer
+        # Reset file pointer
         f.seek(file_pos)
 
         max_size = self.options.get("result_max_size", None)
         if max_size is not None:
             verify_result_size(self.file_name, self._first_point, file_pos, file_pos-self._size_point, max_size, self.options["ncp"], self.model.time)
-            #We can go in here before we've stored a full result point (due to storing diagnostic points). So check that a point has been fully stored
+            # We can go in here before we've stored a full result point (due to storing diagnostic points). So check that a point has been fully stored
             if self._first_point and self._size_point > 0:
                 self._first_point = False
 
@@ -2932,7 +2932,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         blanks consists of the number of points and the final time (in data set
         1). Also closes the file.
         """
-        #If open, finalize and close
+        # If open, finalize and close
         f = self._file
 
         if f:

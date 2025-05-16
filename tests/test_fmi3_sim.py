@@ -148,3 +148,11 @@ class TestSimulation:
 
         assert res["Int64_output"][-1] == float(val)
         assert res["UInt64_output"][-1] == float(val)
+
+    @pytest.mark.xfail(strict = True, reason = "Requires support for state-events.")
+    def test_result_handling_with_alias(self):
+        """Test that result handling works with aliases."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "BouncingBall.fmu")
+        res = fmu.simulate(0, 0.001)
+        assert "h_ft" in res.keys()
+        np.testing.assert_equal(res["h"], res["h_ft"])
