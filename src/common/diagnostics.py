@@ -36,6 +36,76 @@ class DiagnosticsBase:
         'nbr_state_limits_step': {'name': f'{DIAGNOSTICS_PREFIX}nbr_state_limits_step', 'description': 'Cumulative number of times states limit the step'},
     }
 
+class DiagnosticsHelper:
+    """ TODO, add docstring."""
+    def get_calculated_diagnostics_names(self, diagnostics_vars):
+        """ Given dictionary {diagnostics_var_name: description}, return a corresponding dictionary for the calculated diagnostics."""
+        res = {
+            f'{DIAGNOSTICS_PREFIX}cpu_time'              : 'Cumulative CPU time',
+            f'{DIAGNOSTICS_PREFIX}nbr_events'            : 'Cumulative number of events',
+            f'{DIAGNOSTICS_PREFIX}nbr_time_events'       : 'Cumulative number of time events',
+            f'{DIAGNOSTICS_PREFIX}nbr_state_events'      : 'Cumulative number of state events',
+            f'{DIAGNOSTICS_PREFIX}nbr_steps'             : 'Cumulative number of steps',
+            # f'{DIAGNOSTICS_PREFIX}nbr_state_limits_step' : 'Cumulative number of times states limit the step',
+        }
+
+        extra_vars = {}
+        for v, descr in diagnostics_vars.items():
+            if v.startswith(f'{DIAGNOSTICS_PREFIX}solver.absolute_tolerance.'):
+                _, state_name = v.split(".absolute_tolerance.")
+                extra_vars[f'{DIAGNOSTICS_PREFIX}nbr_state_limits_step.'+state_name] = "TODO: Description"
+        return {**res, **extra_vars}
+    
+    def _update_cache(self, a):
+        self._calc_diags_vars_cache = a.copy()
+    
+    def init_calculated_variables(self, diag_vars, diags_calc):
+        self._diags_vars_names = list(diag_vars.keys())
+        self._calc_diags_vars_names = list(diags_calc.keys())
+
+        self._calc_diags_vars_cache = [v[0] for v in diags_calc.values()]
+
+        self._number_states = len(diags_calc) - 5
+        # shortcut for relevant indices
+        self._index_map = {
+            "cpu_time": self._calc_diags_vars_names.index(f'{DIAGNOSTICS_PREFIX}cpu_time'),
+            "cpu_time_per_step": self._diags_vars_names.index(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step'),
+            "nbr_steps": self._calc_diags_vars_names.index(f'{DIAGNOSTICS_PREFIX}nbr_steps'),
+            "event_type": self._diags_vars_names.index(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'),
+            "nbr_events": self._calc_diags_vars_names.index(f'{DIAGNOSTICS_PREFIX}nbr_events'),
+            "nbr_time_events": self._calc_diags_vars_names.index(f'{DIAGNOSTICS_PREFIX}nbr_time_events'),
+            "nbr_state_events": self._calc_diags_vars_names.index(f'{DIAGNOSTICS_PREFIX}nbr_state_events'),
+            "state_errors_start": 5, # TODO
+            "nbr_state_limits_step_base": 3, # TODO
+        }
+
+    def get_calculated_diagnostics_point(self, diag_data):
+        ret = self._calc_diags_vars_cache.copy()
+        # cpu_time
+        ret[self._index_map["cpu_time"]] += diag_data[self._index_map["cpu_time_per_step"]]
+
+        # event point
+        etype = diag_data[self._index_map["event_type"]]
+        if etype == 1:
+            ret[self._index_map["nbr_events"]] += 1
+            ret[self._index_map["nbr_time_events"]] += 1
+        elif etype == 0:
+            ret[self._index_map["nbr_events"]] += 1
+            ret[self._index_map["nbr_state_events"]] += 1
+        else:
+            ret[self._index_map["nbr_steps"]] += 1
+
+        if etype == -1:
+            # state_errors
+            index_diag_data = self._index_map["nbr_state_limits_step_base"]
+            index_calc = self._index_map["state_errors_start"]
+            for i in range(self._number_states):
+                if diag_data[index_diag_data + i] >= 1.0:
+                    ret[index_calc + i] = ret[index_calc + i] + 1
+
+        self._update_cache(ret)
+        return ret
+    
 def setup_diagnostics_variables(model, start_time, options, solver_options):
     """ Sets up initial diagnostics data. This function is called before a simulation is initiated. """
     _diagnostics_params = {}

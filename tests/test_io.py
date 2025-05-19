@@ -2180,3 +2180,61 @@ class TestCustomResultHandlerMissingSupport:
         msg = "The chosen result_handler does not support dynamic_diagnostics. Try using e.g., ResultHandlerBinaryFile."
         with pytest.raises(InvalidOptionException, match = re.escape(msg)):
             model.simulate(options = opts)
+
+class TestXXX: # TODO: better name
+    def test_X(self):
+        """ TODO """
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll = False)
+
+        from pyfmi.common.diagnostics import DiagnosticsHelper
+        class ResultDynDiag(ResultHandler):
+            """ Dummy result handler for dynamic_diagnostics."""
+            def __init__(self, model = None):
+                super().__init__(model)
+                self.supports['dynamic_diagnostics'] = True
+                self._diag_params = None
+                self._diag_vars = None
+                self._diags_calc = None
+
+                self._diags_aux = DiagnosticsHelper() # !!!
+
+            ## lacks implementation of diagnostics_point, default will raise NotImplementedError
+            def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
+                self._diag_params = {k: [v[0]] for k, v in diagnostics_params.items()}
+                self._diag_vars = {k: [v[0]] for k, v in diagnostics_vars.items()}
+                self._diags_calc = {k: [0.] for k, _ in self._diags_aux.get_calculated_diagnostics_names(diagnostics_params).items()}
+                self._diags_calc["@Diagnostics.nbr_steps"] = [1.] # TODO: Is this actually correct?
+
+                self._diags_aux.init_calculated_variables(self._diag_vars, self._diags_calc) # !!!
+
+            def diagnostics_point(self, diag_data):
+                # ordinary diagnostics data
+                for d, (k, v) in zip(diag_data, self._diag_vars.items()):
+                    self._diag_vars[k].append(d)
+                # calculated_diagnostics_data
+                calculated_diags = self._diags_aux.get_calculated_diagnostics_point(diag_data) # !!!
+                # store
+                for d, (k, v) in zip(calculated_diags, self._diags_calc.items()):
+                    self._diags_calc[k].append(d)
+
+            def get_result(self):
+                return {**self._diag_vars, 
+                        **self._diags_calc}
+
+        res_handler = ResultDynDiag()
+        opts = model.simulate_options()
+        opts["dynamic_diagnostics"] = True
+        opts["result_handling"] = "custom" # set to anything except "binary"
+        opts["result_handler"] = res_handler
+        model.simulate(options = opts)
+
+        model.reset()
+
+        opts = model.simulate_options()
+        opts["dynamic_diagnostics"] = True
+        res = model.simulate(options = opts)
+
+        for k, traj in res_handler.get_result().items():
+            if "cpu_time" in k:
+                continue
+            np.testing.assert_array_equal(traj, res[k])
