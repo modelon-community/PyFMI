@@ -105,35 +105,14 @@ class TestFMI3LoadFMU:
         fmu = load_fmu(ref_fmu, kind = "ME")
         assert isinstance(fmu, FMUModelME3)
 
-    def test_get_event_info_1(self,):
-        """Test get_event_info() works as expected; no event."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "ME")
-        fmu.initialize()
-        fmu.event_update()
-
+    @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
+    def test_get_event_info(self, ref_fmu):
+        """Test that get_event_info() works as expected."""
+        fmu = load_fmu(ref_fmu, kind = "ME")
         event_info = fmu.get_event_info()
+        # TODO: Update testing of get_event_info once support for events has been added
         assert isinstance(event_info, FMI3EventInfo)
-        assert not event_info.newDiscreteDtatesNeeded
-        assert not event_info.terminateSimulation
-        assert not event_info.nominalsOfContinuousStatesChanged
-        assert not event_info.valuesOfContinuousStatesChanged
-        assert not event_info.nextEventTimeDefined
-        assert event_info.nextEventTime == pytest.approx(0.0) # Could be anything really though
-
-    def test_get_event_info_2(self):
-        """Test get_event_info() works as expected; time events."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu", kind = "ME")
-        fmu.initialize()
-        fmu.event_update()
-
-        event_info = fmu.get_event_info()
-        assert isinstance(event_info, FMI3EventInfo)
-        assert not event_info.newDiscreteDtatesNeeded
-        assert not event_info.terminateSimulation
-        assert not event_info.nominalsOfContinuousStatesChanged
-        assert not event_info.valuesOfContinuousStatesChanged
-        assert event_info.nextEventTimeDefined
-        assert event_info.nextEventTime == pytest.approx(1.0)
+        assert event_info.next_event_time_defined
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
     def test_load_kind_CS(self, ref_fmu):

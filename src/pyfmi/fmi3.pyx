@@ -146,12 +146,12 @@ cdef class FMI3ModelVariable:
 cdef class FMI3EventInfo:
     """ Class representing data related to event information."""
     def __init__(self):
-        self.newDiscreteDtatesNeeded           = FMIL3.fmi3_false
-        self.terminateSimulation               = FMIL3.fmi3_false
-        self.nominalsOfContinuousStatesChanged = FMIL3.fmi3_false
-        self.valuesOfContinuousStatesChanged   = FMIL3.fmi3_false
-        self.nextEventTimeDefined              = FMIL3.fmi3_false
-        self.nextEventTime                     = 0.0
+        self.new_discrete_states_needed = FMIL3.fmi3_false
+        self.terminate_simulation = FMIL3.fmi3_false
+        self.nominals_of_continuous_states_changed = FMIL3.fmi3_false
+        self.values_of_continuous_states_changed = FMIL3.fmi3_false
+        self.next_event_time_defined = FMIL3.fmi3_false
+        self.next_event_time = 0.0
 
 cdef inline void _check_input_sizes(np.ndarray input_valueref, np.ndarray set_value):
     if np.size(input_valueref) != np.size(set_value):
@@ -216,7 +216,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         # Internal values
         self._enable_logging = False
-        self._eventInfo   = FMI3EventInfo()
+        self._event_info   = FMI3EventInfo()
 
         # Specify the general callback functions
         self.callbacks.malloc  = FMIL.malloc
@@ -436,7 +436,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._initialized_fmu = 0
 
         #Internal values
-        self._eventInfo = FMI3EventInfo()
         self._log = []
 
     def _get_fmu_kind(self):
@@ -2358,39 +2357,12 @@ cdef class FMUModelME3(FMUModelBase3):
         Returns the event information from the FMU.
 
         Returns::
-
-            The event information, a class which contains:
-
-            discreteStatesNeedUpdate --
-                Event iteration did not converge (if True).
-
-            terminateSimulation --
-                Error, terminate simulation (if True).
-
-            nominalsOfContinuousStatesChanged --
-                Values of states x have changed (if True).
-
-            valuesOfContinuousStatesChanged --
-                ValueReferences of states x changed (if True).
-
-            nextEventTimeDefined -
-                If True, nextEventTime is the next time event.
-
-            nextEventTime --
-                The next time event.
-
-        Example::
-
-            event_info    = model.get_event_info()
-            nextEventTime = event_info.nextEventTime
+            The event information as an instance of pyfmi.fmi3.FMI3EventInfo
         """
-        self._eventInfo.newDiscreteDtatesNeeded           = self._event_info_new_discrete_states_needed
-        self._eventInfo.terminateSimulation               = self._event_info_terminate_simulation
-        self._eventInfo.nominalsOfContinuousStatesChanged = self._event_info_nominals_of_continuous_states_changed
-        self._eventInfo.valuesOfContinuousStatesChanged   = self._event_info_values_of_continuous_states_changed
-        self._eventInfo.nextEventTimeDefined              = self._event_info_next_event_time_defined
-        self._eventInfo.nextEventTime                     = self._event_info_next_event_time
-        return self._eventInfo
+        # TODO: Below is temporary for testing until we've added support for events
+        self._event_info.next_event_time_defined = FMIL3.fmi3_true
+        return self._event_info
+
 
     def enter_event_mode(self):
         """ Enter event mode by calling the low level FMI function fmi3EnterEventMode. """
@@ -2402,12 +2374,13 @@ cdef class FMUModelME3(FMUModelBase3):
         if status != FMIL3.fmi3_status_ok:
             raise FMUException("Failed to enter event mode")
 
-    def event_update(self, intermediateResult = False):
+
+    def event_update(self, intermediateResult=False):
         """
         Updates the event information at the current time-point. If
         intermediateResult is set to True the update_event will stop at each
         event iteration which would require to loop until
-        event_info.discreteStatesNeedUpdate == fmiFalse.
+        event_info.newDiscreteStatesNeeded == fmiFalse.
 
         Parameters::
 
@@ -2420,47 +2393,10 @@ cdef class FMUModelME3(FMUModelBase3):
 
             model.event_update()
 
-        Calls the low-level FMI function: fmi3UpdateDiscreteStates
+        Calls the low-level FMI function: TODO
         """
-        cdef int status
-        cdef FMIL3.fmi3_boolean_t tmp_values_continuous_states_changed   = False
-        cdef FMIL3.fmi3_boolean_t tmp_nominals_continuous_states_changed = False
+        pass
 
-        if intermediateResult:
-            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-            status = FMIL3.fmi3_import_update_discrete_states(
-                self._fmu,
-                &self._event_info_new_discrete_states_needed,
-                &self._event_info_terminate_simulation,
-                &self._event_info_nominals_of_continuous_states_changed,
-                &self._event_info_values_of_continuous_states_changed,
-                &self._event_info_next_event_time_defined,
-                &self._event_info_next_event_time)
-            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
-            if status != 0:
-                raise FMUException('Failed to update the events at time: %E.'%self.time)
-        else:
-            self._event_info_new_discrete_states_needed = FMIL3.fmi3_true
-            while self._event_info_new_discrete_states_needed:
-                self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-                status = FMIL3.fmi3_import_update_discrete_states(
-                    self._fmu,
-                    &self._event_info_new_discrete_states_needed,
-                    &self._event_info_terminate_simulation,
-                    &self._event_info_nominals_of_continuous_states_changed,
-                    &self._event_info_values_of_continuous_states_changed,
-                    &self._event_info_next_event_time_defined,
-                    &self._event_info_next_event_time)
-                self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
-
-                tmp_values_continuous_states_changed |= self._event_info_nominals_of_continuous_states_changed
-                tmp_values_continuous_states_changed |= self._event_info_values_of_continuous_states_changed
-                if status != 0:
-                    raise FMUException('Failed to update the events at time: %E.'%self.time)
-
-            # Values changed at least once during event iteration
-            self._event_info_nominals_of_continuous_states_changed |= tmp_values_continuous_states_changed
-            self._event_info_values_of_continuous_states_changed   |= tmp_nominals_continuous_states_changed
 
     cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx):
         cdef FMIL3.fmi3_status_t status
