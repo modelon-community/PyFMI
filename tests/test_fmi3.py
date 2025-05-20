@@ -896,6 +896,22 @@ class Test_FMI3ME:
         fmu = FMUModelME3(fmu_path, _connect_dll = False)
         assert fmu.get_variable_data_type(variable_name) is expected_datatype
 
+    @pytest.mark.parametrize("fmu, variable_name, expected_causality",
+        [
+            ("Feedthrough.fmu", "time", FMI3_Causality.INDEPENDENT),
+            ("Feedthrough.fmu", "Float64_fixed_parameter", FMI3_Causality.PARAMETER),
+            ("Feedthrough.fmu", "Float64_continuous_input", FMI3_Causality.INPUT),
+            ("Feedthrough.fmu", "Float64_continuous_output", FMI3_Causality.OUTPUT),
+            ("StateSpace.fmu", "m", FMI3_Causality.STRUCTURAL_PARAMETER),
+            ("StateSpace.fmu", "x", FMI3_Causality.LOCAL),
+        ]
+    )
+    def test_get_variable_causality(self, fmu, variable_name, expected_causality):
+        """Test getting variable data causalities."""
+        fmu_path = FMI3_REF_FMU_PATH / fmu
+        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        assert fmu.get_variable_causality(variable_name) is expected_causality
+
     def test_simulate(self):
         """Test basic simulation of an FMU, no result handling."""
         fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"

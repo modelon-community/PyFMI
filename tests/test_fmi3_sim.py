@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 import numpy as np
+from scipy.interpolate import interp1d
 
 from pyfmi import load_fmu
 
@@ -164,3 +165,28 @@ class TestSimulation:
         res = fmu.simulate(0, 10, options = {"ncp": 1})
         assert res["counter"][-1] == 9
         assert res.solver.get_statistics()["ntimeevents"] == 9
+
+    @pytest.mark.parametrize("var_name", [
+            "Float32_continuous",
+            "Float64_continuous"
+        ]
+    )
+    def test_continuous_input(self, var_name):
+        """Test setting continuous inputs to float values."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu")
+        input_var = f"{var_name}_input"
+        output_var = f"{var_name}_output"
+
+        # Generate input
+        t = np.linspace(0., 10., 100)
+        real_y = np.cos(t)
+        real_input_traj = np.transpose(np.vstack((t, real_y)))
+        input_object = (input_var, real_input_traj)
+
+        ncp = 500
+        fmu.set(input_var, real_y[0])
+        res = fmu.simulate(final_time = 10, input = input_object, options = {"ncp": ncp})
+
+        np.testing.assert_array_equal(res[input_var], res[output_var])
+        output_interp = interp1d(res["time"], res[output_var])(t)
+        np.testing.assert_array_almost_equal(output_interp, real_y, decimal = 3)

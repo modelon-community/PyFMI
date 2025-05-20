@@ -29,8 +29,8 @@ cdef class FMIODE3(cExplicit_Problem):
     cdef public object _model, problem_name, result_file_name, __input, _A
     cdef public object export, _sparse_representation, _with_jacobian, _logging, _write_header, _start_time
     cdef public dict timings
-    cdef public np.ndarray y0, input_real_mask, input_other_mask
-    cdef public list input_names, input_real_value_refs, input_other, _logg_step_event
+    cdef public np.ndarray y0, input_float64_mask, input_other_mask
+    cdef public list input_names, input_float64_value_refs, input_other, _logg_step_event
     cdef public double t0, _synchronize_factor
     cdef public jac_use, state_events_use, time_events_use # Flags for Assimulo
     cdef public FMI3.FMUModelME3 model_me3

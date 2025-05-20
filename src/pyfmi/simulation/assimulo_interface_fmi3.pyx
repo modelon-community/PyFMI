@@ -34,6 +34,10 @@ from timeit import default_timer as timer
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi3 as FMI3
+from pyfmi.fmi3 import (
+    FMI3_Causality,
+    FMI3_Type
+)
 from pyfmi.exceptions import (
     FMUException,
     InvalidOptionException,
@@ -145,48 +149,45 @@ cdef class FMIODE3(cExplicit_Problem):
         self._event_temp_1 = np.empty(g_nbr, dtype = np.double)
 
     def _adapt_input(self, input):
-        pass
-        # TODO: Should one rename the internal class attributes from real to floatX?
-        # if input is not None:
-        #     input_names = input[0]
-        #     self.input_len_names = len(input_names)
-        #     self.input_real_value_refs = []
-        #     input_real_mask = []
-        #     self.input_other = []
-        #     input_other_mask = []
+        if input is not None:
+            input_names = input[0]
+            self.input_len_names = len(input_names)
+            self.input_float64_value_refs = [] # Could add separate masks for e.g., float32
+            input_float64_mask = []
+            self.input_other = []
+            input_other_mask = []
 
-        #     if isinstance(input_names,str):
-        #         input_names = [input_names]
+            if isinstance(input_names, str):
+                input_names = [input_names]
 
-        #     for i,name in enumerate(input_names):
-        #         if self._model.get_variable_causality(name) != FMI2_INPUT:
-        #             raise FMUException("Variable '%s' is not an input. Only variables specified to be inputs are allowed."%name)
+            for i, name in enumerate(input_names):
+                if self._model.get_variable_causality(name) is not FMI3_Causality.INPUT:
+                    raise FMUException("Variable '%s' is not an input. Only variables specified to be inputs are allowed."%name)
 
-        #         if self._model.get_variable_data_type(name) == FMI2_REAL:
-        #             self.input_real_value_refs.append(self._model.get_variable_valueref(name))
-        #             input_real_mask.append(i)
-        #         else:
-        #             self.input_other.append(name)
-        #             input_other_mask.append(i)
+                if self._model.get_variable_data_type(name) is FMI3_Type.FLOAT64:
+                    self.input_float64_value_refs.append(self._model.get_variable_valueref(name))
+                    input_float64_mask.append(i)
+                else:
+                    self.input_other.append(name)
+                    input_other_mask.append(i)
 
-        #     self.input_real_mask  = np.array(input_real_mask)
-        #     self.input_other_mask = np.array(input_other_mask)
+            self.input_float64_mask  = np.array(input_float64_mask)
+            self.input_other_mask = np.array(input_other_mask)
 
-        #     self._input_activated = 1
-        # else:
-        #     self._input_activated = 0
+            self._input_activated = 1
+        else:
+            self._input_activated = 0
 
-        # self.input = input
+        self.input = input
 
     cpdef _set_input_values(self, double t):
-        pass
-        # if self._input_activated:
-        #     values = self.input[1].eval(t)[0,:]
+        if self._input_activated:
+            values = self.input[1].eval(t)[0,:]
 
-        #     if self.input_real_value_refs:
-        #         self._model.set_real(self.input_real_value_refs, values[self.input_real_mask])
-        #     if self.input_other:
-        #         self._model.set(self.input_other, values[self.input_other_mask])
+            if self.input_float64_value_refs:
+                self._model.set_float64(self.input_float64_value_refs, values[self.input_float64_mask])
+            if self.input_other:
+                self._model.set(self.input_other, values[self.input_other_mask])
 
     cdef _update_model(self, double t, np.ndarray[double, ndim=1, mode="c"] y):
         if self.model_me3_instance:

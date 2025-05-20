@@ -1631,6 +1631,16 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
         return FMIL3.fmi3_import_get_variable_base_type(variable)
 
+    cdef FMIL3.fmi3_causality_enu_t _get_variable_causality(self, variable_name) except *:
+        cdef FMIL3.fmi3_import_variable_t* variable
+        variable_name = pyfmi_util.encode(variable_name)
+        cdef char* variablename = variable_name
+
+        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
+        return FMIL3.fmi3_import_get_variable_causality(variable)
+
     def get_model_variables(self,
         type: Union[FMI3_Type, int, None] = None,
         include_alias: bool = True,
@@ -1828,6 +1838,20 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         """
         variable_data_type = self._get_variable_data_type(variable_name)
         return FMI3_Type(int(variable_data_type))
+
+    def get_variable_causality(self, variable_name):
+        """
+        Get causality of variable.
+
+        Parameter::
+            variable_name --
+                The name of the variable.
+
+        Returns::
+            The causality of the variable, as an instance of pyfmi.fmi3.FMI3_Causality.
+        """
+        variable_causality = self._get_variable_causality(variable_name)
+        return FMI3_Causality(int(variable_causality))
 
     cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t* variable):
         cdef FMIL3.fmi3_string_t desc = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_variable_description(variable)
