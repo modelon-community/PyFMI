@@ -233,12 +233,12 @@ cdef extern from 'fmilib.h':
     # Misc
     fmi3_status_t fmi3_import_update_discrete_states(
         fmi3_import_t* fmu,
-        fmi3_boolean_t *discreteStatesNeedUpdate,
-        fmi3_boolean_t *terminateSimulation,
-        fmi3_boolean_t *nominalsOfContinuousStatesChanged,
-        fmi3_boolean_t *valuesOfContinuousStatesChanged,
-        fmi3_boolean_t *nextEventTimeDefined,
-        fmi3_float64_t *nextEventTime);
+        fmi3_boolean_t* discreteStatesNeedUpdate,
+        fmi3_boolean_t* terminateSimulation,
+        fmi3_boolean_t* nominalsOfContinuousStatesChanged,
+        fmi3_boolean_t* valuesOfContinuousStatesChanged,
+        fmi3_boolean_t* nextEventTimeDefined,
+        fmi3_float64_t* nextEventTime);
 
     double fmi3_import_get_default_experiment_start(fmi3_import_t*);
     double fmi3_import_get_default_experiment_stop(fmi3_import_t*);

@@ -2407,7 +2407,7 @@ cdef class FMUModelME3(FMUModelBase3):
         Updates the event information at the current time-point. If
         intermediateResult is set to True the update_event will stop at each
         event iteration which would require to loop until
-        event_info.discreteStatesNeedUpdate == fmiFalse.
+        event_info.discreteStatesNeedUpdate == False.
 
         Parameters::
 
