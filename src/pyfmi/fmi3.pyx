@@ -157,6 +157,16 @@ cdef inline void _check_input_sizes(np.ndarray input_valueref, np.ndarray set_va
     if np.size(input_valueref) != np.size(set_value):
         raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
 
+cdef inline FMIL3.fmi3_import_variable_t* _get_variable_by_name(FMIL3.fmi3_import_t* fmu, variable_name):
+    cdef FMIL3.fmi3_import_variable_t* variable
+    variable_name = pyfmi_util.encode(variable_name)
+    cdef char* variablename = variable_name
+
+    variable = FMIL3.fmi3_import_get_variable_by_name(fmu, variablename)
+    if variable == NULL:
+        raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
+    return variable
+
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
     """
     FMI3 Model loaded from a dll.
@@ -1609,36 +1619,15 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
             The value reference for the variable passed as argument.
         """
-        cdef FMIL3.fmi3_import_variable_t* variable
-        cdef FMIL3.fmi3_value_reference_t vr
-        variable_name = pyfmi_util.encode(variable_name)
-        cdef char* variablename = variable_name
-
-        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
-        if variable == NULL:
-            raise FMUException("The variable %s could not be found."%pyfmi_util.decode(variablename))
-        vr =  FMIL3.fmi3_import_get_variable_vr(variable)
-
-        return vr
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        return FMIL3.fmi3_import_get_variable_vr(variable)
 
     cdef FMIL3.fmi3_base_type_enu_t _get_variable_data_type(self, variable_name) except *:
-        cdef FMIL3.fmi3_import_variable_t* variable
-        variable_name = pyfmi_util.encode(variable_name)
-        cdef char* variablename = variable_name
-
-        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
-        if variable == NULL:
-            raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
         return FMIL3.fmi3_import_get_variable_base_type(variable)
 
     cdef FMIL3.fmi3_causality_enu_t _get_variable_causality(self, variable_name) except *:
-        cdef FMIL3.fmi3_import_variable_t* variable
-        variable_name = pyfmi_util.encode(variable_name)
-        cdef char* variablename = variable_name
-
-        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
-        if variable == NULL:
-            raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
         return FMIL3.fmi3_import_get_variable_causality(variable)
 
     def get_model_variables(self,
@@ -1880,13 +1869,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef FMIL.size_t                              alias_list_size
         cdef FMIL3.fmi3_import_alias_variable_t*      alias_var
 
-        variable_name_encoded = pyfmi_util.encode(variable_name)
-        cdef char* var_name = variable_name_encoded
-
-        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, var_name)
-        if variable == NULL:
-            raise FMUException("The variable %s could not be found." % variable_name)
-        
+        variable = _get_variable_by_name(self._fmu, variable_name)
         base_name = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
 
         # TODO: Could create a convenience function fmi3_import_get_alias_variable_by_name(variable_name)?
@@ -2079,17 +2062,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
            The base variable.
         """
-        cdef FMIL3.fmi3_import_variable_t* variable
-        variable_name = pyfmi_util.encode(variable_name)
-        cdef char* variablename = variable_name
-
-        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
-        if variable == NULL:
-            raise FMUException("The variable %s could not be found."%variablename)
-
-        name = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
-
-        return name
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        return pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
 
     def get_variable_alias(self, variable_name):
         """
@@ -2117,12 +2091,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef FMIL3.fmi3_import_alias_variable_t*      alias_var
         cdef dict                                     ret_values = {}
 
-        variable_name = pyfmi_util.encode(variable_name)
-        cdef char* variablename = variable_name
-
-        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
-        if variable == NULL:
-            raise FMUException("The variable %s could not be found."%variablename)
+        variable = _get_variable_by_name(self._fmu, variable_name)
 
         base_name = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
         ret_values[base_name] = False
