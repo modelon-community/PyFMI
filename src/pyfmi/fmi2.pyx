@@ -4343,8 +4343,8 @@ cdef class FMUModelME2(FMUModelBase2):
 
         Example::
 
-            event_info    = model.event_info
-            nextEventTime = model.event_info.nextEventTime
+            event_info    = model.get_event_info()
+            nextEventTime = event_info.nextEventTime
         """
         self._pyEventInfo.newDiscreteStatesNeeded           = self._eventInfo.newDiscreteStatesNeeded == 1
         self._pyEventInfo.terminateSimulation               = self._eventInfo.terminateSimulation == 1

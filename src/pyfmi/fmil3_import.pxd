@@ -229,11 +229,16 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_get_boolean(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_boolean_t*, size_t);
     fmi3_status_t fmi3_import_get_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t);
     fmi3_status_t fmi3_import_get_nominals_of_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t nx)
-    fmi3_import_variable_t* fmi3_import_get_variable(fmi3_import_variable_list_t *, size_t)
-    fmi3_import_variable_list_t* fmi3_import_get_variable_list(fmi3_import_t*, int)
-    size_t fmi3_import_get_variable_list_size(fmi3_import_variable_list_t*)
-    fmi3_import_variable_list_t* fmi3_import_get_continuous_state_derivatives_list(fmi3_import_t* fmu)
-    fmi3_import_float64_variable_t* fmi3_import_get_float64_variable_derivative_of(fmi3_import_float64_variable_t* v);
+
+    # Misc
+    fmi3_status_t fmi3_import_update_discrete_states(
+        fmi3_import_t* fmu,
+        fmi3_boolean_t *discreteStatesNeedUpdate,
+        fmi3_boolean_t *terminateSimulation,
+        fmi3_boolean_t *nominalsOfContinuousStatesChanged,
+        fmi3_boolean_t *valuesOfContinuousStatesChanged,
+        fmi3_boolean_t *nextEventTimeDefined,
+        fmi3_float64_t *nextEventTime);
 
     double fmi3_import_get_default_experiment_start(fmi3_import_t*);
     double fmi3_import_get_default_experiment_stop(fmi3_import_t*);
@@ -260,6 +265,11 @@ cdef extern from 'fmilib.h':
     # OTHER HELPER METHODS
 
     # Does NOT invoke CAPI calls
+    fmi3_import_variable_t* fmi3_import_get_variable(fmi3_import_variable_list_t *, size_t)
+    fmi3_import_variable_list_t* fmi3_import_get_variable_list(fmi3_import_t*, int)
+    size_t fmi3_import_get_variable_list_size(fmi3_import_variable_list_t*)
+    fmi3_import_variable_list_t* fmi3_import_get_continuous_state_derivatives_list(fmi3_import_t* fmu)
+    fmi3_import_float64_variable_t* fmi3_import_get_float64_variable_derivative_of(fmi3_import_float64_variable_t* v);
 
     fmi3_status_t fmi3_import_get_number_of_event_indicators(fmi3_import_t*, size_t*)
     fmi3_status_t fmi3_import_get_number_of_continuous_states(fmi3_import_t*, size_t*)
