@@ -58,7 +58,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef FMIL3.fmi3_boolean_t _event_info_values_of_continuous_states_changed
     cdef FMIL3.fmi3_boolean_t _event_info_next_event_time_defined
     cdef FMIL3.fmi3_float64_t _event_info_next_event_time
-    cdef public FMI3EventInfo _eventInfo
+    cdef FMI3EventInfo _eventInfo
 
     # Internal values
     cdef public float  _last_accepted_time

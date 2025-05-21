@@ -380,7 +380,7 @@ cdef class FMIODE3(cExplicit_Problem):
 
     def handle_event(self, solver, event_info):
         """ This method is called when Assimulo finds an event. """
-        cdef int status
+        cdef FMIL3.fmi3_status_t status
 
         if self._extra_f_nbr > 0:
             y_extra = solver.y[-self._extra_f_nbr:]
