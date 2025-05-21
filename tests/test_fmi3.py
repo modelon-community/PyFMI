@@ -105,14 +105,35 @@ class TestFMI3LoadFMU:
         fmu = load_fmu(ref_fmu, kind = "ME")
         assert isinstance(fmu, FMUModelME3)
 
-    @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
-    def test_get_event_info(self, ref_fmu):
-        """Test that get_event_info() works as expected."""
-        fmu = load_fmu(ref_fmu, kind = "ME")
+    def test_get_event_info_1(self,):
+        """Test get_event_info() works as expected; no event."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "ME")
+        fmu.initialize()
+        fmu.event_update()
+
         event_info = fmu.get_event_info()
-        # TODO: Update testing of get_event_info once support for events has been added
         assert isinstance(event_info, FMI3EventInfo)
-        assert event_info.next_event_time_defined
+        assert not event_info.newDiscreteDtatesNeeded
+        assert not event_info.terminateSimulation
+        assert not event_info.nominalsOfContinuousStatesChanged
+        assert not event_info.valuesOfContinuousStatesChanged
+        assert not event_info.nextEventTimeDefined
+        assert event_info.nextEventTime == pytest.approx(0.0) # Could be anything really though
+
+    def test_get_event_info_2(self):
+        """Test get_event_info() works as expected; time events."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu", kind = "ME")
+        fmu.initialize()
+        fmu.event_update()
+
+        event_info = fmu.get_event_info()
+        assert isinstance(event_info, FMI3EventInfo)
+        assert not event_info.newDiscreteDtatesNeeded
+        assert not event_info.terminateSimulation
+        assert not event_info.nominalsOfContinuousStatesChanged
+        assert not event_info.valuesOfContinuousStatesChanged
+        assert event_info.nextEventTimeDefined
+        assert event_info.nextEventTime == pytest.approx(1.0)
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
     def test_load_kind_CS(self, ref_fmu):
@@ -874,6 +895,22 @@ class Test_FMI3ME:
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = FMUModelME3(fmu_path, _connect_dll = False)
         assert fmu.get_variable_data_type(variable_name) is expected_datatype
+
+    @pytest.mark.parametrize("fmu, variable_name, expected_causality",
+        [
+            ("Feedthrough.fmu", "time", FMI3_Causality.INDEPENDENT),
+            ("Feedthrough.fmu", "Float64_fixed_parameter", FMI3_Causality.PARAMETER),
+            ("Feedthrough.fmu", "Float64_continuous_input", FMI3_Causality.INPUT),
+            ("Feedthrough.fmu", "Float64_continuous_output", FMI3_Causality.OUTPUT),
+            ("StateSpace.fmu", "m", FMI3_Causality.STRUCTURAL_PARAMETER),
+            ("StateSpace.fmu", "x", FMI3_Causality.LOCAL),
+        ]
+    )
+    def test_get_variable_causality(self, fmu, variable_name, expected_causality):
+        """Test getting variable data causalities."""
+        fmu_path = FMI3_REF_FMU_PATH / fmu
+        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        assert fmu.get_variable_causality(variable_name) is expected_causality
 
     def test_simulate(self):
         """Test basic simulation of an FMU, no result handling."""

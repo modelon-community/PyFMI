@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 import numpy as np
+from scipy.interpolate import interp1d
 
 from pyfmi import load_fmu
 
@@ -42,7 +43,7 @@ class TestSimulation:
     def test_simulate_check_result_members(self):
         """Test simulate VDP model and check accessible data. """
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
-        results = fmu.simulate()
+        results = fmu.simulate(options = {"ncp": 1})
 
         expected_variables = ['time', 'x0', 'der(x0)', 'x1', 'der(x1)', 'mu']
 
@@ -69,6 +70,7 @@ class TestSimulation:
         opts = fmu.simulate_options()
 
         opts['result_handling'] = rh
+        opts["ncp"] = 1
         msg = f"For FMI3: 'result_handling' set to '{rh}' is not supported. " + \
                 "Consider setting this option to 'binary', 'custom' or None to continue."
         with pytest.raises(NotImplementedError, match = msg):
@@ -77,7 +79,7 @@ class TestSimulation:
     def test_result_variable_types(self):
         """Test which FMI variable types are supported in default result handler."""
         fmu = load_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu")
-        res = fmu.simulate()
+        res = fmu.simulate(options = {"ncp": 1})
 
         expected = set([
             'time',
@@ -153,6 +155,38 @@ class TestSimulation:
     def test_result_handling_with_alias(self):
         """Test that result handling works with aliases."""
         fmu = load_fmu(FMI3_REF_FMU_PATH / "BouncingBall.fmu")
-        res = fmu.simulate(0, 0.001)
+        res = fmu.simulate(0, 0.001, options = {"ncp": 1})
         assert "h_ft" in res.keys()
         np.testing.assert_equal(res["h"], res["h_ft"])
+
+    def test_time_events(self):
+        """Test simulation with time events."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu")
+        res = fmu.simulate(0, 10, options = {"ncp": 1})
+        assert res["counter"][-1] == 9
+        assert res.solver.get_statistics()["ntimeevents"] == 9
+
+    @pytest.mark.parametrize("var_name", [
+            "Float32_continuous",
+            "Float64_continuous"
+        ]
+    )
+    def test_continuous_input(self, var_name):
+        """Test setting continuous inputs to float values."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu")
+        input_var = f"{var_name}_input"
+        output_var = f"{var_name}_output"
+
+        # Generate input
+        t = np.linspace(0., 10., 100)
+        real_y = np.cos(t)
+        real_input_traj = np.transpose(np.vstack((t, real_y)))
+        input_object = (input_var, real_input_traj)
+
+        ncp = 500
+        fmu.set(input_var, real_y[0])
+        res = fmu.simulate(final_time = 10, input = input_object, options = {"ncp": ncp})
+
+        np.testing.assert_array_equal(res[input_var], res[output_var])
+        output_interp = interp1d(res["time"], res[output_var])(t)
+        np.testing.assert_array_almost_equal(output_interp, real_y, decimal = 3)

@@ -34,6 +34,10 @@ from timeit import default_timer as timer
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi3 as FMI3
+from pyfmi.fmi3 import (
+    FMI3_Causality,
+    FMI3_Type
+)
 from pyfmi.exceptions import (
     FMUException,
     InvalidOptionException,
@@ -113,19 +117,19 @@ cdef class FMIODE3(cExplicit_Problem):
         #     [derv_state_dep, derv_input_dep] = model.get_derivatives_dependencies()
         #     self.jac_nnz = np.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+f_nbr
 
-        # if extra_equations:
-        #     self._extra_f_nbr = extra_equations.get_size()
-        #     self._extra_y0    = extra_equations.y0
-        #     self.y0 = np.append(self.y0, self._extra_y0)
-        #     self._extra_equations = extra_equations
+        if extra_equations:
+            self._extra_f_nbr = extra_equations.get_size()
+            self._extra_y0    = extra_equations.y0
+            self.y0 = np.append(self.y0, self._extra_y0)
+            self._extra_equations = extra_equations
 
         #     if hasattr(self._extra_equations, "jac"):
         #         if hasattr(self._extra_equations, "jac_nnz"):
         #             self.jac_nnz += extra_equations.jac_nnz
         #         else:
         #             self.jac_nnz += len(self._extra_f_nbr)*len(self._extra_f_nbr)
-        # else:
-        #     self._extra_f_nbr = 0
+        else:
+            self._extra_f_nbr = 0
 
         if synchronize_simulation:
             msg = f"Setting {synchronize_simulation} as 'synchronize_simulation' is not allowed. Must be True/False or greater than 0."
@@ -145,48 +149,45 @@ cdef class FMIODE3(cExplicit_Problem):
         self._event_temp_1 = np.empty(g_nbr, dtype = np.double)
 
     def _adapt_input(self, input):
-        pass
-        # TODO: Should one rename the internal class attributes from real to floatX?
-        # if input is not None:
-        #     input_names = input[0]
-        #     self.input_len_names = len(input_names)
-        #     self.input_real_value_refs = []
-        #     input_real_mask = []
-        #     self.input_other = []
-        #     input_other_mask = []
+        if input is not None:
+            input_names = input[0]
+            self.input_len_names = len(input_names)
+            self.input_float64_value_refs = [] # Could add separate masks for e.g., float32
+            input_float64_mask = []
+            self.input_other = []
+            input_other_mask = []
 
-        #     if isinstance(input_names,str):
-        #         input_names = [input_names]
+            if isinstance(input_names, str):
+                input_names = [input_names]
 
-        #     for i,name in enumerate(input_names):
-        #         if self._model.get_variable_causality(name) != FMI2_INPUT:
-        #             raise FMUException("Variable '%s' is not an input. Only variables specified to be inputs are allowed."%name)
+            for i, name in enumerate(input_names):
+                if self._model.get_variable_causality(name) is not FMI3_Causality.INPUT:
+                    raise FMUException("Variable '%s' is not an input. Only variables specified to be inputs are allowed."%name)
 
-        #         if self._model.get_variable_data_type(name) == FMI2_REAL:
-        #             self.input_real_value_refs.append(self._model.get_variable_valueref(name))
-        #             input_real_mask.append(i)
-        #         else:
-        #             self.input_other.append(name)
-        #             input_other_mask.append(i)
+                if self._model.get_variable_data_type(name) is FMI3_Type.FLOAT64:
+                    self.input_float64_value_refs.append(self._model.get_variable_valueref(name))
+                    input_float64_mask.append(i)
+                else:
+                    self.input_other.append(name)
+                    input_other_mask.append(i)
 
-        #     self.input_real_mask  = np.array(input_real_mask)
-        #     self.input_other_mask = np.array(input_other_mask)
+            self.input_float64_mask  = np.array(input_float64_mask)
+            self.input_other_mask = np.array(input_other_mask)
 
-        #     self._input_activated = 1
-        # else:
-        #     self._input_activated = 0
+            self._input_activated = 1
+        else:
+            self._input_activated = 0
 
-        # self.input = input
+        self.input = input
 
     cpdef _set_input_values(self, double t):
-        pass
-        # if self._input_activated:
-        #     values = self.input[1].eval(t)[0,:]
+        if self._input_activated:
+            values = self.input[1].eval(t)[0,:]
 
-        #     if self.input_real_value_refs:
-        #         self._model.set_real(self.input_real_value_refs, values[self.input_real_mask])
-        #     if self.input_other:
-        #         self._model.set(self.input_other, values[self.input_other_mask])
+            if self.input_float64_value_refs:
+                self._model.set_float64(self.input_float64_value_refs, values[self.input_float64_mask])
+            if self.input_other:
+                self._model.set(self.input_other, values[self.input_other_mask])
 
     cdef _update_model(self, double t, np.ndarray[double, ndim=1, mode="c"] y):
         if self.model_me3_instance:
@@ -343,11 +344,10 @@ cdef class FMIODE3(cExplicit_Problem):
 
     def time_events(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """ Time event function. """
-        # eInfo = self._model.get_event_info()
+        eInfo = self._model.get_event_info()
 
-        # if eInfo.nextEventTimeDefined:
-        #     return eInfo.nextEventTime
-        return None
+        if eInfo.nextEventTimeDefined:
+            return eInfo.nextEventTime
 
     def handle_result(self, solver, t, y):
         """ Post processing (stores the time points). """
@@ -380,27 +380,26 @@ cdef class FMIODE3(cExplicit_Problem):
 
     def handle_event(self, solver, event_info):
         """ This method is called when Assimulo finds an event. """
-        pass
-        # cdef int status
+        cdef FMIL3.fmi3_status_t status
 
-        # if self._extra_f_nbr > 0:
-        #     y_extra = solver.y[-self._extra_f_nbr:]
-        #     y       = solver.y[:-self._extra_f_nbr]
-        # else:
-        #     y       = solver.y
+        if self._extra_f_nbr > 0:
+            y_extra = solver.y[-self._extra_f_nbr:]
+            y       = solver.y[:-self._extra_f_nbr]
+        else:
+            y       = solver.y
 
-        # # Moving data to the model
-        # if self._compare(solver.t, y):
-        #     self._update_model(solver.t, y)
+        # Moving data to the model
+        if self._compare(solver.t, y):
+            self._update_model(solver.t, y)
 
-        #     # Evaluating the rhs (Have to evaluate the values in the model)
-        #     if self.model_me3_instance:
-        #         status = self.model_me3._get_derivatives(self._state_temp_1)
+            # Evaluating the rhs (Have to evaluate the values in the model)
+            if self.model_me3_instance:
+                status = self.model_me3._get_derivatives(self._state_temp_1)
 
-        #         if status != 0:
-        #             raise FMUException('Failed to get the derivatives at time: %E during handling of the event.'%solver.t,)
-        #     else:
-        #         rhs = self._model.get_derivatives()
+                if status != 0:
+                    raise FMUException('Failed to get the derivatives at time: %E during handling of the event.'%solver.t,)
+            else:
+                rhs = self._model.get_derivatives()
 
         # if self._logging_as_dynamic_diagnostics:
         #     diag_data = np.ndarray(self._number_of_diagnostics_variables, dtype = float)
@@ -444,29 +443,29 @@ cdef class FMIODE3(cExplicit_Problem):
         #         raise FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self._number_of_diagnostics_variables, index))
         #     self.export.diagnostics_point(diag_data)
 
-        # # Enter event mode
-        # self._model.enter_event_mode()
+        # Enter event mode
+        self._model.enter_event_mode()
 
-        # self._model.event_update()
-        # eInfo = self._model.get_event_info()
+        self._model.event_update()
+        eInfo = self._model.get_event_info()
 
-        # # Check if the event affected the state values and if so sets them
-        # if eInfo.valuesOfContinuousStatesChanged:
-        #     if self._extra_f_nbr > 0:
-        #         solver.y = self._model.continuous_states.append(solver.y[-self._extra_f_nbr:])
-        #     else:
-        #         solver.y = self._model.continuous_states
+        # Check if the event affected the state values and if so sets them
+        if eInfo.valuesOfContinuousStatesChanged:
+            if self._extra_f_nbr > 0:
+                solver.y = self._model.continuous_states.append(solver.y[-self._extra_f_nbr:])
+            else:
+                solver.y = self._model.continuous_states
 
         # # Get new nominal values.
-        # if eInfo.nominalsOfContinuousStatesChanged:
+        # if eInfo.nominalsOfContinuousStatesChanged: # TODO
         #     solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
 
-        # # Check if the simulation should be terminated
-        # if eInfo.terminateSimulation:
-        #     raise TerminateSimulation # Exception from Assimulo
+        # Check if the simulation should be terminated
+        if eInfo.terminateSimulation:
+            raise TerminateSimulation # Exception from Assimulo
 
-        # # Enter continuous mode again
-        # self._model.enter_continuous_time_mode()
+        # Enter continuous mode again
+        self._model.enter_continuous_time_mode()
 
     def step_events(self, solver):
         """ Method which is called at each successful step. """

@@ -36,12 +36,12 @@ cdef class FMI3ModelVariable:
     cdef FMIL3.fmi3_boolean_t _alias
 
 cdef class FMI3EventInfo:
-    cdef public FMIL3.fmi3_boolean_t new_discrete_states_needed
-    cdef public FMIL3.fmi3_boolean_t terminate_simulation
-    cdef public FMIL3.fmi3_boolean_t nominals_of_continuous_states_changed
-    cdef public FMIL3.fmi3_boolean_t values_of_continuous_states_changed
-    cdef public FMIL3.fmi3_boolean_t next_event_time_defined
-    cdef public FMIL3.fmi3_float64_t next_event_time
+    cdef public FMIL3.fmi3_boolean_t newDiscreteDtatesNeeded
+    cdef public FMIL3.fmi3_boolean_t terminateSimulation
+    cdef public FMIL3.fmi3_boolean_t nominalsOfContinuousStatesChanged
+    cdef public FMIL3.fmi3_boolean_t valuesOfContinuousStatesChanged
+    cdef public FMIL3.fmi3_boolean_t nextEventTimeDefined
+    cdef public FMIL3.fmi3_float64_t nextEventTime
     # This will be populated further once we add support for CS and Clocks in particular.
 
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
@@ -52,6 +52,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef FMIL.fmi_version_enu_t     _version
     cdef FMIL.size_t _nEventIndicators  # format with snake case?
     cdef FMIL.size_t _nContinuousStates # format with snake case?
+    cdef FMIL3.fmi3_boolean_t _event_info_new_discrete_states_needed
+    cdef FMIL3.fmi3_boolean_t _event_info_terminate_simulation
+    cdef FMIL3.fmi3_boolean_t _event_info_nominals_of_continuous_states_changed
+    cdef FMIL3.fmi3_boolean_t _event_info_values_of_continuous_states_changed
+    cdef FMIL3.fmi3_boolean_t _event_info_next_event_time_defined
+    cdef FMIL3.fmi3_float64_t _event_info_next_event_time
+    cdef FMI3EventInfo _eventInfo
 
     # Internal values
     cdef public float  _last_accepted_time
@@ -99,6 +106,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variable_name) except *
     cdef FMIL3.fmi3_base_type_enu_t _get_variable_data_type(self, variable_name) except *
+    cdef FMIL3.fmi3_causality_enu_t _get_variable_causality(self, variable_name) except *
     cpdef get_variable_description(self, variable_name)
     cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable)
     cpdef get_variable_unbounded(self, variablename)

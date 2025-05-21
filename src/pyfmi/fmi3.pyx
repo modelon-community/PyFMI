@@ -146,16 +146,26 @@ cdef class FMI3ModelVariable:
 cdef class FMI3EventInfo:
     """ Class representing data related to event information."""
     def __init__(self):
-        self.new_discrete_states_needed = FMIL3.fmi3_false
-        self.terminate_simulation = FMIL3.fmi3_false
-        self.nominals_of_continuous_states_changed = FMIL3.fmi3_false
-        self.values_of_continuous_states_changed = FMIL3.fmi3_false
-        self.next_event_time_defined = FMIL3.fmi3_false
-        self.next_event_time = 0.0
+        self.newDiscreteDtatesNeeded           = FMIL3.fmi3_false
+        self.terminateSimulation               = FMIL3.fmi3_false
+        self.nominalsOfContinuousStatesChanged = FMIL3.fmi3_false
+        self.valuesOfContinuousStatesChanged   = FMIL3.fmi3_false
+        self.nextEventTimeDefined              = FMIL3.fmi3_false
+        self.nextEventTime                     = 0.0
 
 cdef inline void _check_input_sizes(np.ndarray input_valueref, np.ndarray set_value):
     if np.size(input_valueref) != np.size(set_value):
         raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
+
+cdef inline FMIL3.fmi3_import_variable_t* _get_variable_by_name(FMIL3.fmi3_import_t* fmu, variable_name):
+    cdef FMIL3.fmi3_import_variable_t* variable
+    variable_name = pyfmi_util.encode(variable_name)
+    cdef char* variablename = variable_name
+
+    variable = FMIL3.fmi3_import_get_variable_by_name(fmu, variablename)
+    if variable == NULL:
+        raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
+    return variable
 
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
     """
@@ -216,7 +226,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         # Internal values
         self._enable_logging = False
-        self._event_info   = FMI3EventInfo()
+        self._eventInfo   = FMI3EventInfo()
 
         # Specify the general callback functions
         self.callbacks.malloc  = FMIL.malloc
@@ -436,6 +446,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._initialized_fmu = 0
 
         #Internal values
+        self._eventInfo = FMI3EventInfo()
         self._log = []
 
     def _get_fmu_kind(self):
@@ -1608,27 +1619,16 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
             The value reference for the variable passed as argument.
         """
-        cdef FMIL3.fmi3_import_variable_t* variable
-        cdef FMIL3.fmi3_value_reference_t vr
-        variable_name = pyfmi_util.encode(variable_name)
-        cdef char* variablename = variable_name
-
-        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
-        if variable == NULL:
-            raise FMUException("The variable %s could not be found."%pyfmi_util.decode(variablename))
-        vr =  FMIL3.fmi3_import_get_variable_vr(variable)
-
-        return vr
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        return FMIL3.fmi3_import_get_variable_vr(variable)
 
     cdef FMIL3.fmi3_base_type_enu_t _get_variable_data_type(self, variable_name) except *:
-        cdef FMIL3.fmi3_import_variable_t* variable
-        variable_name = pyfmi_util.encode(variable_name)
-        cdef char* variablename = variable_name
-
-        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
-        if variable == NULL:
-            raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
         return FMIL3.fmi3_import_get_variable_base_type(variable)
+
+    cdef FMIL3.fmi3_causality_enu_t _get_variable_causality(self, variable_name) except *:
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        return FMIL3.fmi3_import_get_variable_causality(variable)
 
     def get_model_variables(self,
         type: Union[FMI3_Type, int, None] = None,
@@ -1828,6 +1828,20 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         variable_data_type = self._get_variable_data_type(variable_name)
         return FMI3_Type(int(variable_data_type))
 
+    def get_variable_causality(self, variable_name):
+        """
+        Get causality of variable.
+
+        Parameter::
+            variable_name --
+                The name of the variable.
+
+        Returns::
+            The causality of the variable, as an instance of pyfmi.fmi3.FMI3_Causality.
+        """
+        variable_causality = self._get_variable_causality(variable_name)
+        return FMI3_Causality(int(variable_causality))
+
     cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t* variable):
         cdef FMIL3.fmi3_string_t desc = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_variable_description(variable)
         return pyfmi_util.decode(desc) if desc != NULL else ""
@@ -1855,13 +1869,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef FMIL.size_t                              alias_list_size
         cdef FMIL3.fmi3_import_alias_variable_t*      alias_var
 
-        variable_name_encoded = pyfmi_util.encode(variable_name)
-        cdef char* var_name = variable_name_encoded
-
-        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, var_name)
-        if variable == NULL:
-            raise FMUException("The variable %s could not be found." % variable_name)
-        
+        variable = _get_variable_by_name(self._fmu, variable_name)
         base_name = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
 
         # TODO: Could create a convenience function fmi3_import_get_alias_variable_by_name(variable_name)?
@@ -2054,17 +2062,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
            The base variable.
         """
-        cdef FMIL3.fmi3_import_variable_t* variable
-        variable_name = pyfmi_util.encode(variable_name)
-        cdef char* variablename = variable_name
-
-        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
-        if variable == NULL:
-            raise FMUException("The variable %s could not be found."%variablename)
-
-        name = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
-
-        return name
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        return pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
 
     def get_variable_alias(self, variable_name):
         """
@@ -2092,12 +2091,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef FMIL3.fmi3_import_alias_variable_t*      alias_var
         cdef dict                                     ret_values = {}
 
-        variable_name = pyfmi_util.encode(variable_name)
-        cdef char* variablename = variable_name
-
-        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
-        if variable == NULL:
-            raise FMUException("The variable %s could not be found."%variablename)
+        variable = _get_variable_by_name(self._fmu, variable_name)
 
         base_name = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
         ret_values[base_name] = False
@@ -2357,12 +2351,39 @@ cdef class FMUModelME3(FMUModelBase3):
         Returns the event information from the FMU.
 
         Returns::
-            The event information as an instance of pyfmi.fmi3.FMI3EventInfo
-        """
-        # TODO: Below is temporary for testing until we've added support for events
-        self._event_info.next_event_time_defined = FMIL3.fmi3_true
-        return self._event_info
 
+            The event information, a class which contains:
+
+            discreteStatesNeedUpdate --
+                Event iteration did not converge (if True).
+
+            terminateSimulation --
+                Error, terminate simulation (if True).
+
+            nominalsOfContinuousStatesChanged --
+                Values of states x have changed (if True).
+
+            valuesOfContinuousStatesChanged --
+                ValueReferences of states x changed (if True).
+
+            nextEventTimeDefined -
+                If True, nextEventTime is the next time event.
+
+            nextEventTime --
+                The next time event.
+
+        Example::
+
+            event_info    = model.get_event_info()
+            nextEventTime = event_info.nextEventTime
+        """
+        self._eventInfo.newDiscreteDtatesNeeded           = self._event_info_new_discrete_states_needed
+        self._eventInfo.terminateSimulation               = self._event_info_terminate_simulation
+        self._eventInfo.nominalsOfContinuousStatesChanged = self._event_info_nominals_of_continuous_states_changed
+        self._eventInfo.valuesOfContinuousStatesChanged   = self._event_info_values_of_continuous_states_changed
+        self._eventInfo.nextEventTimeDefined              = self._event_info_next_event_time_defined
+        self._eventInfo.nextEventTime                     = self._event_info_next_event_time
+        return self._eventInfo
 
     def enter_event_mode(self):
         """ Enter event mode by calling the low level FMI function fmi3EnterEventMode. """
@@ -2374,13 +2395,12 @@ cdef class FMUModelME3(FMUModelBase3):
         if status != FMIL3.fmi3_status_ok:
             raise FMUException("Failed to enter event mode")
 
-
-    def event_update(self, intermediateResult=False):
+    def event_update(self, intermediateResult = False):
         """
         Updates the event information at the current time-point. If
         intermediateResult is set to True the update_event will stop at each
         event iteration which would require to loop until
-        event_info.newDiscreteStatesNeeded == fmiFalse.
+        event_info.discreteStatesNeedUpdate is False.
 
         Parameters::
 
@@ -2393,10 +2413,47 @@ cdef class FMUModelME3(FMUModelBase3):
 
             model.event_update()
 
-        Calls the low-level FMI function: TODO
+        Calls the low-level FMI function: fmi3UpdateDiscreteStates
         """
-        pass
+        cdef FMIL3.fmi3_status_t status
+        cdef FMIL3.fmi3_boolean_t tmp_values_continuous_states_changed   = False
+        cdef FMIL3.fmi3_boolean_t tmp_nominals_continuous_states_changed = False
 
+        if intermediateResult:
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+            status = FMIL3.fmi3_import_update_discrete_states(
+                self._fmu,
+                &self._event_info_new_discrete_states_needed,
+                &self._event_info_terminate_simulation,
+                &self._event_info_nominals_of_continuous_states_changed,
+                &self._event_info_values_of_continuous_states_changed,
+                &self._event_info_next_event_time_defined,
+                &self._event_info_next_event_time)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+            if status != FMIL3.fmi3_status_ok:
+                raise FMUException('Failed to update the events at time: %E.'%self.time)
+        else:
+            self._event_info_new_discrete_states_needed = FMIL3.fmi3_true
+            while self._event_info_new_discrete_states_needed:
+                self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+                status = FMIL3.fmi3_import_update_discrete_states(
+                    self._fmu,
+                    &self._event_info_new_discrete_states_needed,
+                    &self._event_info_terminate_simulation,
+                    &self._event_info_nominals_of_continuous_states_changed,
+                    &self._event_info_values_of_continuous_states_changed,
+                    &self._event_info_next_event_time_defined,
+                    &self._event_info_next_event_time)
+                self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+                tmp_values_continuous_states_changed |= self._event_info_nominals_of_continuous_states_changed
+                tmp_values_continuous_states_changed |= self._event_info_values_of_continuous_states_changed
+                if status != FMIL3.fmi3_status_ok:
+                    raise FMUException('Failed to update the events at time: %E.'%self.time)
+
+            # Values changed at least once during event iteration
+            self._event_info_nominals_of_continuous_states_changed |= tmp_values_continuous_states_changed
+            self._event_info_values_of_continuous_states_changed   |= tmp_nominals_continuous_states_changed
 
     cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx):
         cdef FMIL3.fmi3_status_t status
