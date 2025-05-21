@@ -1,5 +1,10 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+    * Deprecated "get_categories" function for "FMUModelBase2" and "CoupledFMUModelBase", use "get_log_categories" instead.
+    * Added function "get_log_category_descriptions" to "FMUModelBase2" and "CoupledFMUModelBase" for retreiving log category descriptions.
+    * "FMUModelBase2.get_log_categories()" and "FMUModelBase2.set_debug_logging()" now operate on lists of strings instead of bytes.
+    * Calling "FMUModelBase2.set_debug_logging()" with "logging_on = True" will set the FMU log level to 7 (ALL).
+    * Removed error check that log categories set via "FMUModelBase2.set_debug_logging()" are exposed log categories.
 
 --- PyFMI-2.18.3 ---
     * Fixed a bug introduced in PyFMI 2.18.0 causing incorrect result storing for `boolean` and `enum` variables
