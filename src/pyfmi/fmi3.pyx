@@ -2400,7 +2400,7 @@ cdef class FMUModelME3(FMUModelBase3):
         Updates the event information at the current time-point. If
         intermediateResult is set to True the update_event will stop at each
         event iteration which would require to loop until
-        event_info.discreteStatesNeedUpdate == False.
+        event_info.discreteStatesNeedUpdate is False.
 
         Parameters::
 
@@ -2415,7 +2415,7 @@ cdef class FMUModelME3(FMUModelBase3):
 
         Calls the low-level FMI function: fmi3UpdateDiscreteStates
         """
-        cdef int status
+        cdef FMIL3.fmi3_status_t status
         cdef FMIL3.fmi3_boolean_t tmp_values_continuous_states_changed   = False
         cdef FMIL3.fmi3_boolean_t tmp_nominals_continuous_states_changed = False
 
@@ -2430,7 +2430,7 @@ cdef class FMUModelME3(FMUModelBase3):
                 &self._event_info_next_event_time_defined,
                 &self._event_info_next_event_time)
             self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
-            if status != 0:
+            if status != FMIL3.fmi3_status_ok:
                 raise FMUException('Failed to update the events at time: %E.'%self.time)
         else:
             self._event_info_new_discrete_states_needed = FMIL3.fmi3_true
@@ -2448,7 +2448,7 @@ cdef class FMUModelME3(FMUModelBase3):
 
                 tmp_values_continuous_states_changed |= self._event_info_nominals_of_continuous_states_changed
                 tmp_values_continuous_states_changed |= self._event_info_values_of_continuous_states_changed
-                if status != 0:
+                if status != FMIL3.fmi3_status_ok:
                     raise FMUException('Failed to update the events at time: %E.'%self.time)
 
             # Values changed at least once during event iteration
