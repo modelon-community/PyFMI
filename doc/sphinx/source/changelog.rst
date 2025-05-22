@@ -2,6 +2,10 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.17.1 ---
+    * Fixed compilation issue with Cython 3.1.
+    * Added a new flag for building which allows the user to specify the exact name of the FMIL library.
+
 --- PyFMI-2.17.0 ---
     * Refactored internal files, this does affect a small number of secondary imports.
     * New function `get_unpacked_fmu_path` for the `FMUModel(CS|ME)X` classes. Returns
