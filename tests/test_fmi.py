@@ -25,7 +25,7 @@ import logging
 import shutil
 from io import StringIO
 from pathlib import Path
-from lxml import etree
+import xml.etree.ElementTree as ET
 
 from pyfmi.fmi import (
     FMUException,
@@ -1320,8 +1320,7 @@ class Test_FMUModelME2:
         with pytest.raises(Exception):
             model.simulate(options = opts)
 
-        parser = etree.XMLParser(recover = False)
-        etree.parse(model.extract_xml_log(), parser) # Exception if not well-formed XML
+        ET.parse(model.extract_xml_log()) # Exception if not well-formed XML
 
 
 @pytest.mark.assimulo
