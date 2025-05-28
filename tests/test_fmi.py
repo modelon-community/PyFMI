@@ -1309,10 +1309,10 @@ class Test_FMUModelME2:
 
     def test_jacobian_eval_failure_dynamic_diagnostics(self):
         """Test that a Jacobian evaluation failure + dynamic_diagnostics still generates valid XML."""
-        class FMUModelME2Dummy(FMUModelME2):
+        class FMUModelME2Dummy(Dummy_FMUModelME2):
             def _get_A(self, *args, **kwargs):
                 raise FMUException("nope")
-        model = FMUModelME2Dummy(os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "Description.fmu"), log_level = 4)
+        model = FMUModelME2Dummy([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll = False, log_level = 4)
 
         opts = model.simulate_options()
         opts["dynamic_diagnostics"] = True
