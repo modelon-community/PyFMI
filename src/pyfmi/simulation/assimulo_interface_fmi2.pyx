@@ -268,12 +268,16 @@ cdef class FMIODE2(cExplicit_Problem):
         """
         The jacobian function for an ODE problem.
         """
+        _log_requires_closing_tag = False
+        
         if self._logging:
             preface = "[INFO][FMU status:OK] "
             solver_info_tag = 'Jacobian'
 
             msg = preface + '<%s>Starting Jacobian calculation at <value name="t">        %.14E</value>.'%(solver_info_tag, t)
             self._model.append_log_message("Model", 4, msg)
+            _log_requires_closing_tag = True
+            _log_closing_tag = preface + '</%s>'%(solver_info_tag)
         
         if self._extra_f_nbr > 0:
             y_extra = y[-self._extra_f_nbr:]
@@ -286,10 +290,6 @@ cdef class FMIODE2(cExplicit_Problem):
 
             # If there are no states return a dummy jacobian.
             if self._f_nbr == 0:
-                if self._logging:
-                    msg = preface + '</%s>'%(solver_info_tag)
-                    self._model.append_log_message("Model", 6, msg)
-                
                 return np.array([[0.0]])
 
             A = self._model._get_A(add_diag=True, output_matrix=self._A)
@@ -318,11 +318,9 @@ cdef class FMIODE2(cExplicit_Problem):
                     raise FMUException("No Jacobian provided for the extra equations")
             else:
                 Jac = A
-        finally:
-            # make sure to always generate valid XML, even if jacobian eval fails
-            if self._logging:
-                msg = preface + '</%s>'%(solver_info_tag)
-                self._model.append_log_message("Model", 4, msg)
+        finally: # Even includes early return
+            if _log_requires_closing_tag:
+                self._model.append_log_message("Model", 4, _log_closing_tag)
 
         return Jac
 
