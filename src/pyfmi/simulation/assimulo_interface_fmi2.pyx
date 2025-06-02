@@ -268,7 +268,7 @@ cdef class FMIODE2(cExplicit_Problem):
         """
         The jacobian function for an ODE problem.
         """
-        _log_requires_closing_tag = False
+        log_requires_closing_tag = False
         
         if self._logging:
             preface = "[INFO][FMU status:OK] "
@@ -276,8 +276,8 @@ cdef class FMIODE2(cExplicit_Problem):
 
             msg = preface + '<%s>Starting Jacobian calculation at <value name="t">        %.14E</value>.'%(solver_info_tag, t)
             self._model.append_log_message("Model", 4, msg)
-            _log_requires_closing_tag = True
-            _log_closing_tag = preface + '</%s>'%(solver_info_tag)
+            log_requires_closing_tag = True
+            log_closing_tag = preface + '</%s>'%(solver_info_tag)
         
         if self._extra_f_nbr > 0:
             y_extra = y[-self._extra_f_nbr:]
@@ -319,8 +319,8 @@ cdef class FMIODE2(cExplicit_Problem):
             else:
                 Jac = A
         finally: # Even includes early return
-            if _log_requires_closing_tag:
-                self._model.append_log_message("Model", 4, _log_closing_tag)
+            if log_requires_closing_tag:
+                self._model.append_log_message("Model", 4, log_closing_tag)
 
         return Jac
 
