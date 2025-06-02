@@ -25,6 +25,7 @@ import logging
 import shutil
 from io import StringIO
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 from pyfmi.fmi import (
     FMUException,
@@ -1305,6 +1306,22 @@ class Test_FMUModelME2:
         assert len(model.get_integer([])) == 0, "get_integer([]) has non-empty return"
         assert len(model.get_boolean([])) == 0, "get_boolean([]) has non-empty return"
         assert len(model.get_string([]))  == 0, "get_string ([]) has non-empty return"
+
+    def test_jacobian_eval_failure_dynamic_diagnostics(self):
+        """Test that a Jacobian evaluation failure + dynamic_diagnostics still generates valid XML."""
+        class FMUModelME2Dummy(Dummy_FMUModelME2):
+            def _get_A(self, *args, **kwargs):
+                raise FMUException("nope")
+        model = FMUModelME2Dummy([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll = False, log_level = 4)
+
+        opts = model.simulate_options()
+        opts["dynamic_diagnostics"] = True
+        opts["with_jacobian"] = True
+        with pytest.raises(Exception):
+            model.simulate(options = opts)
+
+        ET.parse(model.extract_xml_log()) # Exception if not well-formed XML
+
 
 @pytest.mark.assimulo
 class Test_FMUModelBase2:

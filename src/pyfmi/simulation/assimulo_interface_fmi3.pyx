@@ -262,6 +262,7 @@ cdef class FMIODE3(cExplicit_Problem):
 
     def jac(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """ The jacobian function for an ODE problem. """
+        # TODO: Make sure to copy the latest code from FMI2 as base; contains an dynamic_diagnostics logging fix + tests
         pass
         # if self._logging:
         #     preface = "[INFO][FMU status:OK] "

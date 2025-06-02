@@ -268,59 +268,59 @@ cdef class FMIODE2(cExplicit_Problem):
         """
         The jacobian function for an ODE problem.
         """
+        log_requires_closing_tag = False
+        
         if self._logging:
             preface = "[INFO][FMU status:OK] "
             solver_info_tag = 'Jacobian'
 
             msg = preface + '<%s>Starting Jacobian calculation at <value name="t">        %.14E</value>.'%(solver_info_tag, t)
             self._model.append_log_message("Model", 4, msg)
+            log_requires_closing_tag = True
+            log_closing_tag = preface + '</%s>'%(solver_info_tag)
         
         if self._extra_f_nbr > 0:
             y_extra = y[-self._extra_f_nbr:]
             y       = y[:-self._extra_f_nbr]
 
-        self._update_model(t, y)
+        try:
+            self._update_model(t, y)
 
-        # Evaluating the jacobian
+            # Evaluating the jacobian
 
-        # If there are no states return a dummy jacobian.
-        if self._f_nbr == 0:
-            if self._logging:
-                msg = preface + '</%s>'%(solver_info_tag)
-                self._model.append_log_message("Model", 6, msg)
-            
-            return np.array([[0.0]])
+            # If there are no states return a dummy jacobian.
+            if self._f_nbr == 0:
+                return np.array([[0.0]])
 
-        A = self._model._get_A(add_diag=True, output_matrix=self._A)
-        if self._A is None:
-            self._A = A
+            A = self._model._get_A(add_diag=True, output_matrix=self._A)
+            if self._A is None:
+                self._A = A
 
-        if self._extra_f_nbr > 0:
-            if hasattr(self._extra_equations, "jac"):
-                if self._sparse_representation:
+            if self._extra_f_nbr > 0:
+                if hasattr(self._extra_equations, "jac"):
+                    if self._sparse_representation:
 
-                    Jac = A.tocoo() # Convert to COOrdinate
-                    A2 = self._extra_equations.jac(y_extra).tocoo()
+                        Jac = A.tocoo() # Convert to COOrdinate
+                        A2 = self._extra_equations.jac(y_extra).tocoo()
 
-                    data = np.append(Jac.data, A2.data)
-                    row  = np.append(Jac.row, A2.row+self._f_nbr)
-                    col  = np.append(Jac.col, A2.col+self._f_nbr)
+                        data = np.append(Jac.data, A2.data)
+                        row  = np.append(Jac.row, A2.row+self._f_nbr)
+                        col  = np.append(Jac.col, A2.col+self._f_nbr)
 
-                    # Convert to compressed sparse column
-                    Jac = sps.coo_matrix((data, (row, col)))
-                    Jac = Jac.tocsc()
+                        # Convert to compressed sparse column
+                        Jac = sps.coo_matrix((data, (row, col)))
+                        Jac = Jac.tocsc()
+                    else:
+                        Jac = np.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
+                        Jac[:self._f_nbr,:self._f_nbr] = A if isinstance(A, np.ndarray) else A.toarray()
+                        Jac[self._f_nbr:,self._f_nbr:] = self._extra_equations.jac(y_extra)
                 else:
-                    Jac = np.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
-                    Jac[:self._f_nbr,:self._f_nbr] = A if isinstance(A, np.ndarray) else A.toarray()
-                    Jac[self._f_nbr:,self._f_nbr:] = self._extra_equations.jac(y_extra)
+                    raise FMUException("No Jacobian provided for the extra equations")
             else:
-                raise FMUException("No Jacobian provided for the extra equations")
-        else:
-            Jac = A
-            
-        if self._logging:
-            msg = preface + '</%s>'%(solver_info_tag)
-            self._model.append_log_message("Model", 4, msg)
+                Jac = A
+        finally: # Even includes early return
+            if log_requires_closing_tag:
+                self._model.append_log_message("Model", 4, log_closing_tag)
 
         return Jac
 
