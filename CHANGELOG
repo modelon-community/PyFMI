@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+
+--- PyFMI-2.17.2 ---
     * Fixed an issue for dynamic_diagnostics, where failures to evaluate the Jacobian would result in invalid XML.
 
 --- PyFMI-2.17.1 ---
