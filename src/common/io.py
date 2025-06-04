@@ -1410,7 +1410,8 @@ class ResultDymolaBinary(ResultDymola):
             note that 'read_diag_data' is a boolean used when this function is invoked for
             diagnostic variables.
         """
-        self._verify_file_data()
+        # Assume self._verify_file_data() was called before, since
+        # we typically have 2 calls to _read_trajectory_data(...); time & data
 
         file_position   = int(self._data_2_info["file_position"])
         sizeof_type     = int(self._data_2_info["sizeof_type"])
@@ -1440,7 +1441,7 @@ class ResultDymolaBinary(ResultDymola):
 
         return data
 
-    def _get_interpolated_trajectory(self, data_index: int, start_index: int = 0, stop_index: int = None) -> Trajectory:
+    def _get_interpolated_trajectory(self, data_index: int, start_index: int = 0, stop_index: int | None = None) -> Trajectory:
         """ Returns an interpolated trajectory for variable of corresponding index 'data_index'. """
         self._verify_file_data()
 
@@ -1453,7 +1454,8 @@ class ResultDymolaBinary(ResultDymola):
         time_vector      = self._read_trajectory_data(0, False, start_index, stop_index)
         data             = self._read_trajectory_data(data_index, False, start_index, stop_index)
 
-        f = scipy.interpolate.interp1d(time_vector, data, fill_value="extrapolate")
+        n = min(len(time_vector), len(data)) # safety for reading wiith allow_file_updates = True
+        f = scipy.interpolate.interp1d(time_vector[:n], data[:n], fill_value = "extrapolate")
 
         # note that we dont need to slice here because diag_time_vector is already sliced accordingly
         self._data_2[data_index] = f(diag_time_vector)
