@@ -2,6 +2,10 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.17.2 ---
+    * Fixed an issue for dynamic_diagnostics, where failures to evaluate the Jacobian would result in invalid XML.
+    * Fixed a race-condition in using ResultDymolaBinary.get_variables_data().
+
 --- PyFMI-2.17.1 ---
     * Fixed compilation issue with Cython 3.1.
     * Added a new flag for building which allows the user to specify the exact name of the FMIL library.

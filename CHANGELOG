@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+
+--- PyFMI-2.17.2 ---
     * Fixed an issue for dynamic_diagnostics, where failures to evaluate the Jacobian would result in invalid XML.
     * Fixed a race-condition in using ResultDymolaBinary.get_variables_data().
 
