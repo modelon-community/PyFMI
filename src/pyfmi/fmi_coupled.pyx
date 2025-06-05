@@ -725,7 +725,7 @@ cdef class CoupledFMUModelBase(CoupledModelBase):
     cdef FMIL2.fmi2_value_reference_t _get_local_vr(self, valueref):
         return valueref & 0x00000000FFFFFFFF
     
-    cdef _get_model_index_from_vr(self, long valueref):
+    cdef _get_model_index_from_vr(self, valueref):
         return valueref >> 32
     
     cdef _get_global_name(self, model_ind, name):
