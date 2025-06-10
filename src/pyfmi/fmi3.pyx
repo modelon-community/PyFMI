@@ -1777,8 +1777,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 data_initial
             )
 
-            if include_alias:
-                # TODO: Could add a convenience function "fmi3_import_get_variable_has_aliases"
+            if include_alias and FMIL3.fmi3_import_get_variable_has_alias(variable):
                 alias_list = FMIL3.fmi3_import_get_variable_alias_list(variable)
                 alias_list_size = FMIL3.fmi3_import_get_alias_variable_list_size(alias_list)
                 for idx in range(alias_list_size):
@@ -1852,7 +1851,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef get_variable_description(self, variable_name):
         """
-        Get the description of a given variable.
+        Get the description of a given variable or alias variable.
 
         Parameter::
 
@@ -1863,28 +1862,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
             The description of the variable.
         """
-        cdef FMIL3.fmi3_import_variable_t* variable
-        cdef FMIL3.fmi3_string_t desc
-        cdef FMIL3.fmi3_import_alias_variable_list_t* alias_list
-        cdef FMIL.size_t                              alias_list_size
-        cdef FMIL3.fmi3_import_alias_variable_t*      alias_var
-
-        variable = _get_variable_by_name(self._fmu, variable_name)
-        base_name = pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
-
-        # TODO: Could create a convenience function fmi3_import_get_alias_variable_by_name(variable_name)?
-
-        if base_name == variable_name:
-            return self._get_variable_description(variable)
-        else:
-            alias_list = FMIL3.fmi3_import_get_variable_alias_list(variable)
-            alias_list_size = FMIL3.fmi3_import_get_alias_variable_list_size(alias_list)
-            for idx in range(alias_list_size):
-                alias_var = FMIL3.fmi3_import_get_alias(alias_list, idx)
-                alias_name = pyfmi_util.decode(FMIL3.fmi3_import_get_alias_variable_name(alias_var))
-                if alias_name == variable_name:
-                    return self._get_alias_description(alias_var)
+        variable_name_encoded = pyfmi_util.encode(variable_name)
+        cdef char* variablename = variable_name_encoded
+        cdef FMIL3.fmi3_string_t desc = FMIL3.fmi3_import_get_variable_description_by_name(self._fmu, variablename)
+        if desc == NULL: # TODO: Does this work correctly?
             raise FMUException("The variable %s could not be found." % variable_name)
+        return pyfmi_util.decode(desc)
 
     cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable):
         if variable == NULL:
