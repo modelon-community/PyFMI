@@ -323,25 +323,24 @@ cdef class FMIODE3(cExplicit_Problem):
 
     def state_events(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """ The event indicator function for a ODE problem. """
-        return 0
-        # cdef int status
+        cdef int status
 
-        # if self._extra_f_nbr > 0:
-        #     y_extra = y[-self._extra_f_nbr:]
-        #     y       = y[:-self._extra_f_nbr]
+        if self._extra_f_nbr > 0:
+            y_extra = y[-self._extra_f_nbr:]
+            y       = y[:-self._extra_f_nbr]
 
-        # self._update_model(t, y)
+        self._update_model(t, y)
 
-        # # Evaluating the event indicators
-        # if self.model_me3_instance:
-        #     status = self.model_me3._get_event_indicators(self._event_temp_1)
+        # Evaluating the event indicators
+        if self.model_me3_instance:
+            status = self.model_me3._get_event_indicators(self._event_temp_1)
 
-        #     if status != 0:
-        #         raise FMUException('Failed to get the event indicators at time: %E.'%t)
+            if status != 0:
+                raise FMUException('Failed to get the event indicators at time: %E.'%t)
 
-        #     return self._event_temp_1
-        # else:
-        #     return self._model.get_event_indicators()
+            return self._event_temp_1
+        else:
+            return self._model.get_event_indicators()
 
     def time_events(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """ Time event function. """
@@ -402,47 +401,47 @@ cdef class FMIODE3(cExplicit_Problem):
             else:
                 rhs = self._model.get_derivatives()
 
-        # if self._logging_as_dynamic_diagnostics:
-        #     diag_data = np.ndarray(self._number_of_diagnostics_variables, dtype = float)
-        #     index = 0
-        #     diag_data[index] = solver.t
-        #     index +=1
-        #     if solver.clock_step:
-        #         diag_data[index] = 0
-        #         index +=1
-        #     solver_name = solver.__class__.__name__
-        #     if solver_name == "CVode":
-        #         diag_data[index] = solver.get_last_order()
-        #         index +=1
-        #     if self._f_nbr > 0 and (solver_name=="CVode" or solver_name=="Radau5ODE"):
-        #         for e in solver.get_weighted_local_errors():
-        #             diag_data[index] = e
-        #             index +=1
-        #     if (solver_name=="CVode" or
-        #         solver_name=="Radau5ODE" or
-        #         solver_name=="LSODAR" or
-        #         solver_name=="ImplicitEuler" or
-        #         solver_name=="ExplicitEuler"
-        #         ):
-        #         if self._g_nbr > 0:
-        #             for ei in self._model.get_event_indicators():
-        #                 diag_data[index] = ei
-        #                 index +=1
-        #         if event_info[1]:
-        #             while index < self._number_of_diagnostics_variables - 1:
-        #                 diag_data[index] = 0
-        #                 index +=1
-        #             diag_data[index] = 1.0
-        #             index +=1
-        #         else:
-        #             for ei in event_info[0]:
-        #                 diag_data[index] = ei
-        #                 index +=1
-        #             diag_data[index] = 0.0
-        #             index +=1
-        #     if index != self._number_of_diagnostics_variables:
-        #         raise FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self._number_of_diagnostics_variables, index))
-        #     self.export.diagnostics_point(diag_data)
+        if self._logging_as_dynamic_diagnostics:
+            diag_data = np.ndarray(self._number_of_diagnostics_variables, dtype = float)
+            index = 0
+            diag_data[index] = solver.t
+            index +=1
+            if solver.clock_step:
+                diag_data[index] = 0
+                index +=1
+            solver_name = solver.__class__.__name__
+            if solver_name == "CVode":
+                diag_data[index] = solver.get_last_order()
+                index +=1
+            if self._f_nbr > 0 and (solver_name=="CVode" or solver_name=="Radau5ODE"):
+                for e in solver.get_weighted_local_errors():
+                    diag_data[index] = e
+                    index +=1
+            if (solver_name=="CVode" or
+                solver_name=="Radau5ODE" or
+                solver_name=="LSODAR" or
+                solver_name=="ImplicitEuler" or
+                solver_name=="ExplicitEuler"
+                ):
+                if self._g_nbr > 0:
+                    for ei in self._model.get_event_indicators():
+                        diag_data[index] = ei
+                        index +=1
+                if event_info[1]:
+                    while index < self._number_of_diagnostics_variables - 1:
+                        diag_data[index] = 0
+                        index +=1
+                    diag_data[index] = 1.0
+                    index +=1
+                else:
+                    for ei in event_info[0]:
+                        diag_data[index] = ei
+                        index +=1
+                    diag_data[index] = 0.0
+                    index +=1
+            if index != self._number_of_diagnostics_variables:
+                raise FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self._number_of_diagnostics_variables, index))
+            self.export.diagnostics_point(diag_data)
 
         # Enter event mode
         self._model.enter_event_mode()
@@ -458,8 +457,8 @@ cdef class FMIODE3(cExplicit_Problem):
                 solver.y = self._model.continuous_states
 
         # # Get new nominal values.
-        # if eInfo.nominalsOfContinuousStatesChanged: # TODO
-        #     solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
+        if eInfo.nominalsOfContinuousStatesChanged: # TODO; this can overwrite explicit atol choices?
+            solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
 
         # Check if the simulation should be terminated
         if eInfo.terminateSimulation:
@@ -488,35 +487,37 @@ cdef class FMIODE3(cExplicit_Problem):
             else:
                 rhs = self._model.get_derivatives()
 
-        # if self._logging_as_dynamic_diagnostics:
-        #     diag_data = np.ndarray(self._number_of_diagnostics_variables, dtype=float)
-        #     index = 0
-        #     diag_data[index] = solver.t
-        #     index +=1
-        #     if solver.clock_step:
-        #         diag_data[index] = solver.get_elapsed_step_time()
-        #         index +=1
-        #     solver_name = solver.__class__.__name__
-        #     if solver_name == "CVode":
-        #         diag_data[index] = solver.get_last_order()
-        #         index +=1
-        #     support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE")
-        #     if support_state_errors and self._f_nbr > 0:
-        #         for e in solver.get_weighted_local_errors():
-        #             diag_data[index] = e
-        #             index +=1
-        #     support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="LSODAR" or solver_name=="ImplicitEuler")
-        #     if self._g_nbr > 0 and support_event_indicators:
-        #         for ei in ev_indicator_values:
-        #             diag_data[index] = ei
-        #             index +=1
+        if self._logging_as_dynamic_diagnostics:
+            # TODO: Could these be made more efficient by replacing the simple loops via slices or similar?
+            diag_data = np.ndarray(self._number_of_diagnostics_variables, dtype=float)
+            index = 0
+            diag_data[index] = solver.t
+            index +=1
+            if solver.clock_step:
+                diag_data[index] = solver.get_elapsed_step_time()
+                index +=1
+            solver_name = solver.__class__.__name__
+            if solver_name == "CVode":
+                diag_data[index] = solver.get_last_order()
+                index +=1
+            support_state_errors = (solver_name=="CVode" or solver_name=="Radau5ODE")
+            if support_state_errors and self._f_nbr > 0:
+                for e in solver.get_weighted_local_errors():
+                    diag_data[index] = e
+                    index +=1
+            support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="LSODAR" or solver_name=="ImplicitEuler")
+            if self._g_nbr > 0 and support_event_indicators:
+                ev_indicator_values = self._model.get_event_indicators()
+                for ei in ev_indicator_values:
+                    diag_data[index] = ei
+                    index +=1
 
-        #         for ei in range(len(ev_indicator_values)):
-        #             diag_data[index] = 0
-        #             index +=1
-        #     if support_event_indicators:
-        #         diag_data[index] = float(-1)
-        #     self.export.diagnostics_point(diag_data)
+                for ei in range(len(ev_indicator_values)):
+                    diag_data[index] = 0
+                    index +=1
+            if support_event_indicators:
+                diag_data[index] = float(-1)
+            self.export.diagnostics_point(diag_data)
 
 
         if self.model_me3_instance:
@@ -525,19 +526,19 @@ cdef class FMIODE3(cExplicit_Problem):
         else:
             enter_event_mode, terminate_simulation = self._model.completed_integrator_step()
 
-        # ret_flag = 0
-        # if enter_event_mode:
-        #     self._logg_step_event += [solver.t]
-        #     # Event have been detect, call event iteration.
-        #     self.handle_event(solver,[0])
-        #     ret_flag =  1 # Tell to reinitiate the solver.
+        ret_flag = 0
+        if enter_event_mode:
+            self._logg_step_event += [solver.t]
+            # Event have been detect, call event iteration.
+            self.handle_event(solver,[0])
+            ret_flag =  1 # Tell to reinitiate the solver.
 
-        # if self._synchronize_factor > 0:
-        #     under_run = solver.t/self._synchronize_factor - (timer()-self._start_time)
-        #     if under_run > 0:
-        #         time.sleep(under_run)
+        if self._synchronize_factor > 0:
+            under_run = solver.t/self._synchronize_factor - (timer()-self._start_time)
+            if under_run > 0:
+                time.sleep(under_run)
 
-        # return ret_flag
+        return ret_flag
 
     def print_step_info(self):
         """ Prints the information about step events. """

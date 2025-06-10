@@ -215,6 +215,7 @@ cdef extern from 'fmilib.h':
 
     # getting
     fmi3_status_t fmi3_import_get_derivatives(fmi3_import_t *, fmi3_float64_t *, size_t)
+    fmi3_status_t fmi3_import_get_event_indicators(fmi3_import_t *, fmi3_float64_t *, size_t)
     fmi3_status_t fmi3_import_get_float64(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float64_t*, size_t);
     fmi3_status_t fmi3_import_get_float32(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_float32_t*, size_t);
     fmi3_status_t fmi3_import_get_int64  (fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_int64_t*, size_t);

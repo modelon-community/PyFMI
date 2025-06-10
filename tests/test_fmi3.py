@@ -930,6 +930,25 @@ class Test_FMI3ME:
         fmu = FMUModelME3(fmu_path)
         assert "Reference FMUs" in fmu.get_generation_tool()
 
+    def test_get_event_indicators(self):
+        """Test get_event_indicators function."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "BouncingBall.fmu")
+        assert fmu.get_ode_sizes()[1] > 0
+
+        fmu.simulate(options = {"ncp": 0})
+        event_ind = fmu.get_event_indicators()
+        assert len(event_ind) == 1
+        assert event_ind[0] > 0
+        assert event_ind[0] == fmu.get("h")[0] # same variable
+
+    def test_get_event_indicators_empty(self):
+        """Test get_event_indicators function for a model without state events"""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        assert fmu.get_ode_sizes()[1] == 0
+
+        event_ind = fmu.get_event_indicators()
+        assert len(event_ind) == 0
+
 
 class Test_FMI3Alias:
     """Various tests surrounding aliases in FMI3."""

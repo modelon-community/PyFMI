@@ -151,7 +151,6 @@ class TestSimulation:
         assert res["Int64_output"][-1] == float(val)
         assert res["UInt64_output"][-1] == float(val)
 
-    @pytest.mark.xfail(strict = True, reason = "Requires support for state-events.")
     def test_result_handling_with_alias(self):
         """Test that result handling works with aliases."""
         fmu = load_fmu(FMI3_REF_FMU_PATH / "BouncingBall.fmu")
@@ -190,3 +189,11 @@ class TestSimulation:
         np.testing.assert_array_equal(res[input_var], res[output_var])
         output_interp = interp1d(res["time"], res[output_var])(t)
         np.testing.assert_array_almost_equal(output_interp, real_y, decimal = 3)
+
+    def test_state_events(self):
+        """Test model with state events: bouncingBall."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "BouncingBall.fmu")
+        assert fmu.get_ode_sizes()[1] > 0
+
+        res = fmu.simulate(options = {"ncp": 0})
+        assert res.solver.get_statistics()["nstateevents"] > 0
