@@ -248,6 +248,9 @@ def check_extensions():
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_util.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
+    ext_list += cythonize([os.path.join("src", "pyfmi", "fmi3_util.pyx")],
+                    include_path = incl_path,
+                    compiler_directives={'language_level' : "3str"})
 
     # FMI Extended PYX
     ext_list += cythonize([os.path.join("src", "pyfmi", "fmi_extended.pyx")],

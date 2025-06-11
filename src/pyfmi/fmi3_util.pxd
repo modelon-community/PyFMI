@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 2019-2022 Modelon AB
+# Copyright (C) 2025 Modelon AB
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -19,15 +19,7 @@ from libc.stdio cimport FILE
 
 import numpy as np
 cimport numpy as np
-cimport pyfmi.fmi2 as FMI2
 
-# TODO: Should this be split further into e.g., fmi_io_util & fmi_coupled_util?
-
-"""
-    Below we define a 'modification' to fseek that is OS specific in order to handle very large files.
-    This is because fseek/ftell is not sufficient as soon as the number of bytes in a result file
-    exceed the maximum value for long int.
-"""
 IF UNAME_SYSNAME == "Windows":
     cdef extern from "stdio.h" nogil:
         ctypedef struct FILE:
@@ -49,30 +41,12 @@ ELSE:
     cdef inline long long os_specific_ftell(FILE *stream):
         return ftello(stream)
 
-cdef _read_trajectory32(
-        file_name,
-        long long start_point,
-        long long end_point,
-        long long interval,
-        long long file_position,
-        long long nbr_points
-    )
-cdef _read_trajectory64(
-        file_name,
-        long long start_point,
-        long long end_point,
-        long long interval,
-        long long file_position,
-        long long nbr_points
-    )
-
-cdef class DumpData:
-    cdef np.ndarray real_var_ref, int_var_ref, bool_var_ref
-    cdef np.ndarray real_var_tmp, int_var_tmp, bool_var_tmp
+cdef class DumpDataFMI3:
     cdef np.ndarray time_tmp
-    cdef public FMI2.FMUModelME2 model_me2
-    cdef public int model_me2_instance
-    cdef public object _file, model
-    cdef size_t real_size, int_size, bool_size
+    # TODO: Investigate if there is a difference in performance by declaring 'model'
+    #       as an object instead of FMI3.FMUModelME3
+    cdef public object model
+    cdef public dict value_references, type_getters
+    cdef public object _file
     cdef int _with_diagnostics
     cdef dump_data(self, np.ndarray data)

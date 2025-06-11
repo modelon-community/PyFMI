@@ -38,6 +38,7 @@ else:
 
 import pyfmi.fmi as fmi # TODO
 import pyfmi.fmi_util as fmi_util
+import pyfmi.fmi3_util as fmi3_util
 from pyfmi.fmi3 import FMUModelBase3, FMI3_Type
 from pyfmi.common import encode, decode
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, DiagnosticsBase
@@ -2769,7 +2770,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         data_info = np.zeros((4, len_name_items), dtype=np.int32)
 
         if self.is_fmi3:
-            parameter_data, value_references = fmi_util.prepare_data_info_fmi3(
+            parameter_data, value_references = fmi3_util.prepare_data_info_fmi3(
                 data_info,
                 sorted_vars,
                 [val[0] for val in diagnostics_params.values()],
@@ -2821,7 +2822,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.data_2_header_end_position = self._file.tell()
 
         if self.is_fmi3:
-            self.dump_data_internal = fmi_util.DumpDataFMI3(self.model, self._file, value_references, self._with_diagnostics)
+            self.dump_data_internal = fmi3_util.DumpDataFMI3(self.model, self._file, value_references, self._with_diagnostics)
         else:
             real_var_ref = np.array(sorted_vars_real_vref)
             int_var_ref  = np.array(sorted_vars_int_vref)
