@@ -2346,6 +2346,39 @@ cdef class FMUModelME3(FMUModelBase3):
         if status != FMIL3.fmi3_status_ok:
             raise FMUException("Failed to enter continuous time mode")
 
+    cdef FMIL3.fmi3_status_t _get_event_indicators(self, FMIL3.fmi3_float64_t[:] values):
+        cdef FMIL3.fmi3_status_t status = FMIL3.fmi3_status_ok
+        if self._nEventIndicators > 0: # do not call if there are no event indicators
+            self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+            status = FMIL3.fmi3_import_get_event_indicators(self._fmu, &values[0], self._nEventIndicators)
+            self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+        return status
+
+    def get_event_indicators(self):
+        """
+        Returns the event indicators at the current time-point.
+
+        Returns::
+
+            evInd --
+                The event indicators as an array.
+
+        Example::
+
+            evInd = model.get_event_indicators()
+
+        Calls the low-level FMI function: fmi3GetEventIndicators
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] values = np.empty(self._nEventIndicators, dtype=np.double)
+
+        status = self._get_event_indicators(values)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException('Failed to get the event indicators at time: %E.'%self.time)
+
+        return values
+
     def get_event_info(self):
         """
         Returns the event information from the FMU.

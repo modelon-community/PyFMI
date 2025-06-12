@@ -119,6 +119,7 @@ cdef class FMUModelME3(FMUModelBase3):
     cdef FMIL3.fmi3_status_t _get_derivatives(self, FMIL3.fmi3_float64_t[:] values)
     cdef FMIL3.fmi3_status_t _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
     cdef FMIL3.fmi3_status_t _set_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
+    cdef FMIL3.fmi3_status_t _get_event_indicators(self, FMIL3.fmi3_float64_t[:] ndx)
     cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
         FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,
         FMIL3.fmi3_boolean_t* enter_event_mode,
