@@ -540,7 +540,7 @@ class TestFMI3LoadFMU:
             'Int64_input',
             'UInt64_input',
             'Boolean_input',
-            'String_parameter',
+            'String_input',
             'Binary_input',
             'Enumeration_input']
 
@@ -552,9 +552,7 @@ class TestFMI3LoadFMU:
         fmu = load_fmu(fmu_path)
         variables = fmu.get_model_variables(only_fixed = True)
 
-        expected = [
-            'Float64_fixed_parameter',
-            'String_parameter']
+        expected = ['Float64_fixed_parameter']
 
         assert expected == list(variables.keys())
 
@@ -578,8 +576,8 @@ class TestFMI3LoadFMU:
             'Float64_fixed_parameter',
             'Float64_tunable_parameter',
             'UInt16_input',
-            'UInt16_output',
-            'String_parameter']
+            'UInt16_output'
+            ]
 
         assert expected == list(variables.keys())
 
@@ -630,7 +628,7 @@ class TestFMI3LoadFMU:
             ("get_uint16", [17, 18], np.array([0, 0], dtype=np.uint16), np.uint16),
             ("get_uint8", [13, 14], np.array([0, 0], dtype=np.uint8), np.uint8),
             ("get_boolean", [27, 28], np.array([False, False], dtype=np.bool_), np.bool_),
-            ("get_enum", [32, 33], np.array([1, 1], dtype=np.int64), np.int64),
+            ("get_enum", [33, 34], np.array([1, 1], dtype=np.int64), np.int64),
         ]
     )
     def test_getX(self, function_name, valuerefs, expected_result, expected_dtype):
@@ -713,7 +711,7 @@ class TestFMI3LoadFMU:
         """Test getting and setting of string variables."""
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = load_fmu(fmu_path)
-        variable_name = "String_parameter"
+        variable_name = "String_input"
         value = "hello string"
         fmu.set(variable_name, value)
         res = fmu.get(variable_name)
@@ -821,7 +819,7 @@ class Test_FMI3ME:
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = FMUModelME3(fmu_path, _connect_dll = False)
         assert fmu.get_variable_valueref("time") == 0
-        assert fmu.get_variable_valueref("Enumeration_input") == 32
+        assert fmu.get_variable_valueref("Enumeration_input") == 33
 
     def test_get_variable_valueref_missing(self):
         """Test getting variable value references for variable that does not exist."""
@@ -885,7 +883,8 @@ class Test_FMI3ME:
             ("UInt16_input", FMI3_Type.UINT16),
             ("UInt8_input",  FMI3_Type.UINT8),
             ("Boolean_input", FMI3_Type.BOOL),
-            ("String_parameter", FMI3_Type.STRING),
+            ("String_input", FMI3_Type.STRING),
+            ("String_output", FMI3_Type.STRING),
             ("Binary_input", FMI3_Type.BINARY),
             ("Enumeration_input", FMI3_Type.ENUM),
         ]
