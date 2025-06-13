@@ -27,7 +27,7 @@ def setup_reference_fmus():
                 "Unable to download reference FMUs, please verify your internet connection is working and" + \
                 f" that the URL {url} exists."
                 ) from e
-    zip_file_url = "https://github.com/modelica/Reference-FMUs/releases/download/v0.0.37/Reference-FMUs-0.0.37.zip"
+    zip_file_url = "https://github.com/modelica/Reference-FMUs/releases/download/v0.0.39/Reference-FMUs-0.0.39.zip"
     zip_file_name = 'reference_fmus.zip'
     zip_unzip_to = files_directory / 'reference_fmus'
 
