@@ -1865,7 +1865,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         variable_name_encoded = pyfmi_util.encode(variable_name)
         cdef char* variablename = variable_name_encoded
         cdef FMIL3.fmi3_string_t desc = FMIL3.fmi3_import_get_variable_description_by_name(self._fmu, variablename)
-        if desc == NULL: # TODO: Does this work correctly?
+        if desc == NULL:
             raise FMUException("The variable %s could not be found." % variable_name)
         return pyfmi_util.decode(desc)
 
