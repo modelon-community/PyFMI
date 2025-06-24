@@ -2,9 +2,11 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.17.3 ---
+    * Fixed a race-condition in using ResultDymolaBinary.get_variables_data().
+
 --- PyFMI-2.17.2 ---
     * Fixed an issue for dynamic_diagnostics, where failures to evaluate the Jacobian would result in invalid XML.
-    * Fixed a race-condition in using ResultDymolaBinary.get_variables_data().
     * Fixed a bug introduced in PyFMI 2.17.1 that could when retreiving variables with very large value references in CoupledFMUModelME2.
 
 --- PyFMI-2.17.1 ---
