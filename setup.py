@@ -35,7 +35,7 @@ from Cython.Build import cythonize
 NAME = "PyFMI"
 AUTHOR = "Modelon AB"
 AUTHOR_EMAIL = ""
-VERSION = "2.17.2"
+VERSION = "2.17.3"
 LICENSE = "LGPL"
 URL = "https://github.com/modelon-community/PyFMI"
 DOWNLOAD_URL = "https://github.com/modelon-community/PyFMI/releases"
