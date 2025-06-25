@@ -107,7 +107,6 @@ class Test_Stream:
 @pytest.mark.assimulo
 class TestXML:
     """ Test other log related functions together with streams. """
-    @pytest.fixture(autouse=True)
     @classmethod
     def setup_class(cls):
         cls.example_fmu = os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')
