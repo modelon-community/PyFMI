@@ -2,6 +2,9 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.17.4 ---
+    * Fixed type annotation issue causing incompatibility with Python < 3.10.
+
 --- PyFMI-2.17.3 ---
     * Fixed a race-condition in using ResultDymolaBinary.get_variables_data().
 
