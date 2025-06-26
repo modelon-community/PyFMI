@@ -1441,7 +1441,7 @@ class ResultDymolaBinary(ResultDymola):
 
         return data
 
-    def _get_interpolated_trajectory(self, data_index: int, start_index: int = 0, stop_index: int | None = None) -> Trajectory:
+    def _get_interpolated_trajectory(self, data_index: int, start_index: int = 0, stop_index: Union[int, None] = None) -> Trajectory:
         """ Returns an interpolated trajectory for variable of corresponding index 'data_index'. """
         self._verify_file_data()
 
