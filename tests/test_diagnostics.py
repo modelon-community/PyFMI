@@ -35,7 +35,7 @@ class ResultStoreCalcDiagnostics(ResultHandler):
     """Result handler for testing explicit storage of calculated diagnostics trajectories."""
     def __init__(self, model = None):
         super().__init__(model)
-        self._diags_aux = DiagnosticsHelper() # !!!
+        self._diags_aux = DiagnosticsHelper()
 
         self.supports['dynamic_diagnostics'] = True
         self._diag_params : Union[dict, None] = None
@@ -45,10 +45,7 @@ class ResultStoreCalcDiagnostics(ResultHandler):
     def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
         self._diag_params = {k: [v[0]] for k, v in diagnostics_params.items()}
         self._diag_vars = {k: [v[0]] for k, v in diagnostics_vars.items()}
-        self._diags_calc = {k: [0.] for k, _ in self._diags_aux.get_calculated_diagnostics_names(diagnostics_params).items()}
-        self._diags_calc["@Diagnostics.nbr_steps"] = [1.] # TODO: Is this actually correct?
-
-        self._diags_aux.init_calculated_variables(self._diag_vars, self._diags_calc) # !!!
+        self._diags_calc = {k: [v[0]] for k, v in self._diags_aux.setup_calculated_diagnostics_variables(diagnostics_params, diagnostics_vars).items()}
 
     def diagnostics_point(self, diag_data):
         # store ordinary diagnostics data
@@ -66,8 +63,6 @@ class ResultStoreCalcDiagnostics(ResultHandler):
     def get_all_diag_var_names(self) -> set:
         return set(list(self._diag_params.keys()) + list(self._diag_vars.keys()) + list(self._diags_calc.keys()))
     
-# TODO: verify descriptions
-
 class TestStoreCalculatedDiagnostics:
     """Tests relating to the DiagnosticsHelper class.""" # TODO
     @pytest.mark.parametrize("solver", ["CVode", "Radau5ODE", "ExplicitEuler"])
@@ -86,7 +81,7 @@ class TestStoreCalculatedDiagnostics:
         res_test = res_handler_test.get_result()
 
         model.reset()
-
+        
         # 2. Simulate model using default result handler & retrieve result
         opts = model.simulate_options()
         opts["solver"] = solver
