@@ -36,7 +36,7 @@ if scipy_minmaj >= (1, 8):
 else:
     from scipy.io.matlab.mio4 import MatFile4Reader, VarReader4, convert_dtypes, mdtypes_template, mxSPARSE_CLASS
 
-import pyfmi.fmi as fmi # TODO
+import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
 from pyfmi.fmi3 import FMUModelBase3, FMI3_Type
 from pyfmi.common import encode, decode
