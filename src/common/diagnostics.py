@@ -41,9 +41,22 @@ class DiagnosticsHelper: # TODO: Better name
     def __init__(self):
         self._calc_diags_vars_cache: np.ndarray = np.array([])
     
-    def setup_calculated_diagnostics_variables(self, diagnostics_params: dict, diagnostics_vars: dict, setup_cache = True) -> dict:
-        """ To be called using the 'diagnostics_params' and 'diagnostics_vars' inputs to ResultHandler.simulation_start.
-        Returns {calculated_diagnostics_name: (start_value, description)}."""
+    def setup_calculated_diagnostics_variables(self, diagnostics_params: dict, diagnostics_vars: dict) -> dict:
+        """
+        Get calculated diagnostics variable names, start_values and descriptions.
+
+        Parameters::
+
+            diagnostics_params --
+                dict, 'diagnostics_params' input given to ResultHandler.simulation_start()
+
+            diagnostics_vars --
+                dict, 'diagnostics_vars' input given to ResultHandler.simulation_start()
+
+        Returns::
+
+            dict: {calculated_diagnostics_name: (start_value, description)}
+        """
         # Fixed variables
         calc_diags = {
             f"{DIAGNOSTICS_PREFIX}cpu_time"        : (0.0, "Cumulative CPU time"),
@@ -88,9 +101,7 @@ class DiagnosticsHelper: # TODO: Better name
             "state_errors": idx_state_errors, # index of first 'state_errors' variable in diag_vars
         }
 
-        if setup_cache:
-            self.calc_diags_vars_cache = [v[0] for v in calc_diags.values()]
-
+        self.calc_diags_vars_cache = [v[0] for v in calc_diags.values()]
         return calc_diags
     
     def _get_calc_diags_vars_cache(self) -> np.ndarray:
@@ -102,8 +113,24 @@ class DiagnosticsHelper: # TODO: Better name
         fset = _update_calc_diags_vars_cache
     )
 
-    def get_calculated_diagnostics_point(self, diag_data: np.ndarray) -> np.ndarray:
-        """Given a diagnostics data point, return the calculated diagnostics."""
+    def get_calculated_diagnostics_point(self, diag_data: np.ndarray, update_cache: bool = True) -> np.ndarray:
+        """
+        Given a diagnostics_point data, return the calculated diagnostics.
+        Automatically caches the previous result for computation of calculated diagnostics 
+        that are cumulative. 
+
+        Parameters::
+
+            diag_data --
+                numpy.ndarray of input received via ResultHandler.diagnostics_point()
+
+            update_cache --
+                (default = True) Update cache for computation of cumulative variables.
+
+        Returns::
+
+            numpy.ndarray of calculated diagnostic variables.
+        """
         ret = self.calc_diags_vars_cache
         # cpu_time
         ret[self._idx_map_calc_diags["cpu_time"]] += diag_data[self._idx_map_diags["cpu_time_per_step"]]
@@ -128,7 +155,8 @@ class DiagnosticsHelper: # TODO: Better name
                 if diag_data[index_diag_data + i] >= 1.0:
                     ret[index_calc + i] = ret[index_calc + i] + 1
 
-        self.calc_diags_vars_cache = ret
+        if update_cache:
+            self.calc_diags_vars_cache = ret
         return ret
     
 def setup_diagnostics_variables(model, start_time, options, solver_options):

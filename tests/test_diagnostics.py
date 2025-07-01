@@ -32,36 +32,36 @@ from pyfmi.test_util import Dummy_FMUModelME2
 file_path = os.path.dirname(os.path.abspath(__file__))
 
 class ResultStoreCalcDiagnostics(ResultHandler):
-    """Result handler for testing explicit storage of calculated diagnostics trajectories."""
+    """Result handler for testing explicit storage of calculated diagnostics."""
     def __init__(self, model = None):
         super().__init__(model)
         self._diags_aux = DiagnosticsHelper()
 
         self.supports['dynamic_diagnostics'] = True
-        self._diag_params : Union[dict, None] = None
-        self._diag_vars : Union[dict, None] = None
-        self._diags_calc : Union[dict, None] = None
+        self.diag_params : Union[dict, None] = None
+        self.diag_vars : Union[dict, None] = None
+        self.diags_calc : Union[dict, None] = None
 
     def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
-        self._diag_params = {k: [v[0]] for k, v in diagnostics_params.items()}
-        self._diag_vars = {k: [v[0]] for k, v in diagnostics_vars.items()}
-        self._diags_calc = {k: [v[0]] for k, v in self._diags_aux.setup_calculated_diagnostics_variables(diagnostics_params, diagnostics_vars).items()}
+        self.diag_params = {k: [v[0]] for k, v in diagnostics_params.items()}
+        self.diag_vars = {k: [v[0]] for k, v in diagnostics_vars.items()}
+        self.diags_calc = {k: [v[0]] for k, v in self._diags_aux.setup_calculated_diagnostics_variables(diagnostics_params, diagnostics_vars).items()}
 
     def diagnostics_point(self, diag_data):
         # store ordinary diagnostics data
-        for k, diag_val in zip(self._diag_vars.keys(), diag_data):
-            self._diag_vars[k].append(diag_val)
+        for k, diag_val in zip(self.diag_vars.keys(), diag_data):
+            self.diag_vars[k].append(diag_val)
         # calculated_diagnostics_data
         calculated_diags = self._diags_aux.get_calculated_diagnostics_point(diag_data)
         # store calculated diagnostics data
-        for k, diag_val in zip(self._diags_calc.keys(), calculated_diags):
-            self._diags_calc[k].append(diag_val)
+        for k, diag_val in zip(self.diags_calc.keys(), calculated_diags):
+            self.diags_calc[k].append(diag_val)
 
     def get_result(self):
-        return {**self._diag_vars, **self._diags_calc}
+        return {**self.diag_vars, **self.diags_calc}
     
     def get_all_diag_var_names(self) -> set:
-        return set(list(self._diag_params.keys()) + list(self._diag_vars.keys()) + list(self._diags_calc.keys()))
+        return set(list(self.diag_params.keys()) + list(self.diag_vars.keys()) + list(self.diags_calc.keys()))
     
 class TestStoreCalculatedDiagnostics:
     """Tests relating to the DiagnosticsHelper class.""" # TODO
@@ -89,13 +89,17 @@ class TestStoreCalculatedDiagnostics:
         opts["result_handling"] = "binary"
         res_binary = model.simulate(options = opts)
 
-        # 3. Check both have the same diagnostics variables
+        # 3. Check both results have the same diagnostics variables
         diag_vars_test = res_handler_test.get_all_diag_var_names()
         diag_vars_default = set([v for v in res_binary.keys() if v.startswith(DIAGNOSTICS_PREFIX)])
 
         assert diag_vars_test == diag_vars_default
 
-        # 4. Check actual trajectories are identical, minus cpu time related ones
+        # # 4. Ensure there are events
+        # assert res_binary[f"{DIAGNOSTICS_PREFIX}nbr_events"][-1] > 0
+
+        # 5. Check (continuous) diagnostics trajectories are identical,
+        # minus cpu time related ones
         for traj_name in res_test.keys(): # only continuous; no parameters
             if "cpu_time" in traj_name:
                 continue
