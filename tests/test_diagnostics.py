@@ -24,7 +24,7 @@ from pyfmi.common.io import (
 )
 from pyfmi.common.diagnostics import (
     DIAGNOSTICS_PREFIX,
-    DiagnosticsHelper
+    CalculatedDynamicDiagnosticsUtils
 )
 
 from pyfmi.test_util import Dummy_FMUModelME2
@@ -35,7 +35,7 @@ class ResultStoreCalcDiagnostics(ResultHandler):
     """Result handler for testing explicit storage of calculated diagnostics."""
     def __init__(self, model = None):
         super().__init__(model)
-        self._diags_aux = DiagnosticsHelper()
+        self._diags_aux = CalculatedDynamicDiagnosticsUtils()
 
         self.supports['dynamic_diagnostics'] = True
         self.diag_params : Union[dict, None] = None
@@ -57,14 +57,14 @@ class ResultStoreCalcDiagnostics(ResultHandler):
         for k, diag_val in zip(self.diags_calc.keys(), calculated_diags):
             self.diags_calc[k].append(diag_val)
 
-    def get_result(self):
+    def get_result(self) -> dict:
         return {**self.diag_vars, **self.diags_calc}
     
     def get_all_diag_var_names(self) -> set:
         return set(list(self.diag_params.keys()) + list(self.diag_vars.keys()) + list(self.diags_calc.keys()))
     
 class TestStoreCalculatedDiagnostics:
-    """Tests relating to the DiagnosticsHelper class.""" # TODO
+    """Tests relating to the CalculatedDynamicDiagnosticsUtils class.""" # TODO
     @pytest.mark.parametrize("solver", ["CVode", "Radau5ODE", "ExplicitEuler"])
     def test_X(self, solver):
         """Test correctness of explicitly storing calculated diagnostic trajectories."""
@@ -107,3 +107,12 @@ class TestStoreCalculatedDiagnostics:
                 res_test[traj_name], 
                 res_binary[traj_name],
                 err_msg = f"{traj_name} not equal")
+            
+
+    # TODO: Above are integration tests
+
+    # TODO: Basic unit tests for the functionality of CalculatedDynamicDiagnosticsUtils
+
+    # TODO: io.py would need some sort of functionality to map trajectory name to function to recompute
+
+    # TODO: 

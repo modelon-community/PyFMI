@@ -184,27 +184,28 @@ class ResultDymola:
         # Strip name of spaces, for instance a[2, 1] to a[2,1]
         name = name.replace(" ", "")
 
-        try:
-            if isinstance(self, ResultDymolaBinary):
-                return self.name_lookup[encode(name)]
-            else:
-                return self.name_lookup[name]
-        except KeyError:
+        if isinstance(self, ResultDymolaBinary):
+            res = self.name_lookup.get(encode(name), None)
+        else:
+            res = self.name_lookup.get(name, None)
+        if res is not None:
+            return res
+        elif self._check_if_derivative_variable(name):
             # Variable was not found so check if it was a derivative variable
             # and check if there exists a variable with another naming
             # convention
-            if self._check_if_derivative_variable(name):
-                try:
-                    # First do a simple search for the other naming convention
-                    if isinstance(self, ResultDymolaBinary):
-                        return self.name_lookup[encode(self._convert_dx_name(name))]
-                    else:
-                        return self.name_lookup[self._convert_dx_name(name)]
-                except KeyError:
-                    return self._exhaustive_search_for_derivatives(name)
+
+            # First do a simple search for the other naming convention
+            if isinstance(self, ResultDymolaBinary):
+                res = self.name_lookup.get(encode(self._convert_dx_name(name)), None)
             else:
-                raise VariableNotFoundError("Cannot find variable " +
-                                        name + " in data file.")
+                res = self.name_lookup.get(self._convert_dx_name(name), None)
+            if res is not None:
+                return res
+            else:
+                return self._exhaustive_search_for_derivatives(name)
+        else:
+            raise VariableNotFoundError("Cannot find variable " + name + " in data file.")
 
     def _correct_index_for_alias(self, data_index: int) -> tuple[int, int]:
         """ This function returns a correction for 'data_index' for alias variables.
@@ -1331,7 +1332,6 @@ class ResultDymolaBinary(ResultDymola):
 
     def _get_name_dict(self):
         file_position  = self._name_info["file_position"]
-        sizeof_type    = self._name_info["sizeof_type"]
         max_length     = self._name_info["max_length"]
         nbr_variables  = self._name_info["nbr_variables"]
 
@@ -1343,6 +1343,7 @@ class ResultDymolaBinary(ResultDymola):
             for name in dict_names:
                 if isinstance(name, bytes):
                     name = decode(name)
+                # TODO: Fetch calculated diagnostics names here via new functionality instead
                 if name == f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type':
                     name_dict[DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name']] = None
                     name_dict[DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name']] = None
@@ -1532,6 +1533,7 @@ class ResultDymolaBinary(ResultDymola):
 
         if name == 'time' or name == 'Time':
             return Trajectory(time, time)
+        # TODO: something more general for computed diagnostics here
         elif self._contains_diagnostic_data and (
                 name in [
                     DiagnosticsBase.calculated_diagnostics['nbr_events']['name'],
@@ -1540,12 +1542,13 @@ class ResultDymolaBinary(ResultDymola):
                     DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']]
             ):
             return Trajectory(
-                time, self._calculate_events_and_steps(name)[start_index:stop_index])
+                time, self._calculate_events_and_steps(name)[start_index:stop_index]) # TODO: Replace
         elif self._contains_diagnostic_data and (
                 f"{DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']}." in name
             ):
             return Trajectory(
-                time, self._calculate_nbr_state_limits_step(name)[start_index:stop_index])
+                time, self._calculate_nbr_state_limits_step(name)[start_index:stop_index]) # TODO: Replace
+        # TODO: something more general for computed diagnostics here
         elif self._contains_diagnostic_data and (
                 name == f'{DIAGNOSTICS_PREFIX}cpu_time'
             ):
@@ -1672,6 +1675,15 @@ class ResultDymolaBinary(ResultDymola):
         """
         return max([0] + [len(t.x) for v, t in trajectories.items() if self.is_variable(v)])
 
+    def _update_calculated_diagnostics_events_and_steps(self) -> None:
+        pass
+
+    def _update_calculated_diagnostics_nbr_state_limits_step(self, name: str) -> None:
+        pass
+
+    def _update_calculated_diagnostics_cpu_time(self) -> None:
+        pass
+
     def _calculate_events_and_steps(self, name):
         if name in self._data_3:
             return self._data_3[name]
@@ -1738,6 +1750,7 @@ class ResultDymolaBinary(ResultDymola):
         """
         if name == 'time' or name== 'Time':
             return True
+        # TODO something more general on calculated diagnostics here
         elif name in [DiagnosticsBase.calculated_diagnostics['nbr_events']['name'],
                       DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name'],
                       DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name'],

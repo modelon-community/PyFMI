@@ -36,7 +36,7 @@ class DiagnosticsBase: # TODO: This will effectively be replaced? Deprecate it! 
         'nbr_state_limits_step': {'name': f'{DIAGNOSTICS_PREFIX}nbr_state_limits_step', 'description': 'Cumulative number of times states limit the step'},
     }
 
-class DiagnosticsHelper: # TODO: Better name
+class CalculatedDynamicDiagnosticsUtils:
     """ TODO, add docstring."""
     def __init__(self):
         self._calc_diags_vars_cache: np.ndarray = np.array([])
@@ -137,7 +137,6 @@ class DiagnosticsHelper: # TODO: Better name
 
         # event point
         etype = diag_data[self._idx_map_diags["event_type"]]
-        # TODO: make these constants?
         if etype == 1:
             ret[self._idx_map_calc_diags["nbr_events"]] += 1
             ret[self._idx_map_calc_diags["nbr_time_events"]] += 1
@@ -158,6 +157,32 @@ class DiagnosticsHelper: # TODO: Better name
         if update_cache:
             self.calc_diags_vars_cache = ret
         return ret
+    
+    @classmethod
+    def get_cpu_time(cls, cpu_time_per_step: np.ndarray) -> np.ndarray:
+        """"Given cpu_time_per_step, return cumulative CPU time."""
+        return np.cumsum(cpu_time_per_step)
+    
+    @classmethod
+    def get_events_and_steps(cls, event_type_data: np.ndarray) -> dict:
+        f"""Given event_type_data trajectory, return dictionary of cumulative:
+            '{DIAGNOSTICS_PREFIX}nbr_events',
+            '{DIAGNOSTICS_PREFIX}nbr_time_events',
+            '{DIAGNOSTICS_PREFIX}nbr_state_events',
+            '{DIAGNOSTICS_PREFIX}nbr_steps'
+        """
+        return {
+            f"{DIAGNOSTICS_PREFIX}nbr_events":       np.cumsum(event_type_data != -1),
+            f"{DIAGNOSTICS_PREFIX}nbr_time_events":  np.cumsum(event_type_data == 1),
+            f"{DIAGNOSTICS_PREFIX}nbr_state_events": np.cumsum(event_type_data == 0),
+            f"{DIAGNOSTICS_PREFIX}nbr_steps":        np.cumsum(event_type_data == -1) + 1, # XXX: Is the + 1 correct here?
+        }
+    
+    @classmethod
+    def get_nbr_state_limits(cls, event_type_data: np.ndarray, state_error: np.ndarray) -> np.ndarray:
+        """Given event_type_data trajectory, return containing the cumulative number of times
+        the (normalized) state_error exceeded 1 (= limited step-size)."""
+        return np.cumsum((event_type_data == -1) and (state_error >= 1.0))
     
 def setup_diagnostics_variables(model, start_time, options, solver_options):
     """ Sets up initial diagnostics data. This function is called before a simulation is initiated. """
