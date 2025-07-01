@@ -36,22 +36,24 @@ class DiagnosticsBase: # TODO: This will effectively be replaced? Deprecate it! 
         'nbr_state_limits_step': {'name': f'{DIAGNOSTICS_PREFIX}nbr_state_limits_step', 'description': 'Cumulative number of times states limit the step'},
     }
 
-class CalculatedDynamicDiagnosticsUtils:
-    """ TODO, add docstring."""
+class DynamicDiagnosticsUtils:
+    """Utility functionality for additional diagnostics variables calculated from 
+    diagnostics data produced from using 'dynamic_diagnostics'.
+    
+    This class contains functionality to explicitly store these, or to perform
+    the associated calculations."""
     def __init__(self):
         self._calc_diags_vars_cache: np.ndarray = np.array([])
     
-    def setup_calculated_diagnostics_variables(self, diagnostics_params: dict, diagnostics_vars: dict) -> dict:
+    def setup_calculated_diagnostics_variables(self, diagnostics_vars: dict) -> dict:
         """
         Get calculated diagnostics variable names, start_values and descriptions.
 
         Parameters::
 
-            diagnostics_params --
-                dict, 'diagnostics_params' input given to ResultHandler.simulation_start()
-
             diagnostics_vars --
-                dict, 'diagnostics_vars' input given to ResultHandler.simulation_start()
+                dict, 'diagnostics_vars' input given to ResultHandler.simulation_start(). 
+                The order of keys here determined the output order in 'get_calculated_diagnostics_point'.
 
         Returns::
 
@@ -67,14 +69,14 @@ class CalculatedDynamicDiagnosticsUtils:
         }
 
         # based on states
-        base_name = DiagnosticsBase.calculated_diagnostics["nbr_state_limits_step"]["name"]
         description = "Cumulative number of times '{}' limited the step-size."
         start_value = 0
         self._number_states = 0
-        for v in diagnostics_params.keys():
-            if v.startswith(f'{DIAGNOSTICS_PREFIX}solver.absolute_tolerance.'):
-                _, state_name = v.split(".absolute_tolerance.")
-                calc_diags[f"{base_name}.{state_name}"] = (start_value, description.format(state_name))
+        for v in diagnostics_vars.keys():
+            prefix = f'{DIAGNOSTICS_PREFIX}state_errors.'
+            if v.startswith(prefix):
+                state_name = v[len(prefix):]
+                calc_diags[f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step.{state_name}"] = (start_value, description.format(state_name))
                 self._number_states += 1
 
         # index maps for calculating diagnostics variables
@@ -175,14 +177,14 @@ class CalculatedDynamicDiagnosticsUtils:
             f"{DIAGNOSTICS_PREFIX}nbr_events":       np.cumsum(event_type_data != -1),
             f"{DIAGNOSTICS_PREFIX}nbr_time_events":  np.cumsum(event_type_data == 1),
             f"{DIAGNOSTICS_PREFIX}nbr_state_events": np.cumsum(event_type_data == 0),
-            f"{DIAGNOSTICS_PREFIX}nbr_steps":        np.cumsum(event_type_data == -1) + 1, # XXX: Is the + 1 correct here?
+            f"{DIAGNOSTICS_PREFIX}nbr_steps":        np.cumsum(event_type_data == -1),
         }
     
     @classmethod
     def get_nbr_state_limits(cls, event_type_data: np.ndarray, state_error: np.ndarray) -> np.ndarray:
         """Given event_type_data trajectory, return containing the cumulative number of times
         the (normalized) state_error exceeded 1 (= limited step-size)."""
-        return np.cumsum((event_type_data == -1) and (state_error >= 1.0))
+        return np.cumsum((event_type_data == -1) * (state_error >= 1.0))
     
 def setup_diagnostics_variables(model, start_time, options, solver_options):
     """ Sets up initial diagnostics data. This function is called before a simulation is initiated. """
