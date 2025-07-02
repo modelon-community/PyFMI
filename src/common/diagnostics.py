@@ -40,8 +40,8 @@ class DynamicDiagnosticsUtils:
     """Utility functionality for additional diagnostics variables calculated from 
     diagnostics data produced from using 'dynamic_diagnostics'.
     
-    This class contains functionality to explicitly store these, or to perform
-    the associated calculations."""
+    This class contains functionality to explicitly store these on a per-point basis and
+    class-methods to perform the same calculations for trajectories."""
     def __init__(self):
         self._calc_diags_vars_cache: np.ndarray = np.array([])
     
@@ -124,7 +124,7 @@ class DynamicDiagnosticsUtils:
         fset = _update_calc_diags_vars_cache
     )
 
-    def get_calculated_diagnostics_point(self, diag_data: np.ndarray, update_cache: bool = True) -> np.ndarray:
+    def get_calculated_diagnostics_point(self, diag_data: np.ndarray) -> np.ndarray:
         """
         Given a diagnostics_point data, return the calculated diagnostics.
         Automatically caches the previous result for computation of calculated diagnostics 
@@ -134,9 +134,6 @@ class DynamicDiagnosticsUtils:
 
             diag_data --
                 numpy.ndarray of input received via ResultHandler.diagnostics_point()
-
-            update_cache --
-                (default = True) Update cache for computation of cumulative variables.
 
         Returns::
 
@@ -167,8 +164,7 @@ class DynamicDiagnosticsUtils:
                     if diag_data[index_diag_data + i] >= 1.0:
                         ret[index_calc + i] = ret[index_calc + i] + 1
 
-        if update_cache:
-            self.calc_diags_vars_cache = ret
+        self.calc_diags_vars_cache = ret
         return ret
     
     @classmethod
@@ -193,7 +189,7 @@ class DynamicDiagnosticsUtils:
     
     @classmethod
     def get_nbr_state_limits(cls, event_type_data: np.ndarray, state_error: np.ndarray) -> np.ndarray:
-        """Given event_type_data trajectory, return containing the cumulative number of times
+        """Given event_type_data trajectory, return the cumulative number of times
         the (normalized) state_error exceeded 1 (= limited step-size)."""
         return np.cumsum((event_type_data == -1) * (state_error >= 1.0))
     

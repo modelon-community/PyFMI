@@ -1492,56 +1492,6 @@ class ResultDymolaBinary(ResultDymola):
 
         return factor, data_index, data_mat
 
-    def _get_calculated_diags_trajectory(self, name: str) -> np.ndarray:
-        """Get trajectory values for a calculated diagnostic variable by name."""
-        if (name in [
-                    f"{DIAGNOSTICS_PREFIX}nbr_events",
-                    f"{DIAGNOSTICS_PREFIX}nbr_time_events",
-                    f"{DIAGNOSTICS_PREFIX}nbr_state_events",
-                    f"{DIAGNOSTICS_PREFIX}nbr_steps",
-                    ]
-            ):
-            return self._get_calculated_diagnostics_events_and_steps(name)
-        elif name.startswith(f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step"):
-            return self._get_calculated_diagnostics_nbr_state_limits_step(name)
-        elif name == f"{DIAGNOSTICS_PREFIX}cpu_time":
-            return self._get_calculated_diagnostics_cpu_time()
-        else:
-            raise KeyError("Unknown calculated diagnostics variable requested.")
-
-    def _get_calculated_diagnostics_events_and_steps(self, name : str) -> np.ndarray:
-        """Get trajectory values for a calculated event/steps related diagnostic variable by name."""
-        if name in self._data_3:
-            return self._data_3[name]
-        steps_name = f"{DIAGNOSTICS_PREFIX}nbr_steps"
-        try:
-            event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
-        except Exception:
-            # can still calculate steps, even without event_type
-            if name == steps_name:
-                self._data_3[steps_name] = np.array(range(len(self._get_diagnostics_trajectory(0))))
-                return self._data_3[name]
-            raise
-        
-        for calc_diag_name, vals in DynamicDiagnosticsUtils.get_events_and_steps(event_type_data).items():
-            self._data_3[calc_diag_name] = vals
-        return self._data_3[name]
-
-    def _get_calculated_diagnostics_nbr_state_limits_step(self, name: str) -> np.ndarray:
-        """Get trajectory values for a calculated step-size limitation related diagnostic variable by name."""
-        if name in self._data_3:
-            return self._data_3[name]
-        prefix = f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step."
-        state_name = name[len(prefix):]
-        event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
-        state_error_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}state_errors.{state_name}').x
-        self._data_3[name] = DynamicDiagnosticsUtils.get_nbr_state_limits(event_type_data, state_error_data)
-        return self._data_3[name]
-
-    def _get_calculated_diagnostics_cpu_time(self) -> np.ndarray:
-        """Get trajectory values for cumulative CPU time."""
-        return DynamicDiagnosticsUtils.get_cpu_time(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x)
-
     def _get_variable_data_as_trajectory(self,
                                          name: str,
                                          time: Union[Trajectory, None] = None,
@@ -1703,6 +1653,56 @@ class ResultDymolaBinary(ResultDymola):
             with the same amount of data points as trajectories for continuous variables.
         """
         return max([0] + [len(t.x) for v, t in trajectories.items() if self.is_variable(v)])
+
+    def _get_calculated_diags_trajectory(self, name: str) -> np.ndarray:
+        """Get trajectory values for a calculated diagnostic variable by name."""
+        if (name in [
+                    f"{DIAGNOSTICS_PREFIX}nbr_events",
+                    f"{DIAGNOSTICS_PREFIX}nbr_time_events",
+                    f"{DIAGNOSTICS_PREFIX}nbr_state_events",
+                    f"{DIAGNOSTICS_PREFIX}nbr_steps",
+                    ]
+            ):
+            return self._get_calculated_diagnostics_events_and_steps(name)
+        elif name.startswith(f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step"):
+            return self._get_calculated_diagnostics_nbr_state_limits_step(name)
+        elif name == f"{DIAGNOSTICS_PREFIX}cpu_time":
+            return self._get_calculated_diagnostics_cpu_time()
+        else:
+            raise KeyError("Unknown calculated diagnostics variable requested.")
+
+    def _get_calculated_diagnostics_events_and_steps(self, name : str) -> np.ndarray:
+        """Get trajectory values for a calculated event/steps related diagnostic variable by name."""
+        if name in self._data_3:
+            return self._data_3[name]
+        steps_name = f"{DIAGNOSTICS_PREFIX}nbr_steps"
+        try:
+            event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
+        except Exception:
+            # can still calculate steps, even without event_type
+            if name == steps_name:
+                self._data_3[steps_name] = np.array(range(len(self._get_diagnostics_trajectory(0))))
+                return self._data_3[name]
+            raise
+        
+        for calc_diag_name, vals in DynamicDiagnosticsUtils.get_events_and_steps(event_type_data).items():
+            self._data_3[calc_diag_name] = vals
+        return self._data_3[name]
+
+    def _get_calculated_diagnostics_nbr_state_limits_step(self, name: str) -> np.ndarray:
+        """Get trajectory values for a calculated step-size limitation related diagnostic variable by name."""
+        if name in self._data_3:
+            return self._data_3[name]
+        prefix = f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step."
+        state_name = name[len(prefix):]
+        event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
+        state_error_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}state_errors.{state_name}').x
+        self._data_3[name] = DynamicDiagnosticsUtils.get_nbr_state_limits(event_type_data, state_error_data)
+        return self._data_3[name]
+
+    def _get_calculated_diagnostics_cpu_time(self) -> np.ndarray:
+        """Get trajectory values for cumulative CPU time."""
+        return DynamicDiagnosticsUtils.get_cpu_time(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x)
 
     def is_variable(self, name):
         """
