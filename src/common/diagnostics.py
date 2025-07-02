@@ -24,7 +24,7 @@ import numbers
 
 DIAGNOSTICS_PREFIX = '@Diagnostics.'
 
-class DiagnosticsBase: # TODO: This will effectively be replaced? Deprecate it! + test
+class DiagnosticsBase: # TODO: Future, possible deprecate & remove this?
     """ Class serves as a template
         to keep track of diagnostics variables not part of the generated result file.
     """
@@ -97,9 +97,18 @@ class DynamicDiagnosticsUtils:
                 break
 
         diagnostics_vars_names = list(diagnostics_vars.keys())
+
+        idx_cpu_time_per_step = None
+        if f'{DIAGNOSTICS_PREFIX}cpu_time_per_step' in diagnostics_vars_names:
+            idx_cpu_time_per_step = diagnostics_vars_names.index(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step')
+
+        idx_event_type = None
+        if f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type' in diagnostics_vars_names:
+            idx_event_type = diagnostics_vars_names.index(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type')
+
         self._idx_map_diags = {
-            "cpu_time_per_step": diagnostics_vars_names.index(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step'),
-            "event_type": diagnostics_vars_names.index(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'),
+            "cpu_time_per_step": idx_cpu_time_per_step,
+            "event_type": idx_event_type,
             "state_errors": idx_state_errors, # index of first 'state_errors' variable in diag_vars
         }
 
@@ -135,26 +144,28 @@ class DynamicDiagnosticsUtils:
         """
         ret = self.calc_diags_vars_cache
         # cpu_time
-        ret[self._idx_map_calc_diags["cpu_time"]] += diag_data[self._idx_map_diags["cpu_time_per_step"]]
+        if self._idx_map_diags["cpu_time_per_step"] is not None:
+            ret[self._idx_map_calc_diags["cpu_time"]] += diag_data[self._idx_map_diags["cpu_time_per_step"]]
 
-        # event point
-        etype = diag_data[self._idx_map_diags["event_type"]]
-        if etype == 1:
-            ret[self._idx_map_calc_diags["nbr_events"]] += 1
-            ret[self._idx_map_calc_diags["nbr_time_events"]] += 1
-        elif etype == 0:
-            ret[self._idx_map_calc_diags["nbr_events"]] += 1
-            ret[self._idx_map_calc_diags["nbr_state_events"]] += 1
-        else:
-            ret[self._idx_map_calc_diags["nbr_steps"]] += 1
+        if self._idx_map_diags["event_type"] is not None:
+            # event point
+            etype = diag_data[self._idx_map_diags["event_type"]]
+            if etype == 1:
+                ret[self._idx_map_calc_diags["nbr_events"]] += 1
+                ret[self._idx_map_calc_diags["nbr_time_events"]] += 1
+            elif etype == 0:
+                ret[self._idx_map_calc_diags["nbr_events"]] += 1
+                ret[self._idx_map_calc_diags["nbr_state_events"]] += 1
+            else:
+                ret[self._idx_map_calc_diags["nbr_steps"]] += 1
 
-        # state_errors
-        if etype == -1: # no event
-            index_diag_data = self._idx_map_diags["state_errors"]
-            index_calc = self._idx_map_calc_diags["nbr_state_limits"]
-            for i in range(self._number_states):
-                if diag_data[index_diag_data + i] >= 1.0:
-                    ret[index_calc + i] = ret[index_calc + i] + 1
+            # state_errors
+            if etype == -1: # no event
+                index_diag_data = self._idx_map_diags["state_errors"]
+                index_calc = self._idx_map_calc_diags["nbr_state_limits"]
+                for i in range(self._number_states):
+                    if diag_data[index_diag_data + i] >= 1.0:
+                        ret[index_calc + i] = ret[index_calc + i] + 1
 
         if update_cache:
             self.calc_diags_vars_cache = ret

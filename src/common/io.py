@@ -40,7 +40,10 @@ import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
 from pyfmi.fmi3 import FMUModelBase3, FMI3_Type
 from pyfmi.common import encode, decode
-from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, DiagnosticsBase
+from pyfmi.common.diagnostics import (
+    DIAGNOSTICS_PREFIX, 
+    DynamicDiagnosticsUtils
+)
 from pyfmi.exceptions import FMUException
 
 SYS_LITTLE_ENDIAN = sys.byteorder == 'little'
@@ -1255,6 +1258,9 @@ class ResultDymolaBinary(ResultDymola):
             data_sections = ["name", "dataInfo", "data_2"]
             self._contains_diagnostic_data = False
 
+        # utility used for diagnostics variables calculated on the fly
+        self._calc_diags_names : dict = {}
+        self._calc_diags_utils : DynamicDiagnosticsUtils = DynamicDiagnosticsUtils()
         if delayed_trajectory_loading or self._contains_diagnostic_data:
             if not self._contains_diagnostic_data:
                 with open(self._fname, "rb") as f:
@@ -1337,24 +1343,16 @@ class ResultDymolaBinary(ResultDymola):
 
         name_dict = fmi_util.read_name_list(encode(self._fname), file_position, int(nbr_variables), int(max_length))
 
-        if self._contains_diagnostic_data:  # Populate name dict with diagnostics variables calculated on the fly
-            dict_names = list(name_dict.keys())
-            name_dict[DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']] = None
-            for name in dict_names:
+        if self._contains_diagnostic_data: # Populate name dict with diagnostics variables calculated on the fly
+            name_dict_diags = {}
+            for name in name_dict:
                 if isinstance(name, bytes):
                     name = decode(name)
-                # TODO: Fetch calculated diagnostics names here via new functionality instead
-                if name == f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type':
-                    name_dict[DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name']] = None
-                    name_dict[DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name']] = None
-                    name_dict[DiagnosticsBase.calculated_diagnostics['nbr_events']['name']] = None
-                    continue
-                if f'{DIAGNOSTICS_PREFIX}state_errors.' in name:
-                    state_name = name.replace(f'{DIAGNOSTICS_PREFIX}state_errors.', '')
-                    name_dict["{}.{}".format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name'], state_name)] = None
-                if name == f'{DIAGNOSTICS_PREFIX}cpu_time_per_step':
-                    name_dict[f'{DIAGNOSTICS_PREFIX}cpu_time'] = None
-
+                if name.startswith(DIAGNOSTICS_PREFIX):
+                    name_dict_diags[name] = None
+            self._calc_diags_names = {k: None for k in self._calc_diags_utils.setup_calculated_diagnostics_variables(name_dict_diags)}
+            name_dict.update(self._calc_diags_names)
+        
         return name_dict
 
     def _can_use_partial_cache(self, start_index: int, stop_index: Union[int, None]):
@@ -1494,6 +1492,56 @@ class ResultDymolaBinary(ResultDymola):
 
         return factor, data_index, data_mat
 
+    def _get_calculated_diags_trajectory(self, name: str) -> np.ndarray:
+        """Get trajectory values for a calculated diagnostic variable by name."""
+        if (name in [
+                    f"{DIAGNOSTICS_PREFIX}nbr_events",
+                    f"{DIAGNOSTICS_PREFIX}nbr_time_events",
+                    f"{DIAGNOSTICS_PREFIX}nbr_state_events",
+                    f"{DIAGNOSTICS_PREFIX}nbr_steps",
+                    ]
+            ):
+            return self._get_calculated_diagnostics_events_and_steps(name)
+        elif name.startswith(f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step"):
+            return self._get_calculated_diagnostics_nbr_state_limits_step(name)
+        elif name == f"{DIAGNOSTICS_PREFIX}cpu_time":
+            return self._get_calculated_diagnostics_cpu_time()
+        else:
+            raise KeyError("Unknown calculated diagnostics variable requested.")
+
+    def _get_calculated_diagnostics_events_and_steps(self, name : str) -> np.ndarray:
+        """Get trajectory values for a calculated event/steps related diagnostic variable by name."""
+        if name in self._data_3:
+            return self._data_3[name]
+        steps_name = f"{DIAGNOSTICS_PREFIX}nbr_steps"
+        try:
+            event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
+        except Exception:
+            # can still calculate steps, even without event_type
+            if name == steps_name:
+                self._data_3[steps_name] = np.array(range(len(self._get_diagnostics_trajectory(0))))
+                return self._data_3[name]
+            raise
+        
+        for calc_diag_name, vals in DynamicDiagnosticsUtils.get_events_and_steps(event_type_data).items():
+            self._data_3[calc_diag_name] = vals
+        return self._data_3[name]
+
+    def _get_calculated_diagnostics_nbr_state_limits_step(self, name: str) -> np.ndarray:
+        """Get trajectory values for a calculated step-size limitation related diagnostic variable by name."""
+        if name in self._data_3:
+            return self._data_3[name]
+        prefix = f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step."
+        state_name = name[len(prefix):]
+        event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
+        state_error_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}state_errors.{state_name}').x
+        self._data_3[name] = DynamicDiagnosticsUtils.get_nbr_state_limits(event_type_data, state_error_data)
+        return self._data_3[name]
+
+    def _get_calculated_diagnostics_cpu_time(self) -> np.ndarray:
+        """Get trajectory values for cumulative CPU time."""
+        return DynamicDiagnosticsUtils.get_cpu_time(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x)
+
     def _get_variable_data_as_trajectory(self,
                                          name: str,
                                          time: Union[Trajectory, None] = None,
@@ -1533,27 +1581,8 @@ class ResultDymolaBinary(ResultDymola):
 
         if name == 'time' or name == 'Time':
             return Trajectory(time, time)
-        # TODO: something more general for computed diagnostics here
-        elif self._contains_diagnostic_data and (
-                name in [
-                    DiagnosticsBase.calculated_diagnostics['nbr_events']['name'],
-                    DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name'],
-                    DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name'],
-                    DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']]
-            ):
-            return Trajectory(
-                time, self._calculate_events_and_steps(name)[start_index:stop_index]) # TODO: Replace
-        elif self._contains_diagnostic_data and (
-                f"{DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']}." in name
-            ):
-            return Trajectory(
-                time, self._calculate_nbr_state_limits_step(name)[start_index:stop_index]) # TODO: Replace
-        # TODO: something more general for computed diagnostics here
-        elif self._contains_diagnostic_data and (
-                name == f'{DIAGNOSTICS_PREFIX}cpu_time'
-            ):
-            return Trajectory(
-                time, np.cumsum(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x)[start_index:stop_index])
+        elif self._contains_diagnostic_data and name in self._calc_diags_names:
+            return Trajectory(time, self._get_calculated_diags_trajectory(name)[start_index:stop_index])
 
         factor, data_index, data_mat = self._map_index_to_data_properties(name)
 
@@ -1675,66 +1704,6 @@ class ResultDymolaBinary(ResultDymola):
         """
         return max([0] + [len(t.x) for v, t in trajectories.items() if self.is_variable(v)])
 
-    def _update_calculated_diagnostics_events_and_steps(self) -> None:
-        pass
-
-    def _update_calculated_diagnostics_nbr_state_limits_step(self, name: str) -> None:
-        pass
-
-    def _update_calculated_diagnostics_cpu_time(self) -> None:
-        pass
-
-    def _calculate_events_and_steps(self, name):
-        if name in self._data_3:
-            return self._data_3[name]
-        all_events_name = DiagnosticsBase.calculated_diagnostics['nbr_events']['name']
-        time_events_name = DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name']
-        state_events_name = DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name']
-        steps_name = DiagnosticsBase.calculated_diagnostics['nbr_steps']['name']
-        try:
-            event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type')
-        except Exception:
-            if name == steps_name:
-                self._data_3[steps_name] = np.array(range(len(self._get_diagnostics_trajectory(0))))
-                return self._data_3[name]
-        self._data_3[all_events_name] = np.zeros(len(event_type_data.x))
-        self._data_3[time_events_name] = np.zeros(len(event_type_data.x))
-        self._data_3[state_events_name] = np.zeros(len(event_type_data.x))
-        self._data_3[steps_name] = np.zeros(len(event_type_data.x))
-        nof_events = 0
-        nof_time_events = 0
-        nof_state_events = 0
-        nof_steps = 0
-        for ind, etype in enumerate(event_type_data.x):
-            if etype == 1:
-                nof_events += 1
-                nof_time_events += 1
-            elif etype == 0:
-                nof_state_events += 1
-                nof_events += 1
-            else:
-                nof_steps += 1
-            self._data_3[all_events_name][ind] = nof_events
-            self._data_3[time_events_name][ind] = nof_time_events
-            self._data_3[state_events_name][ind] = nof_state_events
-            self._data_3[steps_name][ind] = nof_steps
-        return self._data_3[name]
-
-    def _calculate_nbr_state_limits_step(self, name):
-        if name in self._data_3:
-            return self._data_3[name]
-        step_limitation_name = '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name'])
-        state_name = name.replace(step_limitation_name, '')
-        state_error_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}state_errors.'+state_name)
-        event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type')
-        self._data_3[name] = np.zeros(len(event_type_data.x))
-        nof_times_state_limits_step = 0
-        for ind, state_error in enumerate(state_error_data.x):
-            if event_type_data.x[ind] == -1 and state_error >= 1.0:
-                nof_times_state_limits_step += 1
-            self._data_3[name][ind] = nof_times_state_limits_step
-        return self._data_3[name]
-
     def is_variable(self, name):
         """
         Returns True if the given name corresponds to a time-varying variable.
@@ -1750,14 +1719,7 @@ class ResultDymolaBinary(ResultDymola):
         """
         if name == 'time' or name== 'Time':
             return True
-        # TODO something more general on calculated diagnostics here
-        elif name in [DiagnosticsBase.calculated_diagnostics['nbr_events']['name'],
-                      DiagnosticsBase.calculated_diagnostics['nbr_time_events']['name'],
-                      DiagnosticsBase.calculated_diagnostics['nbr_state_events']['name'],
-                      DiagnosticsBase.calculated_diagnostics['nbr_steps']['name'],
-                      f'{DIAGNOSTICS_PREFIX}cpu_time']:
-            return True
-        elif '{}.'.format(DiagnosticsBase.calculated_diagnostics['nbr_state_limits_step']['name']) in name:
+        elif name in self._calc_diags_names:
             return True
 
         variable_index  = self.get_variable_index(name)
