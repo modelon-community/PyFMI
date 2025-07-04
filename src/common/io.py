@@ -1669,7 +1669,7 @@ class ResultDymolaBinary(ResultDymola):
         elif name == f"{DIAGNOSTICS_PREFIX}cpu_time":
             return self._get_calculated_diagnostics_cpu_time()
         else:
-            raise KeyError("Unknown calculated diagnostics variable requested.")
+            raise KeyError(f"Unknown calculated diagnostics variable of name '{name}' requested.")
 
     def _get_calculated_diagnostics_events_and_steps(self, name : str) -> np.ndarray:
         """Get trajectory values for a calculated event/steps related diagnostic variable by name."""

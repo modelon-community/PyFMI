@@ -154,9 +154,8 @@ class TestDynamicDiagnosticsUtils:
 
         n_points = len(diagnostics_vars[f"{DIAGNOSTICS_PREFIX}cpu_time_per_step"]) - 1 # -1 to adjust for start
         # loop over points and build trajectories
-        for i in range(n_points):
-            idx = i + 1 # adjust for start
-            diags_input = np.array([v[idx] for v in diagnostics_vars.values()])
+        for i in range(1, n_points + 1):
+            diags_input = np.array([v[i] for v in diagnostics_vars.values()])
             calc_diags_point = dyn_diags_util.get_calculated_diagnostics_point(diags_input)
             for p, calc_diag_name in zip(calc_diags_point, calc_diags_points):
                 calc_diags_points[calc_diag_name].append(p)

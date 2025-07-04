@@ -169,7 +169,7 @@ class DynamicDiagnosticsUtils:
     
     @classmethod
     def get_cpu_time(cls, cpu_time_per_step: np.ndarray) -> np.ndarray:
-        """"Given cpu_time_per_step, return cumulative CPU time."""
+        """Given cpu_time_per_step, return cumulative CPU time."""
         return np.cumsum(cpu_time_per_step)
     
     @classmethod
