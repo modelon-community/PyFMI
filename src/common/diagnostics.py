@@ -40,14 +40,31 @@ class DynamicDiagnosticsUtils:
     """Utility functionality for additional diagnostics variables calculated from 
     diagnostics data produced from using 'dynamic_diagnostics'.
     
-    This class contains functionality to explicitly store these on a per-point basis and
-    class-methods to perform the same calculations for trajectories."""
+    This class contains functionality to explicitly compute and store these on a 
+    per-point basis and class-methods to perform the same calculations for trajectories.
+    
+    Minimal example for result handler using this class:
+
+    class ResultStoreCalcDiagnostics(ResultHandler):
+        def __init__(self, model = None):
+            super().__init__(model)
+            self.supports['dynamic_diagnostics'] = True
+            self._diags_util = DynamicDiagnosticsUtils()
+        def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
+            calc_diag_vars = self._diags_util.setup_calculated_diagnostics_variables(diagnostics_vars)
+            # ... setup appropriate data containers
+        def diagnostics_point(self, diag_data):
+            calculated_diags = self._diags_util.get_calculated_diagnostics_point(diag_data)
+            # ... store diagnostics data
+        # ...
+    """
     def __init__(self):
         self._calc_diags_vars_cache: np.ndarray = np.array([])
     
     def setup_calculated_diagnostics_variables(self, diagnostics_vars: dict) -> dict:
         """
         Get calculated diagnostics variable names, start_values and descriptions.
+        Also sets up some internal mappings used by get_calculated_diagnostics_point.
 
         Parameters::
 
@@ -117,16 +134,16 @@ class DynamicDiagnosticsUtils:
     
     def _get_calc_diags_vars_cache(self) -> np.ndarray:
         return self._calc_diags_vars_cache.copy()
-    def _update_calc_diags_vars_cache(self, val: np.ndarray) -> None:
+    def _set_calc_diags_vars_cache(self, val: np.ndarray) -> None:
         self._calc_diags_vars_cache = val.copy()
     calc_diags_vars_cache = property(
         fget = _get_calc_diags_vars_cache, 
-        fset = _update_calc_diags_vars_cache
+        fset = _set_calc_diags_vars_cache
     )
 
     def get_calculated_diagnostics_point(self, diag_data: np.ndarray) -> np.ndarray:
         """
-        Given a diagnostics_point data, return the calculated diagnostics.
+        Given a diagnostics_point data for a single time-point, return the calculated diagnostics.
         Automatically caches the previous result for computation of calculated diagnostics 
         that are cumulative. 
 
