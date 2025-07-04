@@ -638,7 +638,7 @@ cdef class FMIODE2(cExplicit_Problem):
                     for e in solver.get_weighted_local_errors():
                         diag_data[index] = e
                         index +=1
-                support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="LSODAR" or solver_name=="ImplicitEuler")
+                support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="ExplicitEuler" or solver_name=="LSODAR" or solver_name=="ImplicitEuler")
                 if self._g_nbr > 0 and support_event_indicators:
                     for ei in ev_indicator_values:
                         diag_data[index] = ei
