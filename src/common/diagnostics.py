@@ -134,6 +134,7 @@ class DynamicDiagnosticsUtils:
     
     def _get_calc_diags_vars_cache(self) -> np.ndarray:
         return self._calc_diags_vars_cache.copy()
+
     def _set_calc_diags_vars_cache(self, val: np.ndarray) -> None:
         self._calc_diags_vars_cache = val.copy()
     calc_diags_vars_cache = property(
