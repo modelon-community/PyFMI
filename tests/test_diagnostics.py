@@ -43,7 +43,7 @@ class ResultStoreCalcDiagnostics(ResultHandler):
     def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
         self.diag_params = {k: [v[0]] for k, v in diagnostics_params.items()}
         self.diag_vars = {k: [v[0]] for k, v in diagnostics_vars.items()}
-        self.diags_calc = {k: [v[0]] for k, v in self._diags_aux.setup_calculated_diagnostics_variables(diagnostics_vars).items()}
+        self.diags_calc = {k: [v[0]] for k, v in self._diags_aux.prepare_calculated_diagnostics(diagnostics_vars).items()}
 
     def diagnostics_point(self, diag_data):
         # store ordinary diagnostics data
@@ -95,7 +95,7 @@ class TestDynamicDiagnosticsUtils:
         )
         np.testing.assert_array_equal(
             output[f"{DIAGNOSTICS_PREFIX}nbr_steps"],
-            np.array([1, 2, 2, 3, 3, 3, 3, 3, 3, 4])
+            np.array([0, 1, 1, 2, 2, 2, 2, 2, 2, 3])
         )
 
     def test_get_nbr_state_limits(self):
@@ -122,7 +122,7 @@ class TestDynamicDiagnosticsUtils:
             f"{DIAGNOSTICS_PREFIX}nbr_events":                    np.array([0, 0, 1, 1, 2, 3, 4, 5, 6, 6]),
             f"{DIAGNOSTICS_PREFIX}nbr_time_events":               np.array([0, 0, 0, 0, 1, 2, 2, 2, 3, 3]),
             f"{DIAGNOSTICS_PREFIX}nbr_state_events":              np.array([0, 0, 1, 1, 1, 1, 2, 3, 3, 3]),
-            f"{DIAGNOSTICS_PREFIX}nbr_steps":                     np.array([1, 2, 2, 3, 3, 3, 3, 3, 3, 4]),
+            f"{DIAGNOSTICS_PREFIX}nbr_steps":                     np.array([0, 1, 1, 2, 2, 2, 2, 2, 2, 3]),
             f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step.state_x": np.array([0, 1, 1, 2, 2, 2, 2, 2, 2, 3]),
         }
 
@@ -150,7 +150,7 @@ class TestDynamicDiagnosticsUtils:
         # verify via DynamicDiagnosticsUtils.get_calculated_diagnostics_point
         dyn_diags_util = DynamicDiagnosticsUtils()
         # set start values
-        calc_diags_points = {k: [v[0]] for k, v in dyn_diags_util.setup_calculated_diagnostics_variables(diagnostics_vars).items()}
+        calc_diags_points = {k: [v[0]] for k, v in dyn_diags_util.prepare_calculated_diagnostics(diagnostics_vars).items()}
 
         n_points = len(diagnostics_vars[f"{DIAGNOSTICS_PREFIX}cpu_time_per_step"]) - 1 # -1 to adjust for start
         # loop over points and build trajectories
@@ -216,3 +216,10 @@ class TestDynamicDiagnosticsUtils:
                 res_test[traj_name], 
                 res_binary[traj_name],
                 err_msg = f"{traj_name} not equal")
+            
+    def test_nbr_steps_consistency(self):
+        """Test @Diagnostics.nbr_steps is consistent with the solver statistics."""
+        model = load_fmu(FMI2_REF_FMU_PATH / "Dahlquist.fmu")
+        res = model.simulate(options = {"dynamic_diagnostics": True})
+
+        assert res["@Diagnostics.nbr_steps"][-1] == res.solver.statistics['nsteps']

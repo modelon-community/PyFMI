@@ -51,7 +51,7 @@ class DynamicDiagnosticsUtils:
             self.supports['dynamic_diagnostics'] = True
             self._diags_util = DynamicDiagnosticsUtils()
         def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
-            calc_diag_vars = self._diags_util.setup_calculated_diagnostics_variables(diagnostics_vars)
+            calc_diag_vars = self._diags_util.prepare_calculated_diagnostics(diagnostics_vars)
             # ... setup appropriate data containers
         def diagnostics_point(self, diag_data):
             calculated_diags = self._diags_util.get_calculated_diagnostics_point(diag_data)
@@ -61,7 +61,7 @@ class DynamicDiagnosticsUtils:
     def __init__(self):
         self._calc_diags_vars_cache: np.ndarray = np.array([])
     
-    def setup_calculated_diagnostics_variables(self, diagnostics_vars: dict) -> dict:
+    def prepare_calculated_diagnostics(self, diagnostics_vars: dict) -> dict:
         """
         Get calculated diagnostics variable names, start_values and descriptions.
         Also sets up some internal mappings used by get_calculated_diagnostics_point.
@@ -82,15 +82,17 @@ class DynamicDiagnosticsUtils:
             f"{DIAGNOSTICS_PREFIX}nbr_events"      : (0, "Cumulative number of events"),
             f"{DIAGNOSTICS_PREFIX}nbr_time_events" : (0, "Cumulative number of time events"),
             f"{DIAGNOSTICS_PREFIX}nbr_state_events": (0, "Cumulative number of state events"),
-            f"{DIAGNOSTICS_PREFIX}nbr_steps"       : (1, "Cumulative number of steps"), # XXX: is 1 as start actually correct?
+            f"{DIAGNOSTICS_PREFIX}nbr_steps"       : (0, "Cumulative number of steps"),
         }
+
+        diagnostics_vars_names = list(diagnostics_vars.keys())
 
         # based on states
         description = "Cumulative number of times '{}' limited the step-size."
         start_value = 0
         self._number_states = 0
-        for v in diagnostics_vars.keys():
-            prefix = f'{DIAGNOSTICS_PREFIX}state_errors.'
+        prefix = f'{DIAGNOSTICS_PREFIX}state_errors.'
+        for v in diagnostics_vars_names:
             if v.startswith(prefix):
                 state_name = v[len(prefix):]
                 calc_diags[f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step.{state_name}"] = (start_value, description.format(state_name))
@@ -112,8 +114,6 @@ class DynamicDiagnosticsUtils:
             if key.startswith(f"{DIAGNOSTICS_PREFIX}state_errors."):
                 idx_state_errors = idx
                 break
-
-        diagnostics_vars_names = list(diagnostics_vars.keys())
 
         idx_cpu_time_per_step = None
         if f'{DIAGNOSTICS_PREFIX}cpu_time_per_step' in diagnostics_vars_names:
@@ -137,6 +137,7 @@ class DynamicDiagnosticsUtils:
 
     def _set_calc_diags_vars_cache(self, val: np.ndarray) -> None:
         self._calc_diags_vars_cache = val.copy()
+    
     calc_diags_vars_cache = property(
         fget = _get_calc_diags_vars_cache, 
         fset = _set_calc_diags_vars_cache
@@ -202,7 +203,7 @@ class DynamicDiagnosticsUtils:
             f"{DIAGNOSTICS_PREFIX}nbr_events":       np.cumsum(event_type_data != -1),
             f"{DIAGNOSTICS_PREFIX}nbr_time_events":  np.cumsum(event_type_data == 1),
             f"{DIAGNOSTICS_PREFIX}nbr_state_events": np.cumsum(event_type_data == 0),
-            f"{DIAGNOSTICS_PREFIX}nbr_steps":        np.cumsum(event_type_data == -1),
+            f"{DIAGNOSTICS_PREFIX}nbr_steps":        np.concatenate(([0], np.cumsum(event_type_data[1:] == -1))), # do not count the first point
         }
     
     @classmethod

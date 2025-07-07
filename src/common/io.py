@@ -1350,7 +1350,7 @@ class ResultDymolaBinary(ResultDymola):
                     name = decode(name)
                 if name.startswith(DIAGNOSTICS_PREFIX):
                     name_dict_diags[name] = None
-            self._calc_diags_names = {k: None for k in self._calc_diags_utils.setup_calculated_diagnostics_variables(name_dict_diags)}
+            self._calc_diags_names = {k: None for k in self._calc_diags_utils.prepare_calculated_diagnostics(name_dict_diags)}
             name_dict.update(self._calc_diags_names)
         
         return name_dict
