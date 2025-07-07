@@ -197,3 +197,39 @@ class TestSimulation:
 
         res = fmu.simulate(options = {"ncp": 0})
         assert res.solver.get_statistics()["nstateevents"] > 0
+
+class TestDynamicDiagnostics:
+    """Tests involving simulation of FMI3 FMUs using 'dynamic_diagnostics' == True."""
+    # TODO: These should likely be parameterized and bundled with FMI2 tests
+
+    @pytest.mark.parametrize("fmu_path",
+        [
+            FMI3_REF_FMU_PATH / "VanDerPol.fmu",
+            FMI3_REF_FMU_PATH / "Stair.fmu", # time events
+            FMI3_REF_FMU_PATH / "BouncingBall.fmu", # state events
+        ]
+    )
+    @pytest.mark.parametrize("solver", ["CVode", "Radau5ODE", "ExplicitEuler"])
+    def test_simulate(self, fmu_path, solver):
+        """Test basic simulation and verify the expected result variables exists."""
+        fmu = load_fmu(fmu_path)
+        opts = {
+            "solver": solver,
+            "ncp": 1,
+            "dynamic_diagnostics": True
+        }
+        res = fmu.simulate(options = opts)
+        assert any(res_name.startswith("@Diagnostics.") for res_name in res.keys())
+
+    @pytest.mark.parametrize("atol", [1e-4, [1e-4], np.array([1e-4]), np.array(1e-4), (1e-4)])
+    def test_dynamic_diagnostics_scalar_atol(self, atol):
+        """Test scalar atol + dynamic_diagnostics."""
+        model = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+
+        opts = model.simulate_options()
+        solver = "CVode"
+        opts[f"{solver}_options"]["atol"] = atol
+        opts["dynamic_diagnostics"] = True
+        opts["ncp"] = 1
+
+        model.simulate(options = opts)

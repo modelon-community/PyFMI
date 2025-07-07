@@ -105,7 +105,7 @@ cdef class FMIODE3(cExplicit_Problem):
         # self._with_jacobian = with_jacobian # TODO
         self._with_jacobian = False
 
-        # # If result handler support is available, logging turns into dynamic_diagnostics
+        # If result handler support is available, logging turns into dynamic_diagnostics
         self._logging_as_dynamic_diagnostics = self._logging and result_handler.supports.get("dynamic_diagnostics", False)
         self._number_of_diagnostics_variables = number_of_diagnostics_variables
 
@@ -455,10 +455,10 @@ cdef class FMIODE3(cExplicit_Problem):
                 solver.y = self._model.continuous_states.append(solver.y[-self._extra_f_nbr:])
             else:
                 solver.y = self._model.continuous_states
-
-        # # Get new nominal values.
-        if eInfo.nominalsOfContinuousStatesChanged: # TODO; this can overwrite explicit atol choices?
-            solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
+            # Get new nominal values.
+            if hasattr(solver, "atol"): 
+                # TODO; this can overwrite explicit atol choices?
+                solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
 
         # Check if the simulation should be terminated
         if eInfo.terminateSimulation:
@@ -488,6 +488,7 @@ cdef class FMIODE3(cExplicit_Problem):
                 rhs = self._model.get_derivatives()
 
         if self._logging_as_dynamic_diagnostics:
+            # TODO: quite of few of the basic checks could probably be cached?
             # TODO: Could these be made more efficient by replacing the simple loops via slices or similar?
             diag_data = np.ndarray(self._number_of_diagnostics_variables, dtype=float)
             index = 0
@@ -505,7 +506,7 @@ cdef class FMIODE3(cExplicit_Problem):
                 for e in solver.get_weighted_local_errors():
                     diag_data[index] = e
                     index +=1
-            support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="LSODAR" or solver_name=="ImplicitEuler")
+            support_event_indicators = (solver_name=="CVode" or solver_name=="Radau5ODE" or solver_name=="ExplicitEuler" or solver_name=="LSODAR" or solver_name=="ImplicitEuler")
             if self._g_nbr > 0 and support_event_indicators:
                 ev_indicator_values = self._model.get_event_indicators()
                 for ei in ev_indicator_values:
