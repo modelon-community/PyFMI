@@ -18,7 +18,6 @@
 
 ## This file contains various components for the 'dynamics_diagnostics' options
 
-from pyfmi.fmi2 import FMUModelME2
 import numpy as np
 import numbers
 
@@ -57,7 +56,7 @@ def setup_diagnostics_variables(model, start_time, options, solver_options):
                                     solver_name=="ExplicitEuler"
                                     )
 
-        states_list = model.get_states_list() if isinstance(model, FMUModelME2) else []
+        states_list = model.get_states_list() if callable(getattr(model, "get_states_list", None)) else []
 
         if solver_name != "ExplicitEuler":
             rtol = solver_options.get('rtol', None)
