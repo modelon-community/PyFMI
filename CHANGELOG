@@ -1,5 +1,12 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+    * Added new class `DynamicDiagnosticsUtils` in `pyfmi.common.diagnostics` providing 
+      various utility functions for computing additional diagnostics variables derived 
+      from those stored during simulation with `dynamic_diagnostics = True`. 
+      These computations were previously hard-coded into `ResultDymolaBinary`.
+    * Simulations using `ExplicitEuler` with `dynamic_diagnostics = True` now also 
+      store event indicator values.
+    * Fixed the issue that `@Diagnostics.nbr_steps` was off by one.
 
 --- PyFMI-2.17.4 ---
     * Fixed type annotation issue causing incompatibility with Python < 3.10.
