@@ -88,16 +88,19 @@ class Trajectory:
         self.x = x
 
 class ResultStorage:
-    pass
-
-    def get_variable_data(self, key):
+    """Base class representing a simulation result."""
+    def get_variable_names(self) -> list[str]:
+        """Retrieve the names of the variables stored in this class."""
+        raise NotImplementedError
+    
+    def get_variable_data(self, name: str) -> Trajectory:
+        """Retrieve a single trajectory by variables name."""
+        raise NotImplementedError
+    
+    def get_variable_data_multi(self, names: list[str]) -> dict[str, Trajectory]:
+        """Retrieve multiple trajectories, given a dictionary of variables trajectories."""
         raise NotImplementedError
 
-    def is_variable(self, var):
-        raise NotImplementedError
-
-    def is_negated(self, var):
-        raise NotImplementedError
 
 class ResultHandler:
     def __init__(self, model = None):
@@ -146,30 +149,32 @@ class ResultHandler:
         """
         pass
 
-    def set_options(self, options = None):
+    def set_options(self, options = None) -> None:
         """
         Options are the options dictionary provided to the simulation
         method.
         """
         self.options = options
 
-    def get_result(self):
+    def get_result(self) -> ResultStorage:
         """
         Method for retrieving the result. This method should return a
-        result of an instance of ResultStorage or of an instance of a
-        subclass of ResultStorage.
+        result of an instance of ResultStorage.
         """
         raise NotImplementedError
 
-class ResultDymola:
+class ResultDymola(ResultStorage):
     """
     Base class for representation of a result file.
     """
 
-    def _get_name(self):
+    def _get_name(self) -> list[str]:
         return [decode(n) for n in self.name_lookup.keys()]
 
     name = property(fget = _get_name)
+
+    def get_variable_names(self) -> list[str]:
+        return self._get_name()
 
     def get_variable_index(self,name):
         """
@@ -314,7 +319,7 @@ class ResultDymola:
         else: # Variable was not a derivative variable
             return name
 
-class ResultCSVTextual:
+class ResultCSVTextual(ResultStorage):
     """ Class representing a simulation or optimization result loaded from a CSV-file. """
     def __init__(self, filename, delimiter=";"):
         """
@@ -362,7 +367,7 @@ class ResultCSVTextual:
 
         self.data = np.array(data)
 
-    def get_variable_data(self,name):
+    def get_variable_data(self, name: str) -> Trajectory:
         """
         Retrieve the data sequence for a variable with a given name.
 
@@ -814,7 +819,7 @@ class ResultStorageMemory(ResultDymola):
         for i,ref in enumerate(real_val_ref+integer_val_ref+boolean_val_ref):
             self.data[ref] = data[:,i+1]
 
-    def get_variable_data(self,name):
+    def get_variable_data(self, name: str) -> Trajectory:
         """
         Retrieve the data sequence for a variable with a given name.
 
@@ -1012,7 +1017,7 @@ class ResultDymolaTextual(ResultDymola):
             raise JIOError("The result does not seem to be of a supported format.")
         return tmp[2].partition(',')
 
-    def get_variable_data(self,name):
+    def get_variable_data(self, name: str) -> Trajectory:
         """
         Retrieve the data sequence for a variable with a given name.
 
@@ -1292,6 +1297,10 @@ class ResultDymolaBinary(ResultDymola):
         self._data_1      = None
         self._mtime       = None if self._is_stream else os.path.getmtime(self._fname)
         self._data_sections = data_sections
+
+    def get_variable_data_multi(self, names: list[str]) -> dict[str, Trajectory]:
+        return self.get_variables_data(names = names)[0]
+
 
     def _update_data_info(self):
         """
@@ -1854,11 +1863,9 @@ class ResultHandlerMemory(ResultHandler):
             verify_result_size("", self._first_point, current_size, previous_size, max_size, self.options["ncp"], self.model.time)
             self._first_point = False
 
-    def get_result(self):
+    def get_result(self) -> ResultStorageMemory:
         """
-        Method for retrieving the result. This method should return a
-        result of an instance of ResultBase or of an instance of a
-        subclass of ResultBase.
+        Method for retrieving the result.
         """
         t = np.array(self.time_sol)
         r = np.array(self.real_sol)
@@ -2050,11 +2057,9 @@ class ResultHandlerCSV(ResultHandler):
             self._file.close()
             self.file_open = False
 
-    def get_result(self):
+    def get_result(self) -> ResultCSVTextual:
         """
-        Method for retrieving the result. This method should return a
-        result of an instance of ResultBase or of an instance of a
-        subclass of ResultBase.
+        Method for retrieving the result.
         """
         return ResultCSVTextual(self.file_name, self.delimiter)
 
@@ -2499,7 +2504,7 @@ class ResultHandlerFile(ResultHandler):
                 f.close()
             self.file_open = False
 
-    def get_result(self):
+    def get_result(self) -> ResultDymolaTextual:
         """
         Method for retrieving the result. This method should return a
         result of an instance of ResultBase or of an instance of a
@@ -2508,7 +2513,7 @@ class ResultHandlerFile(ResultHandler):
         return ResultDymolaTextual(self.file_name if not self._is_stream else self._file)
 
 class ResultHandlerDummy(ResultHandler):
-    def get_result(self):
+    def get_result(self) -> None:
         return None
 
 class JIOError(Exception):
@@ -2917,7 +2922,7 @@ class ResultHandlerBinaryFile(ResultHandler):
                 f.close()
             self._file = None
 
-    def get_result(self):
+    def get_result(self) -> ResultDymolaBinary:
         """
         Method for retrieving the result. This method should return a
         result of an instance of ResultBase or of an instance of a
