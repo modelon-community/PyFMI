@@ -121,7 +121,11 @@ for x in sys.argv[1:]:
         copy_args[copy_args.index(x)] = x.replace('/',os.sep)
     if not x.find('--fmil-home'):
         incdirs = [os.path.join(x[12:],'include')]
-        libdirs = [os.path.join(x[12:],'lib'), os.path.join(x[12:],'lib64')]
+        libdirs = [
+            os.path.join(x[12:],'lib'),
+            os.path.join(x[12:],'lib64'),
+            os.path.join(x[12:], 'lib', 'x86_64-linux-gnu'),
+        ]
         bindirs = [os.path.join(x[12:],'bin')]
         copy_args.remove(x)
     if not x.find('--fmil-name'):
