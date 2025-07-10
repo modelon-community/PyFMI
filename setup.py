@@ -111,6 +111,8 @@ static_link_gcc = "-static-libgcc"
 flag_32bit = "-m32"
 extra_c_flags = ""
 
+is_windows = sys.platform.startswith("win")
+
 # Fix path sep
 for x in sys.argv[1:]:
     if not x.find('--prefix'):
@@ -169,29 +171,37 @@ if not incdirs:
         " specify it using the environment variable FMIL_HOME."
     )
 
+def find_dynamic_fmil_library():
+    """
+        Check to see if FMILIB_SHARED exists and if so copy it, otherwise raise exception.
+    """
+    dirs_to_search = libdirs + bindirs
+    for path_to_dir in dirs_to_search:
+        path_to_dir = os.path.abspath(path_to_dir)
+
+        if not os.path.exists(path_to_dir):
+            continue
+
+        for file_name in os.listdir(path_to_dir):
+            full_path = os.path.join(path_to_dir, file_name)
+            if fmil_name in file_name and not file_name.endswith(".a"):
+                return shutil.copy2(full_path, os.path.join(".", "src", "pyfmi"))
+    raise Exception(
+        f"Could not find shared library '{fmil_name}' at either location:" + \
+            f"\n\t{', '.join(dirs_to_search)}")
+
 if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
 
-    #Check to see if FMILIB_SHARED exists and if so copy it, otherwise raise exception
-    if sys.platform.startswith("win"):
-        dirs_to_search = libdirs + bindirs
-        while dirs_to_search:
-            path_to_dir = os.path.abspath(dirs_to_search.pop())
-            for file_name in os.listdir(path_to_dir):
-                full_path = os.path.join(path_to_dir, file_name)
-                if "fmilib_shared" in file_name and not file_name.endswith(".a"):
-                    fmilib_shared = shutil.copy2(full_path, os.path.join(".", "src", "pyfmi"))
-                    dirs_to_search = None
-                    break
-        if not fmilib_shared:
-            raise Exception(
-                f"Could not find shared library 'fmilib_shared' at either location:" + \
-                    f"\n\t{', '.join(dirs_to_search)}")
+    use_dynamic_fmil_library = fmil_name.endswith("shared")
 
-        if copy_gcc_lib:
-            path_gcc_lib = ctypes.util.find_library("libgcc_s_dw2-1.dll")
-            if path_gcc_lib is not None:
-                shutil.copy2(path_gcc_lib,os.path.join(".","src","pyfmi"))
-                gcc_lib = os.path.join(".","src","pyfmi","libgcc_s_dw2-1.dll")
+    if use_dynamic_fmil_library:
+        fmil_shared = find_dynamic_fmil_library()
+
+    if is_windows and copy_gcc_lib:
+        path_gcc_lib = ctypes.util.find_library("libgcc_s_dw2-1.dll")
+        if path_gcc_lib is not None:
+            shutil.copy2(path_gcc_lib,os.path.join(".", "src", "pyfmi"))
+            gcc_lib = os.path.join(".", "src", "pyfmi", "libgcc_s_dw2-1.dll")
 
 if no_msvcr:
     # prevent the MSVCR* being added to the DLLs passed to the linker
@@ -279,7 +289,7 @@ def check_extensions():
                     include_path = incl_path,
                     compile_time_env=compile_time_env,
                     compiler_directives={'language_level' : "3str"})
-    
+
     # UTILITIES
     ext_list += cythonize([os.path.join("src", "pyfmi", "util.pyx")],
                     include_path = incl_path,
@@ -289,6 +299,12 @@ def check_extensions():
     ext_list += cythonize([os.path.join("src", "pyfmi", "test_util.pyx")],
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
+
+    if use_dynamic_fmil_library and (not is_windows):
+        # Since we install the dynamic lib of FMIL into the Package
+        # LD_LIBRARY_PATH is checked first for dynamic lib of FMIL
+        # RPATH is second
+        extra_link_flags += ['-Wl,-rpath,$ORIGIN']
 
     for i in range(len(ext_list)):
 
@@ -330,7 +346,7 @@ except Exception:
     revision = "unknown"
 version_txt = os.path.join('src', 'pyfmi', 'version.txt')
 
-#If a revision is found, always write it!
+# If a revision is found, always write it!
 if revision != "unknown" and revision!="":
     with open(version_txt, 'w') as f:
         f.write(VERSION+'\n')
@@ -346,8 +362,8 @@ try:
     shutil.copy2('CHANGELOG', os.path.join('src', 'pyfmi', 'CHANGELOG'))
 except Exception:
     pass
-extra_package_data = ['*fmilib_shared*'] if sys.platform.startswith("win") else []
-extra_package_data += ['libgcc_s_dw2-1.dll'] if copy_gcc_lib else []
+extra_package_data = [f'*{fmil_name}*']
+extra_package_data += ['libgcc_s_dw2-1.dll'] if is_windows and copy_gcc_lib else []
 
 setup(name=NAME,
       version=VERSION,
@@ -386,9 +402,9 @@ setup(name=NAME,
       )
 
 
-#Dont forget to delete fmilib_shared
+# Dont forget to delete fmilib_shared
 if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
-    if sys.platform.startswith("win"):
+    if use_dynamic_fmil_library:
         if os.path.exists(fmilib_shared):
             os.remove(fmilib_shared)
         if gcc_lib and os.path.exists(gcc_lib):
