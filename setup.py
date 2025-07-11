@@ -17,6 +17,7 @@
 
 import os
 import shutil
+import sysconfig
 import numpy as np
 import ctypes.util
 import sys
@@ -169,7 +170,7 @@ for x in sys.argv[1:]:
         libdirs = [
             os.path.join(x[12:],'lib'),
             os.path.join(x[12:],'lib64'),
-            os.path.join(x[12:], 'lib', 'x86_64-linux-gnu'),
+            os.path.join(x[12:], 'lib', sysconfig.get_config_var('MULTIARCH')),
         ]
         bindirs = [os.path.join(x[12:],'bin')]
         copy_args.remove(x)
@@ -231,7 +232,7 @@ def find_dynamic_fmil_library():
                 return full_path
 
     raise Exception(
-        f"Could not find shared library '{fmil_name}' at either location:" + \
+        f"Could not find shared library '{fmil_name}' at either locations:" + \
             f"\n\t{', '.join(dirs_to_search)}")
 
 if 0 != sys.argv[1].find("clean"): # Dont check if we are cleaning!
