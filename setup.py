@@ -28,7 +28,6 @@ except ImportError:
     from setuptools import setup
     have_nd = False
 
-from Cython.Distutils import build_ext
 from Cython.Build import cythonize
 
 
@@ -82,6 +81,52 @@ Source Installation (note that assimulo needs to be installed and on PYTHONPATH 
 
 python setup.py install --fmil-home=/path/to/FMI_Library/
 
+
+Dynamic FMI Library Handling in PyFMI Build Process
+===================================================
+
+PyFMI depends on the FMI Library (FMIL) for core functionality. Users can choose
+between static or dynamic linking via the --fmil-name build argument (default: 'fmilib_shared').
+
+When building with dynamic FMIL, the behavior varies by platform and build type:
+
+Platform-Specific Dynamic Library Handling:
+-------------------------------------------
+
+**Windows Builds:**
+- Dynamic FMIL library (.dll) is automatically copied into the PyFMI package directory
+- Creates a self-contained installation with no external library dependencies
+- End users don't need separate FMIL installation or PATH configuration
+
+**Linux Standard Installation:**
+- PyFMI extensions are linked with RPATH pointing to original FMIL location
+- Dynamic library remains in its system installation directory
+- Requires FMIL to remain accessible at the configured path during runtime
+- Suitable for system-wide installations with centralized FMIL management
+- Smaller PyFMI package size due to external library reference
+
+**Linux Wheel Builds:**
+- Dynamic FMIL library is copied into the PyFMI package (similar to Windows)
+- RPATH set to '$ORIGIN' for relative library loading
+- Creates portable, self-contained wheels for distribution
+- No external FMIL dependency required at runtime
+
+**Static Library Alternative:**
+- When using static FMIL (--fmil-name without 'shared' suffix):
+- Library code is embedded directly into PyFMI extensions
+- Larger package size but completely self-contained
+- No runtime library dependencies
+
+Build Process Flow:
+------------------
+1. Locate FMIL library in specified directories (lib/, lib64/, bin/)
+2. For dynamic libraries on Windows or wheel builds: copy to package directory
+3. Configure appropriate RPATH settings for Linux installations
+4. Build Cython extensions with proper library linking
+5. Clean up temporary library copies after successful build
+
+This approach ensures PyFMI works correctly across different deployment scenarios
+while optimizing for each platform's conventions and user expectations.
 """
 
 copy_args = sys.argv[1:]
@@ -112,7 +157,7 @@ flag_32bit = "-m32"
 extra_c_flags = ""
 
 is_windows = sys.platform.startswith("win")
-
+is_wheel_build = 'bdist_wheel' in sys.argv
 # Fix path sep
 for x in sys.argv[1:]:
     if not x.find('--prefix'):
@@ -136,11 +181,7 @@ for x in sys.argv[1:]:
             copy_gcc_lib = True
         copy_args.remove(x)
     if not x.find('--static'):
-        static = x[9:]
-        if x[9:].upper() == "TRUE":
-            static = True
-        else:
-            static = False
+        static = x[9:].upper() == "TRUE"
         copy_args.remove(x)
     if not x.find('--force-32bit'):
         if x[14:].upper() == "TRUE":
@@ -176,9 +217,7 @@ if not incdirs:
     )
 
 def find_dynamic_fmil_library():
-    """
-        Check to see if FMILIB_SHARED exists and if so copy it, otherwise raise exception.
-    """
+    """ Find the dynamic library of FMIL. """
     dirs_to_search = libdirs + bindirs
     for path_to_dir in dirs_to_search:
         path_to_dir = os.path.abspath(path_to_dir)
@@ -189,23 +228,30 @@ def find_dynamic_fmil_library():
         for file_name in os.listdir(path_to_dir):
             full_path = os.path.join(path_to_dir, file_name)
             if fmil_name in file_name and not file_name.endswith(".a"):
-                return shutil.copy2(full_path, os.path.join(".", "src", "pyfmi"))
+                return full_path
+
     raise Exception(
         f"Could not find shared library '{fmil_name}' at either location:" + \
             f"\n\t{', '.join(dirs_to_search)}")
 
-if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
+if 0 != sys.argv[1].find("clean"): # Dont check if we are cleaning!
 
-    use_dynamic_fmil_library = fmil_name.endswith("shared")
+    use_dynamic_fmil_library = fmil_name.endswith("shared") # this should be improved in a future release
 
+    remove_copied_fmil = False
     if use_dynamic_fmil_library:
         fmil_shared = find_dynamic_fmil_library()
+
+        if is_windows or is_wheel_build:
+            # Copy the fmil library to current directory
+            shutil.copy2(fmil_shared, os.path.join(".", "src", "pyfmi"))
+            remove_copied_fmil = True
+
 
     if is_windows and copy_gcc_lib:
         path_gcc_lib = ctypes.util.find_library("libgcc_s_dw2-1.dll")
         if path_gcc_lib is not None:
-            shutil.copy2(path_gcc_lib,os.path.join(".", "src", "pyfmi"))
-            gcc_lib = os.path.join(".", "src", "pyfmi", "libgcc_s_dw2-1.dll")
+            gcc_lib = shutil.copy2(path_gcc_lib,os.path.join(".", "src", "pyfmi"))
 
 if no_msvcr:
     # prevent the MSVCR* being added to the DLLs passed to the linker
@@ -304,11 +350,13 @@ def check_extensions():
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
 
-    if use_dynamic_fmil_library and (not is_windows):
-        # Since we install the dynamic lib of FMIL into the Package
-        # LD_LIBRARY_PATH is checked first for dynamic lib of FMIL
-        # RPATH is second
-        extra_link_flags += ['-Wl,-rpath,$ORIGIN']
+    if not is_windows:
+        if use_dynamic_fmil_library:
+            if is_wheel_build:
+                extra_link_flags += ['-Wl,-rpath,$ORIGIN']
+            else:
+                extra_link_flags += [f'-Wl,-rpath,{os.path.dirname(fmil_shared)}']
+
 
     for i in range(len(ext_list)):
 
@@ -405,11 +453,8 @@ setup(name=NAME,
       script_args=copy_args
       )
 
-
-# Dont forget to delete fmilib_shared
-if 0 != sys.argv[1].find("clean"): #Dont check if we are cleaning!
-    if use_dynamic_fmil_library:
-        if os.path.exists(fmilib_shared):
-            os.remove(fmilib_shared)
-        if gcc_lib and os.path.exists(gcc_lib):
-            os.remove(gcc_lib)
+if 0 != sys.argv[1].find("clean"): # Dont check if we are cleaning!
+    if remove_copied_fmil:
+        os.remove(fmil_shared)
+    if gcc_lib and os.path.exists(gcc_lib):
+        os.remove(gcc_lib)
