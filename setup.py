@@ -244,8 +244,8 @@ if 0 != sys.argv[1].find("clean"): # Dont check if we are cleaning!
         fmil_shared = find_dynamic_fmil_library()
 
         if is_windows or is_wheel_build:
-            # Copy the fmil library to current directory
-            shutil.copy2(fmil_shared, os.path.join(".", "src", "pyfmi"))
+            # Copy the fmil library to current directory, point to the location of the copied file
+            fmil_shared = shutil.copy2(fmil_shared, os.path.join(".", "src", "pyfmi"))
             remove_copied_fmil = True
 
 
