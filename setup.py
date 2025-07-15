@@ -164,14 +164,18 @@ for x in sys.argv[1:]:
     if not x.find('--prefix'):
         if not have_nd:
             raise Exception("Cannot specify --prefix without numpy.distutils")
-        copy_args[copy_args.index(x)] = x.replace('/',os.sep)
+        copy_args[copy_args.index(x)] = x.replace('/', os.sep)
     if not x.find('--fmil-home'):
         incdirs = [os.path.join(x[12:],'include')]
         libdirs = [
             os.path.join(x[12:],'lib'),
             os.path.join(x[12:],'lib64'),
-            os.path.join(x[12:], 'lib', sysconfig.get_config_var('MULTIARCH')),
         ]
+
+        multiarch = sysconfig.get_config_var('MULTIARCH')
+        if multiarch:
+            libdirs.append(os.path.join(x[12:], 'lib', multiarch))
+
         bindirs = [os.path.join(x[12:],'bin')]
         copy_args.remove(x)
     if not x.find('--fmil-name'):
