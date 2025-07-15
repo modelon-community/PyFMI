@@ -173,7 +173,7 @@ for x in sys.argv[1:]:
         ]
 
         multiarch = sysconfig.get_config_var('MULTIARCH')
-        if multiarch:
+        if multiarch is not None:
             libdirs.append(os.path.join(x[12:], 'lib', multiarch))
 
         bindirs = [os.path.join(x[12:],'bin')]
