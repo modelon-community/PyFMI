@@ -652,7 +652,6 @@ class VariableTree(wxCustom.CustomTreeCtrl):
             #Python object for storing data related to the variable
             data={}
             data["timevarying"] = None #resultObject.is_variable(item)
-            #data["traj"] = resultObject.get_variable_data(item)
             data["traj"] = resultObject
             data["name"] = item
             data["full_name"] = item
@@ -1611,7 +1610,7 @@ class PlotPanel(wx.Panel):
         self.subplot.clear()
 
         for i in self.plotVariables:
-            traj = i[2]["traj"].get_variable_data(i[2]["full_name"])
+            traj = i[2]["traj"].get_trajectory(i[2]["full_name"])
             if i[3].color is None:
                 #self.subplot.plot(i[2]["traj"].t, i[2]["traj"].x,label=i[3].name,linewidth=i[3].width,marker=i[3].marker,linestyle=i[3].style,markersize=i[3].markersize)
                 self.subplot.plot(traj.t, traj.x,label=i[3].name,linewidth=i[3].width,marker=i[3].marker,linestyle=i[3].style,markersize=i[3].markersize)

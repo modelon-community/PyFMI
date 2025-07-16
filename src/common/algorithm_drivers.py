@@ -156,7 +156,7 @@ class JMResultBase(ResultBase):
         """
         Returns the variable names in the result file.
         """
-        return self.result_data.name
+        return self.result_data.get_variable_names()
     
     def __getitem__(self, key):
         """
@@ -168,12 +168,12 @@ class JMResultBase(ResultBase):
             key --
                 Name of the variable/parameter/constant.
         """
-        val_x = self.result_data.get_variable_data(key).x
+        val_x = self.result_data.get_trajectory(key).x
         
         if self.result_data.is_variable(key):
             return val_x
             
-        time = self.result_data.get_variable_data('time')
+        time = self.result_data.get_trajectory('time')
         return val_x[0].repeat(len(time.t))
         
     def final(self, key):
@@ -185,7 +185,7 @@ class JMResultBase(ResultBase):
             key --
                 Name of the variable/parameter/constant.
         """
-        val_x = self.result_data.get_variable_data(key).x
+        val_x = self.result_data.get_trajectory(key).x
         return val_x[-1]
         
     def initial(self, key):
@@ -197,7 +197,7 @@ class JMResultBase(ResultBase):
             key --
                 Name of the variable/parameter/constant.
         """
-        val_x = self.result_data.get_variable_data(key).x
+        val_x = self.result_data.get_trajectory(key).x
         return val_x[0]
         
     def is_variable(self, name):
