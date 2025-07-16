@@ -94,8 +94,8 @@ class TestResultFileText_Simulation:
 
         result = ResultDymolaTextual(result_file_name)
 
-        x = result.get_variable_data("x").x
-        y = result.get_variable_data("y").x
+        x = result.get_trajectory("x").x
+        y = result.get_trajectory("y").x
 
         assert len(x) > 2
 
@@ -246,9 +246,8 @@ class TestResultFileText:
 
         res = ResultDymolaTextual(result_file_name)
 
-        h = res.get_variable_data('h')
-        derh = res.get_variable_data('der(h)')
-        g = res.get_variable_data('g')
+        h = res.get_trajectory('h')
+        derh = res.get_trajectory('der(h)')
 
         assert h.x == pytest.approx(1.000000, abs = 1e-5)
         assert derh.x == pytest.approx(0.000000, abs = 1e-5)
@@ -278,9 +277,8 @@ class TestResultFileText:
 
         res = ResultDymolaTextual(result_file_name)
 
-        h = res.get_variable_data('h')
-        derh = res.get_variable_data('der(h)')
-        g = res.get_variable_data('g')
+        h = res.get_trajectory('h')
+        derh = res.get_trajectory('der(h)')
 
         assert h.x == pytest.approx(1.000000, abs = 1e-5)
         assert derh.x == pytest.approx(0.000000, abs = 1e-5)
@@ -403,8 +401,8 @@ class TestResultFileBinary_Simulation:
 
         result = ResultDymolaBinary(result_file_name)
 
-        x = result.get_variable_data("x").x
-        y = result.get_variable_data("y").x
+        x = result.get_trajectory("x").x
+        y = result.get_trajectory("y").x
 
         assert len(x) > 2
 
@@ -632,7 +630,7 @@ class TestResultFileBinary:
 
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
 
-        assert len(res.get_variable_data("@Diagnostics.state_errors.clutch1.w_rel").x) == 2, res.get_variable_data("@Diagnostics.state_errors.clutch1.w_rel").x
+        assert len(res.get_trajectory("@Diagnostics.state_errors.clutch1.w_rel").x) == 2, res.get_trajectory("@Diagnostics.state_errors.clutch1.w_rel").x
 
         time.sleep(0.1)
         result_writer.integration_point()
@@ -640,7 +638,7 @@ class TestResultFileBinary:
         result_writer.diagnostics_point(diag_data)
         result_writer.simulation_end()
 
-        assert len(res.get_variable_data("@Diagnostics.state_errors.clutch2.w_rel").x) == 4, res.get_variable_data("@Diagnostics.state_errors.clutch2.w_rel").x
+        assert len(res.get_trajectory("@Diagnostics.state_errors.clutch2.w_rel").x) == 4, res.get_trajectory("@Diagnostics.state_errors.clutch2.w_rel").x
 
     def test_modified_result_file_data_diagnostics_steps(self):
         """Verify that diagnostics can be retrieved from an updated result file"""
@@ -683,7 +681,7 @@ class TestResultFileBinary:
 
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
 
-        assert len(res.get_variable_data("@Diagnostics.nbr_steps").x) == 2, res.get_variable_data("@Diagnostics.nbr_steps").x
+        assert len(res.get_trajectory("@Diagnostics.nbr_steps").x) == 2, res.get_trajectory("@Diagnostics.nbr_steps").x
 
         time.sleep(0.1)
         result_writer.integration_point()
@@ -691,7 +689,7 @@ class TestResultFileBinary:
         result_writer.diagnostics_point(diag_data)
         result_writer.simulation_end()
 
-        assert len(res.get_variable_data("@Diagnostics.nbr_steps").x) == 4, res.get_variable_data("@Diagnostics.nbr_steps").x
+        assert len(res.get_trajectory("@Diagnostics.nbr_steps").x) == 4, res.get_trajectory("@Diagnostics.nbr_steps").x
 
     def test_modified_result_file_data_2(self):
         """Verify that continuous trajectories are updated when retrieved from a result file"""
@@ -707,13 +705,13 @@ class TestResultFileBinary:
 
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
 
-        assert len(res.get_variable_data("J1.phi").x) == 1, res.get_variable_data("J1.phi").x
+        assert len(res.get_trajectory("J1.phi").x) == 1, res.get_trajectory("J1.phi").x
 
         time.sleep(0.1)
         result_writer.integration_point()
         result_writer.simulation_end()
 
-        assert len(res.get_variable_data("J1.phi").x) == 2, res.get_variable_data("J1.phi").x
+        assert len(res.get_trajectory("J1.phi").x) == 2, res.get_trajectory("J1.phi").x
 
     def test_modified_result_file_data_2_different(self):
         """Verify that (different) continuous trajectories are updated when retrieved from a result file"""
@@ -729,13 +727,13 @@ class TestResultFileBinary:
 
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
 
-        assert len(res.get_variable_data("J1.phi").x) == 1, res.get_variable_data("J1.phi").x
+        assert len(res.get_trajectory("J1.phi").x) == 1, res.get_trajectory("J1.phi").x
 
         time.sleep(0.1)
         result_writer.integration_point()
         result_writer.simulation_end()
 
-        assert len(res.get_variable_data("J2.phi").x) == 2, res.get_variable_data("J2.phi").x
+        assert len(res.get_trajectory("J2.phi").x) == 2, res.get_trajectory("J2.phi").x
 
     def test_modified_result_file_data_1(self):
         """Verify that (different) constants/parameters can be retrieved from an updated result file"""
@@ -752,14 +750,14 @@ class TestResultFileBinary:
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
 
         #Assert that no exception is raised
-        res.get_variable_data("J1.J")
+        res.get_trajectory("J1.J")
 
         time.sleep(0.1)
         result_writer.integration_point()
         result_writer.simulation_end()
 
         #Assert that no exception is raised
-        res.get_variable_data("J2.J")
+        res.get_trajectory("J2.J")
 
     def test_modified_result_file_data_1_delayed(self):
         """Verify that constants/parameters can be retrieved from an updated result file"""
@@ -779,7 +777,7 @@ class TestResultFileBinary:
         result_writer.simulation_end()
 
         #Assert that no exception is raised
-        res.get_variable_data("J2.J")
+        res.get_trajectory("J2.J")
 
     def test_modified_result_file_time(self):
         """Verify that 'time' can be retrieved from an updated result file"""
@@ -795,12 +793,12 @@ class TestResultFileBinary:
 
         res = ResultDymolaBinary('CoupledClutches_result.mat', allow_file_updates=True)
 
-        res.get_variable_data("time")
+        res.get_trajectory("time")
 
         result_writer.integration_point()
         result_writer.simulation_end()
 
-        res.get_variable_data("time")
+        res.get_trajectory("time")
 
     def test_description_not_stored(self):
         model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
@@ -847,15 +845,15 @@ class TestResultFileBinary:
         result_writer.simulation_end()
 
         with pytest.raises(JIOError):
-            res.get_variable_data("J1.phi")
+            res.get_trajectory("J1.phi")
 
     def test_read_all_variables(self):
         res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
 
-        assert len(res.name) == 1097, "Incorrect number of variables found, should be 1097"
+        assert len(res.get_variable_names()) == 1097, "Incorrect number of variables found, should be 1097"
 
-        for var in res.name:
-            res.get_variable_data(var)
+        for var in res.get_variable_names():
+            res.get_trajectory(var)
 
     def test_data_matrix_delayed_loading(self):
         res = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), delayed_trajectory_loading=True)
@@ -882,31 +880,31 @@ class TestResultFileBinary:
         with open(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), "rb") as f:
             res = ResultDymolaBinary(f)
 
-            assert len(res.name) == 1097, "Incorrect number of variables found, should be 1097"
+            assert len(res.get_variable_names()) == 1097, "Incorrect number of variables found, should be 1097"
 
-            for var in res.name:
-                res.get_variable_data(var)
+            for var in res.get_variable_names():
+                res.get_trajectory(var)
 
     def test_compare_all_variables_from_stream(self):
         res_file = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
 
-        assert len(res_file.name) == 1097, "Incorrect number of variables found, should be 1097"
+        assert len(res_file.get_variable_names()) == 1097, "Incorrect number of variables found, should be 1097"
 
         with open(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"), "rb") as f:
             res_stream = ResultDymolaBinary(f)
-            assert len(res_stream.name) == 1097, "Incorrect number of variables found, should be 1097"
+            assert len(res_stream.get_variable_names()) == 1097, "Incorrect number of variables found, should be 1097"
 
-            for var in res_file.name:
-                x_file   = res_file.get_variable_data(var)
-                x_stream = res_stream.get_variable_data(var)
+            for var in res_file.get_variable_names():
+                x_file   = res_file.get_trajectory(var)
+                x_stream = res_stream.get_trajectory(var)
 
                 np.testing.assert_array_equal(x_file.x, x_stream.x, err_msg="Mismatch in array values for var=%s"%var)
 
     def test_on_demand_loading_32_bits(self):
         res_demand = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
         res_all = ResultDymolaBinary(os.path.join(file_path, "files", "Results", "DoublePendulum.mat"))
-        t_demand = res_demand.get_variable_data('time').x
-        t_all = res_all.get_variable_data('time').x
+        t_demand = res_demand.get_trajectory('time').x
+        t_all = res_all.get_trajectory('time').x
         np.testing.assert_array_equal(t_demand, t_all, "On demand loaded result and all loaded does not contain equal result.")
 
     def test_work_flow_me1(self):
@@ -923,9 +921,8 @@ class TestResultFileBinary:
 
         res = ResultDymolaBinary('bouncingBall_result.mat')
 
-        h = res.get_variable_data('h')
-        derh = res.get_variable_data('der(h)')
-        g = res.get_variable_data('g')
+        h = res.get_trajectory('h')
+        derh = res.get_trajectory('der(h)')
 
         assert h.x == pytest.approx(1.000000, abs = 1e-5)
         assert derh.x == pytest.approx(0.000000, abs = 1e-5)
@@ -959,9 +956,8 @@ class TestResultFileBinary:
 
         res = ResultDymolaBinary('bouncingBall_result.mat')
 
-        h = res.get_variable_data('h')
-        derh = res.get_variable_data('der(h)')
-        g = res.get_variable_data('g')
+        h = res.get_trajectory('h')
+        derh = res.get_trajectory('der(h)')
 
         assert h.x[0] == pytest.approx(1.000000, abs = 1e-5)
         assert derh.x[0] == pytest.approx(0.000000, abs = 1e-5)
@@ -988,8 +984,8 @@ class TestResultFileBinary:
 
         res = ResultDymolaBinary(result_file_name)
 
-        h = res.get_variable_data('h')
-        derh = res.get_variable_data('der(h)')
+        h = res.get_trajectory('h')
+        derh = res.get_trajectory('der(h)')
 
         assert h.x[0] == pytest.approx(1.000000, abs = 1e-5), "Incorrect initial value for 'h', should be 1.0"
         assert derh.x[0] == pytest.approx(0.000000, abs = 1e-5), "Incorrect  value for 'derh', should be 0.0"
@@ -1070,7 +1066,7 @@ class TestResultFileBinary:
 
         res = ResultDymolaBinary('bouncingBall_result.mat')
 
-        t = res.get_variable_data('time')
+        t = res.get_trajectory('time')
         assert t.x[-1] == pytest.approx(1.000000, abs = 1e-5)
 
     def test_binary_options_cs2(self):
@@ -1167,9 +1163,9 @@ class TestResultFileBinary:
 
         # Extract data to be veified
         res = ResultDymolaBinary(result_file_name)
-        h = res.get_variable_data('h')
-        derh = res.get_variable_data('der(h)')
-        ev_ind = res.get_variable_data(DIAGNOSTICS_PREFIX+'event_info.state_event_info.index_1').x
+        h = res.get_trajectory('h')
+        derh = res.get_trajectory('der(h)')
+        ev_ind = res.get_trajectory(DIAGNOSTICS_PREFIX+'event_info.state_event_info.index_1').x
 
         # Verify
         assert h.x[0] == pytest.approx(1.000000, abs = 1e-5), "Incorrect initial value for 'h', should be 1.0"
@@ -1486,7 +1482,7 @@ class TestResultCSVTextual:
 
         res = ResultCSVTextual(os.path.join(file_path, 'files', 'Results', 'TestCSV.csv'), delimiter=",")
 
-        x = res.get_variable_data("fd.y")
+        x = res.get_trajectory("fd.y")
 
         assert x.x[-1] == 1
 
@@ -1506,9 +1502,8 @@ class TestResultCSVTextual:
 
         res = ResultCSVTextual('bouncingBall_result.csv')
 
-        h = res.get_variable_data('h')
-        derh = res.get_variable_data('der(h)')
-        g = res.get_variable_data('g')
+        h = res.get_trajectory('h')
+        derh = res.get_trajectory('der(h)')
 
         assert h.x == pytest.approx(1.000000, abs = 1e-5)
         assert derh.x == pytest.approx(0.000000, abs = 1e-5)
@@ -1536,9 +1531,8 @@ class TestResultCSVTextual:
 
         res = ResultCSVTextual(result_file_name)
 
-        h = res.get_variable_data('h')
-        derh = res.get_variable_data('der(h)')
-        g = res.get_variable_data('g')
+        h = res.get_trajectory('h')
+        derh = res.get_trajectory('der(h)')
 
         assert h.x == pytest.approx(1.000000, abs = 1e-5)
         assert derh.x == pytest.approx(0.000000, abs = 1e-5)
@@ -1909,7 +1903,7 @@ class TestResultDymolaBinary:
         assert rdb.get_variables_data([], start_index = 5)[1] == 5
 
     def test_mixes_get_variable_s_data(self):
-        """Test there are no issues when mixing calls of get_variable_data and get_variables_data."""
+        """Test there are no issues when mixing calls of get_trajectory and get_variables_data."""
         fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False)
         ncp = 500
         fmu.simulate(options = {"ncp": ncp})
@@ -1919,7 +1913,7 @@ class TestResultDymolaBinary:
         start_index, stop_index = 0, 5
 
         partial_1, _ = rdb.get_variables_data(vars, start_index, stop_index)
-        full_traj = rdb.get_variable_data(vars[0])
+        full_traj = rdb.get_trajectory(vars[0])
         partial_2, _ = rdb.get_variables_data(vars, start_index, stop_index)
 
         assert len(partial_1[vars[0]].x) == (stop_index - start_index)
@@ -1938,7 +1932,7 @@ class TestResultDymolaBinary:
         fmu.simulate(options = opts)
 
         rdb = ResultDymolaBinary(opts["result_file_name"])
-        cpu_time = rdb.get_variable_data(f"{DIAGNOSTICS_PREFIX}cpu_time").x
+        cpu_time = rdb.get_trajectory(f"{DIAGNOSTICS_PREFIX}cpu_time").x
         cpu_time_2, _ = rdb.get_variables_data([f"{DIAGNOSTICS_PREFIX}cpu_time"])
         cpu_time_2 = cpu_time_2[f"{DIAGNOSTICS_PREFIX}cpu_time"].x
 

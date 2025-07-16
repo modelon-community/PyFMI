@@ -128,11 +128,11 @@ class ResultReader(abc.ABC):
 
     @abc.abstractmethod
     def get_trajectory(self, name : str) -> Trajectory:
-        """Retrieve a single trajectory by variables name."""
+        """Retrieve a single trajectory by variable name."""
         raise NotImplementedError
     
     def get_trajectories(self, names: list[str]) -> dict[str, Trajectory]:
-        """Retrieve multiple trajectories, given a dictionary of variables trajectories."""
+        """Retrieve multiple trajectories, returns a dictionary of variables trajectories."""
         return {n: self.get_trajectory(n) for n in names}
 
 
