@@ -18,6 +18,7 @@
 import pytest
 import numpy as np
 from pathlib import Path
+from typing import Union
 
 from pyfmi import load_fmu
 from pyfmi.common.io import ResultHandler
@@ -45,7 +46,7 @@ class ResultStoreCalcDiagnostics(ResultHandler):
         self.diag_vars = {k: [v[0]] for k, v in diagnostics_vars.items()}
         self.diags_calc = {k: [v[0]] for k, v in self._diags_aux.prepare_calculated_diagnostics(diagnostics_vars).items()}
 
-    def diagnostics_point(self, diag_data):
+    def diagnostics_point(self, diag_data: dict):
         # store ordinary diagnostics data
         for k, diag_val in zip(self.diag_vars.keys(), diag_data):
             self.diag_vars[k].append(diag_val)

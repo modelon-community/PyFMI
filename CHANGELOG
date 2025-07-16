@@ -8,6 +8,7 @@
       store event indicator values.
     * Fixed the issue that `@Diagnostics.nbr_steps` was off by one.
     * Improved handling of linking with dynamic FMIL library.
+    * TODO: ResultReader
 
 --- PyFMI-2.17.4 ---
     * Fixed type annotation issue causing incompatibility with Python < 3.10.
