@@ -75,7 +75,7 @@ class Trajectory:
     Class for storing a time series.
     """
 
-    def __init__(self,t,x):
+    def __init__(self, t, x):
         """
         Constructor for the Trajectory class.
 
@@ -107,8 +107,13 @@ class ResultStorage:
         raise NotImplementedError
 
 class ResultReader(abc.ABC):
-    """Abstract base class representing a simulation result.
-    TODO: Document what needs to be implemented.
+    """Abstract base class representing a simulation result read from some source.
+    
+    Requires methods:
+      - get_variable_names(self) -> list of strings
+      - get_trajectory(self, name) -> pyfmi.common.io.Trajectory for variable <name>
+      - (optional) get_trajectories(self, names) -> dict(name, Trajectory) for variables in <names>.
+        default: Loop over get_trajectory(name).
     """
     
     @abc.abstractmethod
@@ -117,7 +122,7 @@ class ResultReader(abc.ABC):
         raise NotImplementedError
     
     def get_variable_data(self, name: str) -> Trajectory:
-        """Retrieve a single trajectory by variables name."""
+        """Retrieve a single pyfmi.common.io.Trajectory by variables name."""
         warnings.warn(
             "get_variable_data is deprecated and will be removed in a future version."
             "Use get_trajectory or get_trajectories instead.",
@@ -128,7 +133,7 @@ class ResultReader(abc.ABC):
 
     @abc.abstractmethod
     def get_trajectory(self, name : str) -> Trajectory:
-        """Retrieve a single trajectory by variable name."""
+        """Retrieve a single pyfmi.common.io.Trajectory by variable name."""
         raise NotImplementedError
     
     def get_trajectories(self, names: list[str]) -> dict[str, Trajectory]:
@@ -1344,9 +1349,8 @@ class ResultDymolaBinary(ResultDymola):
         self._mtime       = None if self._is_stream else os.path.getmtime(self._fname)
         self._data_sections = data_sections
 
-    def get_variable_data_multi(self, names: list[str]) -> dict[str, Trajectory]:
+    def get_trajectories(self, names: list[str]) -> dict[str, Trajectory]:
         return self.get_variables_data(names = names)[0]
-
 
     def _update_data_info(self):
         """

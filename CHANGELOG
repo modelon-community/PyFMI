@@ -8,7 +8,17 @@
       store event indicator values.
     * Fixed the issue that `@Diagnostics.nbr_steps` was off by one.
     * Improved handling of linking with dynamic FMIL library.
-    * TODO: ResultReader
+    * Added new abstract base class `pyfmi.common.io.ResultReader` as base for
+      `ResultCSVTextual`, `ResultStorageMemory`, `ResultDymolaTextual` and `ResultDymolaBinary`.
+    * `pyfmi.common.io.ResultReader` new features:
+        * Get all variable names via `get_variable_names`.
+        * Get multiple trajectories via `get_trajectories`.
+    * Deprecations: 
+        * `pyfmi.common.io.ResultStorage`, use `pyfmi.common.io.ResultReader` instead.
+        * `ResultDymolaTextual`, `ResultDymolaBinary`: `name` attribute for retrieving variable names, 
+           use `get_variable_names` function instead.
+        * `ResultCSVTextual`, `ResultStorageMemory`, `ResultDymolaTextual` and `ResultDymolaBinary`:
+          `get_variable_data`, use `get_trajectory` instead.
 
 --- PyFMI-2.17.4 ---
     * Fixed type annotation issue causing incompatibility with Python < 3.10.
