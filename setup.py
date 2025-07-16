@@ -21,6 +21,8 @@ import sysconfig
 import numpy as np
 import ctypes.util
 import sys
+from itertools import chain
+
 
 try:
     from numpy.distutils.core import setup
@@ -223,7 +225,7 @@ if not incdirs:
 
 def find_dynamic_fmil_library(*directories):
     """ Find the dynamic library of FMIL. """
-    for path_to_dir in directories:
+    for path_to_dir in chain(*directories):
         path_to_dir = os.path.abspath(path_to_dir)
 
         if not os.path.exists(path_to_dir):
