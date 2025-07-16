@@ -22,7 +22,6 @@ import pytest
 from pathlib import Path
 
 from pyfmi import load_fmu
-
 from pyfmi.common.io import ResultStorage
 
 this_dir = Path(__file__).parent.absolute()
@@ -34,13 +33,7 @@ def test_result_storage():
     with pytest.warns(DeprecationWarning, match = msg):
         ResultStorage()
 
-@pytest.mark.parametrize("result_handling", 
-    [
-        "file",
-        "binary",
-        "memory",
-        "csv",
-    ])
+@pytest.mark.parametrize("result_handling", ["file", "binary", "memory", "csv"])
 def test_get_variable_data(result_handling):
     """Test deprecation of get_variable_data for result handlers."""
     fmu = load_fmu(FMI2_REF_FMU_PATH / "Dahlquist.fmu")
