@@ -221,10 +221,9 @@ if not incdirs:
         " specify it using the environment variable FMIL_HOME."
     )
 
-def find_dynamic_fmil_library():
+def find_dynamic_fmil_library(*directories):
     """ Find the dynamic library of FMIL. """
-    dirs_to_search = libdirs + bindirs
-    for path_to_dir in dirs_to_search:
+    for path_to_dir in directories:
         path_to_dir = os.path.abspath(path_to_dir)
 
         if not os.path.exists(path_to_dir):
@@ -241,11 +240,11 @@ def find_dynamic_fmil_library():
 
 if 0 != sys.argv[1].find("clean"): # Dont check if we are cleaning!
 
-    use_dynamic_fmil_library = fmil_name.endswith("shared") # this should be improved in a future release
+    use_dynamic_fmil_library = fmil_name.endswith("shared") # TODO: this should be improved in a future release
 
     remove_copied_fmil = False
     if use_dynamic_fmil_library:
-        fmil_shared = find_dynamic_fmil_library()
+        fmil_shared = find_dynamic_fmil_library(libdirs, bindirs)
 
         if is_windows or is_wheel_build:
             # Copy the fmil library to current directory, point to the location of the copied file
@@ -355,12 +354,11 @@ def check_extensions():
                     include_path = incl_path,
                     compiler_directives={'language_level' : "3str"})
 
-    if not is_windows:
-        if use_dynamic_fmil_library:
-            if is_wheel_build:
-                extra_link_flags += ['-Wl,-rpath,$ORIGIN']
-            else:
-                extra_link_flags += [f'-Wl,-rpath,{os.path.dirname(fmil_shared)}']
+    if not is_windows and use_dynamic_fmil_library:
+        if is_wheel_build:
+            extra_link_flags += ['-Wl,-rpath,$ORIGIN']
+        else:
+            extra_link_flags += [f'-Wl,-rpath,{os.path.dirname(fmil_shared)}']
 
 
     for i in range(len(ext_list)):
