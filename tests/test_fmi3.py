@@ -317,6 +317,11 @@ class TestFMI3LoadFMU:
         assert x0.initial is FMI3_Initial.EXACT
         assert x1.initial is FMI3_Initial.EXACT
 
+    def test_get_states_list_no_states(self):
+        """Test retrieving states list for model without states. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu")
+        assert len(fmu.get_states_list()) == 0
+
     def test_get_derivatives_list(self):
         """Test retrieving derivatives list and check its attributes. """
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
@@ -343,6 +348,11 @@ class TestFMI3LoadFMU:
 
         assert derx0.initial is FMI3_Initial.CALCULATED
         assert derx1.initial is FMI3_Initial.CALCULATED
+
+    def test_get_derivatives_list_no_states(self):
+        """Test retrieving derivatives list for model without derivatives. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu")
+        assert len(fmu.get_derivatives_list()) == 0
 
     def test_get_relative_tolerance(self):
         """Test get_relative_tolerance(). """

@@ -1889,7 +1889,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
             Returns::
 
-                An ordered dictionary with the state variables.
+                A dictionary with the state variables.
         """
         cdef FMIL3.fmi3_import_variable_list_t* variable_list
         cdef FMIL.size_t                        variable_list_size
@@ -1919,7 +1919,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         Returns::
 
-            An ordered dictionary with the derivative variables.
+            A dictionary with the derivative variables.
         """
         cdef FMIL3.fmi3_import_variable_list_t* variable_list
         cdef FMIL.size_t                        variable_list_size
