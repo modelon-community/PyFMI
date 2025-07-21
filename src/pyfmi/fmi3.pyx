@@ -1899,7 +1899,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         variable_list = FMIL3.fmi3_import_get_continuous_state_derivatives_list(self._fmu)
         if variable_list == NULL:
-            raise FMUException("The returned derivatives states list is NULL.")
+            raise FMUException("Unexpected failure in retrieving the continuous state derivatives list.")
         variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
 
         for i in range(variable_list_size):
@@ -1928,7 +1928,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         variable_list = FMIL3.fmi3_import_get_continuous_state_derivatives_list(self._fmu)
         if variable_list == NULL:
-            raise FMUException("The returned state_derivatives list is NULL.")
+            raise FMUException("Unexpected failure in retrieving the continuous state derivatives list.")
         variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
 
         for i in range(variable_list_size):
