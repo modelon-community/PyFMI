@@ -109,6 +109,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef FMIL3.fmi3_causality_enu_t _get_variable_causality(self, variable_name) except *
     cpdef get_variable_description(self, variable_name)
     cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable)
+    cdef FMIL3.fmi3_status_t _get_directional_derivative(self, np.ndarray v_ref, np.ndarray z_ref, np.ndarray dv, np.ndarray dz) except *
     cpdef get_variable_unbounded(self, variablename)
     cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t*)
     cdef _get_alias_description(self, FMIL3.fmi3_import_alias_variable_t*)

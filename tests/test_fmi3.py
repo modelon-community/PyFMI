@@ -755,6 +755,24 @@ class TestFMI3LoadFMU:
         assert type(res) == list
         assert res[0] == value
 
+    def test_directional_derivatives(self):
+        """Test directional derivatives."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        fmu.set("mu", 2)
+        fmu.initialize()
+        fmu.enter_continuous_time_mode()
+        fmu.continuous_states = np.array([1., 1.])
+
+        # sequence from FMUModelME3.get_directional_derivative docstring
+        states = fmu.get_states_list()
+        states_references = [s.value_reference for s in states.values()]
+        derivatives = fmu.get_derivatives_list()
+        derivatives_references = [d.value_reference for d in derivatives.values()]
+        v = np.array([1., 1.])
+        dv = fmu.get_directional_derivative(states_references, derivatives_references, v)
+        assert dv[0] == 1
+        assert dv[1] == -5
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
