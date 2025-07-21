@@ -948,6 +948,21 @@ class Test_FMI3ME:
         event_ind = fmu.get_event_indicators()
         assert len(event_ind) == 0
 
+    def test_get_capability_flags(self):
+        """Test getting capability flags."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        capabilities = fmu.get_capability_flags()
+
+        assert capabilities["needsExecutionTool"] is False
+        assert capabilities["canBeInstantiatedOnlyOncePerProcess"] is False
+        assert capabilities["canGetAndSetFMUstate"] is True
+        assert capabilities["canSerializeFMUstate"] is True
+        assert capabilities["providesDirectionalDerivatives"] is True
+        assert capabilities["providesAdjointDerivatives"] is True
+        assert capabilities["providesPerElementDependencies"] is False
+        assert capabilities["providesEvaluateDiscreteStates"] is False
+        assert capabilities["needsCompletedIntegratorStep"] is False
+
 
 class Test_FMI3Alias:
     """Various tests surrounding aliases in FMI3."""

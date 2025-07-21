@@ -101,6 +101,41 @@ cdef extern from 'fmilib.h':
         fmi3_initial_enu_calculated = 3,
         fmi3_initial_enu_unknown    = 4
 
+    cdef enum fmi3_capabilities_enu_t:
+        fmi3_me_needsExecutionTool                     = 0,
+        fmi3_me_canBeInstantiatedOnlyOncePerProcess    = 1,
+        fmi3_me_canGetAndSetFMUState                   = 2,
+        fmi3_me_canSerializeFMUState                   = 3,
+        fmi3_me_providesDirectionalDerivatives         = 4,
+        fmi3_me_providesAdjointDerivatives             = 5,
+        fmi3_me_providesPerElementDependencies         = 6,
+        fmi3_me_needsCompletedIntegratorStep           = 7,
+        fmi3_me_providesEvaluateDiscreteStates         = 8,
+        fmi3_cs_needsExecutionTool                     = 9,
+        fmi3_cs_canBeInstantiatedOnlyOncePerProcess    = 10,
+        fmi3_cs_canGetAndSetFMUState                   = 11,
+        fmi3_cs_canSerializeFMUState                   = 12,
+        fmi3_cs_providesDirectionalDerivatives         = 13,
+        fmi3_cs_providesAdjointDerivatives             = 14,
+        fmi3_cs_providesPerElementDependencies         = 15,
+        fmi3_cs_canHandleVariableCommunicationStepSize = 16,
+        fmi3_cs_maxOutputDerivativeOrder               = 17,
+        fmi3_cs_providesIntermediateUpdate             = 18,
+        fmi3_cs_mightReturnEarlyFromDoStep             = 19,
+        fmi3_cs_canReturnEarlyAfterIntermediateUpdate  = 20,
+        fmi3_cs_hasEventMode                           = 21,
+        fmi3_cs_providesEvaluateDiscreteStates         = 22,
+        fmi3_cs_fixedInternalStepSize                  = 23,
+        fmi3_cs_recommendedIntermediateInputSmoothness = 24,
+        fmi3_se_needsExecutionTool                     = 25,
+        fmi3_se_canBeInstantiatedOnlyOncePerProcess    = 26,
+        fmi3_se_canGetAndSetFMUState                   = 27,
+        fmi3_se_canSerializeFMUState                   = 28,
+        fmi3_se_providesDirectionalDerivatives         = 29,
+        fmi3_se_providesAdjointDerivatives             = 30,
+        fmi3_se_providesPerElementDependencies         = 31,
+        fmi3_capabilities_num                          = 32,
+
     cdef struct fmi3_xml_variable_t:
         pass
 
@@ -251,6 +286,8 @@ cdef extern from 'fmilib.h':
     char* fmi3_fmu_kind_to_string(fmi3_fmu_kind_enu_t)
     char* fmi3_import_get_model_name(fmi3_import_t*)
     const char* fmi3_import_get_generation_tool(fmi3_import_t *)
+
+    unsigned int fmi3_import_get_capability(fmi3_import_t *, fmi3_capabilities_enu_t)
 
     # FMI XML METHODS
     # Parsing/logging basics
