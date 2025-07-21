@@ -2130,6 +2130,9 @@ cdef class FMUModelME3(FMUModelBase3):
         FMUModelBase3.__init__(self, fmu, log_file_name, log_level,
                                _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
+        if self.get_capability_flags()['needsExecutionTool']:
+            raise FMUException("The FMU specifies 'needsExecutionTool=true' which implies that it requires an external execution tool to simulate, this is not supported.")
+
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_get_number_of_event_indicators(self._fmu, &self._nEventIndicators)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -2652,6 +2655,35 @@ cdef class FMUModelME3(FMUModelBase3):
             Options class for the algorithm specified with default values.
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
+
+    def get_capability_flags(self):
+        """
+        Returns a dictionary with the capability flags of the FMU.
+
+        Returns::
+            Dictionary with keys:
+            needsExecutionTool
+            canBeInstantiatedOnlyOncePerProcess
+            canGetAndSetFMUstate
+            canSerializeFMUstate
+            providesDirectionalDerivatives
+            providesAdjointDerivatives
+            providesPerElementDependencies
+            providesEvaluateDiscreteStates
+            needsCompletedIntegratorStep
+        """
+        cdef dict capabilities = {}
+        capabilities['needsExecutionTool']                  = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_needsExecutionTool))
+        capabilities['canBeInstantiatedOnlyOncePerProcess'] = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canBeInstantiatedOnlyOncePerProcess))
+        capabilities['canGetAndSetFMUstate']                = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canGetAndSetFMUState))
+        capabilities['canSerializeFMUstate']                = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canSerializeFMUState))
+        capabilities['providesDirectionalDerivatives']      = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_providesDirectionalDerivatives))
+        capabilities['providesAdjointDerivatives']          = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_providesAdjointDerivatives))
+        capabilities['providesPerElementDependencies']      = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_providesPerElementDependencies))
+        capabilities['providesEvaluateDiscreteStates']      = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_providesEvaluateDiscreteStates))
+        capabilities['needsCompletedIntegratorStep']        = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_needsCompletedIntegratorStep))
+
+        return capabilities
 
     cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
             FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,
