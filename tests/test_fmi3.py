@@ -33,6 +33,7 @@ from pyfmi.fmi3 import (
     FMI3_Causality,
     FMI3_Variability,
     FMI3_Initial,
+    FMI3_DependencyKind,
     FMI3EventInfo,
 )
 from pyfmi.exceptions import (
@@ -660,6 +661,32 @@ class TestFMI3LoadFMU:
 
         expected = ['Float64_continuous_output']
         assert expected == list(outputs.keys())
+
+    def test_get_output_dependencies(self):
+        """ Test get_output_dependencies."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        num_outputs = len(fmu.get_output_list())
+        state_deps, input_deps = fmu.get_output_dependencies()
+
+        assert num_outputs == 1
+        assert len(state_deps) == num_outputs
+        assert state_deps["Float64_continuous_output"] == []
+        assert len(input_deps) == num_outputs
+        assert input_deps["Float64_continuous_output"] == ["Float64_continuous_input"]
+
+    def test_get_output_dependencies_kind(self):
+        """ Test get_output_dependencies."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        num_outputs = len(fmu.get_output_list())
+        state_deps_kinds, input_deps_kinds = fmu.get_output_dependencies_kind()
+
+        assert num_outputs == 1
+        assert len(state_deps_kinds) == num_outputs
+        assert state_deps_kinds["Float64_continuous_output"] == []
+        assert len(input_deps_kinds) == num_outputs
+        assert input_deps_kinds["Float64_continuous_output"] == [FMI3_DependencyKind.CONSTANT]
 
     @pytest.mark.parametrize("function_name, valuerefs, expected_result, expected_dtype",
         [

@@ -78,6 +78,13 @@ class FMI3_Causality(IntEnum):
     INDEPENDENT             = FMIL3.fmi3_causality_enu_independent
     UNKNOWN                 = FMIL3.fmi3_causality_enu_unknown
 
+class FMI3_DependencyKind(IntEnum):    
+    DEPENDENT = FMIL3.fmi3_dependencies_kind_dependent
+    CONSTANT  = FMIL3.fmi3_dependencies_kind_constant
+    FIXED     = FMIL3.fmi3_dependencies_kind_fixed
+    TUNABLE   = FMIL3.fmi3_dependencies_kind_tunable
+    DISCRETE  = FMIL3.fmi3_dependencies_kind_discrete
+
 from pyfmi.exceptions import (
     FMUException,
     InvalidXMLException,
@@ -224,6 +231,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         # Default values
         self._t = None
         self._last_accepted_time = 0.0
+
+        # Caching
+        self._outputs_states_dependencies = None
+        self._outputs_inputs_dependencies = None
+        self._outputs_states_dependencies_kind = None
+        self._outputs_inputs_dependencies_kind = None
 
         # Internal values
         self._enable_logging = False
@@ -439,14 +452,14 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if status != 0:
             raise FMUException('An error occured when resetting the model, see the log for possible more information')
 
-        #Default values
+        # Default values
         self._t = None
         self._has_entered_init_mode = False
 
-        #Reseting the allocation flags
+        # Reseting the allocation flags
         self._initialized_fmu = 0
 
-        #Internal values
+        # Internal values
         self._eventInfo = FMI3EventInfo()
         self._log = []
 
@@ -1955,6 +1968,104 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         FMIL3.fmi3_import_free_variable_list(variable_list)
 
         return variable_dict
+
+    cpdef get_output_dependencies(self):
+        """
+        Retrieve the variables that the (continuous, float64) outputs are
+        dependent on. Returns two dictionaries, one with the states and
+        one with the (continuous, float64) inputs.
+        """
+        # TODO: More than just float64 outputs?
+        # caching
+        if (self._outputs_states_dependencies is not None and
+            self._outputs_inputs_dependencies is not None):
+               return self._outputs_states_dependencies, self._outputs_inputs_dependencies
+
+        cdef FMIL3.fmi3_import_variable_t      *variable
+        cdef FMIL3.fmi3_import_variable_list_t *variable_list
+        cdef int ret
+        cdef int dependsOnAll
+        cdef size_t numDependencies
+        cdef size_t* dependencies
+        cdef char* dependenciesKind
+
+        cdef dict output_vars = self.get_output_list()
+        cdef dict states_dict = self.get_states_list()
+        cdef list states_list = list(states_dict.keys())
+        cdef dict inputs_dict = self.get_input_list()
+        cdef list inputs_list = list(inputs_dict.keys())
+
+        cdef dict map_vr_to_state = {state_var.value_reference: state_var_name for state_var_name, state_var in states_dict.items()}
+        cdef dict map_vr_to_input = {input_var.value_reference: input_var_name for input_var_name, input_var in inputs_dict.items()}
+
+        states = {}
+        states_kind = {}
+        inputs = {}
+        inputs_kind = {}
+
+        if len(output_vars) != 0: # If there are no outputs, return empty dicts
+            for output_var_name, output_var in output_vars.items():
+                variable = FMIL3.fmi3_import_get_variable_by_vr(self._fmu, <FMIL3.fmi3_value_reference_t>output_var.value_reference)
+                if variable == NULL:
+                    raise FMUException(f"Unexpected failure retreiving model variable {output_var.name}")
+                
+                ret = FMIL3.fmi3_import_get_output_dependencies(self._fmu, variable, &numDependencies, &dependsOnAll, &dependencies, &dependenciesKind)
+                if ret != 0:
+                    raise FMUException(f"Unexpected failure retreiving dependencies of variable {output_var.name}")
+
+                if (numDependencies == 0) and (dependsOnAll == 0):
+                    states[output_var_name] = []
+                    states_kind[output_var_name] = []
+
+                    inputs[output_var_name] = []
+                    inputs_kind[output_var_name] = []
+                if (numDependencies == 0) and (dependsOnAll == 1):
+                    states[output_var_name] = states_list
+                    states_kind[output_var_name] = [FMI3_DependencyKind.DEPENDENT]*len(states_list)
+
+                    inputs[output_var_name] = inputs_list
+                    inputs_kind[output_var_name] = [FMI3_DependencyKind.DEPENDENT]*len(inputs_list)
+                else:
+                    states[output_var_name] = []
+                    states_kind[output_var_name] = []
+
+                    inputs[output_var_name] = []
+                    inputs_kind[output_var_name] = []
+                    for i in range(numDependencies):
+                        dependency_value_ref = dependencies[i]
+                        if dependency_value_ref in map_vr_to_state:
+                            states[output_var_name].append(map_vr_to_state[dependency_value_ref])
+                            states_kind[output_var_name].append(FMI3_DependencyKind(dependenciesKind[i]))
+                        elif dependency_value_ref in map_vr_to_input:
+                            inputs[output_var_name].append(map_vr_to_input[dependency_value_ref])
+                            inputs_kind[output_var_name].append(FMI3_DependencyKind(dependenciesKind[i]))
+                        else:
+                            pass # XXX: Not float64 or continuous
+
+        # Caching
+        self._outputs_states_dependencies = states
+        self._outputs_states_dependencies_kind = states_kind
+        self._outputs_inputs_dependencies = inputs
+        self._outputs_inputs_dependencies_kind = inputs_kind
+
+        return states, inputs
+
+    cpdef get_output_dependencies_kind(self):
+        """
+        Retrieve the 'kinds' that the (continuous, float64) outputs are
+        dependent on. Returns two dictionaries, one with the states
+        and one with the (continuous, float64) inputs. The list of 'kinds'::
+
+            FMI3_DependencyKind.FMI3_KIND_DEPENDENT (= 0)
+            FMI3_DependencyKind.FMI3_KIND_CONSTANT  (= 1)
+            FMI3_DependencyKind.FMI3_KIND_FIXED     (= 2)
+            FMI3_DependencyKind.FMI3_KIND_TUNABLE   (= 3)
+            FMI3_DependencyKind.FMI3_KIND_DISCRETE  (= 4)
+
+        """
+        # TODO: More than just float64 outputs?
+        self.get_output_dependencies()
+        return self._outputs_states_dependencies_kind, self._outputs_inputs_dependencies_kind
 
     def get_directional_derivative(self, var_ref, func_ref, v):
         """
