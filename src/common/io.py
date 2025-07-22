@@ -26,6 +26,8 @@ import logging as logging_module
 from functools import reduce
 from typing import Union
 from shutil import disk_usage
+import abc
+import warnings
 
 import numpy as np
 import scipy
@@ -73,7 +75,7 @@ class Trajectory:
     Class for storing a time series.
     """
 
-    def __init__(self,t,x):
+    def __init__(self, t, x):
         """
         Constructor for the Trajectory class.
 
@@ -88,8 +90,13 @@ class Trajectory:
         self.x = x
 
 class ResultStorage:
-    pass
-
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "ResultStorage is deprecated and will be removed in a future version."
+            "Use pyfmi.common.io.ResultReader as base class instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
     def get_variable_data(self, key):
         raise NotImplementedError
 
@@ -98,6 +105,41 @@ class ResultStorage:
 
     def is_negated(self, var):
         raise NotImplementedError
+
+class ResultReader(abc.ABC):
+    """Abstract base class representing a simulation result read from some source.
+    
+    Requires methods:
+      - get_variable_names(self) -> list of strings
+      - get_trajectory(self, name) -> pyfmi.common.io.Trajectory for variable <name>
+      - (optional) get_trajectories(self, names) -> dict(name, Trajectory) for variables in <names>.
+        default: Loop over get_trajectory(name).
+    """
+    
+    @abc.abstractmethod
+    def get_variable_names(self) -> list[str]:
+        """Retrieve the names of the variables stored in this class."""
+        raise NotImplementedError
+    
+    def get_variable_data(self, name: str) -> Trajectory:
+        """Retrieve a single pyfmi.common.io.Trajectory by variables name."""
+        warnings.warn(
+            "get_variable_data is deprecated and will be removed in a future version."
+            "Use get_trajectory or get_trajectories instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.get_trajectory(name) # For backwards compatibility
+
+    @abc.abstractmethod
+    def get_trajectory(self, name : str) -> Trajectory:
+        """Retrieve a single pyfmi.common.io.Trajectory by variable name."""
+        raise NotImplementedError
+    
+    def get_trajectories(self, names: list[str]) -> dict[str, Trajectory]:
+        """Retrieve multiple trajectories, returns a dictionary of variables trajectories."""
+        return {n: self.get_trajectory(n) for n in names}
+
 
 class ResultHandler:
     def __init__(self, model = None):
@@ -146,30 +188,38 @@ class ResultHandler:
         """
         pass
 
-    def set_options(self, options = None):
+    def set_options(self, options = None) -> None:
         """
         Options are the options dictionary provided to the simulation
         method.
         """
         self.options = options
 
-    def get_result(self):
+    def get_result(self) -> ResultReader:
         """
         Method for retrieving the result. This method should return a
-        result of an instance of ResultStorage or of an instance of a
-        subclass of ResultStorage.
+        result of an instance of ResultReader.
         """
         raise NotImplementedError
 
-class ResultDymola:
+class ResultDymola(ResultReader):
     """
     Base class for representation of a result file.
     """
 
-    def _get_name(self):
-        return [decode(n) for n in self.name_lookup.keys()]
+    def _get_name(self) -> list[str]:
+        warnings.warn(
+            "Getting variable names via the `name` attribute is deprecated and will be removed in a future version."
+            "Use the `get_variable_names` function instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.get_variable_names()
 
     name = property(fget = _get_name)
+
+    def get_variable_names(self) -> list[str]:
+        return [decode(n) for n in self.name_lookup.keys()]
 
     def get_variable_index(self,name):
         """
@@ -314,7 +364,7 @@ class ResultDymola:
         else: # Variable was not a derivative variable
             return name
 
-class ResultCSVTextual:
+class ResultCSVTextual(ResultReader):
     """ Class representing a simulation or optimization result loaded from a CSV-file. """
     def __init__(self, filename, delimiter=";"):
         """
@@ -362,7 +412,10 @@ class ResultCSVTextual:
 
         self.data = np.array(data)
 
-    def get_variable_data(self,name):
+    def get_variable_names(self) -> list[str]:
+        return list(self.data_matrix.keys())
+
+    def get_trajectory(self, name: str) -> Trajectory:
         """
         Retrieve the data sequence for a variable with a given name.
 
@@ -814,7 +867,10 @@ class ResultStorageMemory(ResultDymola):
         for i,ref in enumerate(real_val_ref+integer_val_ref+boolean_val_ref):
             self.data[ref] = data[:,i+1]
 
-    def get_variable_data(self,name):
+    def get_variable_names(self) -> list[str]:
+        return self._name
+
+    def get_trajectory(self, name: str) -> Trajectory:
         """
         Retrieve the data sequence for a variable with a given name.
 
@@ -1012,7 +1068,7 @@ class ResultDymolaTextual(ResultDymola):
             raise JIOError("The result does not seem to be of a supported format.")
         return tmp[2].partition(',')
 
-    def get_variable_data(self,name):
+    def get_trajectory(self, name: str) -> Trajectory:
         """
         Retrieve the data sequence for a variable with a given name.
 
@@ -1293,6 +1349,9 @@ class ResultDymolaBinary(ResultDymola):
         self._mtime       = None if self._is_stream else os.path.getmtime(self._fname)
         self._data_sections = data_sections
 
+    def get_trajectories(self, names: list[str]) -> dict[str, Trajectory]:
+        return self.get_variables_data(names = names)[0]
+
     def _update_data_info(self):
         """
         Updates the data related to the data sections in case of that the file has changed.
@@ -1550,7 +1609,7 @@ class ResultDymolaBinary(ResultDymola):
                 time, factor*self._get_interpolated_trajectory(data_index, start_index, stop_index))
 
 
-    def get_variable_data(self, name: str) -> Trajectory:
+    def get_trajectory(self, name: str) -> Trajectory:
         """
         Retrieve the data sequence for a variable with a given name.
 
@@ -1677,7 +1736,7 @@ class ResultDymolaBinary(ResultDymola):
             return self._data_3[name]
         steps_name = f"{DIAGNOSTICS_PREFIX}nbr_steps"
         try:
-            event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
+            event_type_data = self.get_trajectory(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
         except Exception:
             # can still calculate steps, even without event_type
             if name == steps_name:
@@ -1695,14 +1754,14 @@ class ResultDymolaBinary(ResultDymola):
             return self._data_3[name]
         prefix = f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step."
         state_name = name[len(prefix):]
-        event_type_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
-        state_error_data = self.get_variable_data(f'{DIAGNOSTICS_PREFIX}state_errors.{state_name}').x
+        event_type_data = self.get_trajectory(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
+        state_error_data = self.get_trajectory(f'{DIAGNOSTICS_PREFIX}state_errors.{state_name}').x
         self._data_3[name] = DynamicDiagnosticsUtils.get_nbr_state_limits(event_type_data, state_error_data)
         return self._data_3[name]
 
     def _get_calculated_diagnostics_cpu_time(self) -> np.ndarray:
         """Get trajectory values for cumulative CPU time."""
-        return DynamicDiagnosticsUtils.get_cpu_time(self.get_variable_data(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x)
+        return DynamicDiagnosticsUtils.get_cpu_time(self.get_trajectory(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x)
 
     def is_variable(self, name):
         """
@@ -1854,11 +1913,9 @@ class ResultHandlerMemory(ResultHandler):
             verify_result_size("", self._first_point, current_size, previous_size, max_size, self.options["ncp"], self.model.time)
             self._first_point = False
 
-    def get_result(self):
+    def get_result(self) -> ResultStorageMemory:
         """
-        Method for retrieving the result. This method should return a
-        result of an instance of ResultBase or of an instance of a
-        subclass of ResultBase.
+        Method for retrieving the result.
         """
         t = np.array(self.time_sol)
         r = np.array(self.real_sol)
@@ -2050,11 +2107,9 @@ class ResultHandlerCSV(ResultHandler):
             self._file.close()
             self.file_open = False
 
-    def get_result(self):
+    def get_result(self) -> ResultCSVTextual:
         """
-        Method for retrieving the result. This method should return a
-        result of an instance of ResultBase or of an instance of a
-        subclass of ResultBase.
+        Method for retrieving the result.
         """
         return ResultCSVTextual(self.file_name, self.delimiter)
 
@@ -2499,7 +2554,7 @@ class ResultHandlerFile(ResultHandler):
                 f.close()
             self.file_open = False
 
-    def get_result(self):
+    def get_result(self) -> ResultDymolaTextual:
         """
         Method for retrieving the result. This method should return a
         result of an instance of ResultBase or of an instance of a
@@ -2508,7 +2563,7 @@ class ResultHandlerFile(ResultHandler):
         return ResultDymolaTextual(self.file_name if not self._is_stream else self._file)
 
 class ResultHandlerDummy(ResultHandler):
-    def get_result(self):
+    def get_result(self) -> None:
         return None
 
 class JIOError(Exception):
@@ -2917,7 +2972,7 @@ class ResultHandlerBinaryFile(ResultHandler):
                 f.close()
             self._file = None
 
-    def get_result(self):
+    def get_result(self) -> ResultDymolaBinary:
         """
         Method for retrieving the result. This method should return a
         result of an instance of ResultBase or of an instance of a
