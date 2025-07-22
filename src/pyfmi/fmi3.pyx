@@ -34,6 +34,8 @@ cimport pyfmi.fmi_base as FMI_BASE
 cimport pyfmi.util as pyfmi_util
 from pyfmi.util import enable_caching
 
+import scipy.sparse as sps
+
 
 # TYPES
 # TODO: Import into fmi.pyx for convenience imports?
@@ -233,6 +235,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._last_accepted_time = 0.0
 
         # Caching
+        self._states_references = None
+        self._derivatives_references = None
+        self._inputs_references = None
+        self._outputs_references = None
         self._outputs_states_dependencies = None
         self._outputs_inputs_dependencies = None
         self._outputs_states_dependencies_kind = None
@@ -241,6 +247,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._derivatives_inputs_dependencies = None
         self._derivatives_states_dependencies_kind = None
         self._derivatives_inputs_dependencies_kind = None
+        self._group_A = None
+        self._group_B = None
+        self._group_C = None
+        self._group_D = None
 
         # Internal values
         self._enable_logging = False
@@ -2172,6 +2182,198 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self.get_derivatives_dependencies()
 
         return self._derivatives_states_dependencies_kind, self._derivatives_inputs_dependencies_kind
+
+    def _get_directional_proxy(self, var_ref, func_ref, group = None, add_diag = False, output_matrix = None):
+        cdef list data = [], row = [], col = []
+        cdef list local_group
+        cdef int nbr_var_ref  = len(var_ref), nbr_func_ref = len(func_ref)
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] v = np.zeros(nbr_var_ref, dtype = np.double)
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] data_local
+        cdef int ind_local = 5 if add_diag else 4
+
+        if not self._has_entered_init_mode:
+            raise FMUException("The FMU has not entered initialization mode and thus the directional " \
+                               "derivatives cannot be computed. Call enter_initialization_mode to start the initialization.")
+
+        if group is not None:
+            if output_matrix is not None:
+                if not isinstance(output_matrix, sps.csc_matrix):
+                    output_matrix = None
+                else:
+                    data_local = output_matrix.data
+
+            if add_diag and output_matrix is None:
+                dim = min(nbr_var_ref, nbr_func_ref)
+                data.extend([0.0] * dim)
+                row.extend(range(dim))
+                col.extend(range(dim))
+
+            for key in group["groups"]:
+                local_group = group[key]
+
+                v[local_group[0]] = 1.0
+
+                column_data = self.get_directional_derivative(var_ref, func_ref, v)[local_group[2]]
+
+                if output_matrix is None:
+                    data.extend(column_data)
+                    row.extend(local_group[2])
+                    col.extend(local_group[3])
+                else:
+                    data_local[local_group[ind_local]] = column_data
+
+                v[local_group[0]] = 0.0
+
+            if output_matrix is not None:
+                A = output_matrix
+            else:
+                if len(data) == 0:
+                    A = sps.csc_matrix((nbr_func_ref,nbr_var_ref))
+                else:
+                    A = sps.csc_matrix((data, (row, col)), (nbr_func_ref, nbr_var_ref))
+
+            return A
+        else:
+            if output_matrix is None or \
+                (not isinstance(output_matrix, np.ndarray)) or \
+                (isinstance(output_matrix, np.ndarray) and (output_matrix.shape[0] != nbr_func_ref or output_matrix.shape[1] != nbr_var_ref)):
+                    A = np.zeros((nbr_func_ref, nbr_var_ref))
+            else:
+                A = output_matrix
+
+            for i in range(nbr_var_ref):
+                v[i] = 1.0
+                A[:, i] = self.get_directional_derivative(var_ref, func_ref, v)
+                v[i] = 0.0
+            return A
+
+    def _get_A(self, use_structure_info = True, add_diag = True, output_matrix = None):
+        if self._group_A is None and use_structure_info:
+            [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
+            self._group_A = pyfmi_util.cpr_seed(derv_state_dep, list(self.get_states_list().keys()))
+        if self._states_references is None:
+            states                       = self.get_states_list()
+            self._states_references      = [s.value_reference for s in states.values()]
+        if self._derivatives_references is None:
+            derivatives                  = self.get_derivatives_list()
+            self._derivatives_references = [s.value_reference for s in derivatives.values()]
+
+        return self._get_directional_proxy(
+            var_ref = self._states_references, 
+            func_ref = self._derivatives_references, 
+            group = self._group_A if use_structure_info else None, 
+            add_diag = add_diag, 
+            output_matrix = output_matrix
+        )
+
+    def _get_B(self, use_structure_info = True, add_diag = False, output_matrix = None):
+        if self._group_B is None and use_structure_info:
+            [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
+            self._group_B = pyfmi_util.cpr_seed(derv_input_dep, list(self.get_input_list().keys()))
+        if self._inputs_references is None:
+            inputs                       = self.get_input_list()
+            self._inputs_references      = [s.value_reference for s in inputs.values()]
+        if self._derivatives_references is None:
+            derivatives                  = self.get_derivatives_list()
+            self._derivatives_references = [s.value_reference for s in derivatives.values()]
+
+        return self._get_directional_proxy(
+            var_ref = self._inputs_references, 
+            func_ref = self._derivatives_references, 
+            group = self._group_B if use_structure_info else None, 
+            add_diag = add_diag, 
+            output_matrix = output_matrix
+        )
+
+    def _get_C(self, use_structure_info = True, add_diag = False, output_matrix = None):
+        if self._group_C is None and use_structure_info:
+            [out_state_dep, out_input_dep] = self.get_output_dependencies()
+            self._group_C = pyfmi_util.cpr_seed(out_state_dep, list(self.get_states_list().keys()))
+        if self._states_references is None:
+            states                       = self.get_states_list()
+            self._states_references      = [s.value_reference for s in states.values()]
+        if self._outputs_references is None:
+            outputs                      = self.get_output_list()
+            self._outputs_references     = [s.value_reference for s in outputs.values()]
+
+        return self._get_directional_proxy(
+            var_ref = self._states_references, 
+            func_ref = self._outputs_references, 
+            group = self._group_C if use_structure_info else None, 
+            add_diag = add_diag, 
+            output_matrix = output_matrix
+        )
+
+    def _get_D(self, use_structure_info = True, add_diag = False, output_matrix = None):
+        if self._group_D is None and use_structure_info:
+            [out_state_dep, out_input_dep] = self.get_output_dependencies()
+            self._group_D = pyfmi_util.cpr_seed(out_input_dep, list(self.get_input_list().keys()))
+        if self._inputs_references is None:
+            inputs                       = self.get_input_list()
+            self._inputs_references      = [s.value_reference for s in inputs.values()]
+        if self._outputs_references is None:
+            outputs                      = self.get_output_list()
+            self._outputs_references     = [s.value_reference for s in outputs.values()]
+
+        return self._get_directional_proxy(
+            var_ref = self._inputs_references,
+            func_ref = self._outputs_references,
+            group = self._group_D if use_structure_info else None,
+            add_diag = add_diag,
+            output_matrix = output_matrix
+        )
+
+    def get_state_space_representation(self, A = True, B = True, C = True, D = True, use_structure_info = True):
+        """
+        Returns a state space representation of the model. I.e::
+
+            der(x) = Ax + Bu
+                y  = Cx + Du
+
+        (float64 & continuous inputs/outputs only)
+
+        Which of the matrices to be returned can be choosen by the
+        arguments.
+
+        Parameters::
+
+            A --
+                If the 'A' matrix should be computed or not.
+                Default: True
+
+            B --
+                If the 'B' matrix should be computed or not.
+                Default: True
+
+            C --
+                If the 'C' matrix should be computed or not.
+                Default: True
+
+            D --
+                If the 'D' matrix should be computed or not.
+                Default: True
+
+            use_structure_info --
+                Determines if the structure should be taken into account
+                or not. If so, a sparse representation is returned,
+                otherwise a dense.
+                Default: True
+
+        Returns::
+            The A, B, C, D matrices. If not all are computed, the ones that
+            are not computed will be represented by a boolean flag.
+
+        """
+        if A:
+            A = self._get_A(use_structure_info)
+        if B:
+            B = self._get_B(use_structure_info)
+        if C:
+            C = self._get_C(use_structure_info)
+        if D:
+            D = self._get_D(use_structure_info)
+
+        return A, B, C, D
 
     def get_directional_derivative(self, var_ref, func_ref, v):
         """

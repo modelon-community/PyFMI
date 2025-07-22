@@ -71,6 +71,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef int _allocated_context, _allocated_dll, _allocated_fmu, _allocated_xml
 
     # Caching
+    cdef list _states_references
+    cdef list _derivatives_references
+    cdef list _inputs_references
+    cdef list _outputs_references
     cdef dict _outputs_states_dependencies
     cdef dict _outputs_inputs_dependencies
     cdef dict _outputs_states_dependencies_kind
@@ -79,9 +83,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef dict _derivatives_inputs_dependencies
     cdef dict _derivatives_states_dependencies_kind
     cdef dict _derivatives_inputs_dependencies_kind
+    cdef dict _group_A
+    cdef dict _group_B
+    cdef dict _group_C
+    cdef dict _group_D
 
     cdef int _initialized_fmu
-    cdef object _has_entered_init_mode # this is public in FMI2 but I don't see why
+    cdef object _has_entered_init_mode # XXX: this is public in FMI2 but I don't see why
 
     cpdef set_float64(self, valueref, values)
     cpdef set_float32(self, valueref, values)
