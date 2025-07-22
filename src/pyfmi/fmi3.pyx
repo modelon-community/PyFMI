@@ -1889,23 +1889,51 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
             Returns::
 
-                An ordered dictionary with the state variables.
+                A dictionary with the state variables.
         """
         cdef FMIL3.fmi3_import_variable_list_t* variable_list
         cdef FMIL.size_t                        variable_list_size
+        cdef FMIL3.fmi3_import_variable_t*         der_variable
+        cdef FMIL3.fmi3_import_float64_variable_t* variable
         variable_dict = {}
 
         variable_list = FMIL3.fmi3_import_get_continuous_state_derivatives_list(self._fmu)
-        variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
-
         if variable_list == NULL:
-            raise FMUException("The returned derivatives states list is NULL.")
+            raise FMUException("Unexpected failure in retrieving the continuous state derivatives list.")
+        variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
 
         for i in range(variable_list_size):
             der_variable = FMIL3.fmi3_import_get_variable(variable_list, i)
-            variable     = FMIL3.fmi3_import_get_float64_variable_derivative_of(<FMIL3.fmi3_import_float64_variable_t*>der_variable)
+            variable = FMIL3.fmi3_import_get_float64_variable_derivative_of(<FMIL3.fmi3_import_float64_variable_t*>der_variable)
 
             scalar_variable = self._add_variable(<FMIL3.fmi3_import_variable_t*>variable)
+            variable_dict[scalar_variable.name] = scalar_variable
+
+        FMIL3.fmi3_import_free_variable_list(variable_list)
+
+        return variable_dict
+
+    def get_derivatives_list(self):
+        """
+        Returns a dictionary with the states derivatives.
+
+        Returns::
+
+            A dictionary with the derivative variables.
+        """
+        cdef FMIL3.fmi3_import_variable_list_t* variable_list
+        cdef FMIL.size_t                        variable_list_size
+        cdef FMIL3.fmi3_import_variable_t*      variable
+        variable_dict = {}
+
+        variable_list = FMIL3.fmi3_import_get_continuous_state_derivatives_list(self._fmu)
+        if variable_list == NULL:
+            raise FMUException("Unexpected failure in retrieving the continuous state derivatives list.")
+        variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
+
+        for i in range(variable_list_size):
+            variable = FMIL3.fmi3_import_get_variable(variable_list, i)
+            scalar_variable = self._add_variable(variable)
             variable_dict[scalar_variable.name] = scalar_variable
 
         FMIL3.fmi3_import_free_variable_list(variable_list)
