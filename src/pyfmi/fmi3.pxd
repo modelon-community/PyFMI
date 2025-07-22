@@ -75,6 +75,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef dict _outputs_inputs_dependencies
     cdef dict _outputs_states_dependencies_kind
     cdef dict _outputs_inputs_dependencies_kind
+    cdef dict _derivatives_states_dependencies
+    cdef dict _derivatives_inputs_dependencies
+    cdef dict _derivatives_states_dependencies_kind
+    cdef dict _derivatives_inputs_dependencies_kind
 
     cdef int _initialized_fmu
     cdef object _has_entered_init_mode # this is public in FMI2 but I don't see why
@@ -122,6 +126,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef get_output_dependencies(self)
     cpdef get_output_dependencies_kind(self)
+    cpdef get_derivatives_dependencies(self)
+    cpdef get_derivatives_dependencies_kind(self)
 
 cdef class FMUModelME3(FMUModelBase3):
     cpdef get_derivatives(self)

@@ -329,6 +329,7 @@ cdef extern from 'fmilib.h':
     void fmi3_import_free_variable_list(fmi3_import_variable_list_t*)
 
     int fmi3_import_get_output_dependencies(fmi3_import_t*, fmi3_import_variable_t*, size_t*, int*, size_t**, char**)
+    int fmi3_import_get_continuous_state_derivative_dependencies(fmi3_import_t*, fmi3_import_variable_t*, size_t*, int*, size_t**, char**);
 
     # Getting variables attributes/types
     const char* fmi3_import_get_variable_name(fmi3_import_variable_t*)
