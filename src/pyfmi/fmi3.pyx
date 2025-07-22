@@ -1978,7 +1978,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
             This returns Jv, where J is the Jacobian and v the seed vector.
 
-            Also, only a subset of the derivatives and and states can be selected:
+            Also, only a subset of the derivatives and states can be selected:
 
             model.get_directional_derivative(var_ref = [0,1], func_ref = [2,3], v = [1,2])
 
@@ -1992,18 +1992,18 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef FMIL3.fmi3_status_t status
         cdef FMIL.size_t nv, nz
 
-        #input arrays
+        # input arrays
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] v_ref = np.zeros(len(var_ref), dtype = np.uint32)
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] z_ref = np.zeros(len(func_ref), dtype = np.uint32)
         cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] dv = np.zeros(len(v), dtype = np.double)
-        #output array
+        # output array
         cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] dz = np.zeros(len(func_ref), dtype = np.double)
 
         if not self._provides_directional_derivatives():
             raise FMUException('This FMU does not provide directional derivatives')
 
         if len(var_ref) != len(v):
-            raise FMUException('The length of the list with variables (var_ref) and the seed vector (V) are not equal')
+            raise FMUException(f'The length of the list with variables (var_ref) is {len(var_ref)} and the seed vector (v) is {len(v)}, these must be of equal length')
 
         for i in range(len(var_ref)):
             v_ref[i] = var_ref[i]
