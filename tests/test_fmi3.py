@@ -652,6 +652,15 @@ class TestFMI3LoadFMU:
 
         assert expected == list(inputs.keys())
 
+    def test_get_output_list(self):
+        """ Test get_output_list. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        outputs = fmu.get_output_list()
+
+        expected = ['Float64_continuous_output']
+        assert expected == list(outputs.keys())
+
     @pytest.mark.parametrize("function_name, valuerefs, expected_result, expected_dtype",
         [
             ("get_float64", [5, 6], np.array([0, 0], dtype=np.float64), np.float64),

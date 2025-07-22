@@ -1808,10 +1808,25 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         Returns::
             An dictionary with the (float64, continuous) input variables.
         """
+        # TODO: We may want to revisit the format here; e.g., optional inputs to filter different types?
         return self.get_model_variables(
             type = FMI3_Type.FLOAT64,
             include_alias = False,
             causality = FMI3_Causality.INPUT,
+            variability = FMI3_Variability.CONTINUOUS)
+
+    def get_output_list(self):
+        """
+        Returns a dictionary with output variables
+
+        Returns::
+            An dictionary with the (float64, continuous) output variables.
+        """
+        # TODO: We may want to revisit the format here; e.g., optional inputs to filter different types?
+        return self.get_model_variables(
+            type = FMI3_Type.FLOAT64,
+            include_alias = False,
+            causality = FMI3_Causality.OUTPUT,
             variability = FMI3_Variability.CONTINUOUS)
 
     def get_variable_data_type(self, variable_name):
