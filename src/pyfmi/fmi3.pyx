@@ -2044,6 +2044,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                             inputs_kind[output_var_name].append(FMI3_DependencyKind(dependenciesKind[i]))
                         else:
                             pass # XXX: Not float64 or continuous
+                # XXX: Edge case; does a state that is an output need to list itself as dependency?
+                if (output_var.value_reference in map_vr_to_state) and \
+                   (map_vr_to_state[output_var.value_reference] not in states[output_var_name]):
+                    states[output_var_name].append(map_vr_to_state[output_var.value_reference])
+                    states_kind[output_var_name].append(FMI3_DependencyKind.CONSTANT)
 
         # Caching
         self._outputs_states_dependencies = states

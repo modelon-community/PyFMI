@@ -663,7 +663,7 @@ class TestFMI3LoadFMU:
         assert expected == list(outputs.keys())
 
     def test_get_output_dependencies(self):
-        """ Test get_output_dependencies."""
+        """ Test get_output_dependencies, Feedthrough."""
         fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
         fmu = load_fmu(fmu_path)
         num_outputs = len(fmu.get_output_list())
@@ -674,6 +674,21 @@ class TestFMI3LoadFMU:
         assert state_deps["Float64_continuous_output"] == []
         assert len(input_deps) == num_outputs
         assert input_deps["Float64_continuous_output"] == ["Float64_continuous_input"]
+
+    def test_get_output_dependencies_2(self):
+        """ Test get_output_dependencies, VanDerPol."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        num_outputs = len(fmu.get_output_list())
+        state_deps, input_deps = fmu.get_output_dependencies()
+
+        assert num_outputs == 2
+        assert len(state_deps) == num_outputs
+        assert state_deps["x0"] == ["x0"]
+        assert state_deps["x1"] == ["x1"]
+        assert len(input_deps) == num_outputs
+        assert input_deps["x0"] == []
+        assert input_deps["x1"] == []
 
     def test_get_output_dependencies_kind(self):
         """ Test get_output_dependencies_kind."""
