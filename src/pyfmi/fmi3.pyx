@@ -22,6 +22,7 @@ cimport cython
 import os
 from enum import IntEnum
 import logging
+import functools
 from typing import Union
 
 import numpy as np
@@ -1940,6 +1941,110 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return variable_dict
 
+    def get_directional_derivative(self, var_ref, func_ref, v):
+        """
+        Returns the directional derivatives of the functions with respect
+        to the given variables and in the given direction.
+        In other words, it returns linear combinations of the partial derivatives
+        of the given functions with respect to the selected variables.
+        The point of evaluation is the current time-point.
+
+        Parameters::
+
+            var_ref --
+                A list of variable references that the partial derivatives
+                will be calculated with respect to.
+
+            func_ref --
+                A list of function references for which the partial derivatives will be calculated.
+
+            v --
+                A seed vector specifying the linear combination of the partial derivatives.
+
+        Returns::
+
+            value --
+                A vector with the directional derivatives (linear combination of
+                partial derivatives) evaluated in the current time point.
+
+
+        Example::
+
+            states = model.get_states_list()
+            states_references = [s.value_reference for s in states.values()]
+            derivatives = model.get_derivatives_list()
+            derivatives_references = [d.value_reference for d in derivatives.values()]
+            model.get_directional_derivative(states_references, derivatives_references, v)
+
+            This returns Jv, where J is the Jacobian and v the seed vector.
+
+            Also, only a subset of the derivatives and states can be selected:
+
+            model.get_directional_derivative(var_ref = [0,1], func_ref = [2,3], v = [1,2])
+
+            This returns a vector with two values where:
+
+            values[0] = (df2/dv0) * 1 + (df2/dv1) * 2
+            values[1] = (df3/dv0) * 1 + (df3/dv1) * 2
+
+        """
+
+        cdef FMIL3.fmi3_status_t status
+        cdef FMIL.size_t nv, nz
+
+        # input arrays
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] v_ref = np.zeros(len(var_ref), dtype = np.uint32)
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] z_ref = np.zeros(len(func_ref), dtype = np.uint32)
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] dv = np.zeros(len(v), dtype = np.double)
+        # output array
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] dz = np.zeros(len(func_ref), dtype = np.double)
+
+        if not self._provides_directional_derivatives():
+            raise FMUException('This FMU does not provide directional derivatives')
+
+        if len(var_ref) != len(v):
+            raise FMUException(f'The length of the list with variables (var_ref) is {len(var_ref)} and the seed vector (v) is {len(v)}, these must be of equal length')
+
+        for i in range(len(var_ref)):
+            v_ref[i] = var_ref[i]
+            dv[i] = v[i]
+        for j in range(len(func_ref)):
+            z_ref[j] = func_ref[j]
+
+        nv = len(v_ref)
+        nz = len(z_ref)
+        # TODO: Array variables
+
+        status = self._get_directional_derivative(v_ref, z_ref, dv, dz)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException('An error occured while getting the directional derivative, see the log for possible more information')
+
+        return dz
+
+    cdef FMIL3.fmi3_status_t _get_directional_derivative(self, np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode="c"] v_ref,
+                                               np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode="c"] z_ref,
+                                               np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode="c"] dv,
+                                               np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode="c"] dz) except *:
+        cdef FMIL3.fmi3_status_t status
+
+        assert np.size(dv) >= np.size(v_ref) and np.size(dz) >= np.size(z_ref)
+
+        if not self._provides_directional_derivatives():
+            raise FMUException('This FMU does not provide directional derivatives')
+
+        # TODO: Array variables; we'll likely be calculating the output size here as well
+        # XXX: Might even want to "general purpose" directional derivatives + one specifically all scalar
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_get_directional_derivative(self._fmu,
+                  <FMIL3.fmi3_value_reference_t*> z_ref.data, np.size(z_ref),
+                  <FMIL3.fmi3_value_reference_t*> v_ref.data, np.size(v_ref),
+                  <FMIL3.fmi3_float64_t*> dv.data, np.size(dv),
+                  <FMIL3.fmi3_float64_t*> dz.data, np.size(dz))
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        return status
+
     def get_fmil_log_level(self):
         """ Returns::
                 The current FMIL log-level.
@@ -2712,6 +2817,13 @@ cdef class FMUModelME3(FMUModelBase3):
         capabilities['needsCompletedIntegratorStep']        = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_needsCompletedIntegratorStep))
 
         return capabilities
+
+    @functools.cache
+    def _provides_directional_derivatives(self):
+        """
+        Check capability to provide directional derivatives.
+        """
+        return bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_providesDirectionalDerivatives))
 
     cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
             FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,
