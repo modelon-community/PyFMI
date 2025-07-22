@@ -96,10 +96,10 @@ cdef extern from 'fmilib.h':
         fmi3_variability_enu_unknown     = 5
 
     cdef enum fmi3_initial_enu_t:
-        fmi3_initial_enu_exact      = 1,
-        fmi3_initial_enu_approx     = 2,
-        fmi3_initial_enu_calculated = 3,
-        fmi3_initial_enu_unknown    = 4
+        fmi3_initial_enu_exact      = 0,
+        fmi3_initial_enu_approx     = 1,
+        fmi3_initial_enu_calculated = 2,
+        fmi3_initial_enu_unknown    = 3
 
     cdef enum fmi3_capabilities_enu_t:
         fmi3_me_needsExecutionTool                     = 0,
