@@ -2064,11 +2064,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         dependent on. Returns two dictionaries, one with the states
         and one with the (continuous, float64) inputs. The list of 'kinds'::
 
-            FMI3_DependencyKind.DEPENDENT (= 0)
-            FMI3_DependencyKind.CONSTANT  (= 1)
-            FMI3_DependencyKind.FIXED     (= 2)
-            FMI3_DependencyKind.TUNABLE   (= 3)
-            FMI3_DependencyKind.DISCRETE  (= 4)
+            FMI3_DependencyKind.DEPENDENT
+            FMI3_DependencyKind.CONSTANT
+            FMI3_DependencyKind.FIXED
+            FMI3_DependencyKind.TUNABLE
+            FMI3_DependencyKind.DISCRETE
 
         """
         # TODO: More than just float64 outputs?
@@ -2161,11 +2161,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         dependent on. Returns two dictionaries, one with the states
         and one with the (continuous float64) inputs. The list of 'kinds'::
 
-            FMI3_DependencyKind.DEPENDENT (= 0)
-            FMI3_DependencyKind.CONSTANT  (= 1)
-            FMI3_DependencyKind.FIXED     (= 2)
-            FMI3_DependencyKind.TUNABLE   (= 3)
-            FMI3_DependencyKind.DISCRETE  (= 4)
+            FMI3_DependencyKind.DEPENDENT
+            FMI3_DependencyKind.CONSTANT
+            FMI3_DependencyKind.FIXED
+            FMI3_DependencyKind.TUNABLE
+            FMI3_DependencyKind.DISCRETE
 
         """
         # TODO: More than just float64?
