@@ -101,6 +101,14 @@ cdef extern from 'fmilib.h':
         fmi3_initial_enu_calculated = 2,
         fmi3_initial_enu_unknown    = 3
 
+    cdef enum fmi3_dependencies_kind_enu_t:
+        fmi3_dependencies_kind_dependent = 0,
+        fmi3_dependencies_kind_constant  = 1,
+        fmi3_dependencies_kind_fixed     = 2,
+        fmi3_dependencies_kind_tunable   = 3,
+        fmi3_dependencies_kind_discrete  = 4,
+        fmi3_dependencies_kind_num       = 5
+
     cdef enum fmi3_capabilities_enu_t:
         fmi3_me_needsExecutionTool                     = 0,
         fmi3_me_canBeInstantiatedOnlyOncePerProcess    = 1,
@@ -320,6 +328,9 @@ cdef extern from 'fmilib.h':
     char* fmi3_import_get_model_identifier_ME(fmi3_import_t*)
     void fmi3_import_free_variable_list(fmi3_import_variable_list_t*)
 
+    int fmi3_import_get_output_dependencies(fmi3_import_t*, fmi3_import_variable_t*, size_t*, int*, size_t**, char**)
+    int fmi3_import_get_continuous_state_derivative_dependencies(fmi3_import_t*, fmi3_import_variable_t*, size_t*, int*, size_t**, char**);
+
     # Getting variables attributes/types
     const char* fmi3_import_get_variable_name(fmi3_import_variable_t*)
     fmi3_variability_enu_t fmi3_import_get_variable_variability(fmi3_import_variable_t*)
@@ -329,6 +340,7 @@ cdef extern from 'fmilib.h':
     int fmi3_import_get_variable_has_start(fmi3_import_variable_t*)
     fmi3_import_variable_t* fmi3_import_get_variable(fmi3_import_variable_list_t* vl, size_t index)
     fmi3_import_variable_t* fmi3_import_get_variable_by_name(fmi3_import_t*, char*)
+    fmi3_import_variable_t* fmi3_import_get_variable_by_vr(fmi3_import_t*, fmi3_value_reference_t)
     fmi3_value_reference_t fmi3_import_get_variable_vr(fmi3_import_variable_t*)
     fmi3_base_type_enu_t fmi3_import_get_variable_base_type(fmi3_import_variable_t*)
     char* fmi3_import_get_model_version(fmi3_import_t*)

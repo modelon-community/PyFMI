@@ -33,6 +33,7 @@ from pyfmi.fmi3 import (
     FMI3_Causality,
     FMI3_Variability,
     FMI3_Initial,
+    FMI3_DependencyKind,
     FMI3EventInfo,
 )
 from pyfmi.exceptions import (
@@ -651,6 +652,86 @@ class TestFMI3LoadFMU:
         expected = ['Float64_continuous_input']
 
         assert expected == list(inputs.keys())
+
+    def test_get_output_list(self):
+        """ Test get_output_list. """
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        outputs = fmu.get_output_list()
+
+        expected = ['Float64_continuous_output']
+        assert expected == list(outputs.keys())
+
+    def test_get_output_dependencies(self):
+        """ Test get_output_dependencies, Feedthrough."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        num_outputs = len(fmu.get_output_list())
+        state_deps, input_deps = fmu.get_output_dependencies()
+
+        assert num_outputs == 1
+        assert len(state_deps) == num_outputs
+        assert state_deps["Float64_continuous_output"] == []
+        assert len(input_deps) == num_outputs
+        assert input_deps["Float64_continuous_output"] == ["Float64_continuous_input"]
+
+    def test_get_output_dependencies_2(self):
+        """ Test get_output_dependencies, VanDerPol."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        num_outputs = len(fmu.get_output_list())
+        state_deps, input_deps = fmu.get_output_dependencies()
+
+        assert num_outputs == 2
+        assert len(state_deps) == num_outputs
+        assert state_deps["x0"] == ["x0"]
+        assert state_deps["x1"] == ["x1"]
+        assert len(input_deps) == num_outputs
+        assert input_deps["x0"] == []
+        assert input_deps["x1"] == []
+
+    def test_get_output_dependencies_kind(self):
+        """ Test get_output_dependencies_kind."""
+        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
+        fmu = load_fmu(fmu_path)
+        num_outputs = len(fmu.get_output_list())
+        state_deps_kinds, input_deps_kinds = fmu.get_output_dependencies_kind()
+
+        assert num_outputs == 1
+        assert len(state_deps_kinds) == num_outputs
+        assert state_deps_kinds["Float64_continuous_output"] == []
+        assert len(input_deps_kinds) == num_outputs
+        assert input_deps_kinds["Float64_continuous_output"] == [FMI3_DependencyKind.CONSTANT]
+
+    def test_get_derivatives_dependencies(self):
+        """ Test get_derivatives_dependencies."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        num_ders = len(fmu.get_derivatives_list())
+        state_deps, input_deps = fmu.get_derivatives_dependencies()
+
+        assert num_ders == 2
+        assert len(state_deps) == num_ders
+        assert state_deps["der(x0)"] == ["x1"]
+        assert state_deps["der(x1)"] == ["x0", "x1"]
+        assert len(input_deps) == num_ders
+        assert input_deps["der(x0)"] == []
+        assert input_deps["der(x1)"] == []
+
+    def test_get_derivatives_dependencies_kind(self):
+        """ Test get_derivatives_dependencies_kind."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = load_fmu(fmu_path)
+        num_ders = len(fmu.get_derivatives_list())
+        state_deps_kinds, input_deps_kinds = fmu.get_derivatives_dependencies_kind()
+
+        assert num_ders == 2
+        assert len(state_deps_kinds) == num_ders
+        assert state_deps_kinds["der(x0)"] == [FMI3_DependencyKind.CONSTANT]
+        assert state_deps_kinds["der(x1)"] == [FMI3_DependencyKind.DEPENDENT, FMI3_DependencyKind.DEPENDENT]
+        assert len(input_deps_kinds) == num_ders
+        assert input_deps_kinds["der(x0)"] == []
+        assert input_deps_kinds["der(x1)"] == []
 
     @pytest.mark.parametrize("function_name, valuerefs, expected_result, expected_dtype",
         [
