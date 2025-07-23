@@ -23,6 +23,7 @@ import contextlib
 
 import pytest
 import numpy as np
+import scipy.sparse as sps
 
 from pyfmi import load_fmu
 from pyfmi.fmi import (
@@ -1105,11 +1106,24 @@ class Test_FMI3ME:
         fmu.initialize()
 
         A, B, C, D = fmu.get_state_space_representation(A = True, B = True, C = True, D = True, use_structure_info = False)
+        
         np.testing.assert_array_almost_equal(A, np.array([[0., 1.], [-1., -3.]]))
         np.testing.assert_array_almost_equal(B, np.array([[], []]))
         # np.testing.assert_array_almost_equal(C, np.array([[1., 0.], [0., 1.]]))
         np.testing.assert_array_almost_equal(C, np.array([[0., 0.], [0., 0.]])) # XXX: Reference FMU actually provides wrong output with directional_derivatives here
         np.testing.assert_array_almost_equal(D, np.array([[], []]))
+
+        # check the "use_structure_info" yield same result, but sparse
+        As, Bs, Cs, Ds = fmu.get_state_space_representation(A = True, B = True, C = True, D = True, use_structure_info = True)
+        assert isinstance(As, sps.csc_matrix)
+        assert isinstance(Bs, sps.csc_matrix)
+        assert isinstance(Cs, sps.csc_matrix)
+        assert isinstance(Ds, sps.csc_matrix)
+
+        np.testing.assert_array_almost_equal(A, As.todense())
+        np.testing.assert_array_almost_equal(B, Bs.todense())
+        np.testing.assert_array_almost_equal(C, Cs.todense())
+        np.testing.assert_array_almost_equal(D, Ds.todense())
 
 class Test_FMI3Alias:
     """Various tests surrounding aliases in FMI3."""
