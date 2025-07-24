@@ -327,7 +327,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         # Connect the DLL
         if _connect_dll:
             self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-            status = FMIL3.fmi3_import_create_dllfmu(self._fmu, self._fmu_kind, NULL, NULL)
+            status = FMIL3.fmi3_import_create_dllfmu(self._fmu, self._fmu_kind, <FMIL3.fmi3_instance_environment_t>self._fmu, FMIL3.fmi3_log_forwarding)
             self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             if status == FMIL.jm_status_error:
                 last_error = pyfmi_util.decode(FMIL3.fmi3_import_get_last_error(self._fmu))
