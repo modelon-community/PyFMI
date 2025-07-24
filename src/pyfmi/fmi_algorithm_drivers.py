@@ -544,21 +544,21 @@ class AssimuloFMIAlg(AlgorithmBase):
             self.rtol = self.model.get_relative_tolerance() #No support for relative tolerance in the used solver
 
         self.with_jacobian = self.options['with_jacobian']
-        if not (isinstance(self.model, FMUModelME2)): # or isinstance(self.model, fmi_coupled.CoupledFMUModelME2) For coupled FMUs, currently not supported
+        if not (isinstance(self.model, (FMUModelME2, FMUModelME3))): # or isinstance(self.model, fmi_coupled.CoupledFMUModelME2) For coupled FMUs, currently not supported
             self.with_jacobian = False #Force false flag in this case as it is not supported
-        elif self.with_jacobian == "Default" and (isinstance(self.model, FMUModelME2)): #or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)
+        elif self.with_jacobian == "Default" and (isinstance(self.model, (FMUModelME2, FMUModelME3))): #or isinstance(self.model, fmi_coupled.CoupledFMUModelME2)
             if self.model.get_capability_flags()['providesDirectionalDerivatives']:
                 self.with_jacobian = True
             else:
-                fnbr, gnbr = self.model.get_ode_sizes()
+                fnbr, _ = self.model.get_ode_sizes()
                 if fnbr >= PYFMI_JACOBIAN_LIMIT and solver == "CVode":
                     self.with_jacobian = True
                     if fnbr >= PYFMI_JACOBIAN_SPARSE_SIZE_LIMIT:
                         try:
                             self.solver_options["linear_solver"]
                         except KeyError:
-                            #Need to calculate the nnz.
-                            [derv_state_dep, derv_input_dep] = self.model.get_derivatives_dependencies()
+                            # Need to calculate the nnz.
+                            derv_state_dep, _ = self.model.get_derivatives_dependencies()
                             nnz = np.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+fnbr
                             if nnz/float(fnbr*fnbr) <= PYFMI_JACOBIAN_SPARSE_NNZ_LIMIT:
                                 self.solver_options["linear_solver"] = "SPARSE"

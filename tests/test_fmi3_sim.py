@@ -17,11 +17,15 @@
 
 from pathlib import Path
 
+import re
 import pytest
 import numpy as np
 from scipy.interpolate import interp1d
 
 from pyfmi import load_fmu
+from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg
+from pyfmi.fmi3 import FMUModelME3
+from pyfmi.exceptions import FMUException
 
 this_dir = Path(__file__).parent.absolute()
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
@@ -36,8 +40,8 @@ class TestSimulation:
 
         assert results['x0'][0] == 2.0
         assert results['x1'][0] == 0.0
-        assert results['x0'][-1] == pytest.approx( 2.00814337)
-        assert results['x1'][-1] == pytest.approx(-0.04277047)
+        assert results['x0'][-1] == pytest.approx( 2.008130983012657)
+        assert results['x1'][-1] == pytest.approx(-0.042960828207896706)
         np.testing.assert_equal(results['mu'], np.ones(len(results['x0'])))
 
     def test_simulate_check_result_members(self):
@@ -197,6 +201,75 @@ class TestSimulation:
 
         res = fmu.simulate(options = {"ncp": 0})
         assert res.solver.get_statistics()["nstateevents"] > 0
+
+    def test_automatic_jacobian_via_directional_derivatives(self):
+        """Test that the Jacobian is automatically constructed via directional derivatives (available)."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        assert fmu.get_capability_flags()['providesDirectionalDerivatives'] is True
+        alg = AssimuloFMIAlg(
+            start_time = 0,
+            final_time = 1,
+            input = None,
+            model = fmu,
+            options = {}
+        )
+        assert alg.with_jacobian is True
+
+    def test_automatic_jacobian_via_directional_derivatives_no_dir_ders(self):
+        """Test that the Jacobian is automatically constructed via directional derivatives (not available)."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Dahlquist.fmu")
+        assert fmu.get_capability_flags()['providesDirectionalDerivatives'] is False
+        alg = AssimuloFMIAlg(
+            start_time = 0,
+            final_time = 1,
+            input = None,
+            model = fmu,
+            options = {}
+        )
+        assert alg.with_jacobian is False
+
+    def test_with_jacobian_and_directional_derivatives(self):
+        """Test 'with_jacobian' options, when directional_derivatives are available."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        assert fmu.get_capability_flags()['providesDirectionalDerivatives'] is True
+        fmu.simulate(options = {"with_jacobian": True, "ncp": 0})
+
+    def test_with_jacobian_without_directional_derivatives(self):
+        """Test 'with_jacobian' options, when directional_derivatives are NOT available."""
+        # This relies on FMUModelME3._estimate_directional_derivative
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Dahlquist.fmu")
+        assert fmu.get_capability_flags()['providesDirectionalDerivatives'] is False
+        opts = fmu.simulate_options()
+        opts["with_jacobian"] = True
+        opts["ncp"] = 0
+        fmu.simulate(options = opts)
+        assert opts["with_jacobian"] is True
+
+    def test_force_finite_differences(self):
+        """Test 'force_finite_differences' option."""
+        fmu = FMUModelME3(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.force_finite_differences = True
+        fmu.initialize()
+        fmu._get_A()
+
+    @pytest.mark.parametrize("finite_differences_method", [1, 2])
+    def test_finite_differences_method(self, finite_differences_method):
+        """Test valid 'finite_difference_method' options."""
+        fmu = FMUModelME3(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.force_finite_differences = True
+        fmu.finite_differences_method = finite_differences_method
+        fmu.initialize()
+        fmu._get_A()
+
+    def test_invalid_finite_differences_method(self):
+        """Test invalid 'finite_differences_method'."""
+        fmu = FMUModelME3(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.force_finite_differences = True
+        fmu.finite_differences_method = 3
+        fmu.initialize()
+        msg = "Invalid 'finite_differences_method' for FMUModelME3, must be FORWARD_DIFFERENCE (1) or CENTRAIL_DIFFERENCE (2)."
+        with pytest.raises(FMUException, match = re.escape(msg)):
+            fmu._get_A()
 
 class TestDynamicDiagnostics:
     """Tests involving simulation of FMI3 FMUs using 'dynamic_diagnostics' == True."""

@@ -69,6 +69,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef object     _t
     cdef int _allow_unzipped_fmu
     cdef int _allocated_context, _allocated_dll, _allocated_fmu, _allocated_xml
+    cdef _WorkerClass3 _worker_object
 
     # Caching
     cdef list _states_references
@@ -137,7 +138,14 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef get_derivatives_dependencies(self)
     cpdef get_derivatives_dependencies_kind(self)
 
+    # internal methods for efficiency
+    cdef FMIL3.fmi3_status_t _set_float64(self, FMIL3.fmi3_value_reference_t*, FMIL3.fmi3_float64_t*, size_t)
+    cdef FMIL3.fmi3_status_t _get_float64(self, FMIL3.fmi3_value_reference_t*, size_t, FMIL3.fmi3_float64_t*)
+
 cdef class FMUModelME3(FMUModelBase3):
+    cdef public FMIL3.fmi3_boolean_t force_finite_differences
+    cdef public int finite_differences_method
+
     cpdef get_derivatives(self)
     cdef FMIL3.fmi3_status_t _get_derivatives(self, FMIL3.fmi3_float64_t[:] values)
     cdef FMIL3.fmi3_status_t _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
@@ -149,6 +157,18 @@ cdef class FMUModelME3(FMUModelBase3):
         FMIL3.fmi3_boolean_t* terminate_simulation
     )
     cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx)
+
+cdef class _WorkerClass3:
+    cdef int _dim
+
+    cdef np.ndarray _tmp1_val, _tmp2_val, _tmp3_val, _tmp4_val
+    cdef np.ndarray _tmp1_ref, _tmp2_ref, _tmp3_ref, _tmp4_ref
+
+    cdef FMIL3.fmi3_float64_t* get_real_vector(self, int index)
+    cdef FMIL3.fmi3_value_reference_t* get_value_reference_vector(self, int index)
+    cdef np.ndarray get_value_reference_numpy_vector(self, int index)
+    cdef np.ndarray get_real_numpy_vector(self, int index)
+    cpdef verify_dimensions(self, int dim)
 
 cdef void _cleanup_on_load_error(
     FMIL3.fmi3_import_t* fmu_3,

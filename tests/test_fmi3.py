@@ -1056,9 +1056,9 @@ class Test_FMI3ME:
         options["result_handling"] = None
         fmu.simulate(0, 20, options = options)
 
-        # reference values taken from FMI2 VDP simulation
-        assert fmu.get("x0")[0] == pytest.approx(2.0081433709107324)
-        assert fmu.get("x1")[0] == pytest.approx(-0.0427704789503908)
+        # reference values taken from FMI2 VDP simulation, same settings
+        assert fmu.get("x0")[0] == pytest.approx( 2.008130983012657)
+        assert fmu.get("x1")[0] == pytest.approx(-0.042960828207896706)
 
     def test_generation_tool(self):
         """Test getting generation tool."""
