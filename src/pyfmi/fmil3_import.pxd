@@ -306,6 +306,7 @@ cdef extern from 'fmilib.h':
     # Parsing/logging basics
     fmi3_import_t* fmi3_import_parse_xml(FMIL.fmi_import_context_t*, char*, fmi3_xml_callbacks_t*)
     void fmi3_import_free(fmi3_import_t*)
+    void fmi3_log_forwarding(fmi3_instance_environment_t, fmi3_status_t, fmi3_string_t, fmi3_string_t);
 
     ### Model information
 
