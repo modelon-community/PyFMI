@@ -110,12 +110,12 @@ cdef class FMIODE3(cExplicit_Problem):
         self._number_of_diagnostics_variables = number_of_diagnostics_variables
 
         self.jac_use = False
-        # if f_nbr > 0 and with_jacobian:
-        #     self.jac_use = True # Activates the jacobian
+        if f_nbr > 0 and with_jacobian:
+            self.jac_use = True # Activates the jacobian
 
-        #     # Need to calculate the nnz.
-        #     [derv_state_dep, derv_input_dep] = model.get_derivatives_dependencies()
-        #     self.jac_nnz = np.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()])+f_nbr
+            # Need to calculate the nnz.
+            derv_state_dep, derv_input_dep = model.get_derivatives_dependencies()
+            self.jac_nnz = np.sum([len(derv_state_dep[key]) for key in derv_state_dep.keys()]) + f_nbr
 
         if extra_equations:
             self._extra_f_nbr = extra_equations.get_size()
@@ -123,11 +123,11 @@ cdef class FMIODE3(cExplicit_Problem):
             self.y0 = np.append(self.y0, self._extra_y0)
             self._extra_equations = extra_equations
 
-        #     if hasattr(self._extra_equations, "jac"):
-        #         if hasattr(self._extra_equations, "jac_nnz"):
-        #             self.jac_nnz += extra_equations.jac_nnz
-        #         else:
-        #             self.jac_nnz += len(self._extra_f_nbr)*len(self._extra_f_nbr)
+            if hasattr(self._extra_equations, "jac"):
+                if hasattr(self._extra_equations, "jac_nnz"):
+                    self.jac_nnz += extra_equations.jac_nnz
+                else:
+                    self.jac_nnz += len(self._extra_f_nbr)*len(self._extra_f_nbr)
         else:
             self._extra_f_nbr = 0
 
@@ -261,65 +261,63 @@ cdef class FMIODE3(cExplicit_Problem):
 
         return der
 
-    def jac(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
+    def jac(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw = None):
         """ The jacobian function for an ODE problem. """
-        # TODO: Make sure to copy the latest code from FMI2 as base; contains an dynamic_diagnostics logging fix + tests
-        pass
-        # if self._logging:
-        #     preface = "[INFO][FMU status:OK] "
-        #     solver_info_tag = 'Jacobian'
+        log_requires_closing_tag = False
+        
+        if self._logging:
+            preface = "[INFO][FMU status:OK] "
+            solver_info_tag = 'Jacobian'
 
-        #     msg = preface + '<%s>Starting Jacobian calculation at <value name="t">        %.14E</value>.'%(solver_info_tag, t)
-        #     self._model.append_log_message("Model", 4, msg)
+            msg = preface + '<%s>Starting Jacobian calculation at <value name="t">        %.14E</value>.'%(solver_info_tag, t)
+            self._model.append_log_message("Model", 4, msg)
+            log_requires_closing_tag = True
+            log_closing_tag = preface + '</%s>'%(solver_info_tag)
+        
+        if self._extra_f_nbr > 0:
+            y_extra = y[-self._extra_f_nbr:]
+            y       = y[:-self._extra_f_nbr]
 
-        # if self._extra_f_nbr > 0:
-        #     y_extra = y[-self._extra_f_nbr:]
-        #     y       = y[:-self._extra_f_nbr]
+        try:
+            self._update_model(t, y)
 
-        # self._update_model(t, y)
+            # Evaluating the jacobian
 
-        # # Evaluating the jacobian
+            # If there are no states return a dummy jacobian.
+            if self._f_nbr == 0:
+                return np.array([[0.0]])
 
-        # # If there are no states return a dummy jacobian.
-        # if self._f_nbr == 0:
-        #     if self._logging:
-        #         msg = preface + '</%s>'%(solver_info_tag)
-        #         self._model.append_log_message("Model", 6, msg)
+            A = self._model._get_A(add_diag=True, output_matrix=self._A)
+            if self._A is None:
+                self._A = A
 
-        #     return np.array([[0.0]])
+            if self._extra_f_nbr > 0:
+                if hasattr(self._extra_equations, "jac"):
+                    if self._sparse_representation:
 
-        # A = self._model._get_A(add_diag=True, output_matrix=self._A)
-        # if self._A is None:
-        #     self._A = A
+                        Jac = A.tocoo() # Convert to COOrdinate
+                        A2 = self._extra_equations.jac(y_extra).tocoo()
 
-        # if self._extra_f_nbr > 0:
-        #     if hasattr(self._extra_equations, "jac"):
-        #         if self._sparse_representation:
+                        data = np.append(Jac.data, A2.data)
+                        row  = np.append(Jac.row, A2.row+self._f_nbr)
+                        col  = np.append(Jac.col, A2.col+self._f_nbr)
 
-        #             Jac = A.tocoo() # Convert to COOrdinate
-        #             A2 = self._extra_equations.jac(y_extra).tocoo()
+                        # Convert to compressed sparse column
+                        Jac = sps.coo_matrix((data, (row, col)))
+                        Jac = Jac.tocsc()
+                    else:
+                        Jac = np.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
+                        Jac[:self._f_nbr,:self._f_nbr] = A if isinstance(A, np.ndarray) else A.toarray()
+                        Jac[self._f_nbr:,self._f_nbr:] = self._extra_equations.jac(y_extra)
+                else:
+                    raise FMUException("No Jacobian provided for the extra equations")
+            else:
+                Jac = A
+        finally: # Even includes early return
+            if log_requires_closing_tag:
+                self._model.append_log_message("Model", 4, log_closing_tag)
 
-        #             data = np.append(Jac.data, A2.data)
-        #             row  = np.append(Jac.row, A2.row+self._f_nbr)
-        #             col  = np.append(Jac.col, A2.col+self._f_nbr)
-
-        #             # Convert to compressed sparse column
-        #             Jac = sps.coo_matrix((data, (row, col)))
-        #             Jac = Jac.tocsc()
-        #         else:
-        #             Jac = np.zeros((self._f_nbr+self._extra_f_nbr,self._f_nbr+self._extra_f_nbr))
-        #             Jac[:self._f_nbr,:self._f_nbr] = A if isinstance(A, np.ndarray) else A.toarray()
-        #             Jac[self._f_nbr:,self._f_nbr:] = self._extra_equations.jac(y_extra)
-        #     else:
-        #         raise FMUException("No Jacobian provided for the extra equations")
-        # else:
-        #     Jac = A
-
-        # if self._logging:
-        #     msg = preface + '</%s>'%(solver_info_tag)
-        #     self._model.append_log_message("Model", 4, msg)
-
-        # return Jac
+        return Jac
 
     def state_events(self, double t, np.ndarray[double, ndim=1, mode="c"] y, sw=None):
         """ The event indicator function for a ODE problem. """

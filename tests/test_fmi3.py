@@ -23,6 +23,7 @@ import contextlib
 
 import pytest
 import numpy as np
+import scipy.sparse as sps
 
 from pyfmi import load_fmu
 from pyfmi.fmi import (
@@ -1055,9 +1056,9 @@ class Test_FMI3ME:
         options["result_handling"] = None
         fmu.simulate(0, 20, options = options)
 
-        # reference values taken from FMI2 VDP simulation
-        assert fmu.get("x0")[0] == pytest.approx(2.0081433709107324)
-        assert fmu.get("x1")[0] == pytest.approx(-0.0427704789503908)
+        # reference values taken from FMI2 VDP simulation, same settings
+        assert fmu.get("x0")[0] == pytest.approx( 2.008130983012657)
+        assert fmu.get("x1")[0] == pytest.approx(-0.042960828207896706)
 
     def test_generation_tool(self):
         """Test getting generation tool."""
@@ -1099,6 +1100,30 @@ class Test_FMI3ME:
         assert capabilities["providesEvaluateDiscreteStates"] is False
         assert capabilities["needsCompletedIntegratorStep"] is False
 
+    def test_get_state_space_representation(self):
+        """Test get_state_space_representation function, VanDerPol."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu.initialize()
+
+        A, B, C, D = fmu.get_state_space_representation(A = True, B = True, C = True, D = True, use_structure_info = False)
+        
+        np.testing.assert_array_almost_equal(A, np.array([[0., 1.], [-1., -3.]]))
+        np.testing.assert_array_almost_equal(B, np.array([[], []]))
+        # np.testing.assert_array_almost_equal(C, np.array([[1., 0.], [0., 1.]]))
+        np.testing.assert_array_almost_equal(C, np.array([[0., 0.], [0., 0.]])) # XXX: Reference FMU actually provides wrong output with directional_derivatives here
+        np.testing.assert_array_almost_equal(D, np.array([[], []]))
+
+        # check the "use_structure_info" yield same result, but sparse
+        As, Bs, Cs, Ds = fmu.get_state_space_representation(A = True, B = True, C = True, D = True, use_structure_info = True)
+        assert isinstance(As, sps.csc_matrix)
+        assert isinstance(Bs, sps.csc_matrix)
+        assert isinstance(Cs, sps.csc_matrix)
+        assert isinstance(Ds, sps.csc_matrix)
+
+        np.testing.assert_array_almost_equal(A, As.todense())
+        np.testing.assert_array_almost_equal(B, Bs.todense())
+        np.testing.assert_array_almost_equal(C, Cs.todense())
+        np.testing.assert_array_almost_equal(D, Ds.todense())
 
 class Test_FMI3Alias:
     """Various tests surrounding aliases in FMI3."""

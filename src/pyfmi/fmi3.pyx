@@ -27,12 +27,15 @@ from typing import Union
 
 import numpy as np
 cimport numpy as np
+from numpy cimport PyArray_DATA
 
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi_base as FMI_BASE
 cimport pyfmi.util as pyfmi_util
 from pyfmi.util import enable_caching
+
+import scipy.sparse as sps
 
 
 # TYPES
@@ -84,6 +87,12 @@ class FMI3_DependencyKind(IntEnum):
     FIXED     = FMIL3.fmi3_dependencies_kind_fixed
     TUNABLE   = FMIL3.fmi3_dependencies_kind_tunable
     DISCRETE  = FMIL3.fmi3_dependencies_kind_discrete
+
+# Jacobian approximation
+DEF FORWARD_DIFFERENCE = 1
+DEF CENTRAL_DIFFERENCE = 2
+FORWARD_DIFFERENCE_EPS = (np.finfo(float).eps)**0.5
+CENTRAL_DIFFERENCE_EPS = (np.finfo(float).eps)**(1/3.0)
 
 from pyfmi.exceptions import (
     FMUException,
@@ -233,6 +242,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._last_accepted_time = 0.0
 
         # Caching
+        self._states_references = None
+        self._derivatives_references = None
+        self._inputs_references = None
+        self._outputs_references = None
         self._outputs_states_dependencies = None
         self._outputs_inputs_dependencies = None
         self._outputs_states_dependencies_kind = None
@@ -241,10 +254,15 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._derivatives_inputs_dependencies = None
         self._derivatives_states_dependencies_kind = None
         self._derivatives_inputs_dependencies_kind = None
+        self._group_A = None
+        self._group_B = None
+        self._group_C = None
+        self._group_D = None
 
         # Internal values
         self._enable_logging = False
         self._eventInfo   = FMI3EventInfo()
+        self._worker_object = _WorkerClass3()
 
         # Specify the general callback functions
         self.callbacks.malloc  = FMIL.malloc
@@ -555,6 +573,15 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         if status != 0:
             raise FMUException('Failed to set the Float64 values. See the log for possibly more information.')
+
+    cdef FMIL3.fmi3_status_t _set_float64(self, FMIL3.fmi3_value_reference_t* vrefs, FMIL3.fmi3_float64_t* values, size_t _size):
+        """Internal method for efficient setting of float64 variables."""
+        cdef FMIL3.fmi3_status_t status
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # XXX: arrays?
+        status = FMIL3.fmi3_import_set_float64(self._fmu, vrefs, _size, values, _size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+        return status
 
     cpdef set_float32(self, valueref, values):
         """
@@ -1076,6 +1103,15 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise FMUException('Failed to get the Float64 values.')
 
         return output_value
+
+    cdef FMIL3.fmi3_status_t _get_float64(self, FMIL3.fmi3_value_reference_t* vrefs, size_t _size, FMIL3.fmi3_float64_t* values):
+        """Internal method for efficient getting of float64 variables."""
+        cdef FMIL3.fmi3_status_t status
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        # XXX: arrays
+        status = FMIL3.fmi3_import_get_float64(self._fmu, vrefs, _size, values, _size)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+        return status
 
     cpdef np.ndarray get_float32(self, valueref):
         """
@@ -2173,6 +2209,198 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return self._derivatives_states_dependencies_kind, self._derivatives_inputs_dependencies_kind
 
+    def _get_directional_proxy(self, var_ref, func_ref, group = None, add_diag = False, output_matrix = None):
+        cdef list data = [], row = [], col = []
+        cdef list local_group
+        cdef int nbr_var_ref  = len(var_ref), nbr_func_ref = len(func_ref)
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] v = np.zeros(nbr_var_ref, dtype = np.double)
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] data_local
+        cdef int ind_local = 5 if add_diag else 4
+
+        if not self._has_entered_init_mode:
+            raise FMUException("The FMU has not entered initialization mode and thus the directional " \
+                               "derivatives cannot be computed. Call enter_initialization_mode to start the initialization.")
+
+        if group is not None:
+            if output_matrix is not None:
+                if not isinstance(output_matrix, sps.csc_matrix):
+                    output_matrix = None
+                else:
+                    data_local = output_matrix.data
+
+            if add_diag and output_matrix is None:
+                dim = min(nbr_var_ref, nbr_func_ref)
+                data.extend([0.0] * dim)
+                row.extend(range(dim))
+                col.extend(range(dim))
+
+            for key in group["groups"]:
+                local_group = group[key]
+
+                v[local_group[0]] = 1.0
+
+                column_data = self.get_directional_derivative(var_ref, func_ref, v)[local_group[2]]
+
+                if output_matrix is None:
+                    data.extend(column_data)
+                    row.extend(local_group[2])
+                    col.extend(local_group[3])
+                else:
+                    data_local[local_group[ind_local]] = column_data
+
+                v[local_group[0]] = 0.0
+
+            if output_matrix is not None:
+                A = output_matrix
+            else:
+                if len(data) == 0:
+                    A = sps.csc_matrix((nbr_func_ref,nbr_var_ref))
+                else:
+                    A = sps.csc_matrix((data, (row, col)), (nbr_func_ref, nbr_var_ref))
+
+            return A
+        else:
+            if output_matrix is None or \
+                (not isinstance(output_matrix, np.ndarray)) or \
+                (isinstance(output_matrix, np.ndarray) and (output_matrix.shape[0] != nbr_func_ref or output_matrix.shape[1] != nbr_var_ref)):
+                    A = np.zeros((nbr_func_ref, nbr_var_ref))
+            else:
+                A = output_matrix
+
+            for i in range(nbr_var_ref):
+                v[i] = 1.0
+                A[:, i] = self.get_directional_derivative(var_ref, func_ref, v)
+                v[i] = 0.0
+            return A
+
+    def _get_A(self, use_structure_info = True, add_diag = True, output_matrix = None):
+        if self._group_A is None and use_structure_info:
+            [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
+            self._group_A = pyfmi_util.cpr_seed(derv_state_dep, list(self.get_states_list().keys()))
+        if self._states_references is None:
+            states                       = self.get_states_list()
+            self._states_references      = [s.value_reference for s in states.values()]
+        if self._derivatives_references is None:
+            derivatives                  = self.get_derivatives_list()
+            self._derivatives_references = [s.value_reference for s in derivatives.values()]
+
+        return self._get_directional_proxy(
+            var_ref = self._states_references, 
+            func_ref = self._derivatives_references, 
+            group = self._group_A if use_structure_info else None, 
+            add_diag = add_diag, 
+            output_matrix = output_matrix
+        )
+
+    def _get_B(self, use_structure_info = True, add_diag = False, output_matrix = None):
+        if self._group_B is None and use_structure_info:
+            [derv_state_dep, derv_input_dep] = self.get_derivatives_dependencies()
+            self._group_B = pyfmi_util.cpr_seed(derv_input_dep, list(self.get_input_list().keys()))
+        if self._inputs_references is None:
+            inputs                       = self.get_input_list()
+            self._inputs_references      = [s.value_reference for s in inputs.values()]
+        if self._derivatives_references is None:
+            derivatives                  = self.get_derivatives_list()
+            self._derivatives_references = [s.value_reference for s in derivatives.values()]
+
+        return self._get_directional_proxy(
+            var_ref = self._inputs_references, 
+            func_ref = self._derivatives_references, 
+            group = self._group_B if use_structure_info else None, 
+            add_diag = add_diag, 
+            output_matrix = output_matrix
+        )
+
+    def _get_C(self, use_structure_info = True, add_diag = False, output_matrix = None):
+        if self._group_C is None and use_structure_info:
+            [out_state_dep, out_input_dep] = self.get_output_dependencies()
+            self._group_C = pyfmi_util.cpr_seed(out_state_dep, list(self.get_states_list().keys()))
+        if self._states_references is None:
+            states                       = self.get_states_list()
+            self._states_references      = [s.value_reference for s in states.values()]
+        if self._outputs_references is None:
+            outputs                      = self.get_output_list()
+            self._outputs_references     = [s.value_reference for s in outputs.values()]
+
+        return self._get_directional_proxy(
+            var_ref = self._states_references, 
+            func_ref = self._outputs_references, 
+            group = self._group_C if use_structure_info else None, 
+            add_diag = add_diag, 
+            output_matrix = output_matrix
+        )
+
+    def _get_D(self, use_structure_info = True, add_diag = False, output_matrix = None):
+        if self._group_D is None and use_structure_info:
+            [out_state_dep, out_input_dep] = self.get_output_dependencies()
+            self._group_D = pyfmi_util.cpr_seed(out_input_dep, list(self.get_input_list().keys()))
+        if self._inputs_references is None:
+            inputs                       = self.get_input_list()
+            self._inputs_references      = [s.value_reference for s in inputs.values()]
+        if self._outputs_references is None:
+            outputs                      = self.get_output_list()
+            self._outputs_references     = [s.value_reference for s in outputs.values()]
+
+        return self._get_directional_proxy(
+            var_ref = self._inputs_references,
+            func_ref = self._outputs_references,
+            group = self._group_D if use_structure_info else None,
+            add_diag = add_diag,
+            output_matrix = output_matrix
+        )
+
+    def get_state_space_representation(self, A = True, B = True, C = True, D = True, use_structure_info = True):
+        """
+        Returns a state space representation of the model. I.e::
+
+            der(x) = Ax + Bu
+                y  = Cx + Du
+
+        (float64 & continuous inputs/outputs only)
+
+        Which of the matrices to be returned can be choosen by the
+        arguments.
+
+        Parameters::
+
+            A --
+                If the 'A' matrix should be computed or not.
+                Default: True
+
+            B --
+                If the 'B' matrix should be computed or not.
+                Default: True
+
+            C --
+                If the 'C' matrix should be computed or not.
+                Default: True
+
+            D --
+                If the 'D' matrix should be computed or not.
+                Default: True
+
+            use_structure_info --
+                Determines if the structure should be taken into account
+                or not. If so, a sparse representation is returned,
+                otherwise a dense.
+                Default: True
+
+        Returns::
+            The A, B, C, D matrices. If not all are computed, the ones that
+            are not computed will be represented by a boolean flag.
+
+        """
+        if A:
+            A = self._get_A(use_structure_info)
+        if B:
+            B = self._get_B(use_structure_info)
+        if C:
+            C = self._get_C(use_structure_info)
+        if D:
+            D = self._get_D(use_structure_info)
+
+        return A, B, C, D
+
     def get_directional_derivative(self, var_ref, func_ref, v):
         """
         Returns the directional derivatives of the functions with respect
@@ -2512,6 +2740,9 @@ cdef class FMUModelME3(FMUModelBase3):
 
         if _connect_dll:
             self.instantiate()
+
+        self.force_finite_differences = False
+        self.finite_differences_method = FORWARD_DIFFERENCE
 
     def _get_fmu_kind(self):
         if self._fmu_kind & FMIL3.fmi3_fmu_kind_me:
@@ -3177,6 +3408,317 @@ cdef class FMUModelME3(FMUModelBase3):
             Property for accessing the current values of the continuous states. Calls
             the low-level FMI function: fmi3SetContinuousStates/fmi3GetContinuousStates.
     """)
+
+    def _get_directional_proxy(self, var_ref, func_ref, group, add_diag = False, output_matrix = None):
+        if not self._has_entered_init_mode:
+            raise FMUException("The FMU has not entered initialization mode and thus the directional " \
+                               "derivatives cannot be computed. Call enter_initialization_mode to start the initialization.")
+        if self._provides_directional_derivatives() and not self.force_finite_differences:
+            return FMUModelBase3._get_directional_proxy(self, var_ref, func_ref, group, add_diag, output_matrix)
+        else:
+            return self._estimate_directional_derivative(var_ref, func_ref, group, add_diag, output_matrix)
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    def _estimate_directional_derivative(self, var_ref, func_ref, dict group = None, add_diag = False, output_matrix = None):
+        cdef list data = [], row = [], col = []
+        cdef int sol_found = 0, dim = 0, i, j, len_v = len(var_ref), len_f = len(func_ref), local_indices_vars_nbr, status
+        cdef double tmp_nominal, fac, tmp
+        cdef int method = self.finite_differences_method
+        cdef double RUROUND = FORWARD_DIFFERENCE_EPS if method == FORWARD_DIFFERENCE else CENTRAL_DIFFERENCE_EPS
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] dfpert, df, eps, nominals
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] v_ref = np.asarray(var_ref, dtype = np.uint32)
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] z_ref = np.asarray(func_ref, dtype = np.uint32)
+        cdef int ind_local = 5 if add_diag else 4 # index in group data vectors
+        cdef list local_group
+
+        cdef FMIL3.fmi3_float64_t *column_data_pt
+        cdef FMIL3.fmi3_float64_t *v_pt
+        cdef FMIL3.fmi3_float64_t *df_pt
+        cdef FMIL3.fmi3_float64_t *eps_pt
+        cdef FMIL3.fmi3_float64_t *tmp_val_pt
+        cdef FMIL3.fmi3_float64_t *output_matrix_data_pt = NULL
+        cdef FMIL3.fmi3_value_reference_t *v_ref_pt = <FMIL3.fmi3_value_reference_t*>PyArray_DATA(v_ref)
+        cdef FMIL3.fmi3_value_reference_t *z_ref_pt = <FMIL3.fmi3_value_reference_t*>PyArray_DATA(z_ref)
+        cdef FMIL3.fmi3_value_reference_t *local_v_vref_pt
+        cdef FMIL3.fmi3_value_reference_t *local_z_vref_pt
+        cdef int* local_indices_vars_pt
+        cdef int* local_indices_matrix_rows_pt
+        cdef int* local_indices_matrix_columns_pt
+        cdef int* local_data_indices
+        cdef FMIL3.fmi3_float64_t* nominals_pt
+
+        if (method != FORWARD_DIFFERENCE) and (method != CENTRAL_DIFFERENCE):
+            raise FMUException("Invalid 'finite_differences_method' for FMUModelME3, must be FORWARD_DIFFERENCE (1) or CENTRAL_DIFFERENCE (2).")
+
+        # Make sure that the work vectors has the correct lengths
+        self._worker_object.verify_dimensions(max(len_v, len_f))
+
+        # Get work vectors
+        df_pt      = self._worker_object.get_real_vector(0)
+        df         = self._worker_object.get_real_numpy_vector(0) # TODO: Should be removed in the future
+        v_pt       = self._worker_object.get_real_vector(1)
+        eps_pt     = self._worker_object.get_real_vector(2)
+        eps        = self._worker_object.get_real_numpy_vector(2) # TODO: Should be removed in the future
+        tmp_val_pt = self._worker_object.get_real_vector(3)
+
+        local_v_vref_pt = self._worker_object.get_value_reference_vector(0)
+        local_z_vref_pt = self._worker_object.get_value_reference_vector(1)
+
+        # Get updated values for the derivatives and states
+        self._get_float64(z_ref_pt, len_f, df_pt)
+        self._get_float64(v_ref_pt, len_v, v_pt)
+
+        if group is not None:
+            if "nominals" in group: # Re-use extracted nominals
+                nominals = group["nominals"]
+                nominals_pt = <FMIL3.fmi3_float64_t*>PyArray_DATA(nominals)
+            else: # First time extraction of nominals
+                # TODO: If we are using the states, then the nominals should instead be picked up from the C callback function for nominals
+                if self._states_references and len_v == len(self._states_references) and (self._states_references[i] == var_ref[i] for i in range(len_v)):
+                    group["nominals"] = np.array(self.nominal_continuous_states, dtype = float)
+                    nominals = group["nominals"]
+                    nominals_pt = <FMIL3.fmi3_float64_t*>PyArray_DATA(nominals)
+                else:
+                    group["nominals"] = np.empty(len_v, dtype = float)
+                    nominals = group["nominals"]
+                    nominals_pt = <FMIL3.fmi3_float64_t*>PyArray_DATA(nominals)
+                    for i in range(len_v):
+                        nominals_pt[i] = self.get_variable_nominal(valueref = v_ref_pt[i])
+
+            for i in range(len_v):
+                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominals_pt[i]))
+        else:
+            for i in range(len_v):
+                tmp_nominal = self.get_variable_nominal(valueref = v_ref_pt[i])
+                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), tmp_nominal))
+
+        if group is not None:
+            if output_matrix is not None:
+                if not isinstance(output_matrix, sps.csc_matrix):
+                    output_matrix = None
+                else:
+                    output_matrix_data_pt = <FMIL3.fmi3_float64_t*>PyArray_DATA(output_matrix.data)
+
+            if add_diag and output_matrix is None:
+                dim = min(len_v,len_f)
+                data.extend([0.0]*dim)
+                row.extend(range(dim))
+                col.extend(range(dim))
+
+            for key in group["groups"]:
+                local_group = group[key]
+                sol_found = 0
+                local_indices_vars_pt           = <int*>PyArray_DATA(local_group[0])
+                local_indices_matrix_rows_pt    = <int*>PyArray_DATA(local_group[2])
+                local_indices_matrix_columns_pt = <int*>PyArray_DATA(local_group[3])
+                local_data_indices              = <int*>PyArray_DATA(local_group[ind_local])
+
+                local_indices_vars_nbr        = len(local_group[0])
+                local_indices_matrix_rows_nbr = len(local_group[2])
+
+                # Structure of a local group
+                # - [0] - variable indexes
+                # - [1] - variable names
+                # - [2] - matrix rows
+                # - [3] - matrix columns
+                # - [4] - position in data vector (CSC format)
+                # - [5] - position in data vector (with diag) (CSC format)
+
+                # Get the local value references for the derivatives and states corresponding to the current group
+                for i in range(local_indices_vars_nbr):        local_v_vref_pt[i] = v_ref_pt[local_indices_vars_pt[i]]
+                for i in range(local_indices_matrix_rows_nbr): local_z_vref_pt[i] = z_ref_pt[local_indices_matrix_rows_pt[i]]
+
+                for fac in [1.0, 0.1, 0.01, 0.001]: # In very special cases, the epsilon is too big, if an error, try to reduce eps
+                    for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]+fac*eps_pt[local_indices_vars_pt[i]]
+                    self._set_float64(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+
+                    if method == FORWARD_DIFFERENCE: # Forward and Backward difference
+                        column_data_pt = tmp_val_pt
+
+                        status = self._get_float64(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
+                        if status == 0:
+                            for i in range(local_indices_matrix_rows_nbr):
+                                column_data_pt[i] = (tmp_val_pt[i] - df_pt[local_indices_matrix_rows_pt[i]])/(fac*eps_pt[local_indices_matrix_columns_pt[i]])
+
+                            sol_found = 1
+                        else: # Backward
+
+                            for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]-fac*eps_pt[local_indices_vars_pt[i]]
+                            self._set_float64(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+
+                            status = self._get_float64(local_z_vref_pt, local_indices_matrix_rows_nbr, tmp_val_pt)
+                            if status == 0:
+                                for i in range(local_indices_matrix_rows_nbr):
+                                    column_data_pt[i] = (df_pt[local_indices_matrix_rows_pt[i]] - tmp_val_pt[i])/(fac*eps_pt[local_indices_matrix_columns_pt[i]])
+
+                                sol_found = 1
+
+                    else: # Central difference
+                        dfpertp = self.get_float64(z_ref[local_group[2]])
+
+                        for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]-fac*eps_pt[local_indices_vars_pt[i]]
+                        self._set_float64(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+
+                        dfpertm = self.get_float64(z_ref[local_group[2]])
+
+                        column_data = (dfpertp - dfpertm)/(2*fac*eps[local_group[3]])
+                        column_data_pt = <FMIL3.fmi3_float64_t*>PyArray_DATA(column_data)
+                        sol_found = 1
+
+                    if sol_found:
+                        if output_matrix is not None:
+                            for i in range(local_indices_matrix_rows_nbr):
+                                output_matrix_data_pt[local_data_indices[i]] = column_data_pt[i]
+                        else:
+                            for i in range(local_indices_matrix_rows_nbr):
+                                data.append(column_data_pt[i])
+                        break
+                else:
+                    raise FMUException("Failed to estimate the directional derivative at time %g."%self.time)
+
+                if output_matrix is None:
+                    row.extend(local_group[2])
+                    col.extend(local_group[3])
+
+                for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]
+                self._set_float64(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+
+            if output_matrix is not None:
+                A = output_matrix
+            else:
+                if len(data) == 0:
+                    A = sps.csc_matrix((len_f,len_v))
+                else:
+                    A = sps.csc_matrix((data, (row, col)), (len_f,len_v))
+
+            return A
+        else:
+            if output_matrix is None or \
+                (not isinstance(output_matrix, np.ndarray)) or \
+                (isinstance(output_matrix, np.ndarray) and (output_matrix.shape[0] != len_f or output_matrix.shape[1] != len_v)):
+                    A = np.zeros((len_f,len_v))
+            else:
+                A = output_matrix
+
+            if len_v == 0 or len_f == 0:
+                return A
+
+            dfpert = np.zeros(len_f, dtype = np.double)
+            df = df[:len_f] # TODO:Should be removed in the future
+            for i in range(len_v):
+                tmp = v_pt[i]
+                for fac in [1.0, 0.1, 0.01, 0.001]: # In very special cases, the epsilon is too big, if an error, try to reduce eps
+                    v_pt[i] = tmp+fac*eps_pt[i]
+                    self._set_float64(v_ref_pt, v_pt, len_v)
+
+                    if method == FORWARD_DIFFERENCE: # Forward and Backward difference
+                        try:
+                            dfpert = self.get_float64(z_ref)
+                            A[:, i] = (dfpert - df)/(fac*eps_pt[i])
+                            break
+                        except FMUException: # Try backward difference
+                            v_pt[i] = tmp - fac*eps_pt[i]
+                            self._set_float64(v_ref_pt, v_pt, len_v)
+                            try:
+                                dfpert = self.get_float64(z_ref)
+                                A[:, i] = (df - dfpert)/(fac*eps_pt[i])
+                                break
+                            except FMUException:
+                                pass
+
+                    else: # Central difference
+                        dfpertp = self.get_float64(z_ref)
+                        v_pt[i] = tmp - fac*eps_pt[i]
+                        self._set_float64(v_ref_pt, v_pt, len_v)
+                        dfpertm = self.get_float64(z_ref)
+                        A[:, i] = (dfpertp - dfpertm)/(2*fac*eps_pt[i])
+                        break
+                else:
+                    raise FMUException("Failed to estimate the directional derivative at time %g."%self.time)
+
+                # Reset values
+                v_pt[i] = tmp
+                self._set_float64(v_ref_pt, v_pt, len_v)
+
+            return A
+
+
+cdef class _WorkerClass3:
+    """Internal helper class used in estimating directional derivatives."""
+
+    def __init__(self):
+        self._dim = 0
+
+    def _update_work_vectors(self, dim):
+        self._tmp1_val = np.zeros(dim, dtype = np.double)
+        self._tmp2_val = np.zeros(dim, dtype = np.double)
+        self._tmp3_val = np.zeros(dim, dtype = np.double)
+        self._tmp4_val = np.zeros(dim, dtype = np.double)
+
+        self._tmp1_ref = np.zeros(dim, dtype = np.uint32)
+        self._tmp2_ref = np.zeros(dim, dtype = np.uint32)
+        self._tmp3_ref = np.zeros(dim, dtype = np.uint32)
+        self._tmp4_ref = np.zeros(dim, dtype = np.uint32)
+
+    cpdef verify_dimensions(self, int dim):
+        if dim > self._dim:
+            self._update_work_vectors(dim)
+
+    cdef np.ndarray get_real_numpy_vector(self, int index):
+        cdef np.ndarray ret = None
+
+        if index == 0:
+            ret = self._tmp1_val
+        elif index == 1:
+            ret = self._tmp2_val
+        elif index == 2:
+            ret = self._tmp3_val
+        elif index == 3:
+            ret = self._tmp4_val
+
+        return ret
+
+    cdef FMIL3.fmi3_float64_t* get_real_vector(self, int index):
+        cdef FMIL3.fmi3_float64_t* ret = NULL
+        if index == 0:
+            ret = <FMIL3.fmi3_float64_t*>PyArray_DATA(self._tmp1_val)
+        elif index == 1:
+            ret = <FMIL3.fmi3_float64_t*>PyArray_DATA(self._tmp2_val)
+        elif index == 2:
+            ret = <FMIL3.fmi3_float64_t*>PyArray_DATA(self._tmp3_val)
+        elif index == 3:
+            ret = <FMIL3.fmi3_float64_t*>PyArray_DATA(self._tmp4_val)
+
+        return ret
+
+    cdef np.ndarray get_value_reference_numpy_vector(self, int index):
+        cdef np.ndarray ret = None
+
+        if index == 0:
+            ret = self._tmp1_ref
+        elif index == 1:
+            ret = self._tmp2_ref
+        elif index == 2:
+            ret = self._tmp3_ref
+        elif index == 3:
+            ret = self._tmp4_ref
+
+        return ret
+
+    cdef FMIL3.fmi3_value_reference_t* get_value_reference_vector(self, int index):
+        cdef FMIL3.fmi3_value_reference_t* ret = NULL
+        if index == 0:
+            ret = <FMIL3.fmi3_value_reference_t*>PyArray_DATA(self._tmp1_ref)
+        elif index == 1:
+            ret = <FMIL3.fmi3_value_reference_t*>PyArray_DATA(self._tmp2_ref)
+        elif index == 2:
+            ret = <FMIL3.fmi3_value_reference_t*>PyArray_DATA(self._tmp3_ref)
+        elif index == 3:
+            ret = <FMIL3.fmi3_value_reference_t*>PyArray_DATA(self._tmp4_ref)
+
+        return ret
 
 cdef void _cleanup_on_load_error(
     FMIL3.fmi3_import_t* fmu_3,
