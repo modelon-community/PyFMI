@@ -3450,7 +3450,7 @@ cdef class FMUModelME3(FMUModelBase3):
         cdef FMIL3.fmi3_float64_t* nominals_pt
 
         if (method != FORWARD_DIFFERENCE) and (method != CENTRAL_DIFFERENCE):
-            raise FMUException("Invalid 'finite_differences_method' for FMUModelME3, must be FORWARD_DIFFERENCE (1) or CENTRAIL_DIFFERENCE (2).")
+            raise FMUException("Invalid 'finite_differences_method' for FMUModelME3, must be FORWARD_DIFFERENCE (1) or CENTRAL_DIFFERENCE (2).")
 
         # Make sure that the work vectors has the correct lengths
         self._worker_object.verify_dimensions(max(len_v, len_f))
