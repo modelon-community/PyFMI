@@ -267,7 +267,7 @@ class TestSimulation:
         fmu.force_finite_differences = True
         fmu.finite_differences_method = 3
         fmu.initialize()
-        msg = "Invalid 'finite_differences_method' for FMUModelME3, must be FORWARD_DIFFERENCE (1) or CENTRAIL_DIFFERENCE (2)."
+        msg = "Invalid 'finite_differences_method' for FMUModelME3, must be FORWARD_DIFFERENCE (1) or CENTRAL_DIFFERENCE (2)."
         with pytest.raises(FMUException, match = re.escape(msg)):
             fmu._get_A()
 

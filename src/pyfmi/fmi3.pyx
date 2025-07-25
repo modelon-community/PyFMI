@@ -3430,7 +3430,7 @@ cdef class FMUModelME3(FMUModelBase3):
         cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] dfpert, df, eps, nominals
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] v_ref = np.asarray(var_ref, dtype = np.uint32)
         cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] z_ref = np.asarray(func_ref, dtype = np.uint32)
-        cdef int ind_local = 5 if add_diag else 4
+        cdef int ind_local = 5 if add_diag else 4 # index in group data vectors
         cdef list local_group
 
         cdef FMIL3.fmi3_float64_t *column_data_pt
