@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+
+--- PyFMI-2.18.0 ---
     * Added new class `DynamicDiagnosticsUtils` in `pyfmi.common.diagnostics` providing
       various utility functions for computing additional diagnostics variables derived
       from those stored during simulation with `dynamic_diagnostics = True`.
