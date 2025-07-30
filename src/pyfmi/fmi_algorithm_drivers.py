@@ -632,7 +632,7 @@ class AssimuloFMIAlg(AlgorithmBase):
             if self.options["ncp"] == 0:
                 solver_options["maxh"] = 0.0
             else:
-                solver_options["maxh"] = float(self.final_time - self.start_time) / float(self.options["ncp"])
+                solver_options["maxh"] = abs(float(self.final_time - self.start_time)) / float(self.options["ncp"])
 
         if "rtol" in solver_options:
             rtol_is_vector      = (isinstance(self.solver_options["rtol"], np.ndarray) or isinstance(self.solver_options["rtol"], list))
