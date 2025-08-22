@@ -1959,6 +1959,57 @@ class TestResultDymolaBinary:
         cpu_time = [*cpu_time_1, *cpu_time_2]
         assert all(np.diff(cpu_time) >= 0)
 
+    def test_get_variables_data_caching_multiple_calls(self):
+        """Test that caching for get_variables_data behaves as expected over multiple calls for mixed variables."""
+        fmu = Dummy_FMUModelME2(
+            [],
+            os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False
+        )
+        opts = fmu.simulate_options()
+        opts["result_file_name"] = "caching_multiple_calls.mat"
+        fmu.simulate(options = opts)
+
+        rdb = ResultDymolaBinary(opts["result_file_name"], allow_file_updates = True)
+        var_name_1 = "v"
+        var_name_2 = "h"
+
+        part_traj_v_1 = rdb.get_variables_data([var_name_1], start_index = 0, stop_index = 3)[0][var_name_1].x
+        part_traj_h_1 = rdb.get_variables_data([var_name_2], start_index = 0, stop_index = 3)[0][var_name_2].x
+
+        part_traj_v_2 = rdb.get_variables_data([var_name_1], start_index = 3, stop_index = 6)[0][var_name_1].x
+        part_traj_h_2 = rdb.get_variables_data([var_name_2], start_index = 3, stop_index = 6)[0][var_name_2].x
+
+        np.testing.assert_array_equal(
+            list(part_traj_v_1) + list(part_traj_v_2),
+            rdb.get_trajectory(var_name_1).x[0:6]
+        )
+        np.testing.assert_array_equal(
+            list(part_traj_h_1) + list(part_traj_h_2),
+            rdb.get_trajectory(var_name_2).x[0:6]
+        )
+
+    def test_get_variables_data_cache_tests(self):
+        """Test that caching for get_variables_data caching works."""
+        fmu = Dummy_FMUModelME2(
+            [],
+            os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False
+        )
+        opts = fmu.simulate_options()
+        opts["result_file_name"] = "caching_reduced_traj.mat"
+        fmu.simulate(options = opts)
+
+        rdb = ResultDymolaBinary(opts["result_file_name"], allow_file_updates = True)
+        var_name = "h"
+
+        part_traj_1 = rdb.get_variables_data([var_name], start_index = 0, stop_index = 10)[0][var_name].x
+        assert len(set(part_traj_1)) > 1 # some trajectories might be constant and thus not suitable for testing
+        np.testing.assert_array_equal(part_traj_1, rdb.get_trajectory(var_name).x[0:10])
+
+        # smaller selection now
+        part_traj_2 = rdb.get_variables_data([var_name], start_index = 2, stop_index = 8)[0][var_name].x
+        assert len(set(part_traj_2)) > 1 # some trajectories might be constant and thus not suitable for testing
+        np.testing.assert_array_equal(part_traj_2, rdb.get_trajectory(var_name).x[2:8])
+
 @pytest.mark.assimulo
 class TestFileSizeLimit:
     def _setup(self, result_type, result_file_name="", fmi_type="me"):
