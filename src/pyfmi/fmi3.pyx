@@ -3566,9 +3566,7 @@ cdef class FMUModelME3(FMUModelBase3):
     @functools.cache
     def _supports_get_set_FMU_state(self):
         """Returns True if the FMU supports get and set FMU-state, otherwise False."""
-        # TODO
-        #return bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canGetAndSetFMUState))
-        return True
+        return bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canGetAndSetFMUState))
 
     cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
             FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,
