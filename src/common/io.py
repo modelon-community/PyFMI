@@ -1417,8 +1417,8 @@ class ResultDymolaBinary(ResultDymola):
         """Check if (partial) trajectory length is sufficent, or new data needs to be read."""
         # no file updates = full read only
         # otherwise check sufficient length is available
-        return (not self._allow_file_updates) or \
-                (self._allow_file_updates and (stop_index is not None) and (len(partial_trajectory) >= stop_index))
+        return not self._allow_file_updates or (stop_index is not None and len(partial_trajectory) >= stop_index)
+
 
     def _get_trajectory(self, data_index, start_index = 0, stop_index = None):
         if isinstance(self._data_2, dict):
