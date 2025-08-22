@@ -1413,12 +1413,12 @@ class ResultDymolaBinary(ResultDymola):
         
         return name_dict
 
-    def _can_use_partial_cache(self, partial_trajectory: np.ndarray, stop_index: Union[int, None]) -> bool:
+    def _can_use_partial_cache(self, partial_trajectory: Union[np.ndarray, None], 
+                               stop_index: Union[int, None]) -> bool:
         """Check if (partial) trajectory length is sufficent, or new data needs to be read."""
         # no file updates = full read only
         # otherwise check sufficient length is available
-        return not self._allow_file_updates or (stop_index is not None and len(partial_trajectory) >= stop_index)
-
+        return (partial_trajectory is not None) and (not self._allow_file_updates or (stop_index is not None and len(partial_trajectory) >= stop_index))
 
     def _get_trajectory(self, data_index, start_index = 0, stop_index = None):
         if isinstance(self._data_2, dict):
@@ -1426,7 +1426,7 @@ class ResultDymolaBinary(ResultDymola):
 
             # caching
             current_data = self._data_2.get(data_index, None)
-            if (current_data is not None) and self._can_use_partial_cache(current_data, stop_index):
+            if self._can_use_partial_cache(current_data, stop_index):
                 return self._data_2[data_index][start_index:stop_index]
 
             file_position  = self._data_2_info["file_position"]
@@ -1461,7 +1461,7 @@ class ResultDymolaBinary(ResultDymola):
         self._verify_file_data()
         # caching
         current_data = self._data_3.get(data_index, None)
-        if (current_data is not None) and self._can_use_partial_cache(current_data, stop_index):
+        if self._can_use_partial_cache(current_data, stop_index):
             return self._data_3[data_index][start_index:stop_index]
         self._data_3[data_index] = self._read_trajectory_data(data_index, True, start_index, stop_index)
         return self._data_3[data_index][start_index:stop_index]
@@ -1507,7 +1507,7 @@ class ResultDymolaBinary(ResultDymola):
         self._verify_file_data()
 
         current_data = self._data_2.get(data_index, None)
-        if (current_data is not None) and self._can_use_partial_cache(current_data, stop_index):
+        if self._can_use_partial_cache(current_data, stop_index):
             return self._data_2[data_index][start_index:stop_index]
 
         diag_time_vector = self._get_diagnostics_trajectory(0, start_index, stop_index)
