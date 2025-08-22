@@ -81,7 +81,7 @@ class FMI3_Causality(IntEnum):
     INDEPENDENT             = FMIL3.fmi3_causality_enu_independent
     UNKNOWN                 = FMIL3.fmi3_causality_enu_unknown
 
-class FMI3_DependencyKind(IntEnum):    
+class FMI3_DependencyKind(IntEnum):
     DEPENDENT = FMIL3.fmi3_dependencies_kind_dependent
     CONSTANT  = FMIL3.fmi3_dependencies_kind_constant
     FIXED     = FMIL3.fmi3_dependencies_kind_fixed
@@ -163,7 +163,7 @@ cdef class FMI3ModelVariable:
 cdef class FMI3EventInfo:
     """ Class representing data related to event information."""
     def __init__(self):
-        self.newDiscreteDtatesNeeded           = FMIL3.fmi3_false
+        self.newDiscreteStatesNeeded           = FMIL3.fmi3_false
         self.terminateSimulation               = FMIL3.fmi3_false
         self.nominalsOfContinuousStatesChanged = FMIL3.fmi3_false
         self.valuesOfContinuousStatesChanged   = FMIL3.fmi3_false
@@ -183,6 +183,23 @@ cdef inline FMIL3.fmi3_import_variable_t* _get_variable_by_name(FMIL3.fmi3_impor
     if variable == NULL:
         raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
     return variable
+
+
+cdef class FMUState3:
+    """ Class containing a pointer to a FMU-state. """
+    def __init__(self):
+        self.fmu_state = NULL
+        self._internal_state_variables = {'initialized_fmu': None,
+                                          'has_entered_init_mode': None,
+                                          'time': None,
+                                          'callback_log_level': None,
+                                          'event_info.new_discrete_states_needed': None,
+                                          'event_info.nominals_of_continuous_states_changed': None,
+                                          'event_info.terminate_simulation': None,
+                                          'event_info.values_of_continuous_states_changed': None,
+                                          'event_info.next_event_time_defined': None,
+                                          'event_info.next_event_time': None}
+
 
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
     """
@@ -1838,7 +1855,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                     alias_var = FMIL3.fmi3_import_get_alias(alias_list, idx)
                     alias_name = pyfmi_util.decode(FMIL3.fmi3_import_get_alias_variable_name(alias_var))
                     alias_descr = self._get_alias_description(alias_var)
-                    
+
                     variable_dict[alias_name] = FMI3ModelVariable(
                         alias_name,
                         value_ref,
@@ -2047,7 +2064,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 variable = FMIL3.fmi3_import_get_variable_by_vr(self._fmu, <FMIL3.fmi3_value_reference_t>output_var.value_reference)
                 if variable == NULL:
                     raise FMUException(f"Unexpected failure retreiving model variable {output_var_name}")
-                
+
                 ret = FMIL3.fmi3_import_get_output_dependencies(self._fmu, variable, &numDependencies, &dependsOnAll, &dependencies, &dependenciesKind)
                 if ret != 0:
                     raise FMUException(f"Unexpected failure retreiving dependencies of variable {output_var_name}")
@@ -2149,7 +2166,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 variable = FMIL3.fmi3_import_get_variable_by_vr(self._fmu, <FMIL3.fmi3_value_reference_t>der_var.value_reference)
                 if variable == NULL:
                     raise FMUException(f"Unexpected failure retreiving model variable {der_name}")
-                
+
                 ret = FMIL3.fmi3_import_get_continuous_state_derivative_dependencies(self._fmu, variable, &numDependencies, &dependsOnAll, &dependencies, &dependenciesKind)
                 if ret != 0:
                     raise FMUException(f"Unexpected failure retreiving dependencies of variable {der_name}")
@@ -2285,10 +2302,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             self._derivatives_references = [s.value_reference for s in derivatives.values()]
 
         return self._get_directional_proxy(
-            var_ref = self._states_references, 
-            func_ref = self._derivatives_references, 
-            group = self._group_A if use_structure_info else None, 
-            add_diag = add_diag, 
+            var_ref = self._states_references,
+            func_ref = self._derivatives_references,
+            group = self._group_A if use_structure_info else None,
+            add_diag = add_diag,
             output_matrix = output_matrix
         )
 
@@ -2304,10 +2321,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             self._derivatives_references = [s.value_reference for s in derivatives.values()]
 
         return self._get_directional_proxy(
-            var_ref = self._inputs_references, 
-            func_ref = self._derivatives_references, 
-            group = self._group_B if use_structure_info else None, 
-            add_diag = add_diag, 
+            var_ref = self._inputs_references,
+            func_ref = self._derivatives_references,
+            group = self._group_B if use_structure_info else None,
+            add_diag = add_diag,
             output_matrix = output_matrix
         )
 
@@ -2323,10 +2340,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             self._outputs_references     = [s.value_reference for s in outputs.values()]
 
         return self._get_directional_proxy(
-            var_ref = self._states_references, 
-            func_ref = self._outputs_references, 
-            group = self._group_C if use_structure_info else None, 
-            add_diag = add_diag, 
+            var_ref = self._states_references,
+            func_ref = self._outputs_references,
+            group = self._group_C if use_structure_info else None,
+            add_diag = add_diag,
             output_matrix = output_matrix
         )
 
@@ -2681,6 +2698,266 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return ret_values
 
+
+    def get_fmu_state(self, FMUState3 state = None):
+        """
+        Creates a copy of the recent FMU-state and returns a pointer to this state which later can be used to
+        set the FMU to this state.
+
+        Parameters::
+
+            state --
+                Optionally a pointer to an already allocated FMU state
+
+        Returns::
+
+            A pointer to a copy of the recent FMU state.
+
+        Example::
+
+            state = fmu.get_fmu_state()
+        """
+        cdef FMIL3.fmi3_status_t status
+
+        if state is None:
+            state = FMUState3()
+
+        if not self._supports_get_set_FMU_state():
+            raise FMUException('This FMU does not support get and set FMU-state')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_get_fmu_state(self._fmu, &(state.fmu_state))
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException(
+                'An error occured while trying to get the FMU-state, see the log for possible more information'
+            )
+
+        state._internal_state_variables['time'] = self.time
+        state._internal_state_variables['initialized_fmu'] = self._initialized_fmu
+        state._internal_state_variables['has_entered_init_mode'] = self._has_entered_init_mode
+        state._internal_state_variables['callback_log_level'] = self.callbacks.log_level
+
+        state._internal_state_variables["event_info.new_discrete_states_needed"]            = self._eventInfo.newDiscreteStatesNeeded
+        state._internal_state_variables["event_info.terminate_simulation"]                  = self._eventInfo.terminateSimulation
+        state._internal_state_variables["event_info.nominals_of_continuous_states_changed"] = self._eventInfo.nominalsOfContinuousStatesChanged
+        state._internal_state_variables["event_info.values_of_continuous_states_changed"]   = self._eventInfo.valuesOfContinuousStatesChanged
+        state._internal_state_variables["event_info.next_event_time_defined"]               = self._eventInfo.nextEventTimeDefined
+        state._internal_state_variables["event_info.next_event_time"]                       = self._eventInfo.nextEventTime
+
+        return state
+
+
+    def set_fmu_state(self, FMUState3 state):
+        """ Set the FMU to a previous saved state.
+
+        Parameter::
+
+            state--
+                A pointer to a FMU-state.
+
+        Example::
+
+            state = fmu.get_fmu_state()
+            fmu.set_fmu_state(state)
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef FMIL3.fmi3_FMU_state_t internal_state = state.fmu_state
+
+        if not self._supports_get_set_FMU_state():
+            raise FMUException('This FMU does not support get and set FMU-state')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_fmu_state(self._fmu, internal_state)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException(
+                'An error occured while trying to set the FMU-state, see the log for possible more information'
+            )
+
+        if state._internal_state_variables['time'] is not None:
+            self.time = state._internal_state_variables['time']
+        if state._internal_state_variables['has_entered_init_mode'] is not None:
+            self._has_entered_init_mode = state._internal_state_variables['has_entered_init_mode']
+        if state._internal_state_variables['initialized_fmu'] is not None:
+            self._initialized_fmu = state._internal_state_variables['initialized_fmu']
+        if state._internal_state_variables['callback_log_level'] is not None:
+            self.callbacks.log_level = state._internal_state_variables['callback_log_level']
+
+        if state._internal_state_variables["event_info.new_discrete_states_needed"] is not None:
+            self._eventInfo.newDiscreteStatesNeeded = state._internal_state_variables["event_info.new_discrete_states_needed"]
+        if state._internal_state_variables["event_info.nominals_of_continuous_states_changed"] is not None:
+            self._eventInfo.nominalsOfContinuousStatesChanged = state._internal_state_variables["event_info.nominals_of_continuous_states_changed"]
+        if state._internal_state_variables["event_info.terminate_simulation"] is not None:
+            self._eventInfo.terminateSimulation = state._internal_state_variables["event_info.terminate_simulation"]
+        if state._internal_state_variables["event_info.values_of_continuous_states_changed"] is not None:
+            self._eventInfo.valuesOfContinuousStatesChanged = state._internal_state_variables["event_info.values_of_continuous_states_changed"]
+        if state._internal_state_variables["event_info.next_event_time_defined"] is not None:
+            self._eventInfo.nextEventTimeDefined = state._internal_state_variables["event_info.next_event_time_defined"]
+        if state._internal_state_variables["event_info.next_event_time"] is not None:
+            self._eventInfo.nextEventTime = state._internal_state_variables["event_info.next_event_time"]
+
+
+    def free_fmu_state(self, FMUState3 state):
+        """ Free a previously saved FMU-state from the memory.
+
+        Parameters::
+
+            state--
+                A pointer to the FMU-state to be set free.
+
+        Example::
+
+            state = fmu.get_fmu_state()
+            fmu.free_fmu_state(state)
+
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef FMIL3.fmi3_FMU_state_t internal_state = state.fmu_state
+
+
+        if not self._supports_get_set_FMU_state():
+            raise FMUException('This FMU does not support get and set FMU-state')
+
+        if internal_state == NULL:
+            print("FMU-state does not seem to be allocated.")
+            return
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_free_fmu_state(self._fmu, &internal_state)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException(
+                'An error occured while trying to free the FMU-state, see the log for possible more information'
+            )
+
+        # Memory has been released
+        state.fmu_state = NULL
+        state._internal_state_variables = {}
+
+
+    cpdef serialize_fmu_state(self, state):
+        """
+        Serialize the data referenced by the input argument.
+
+        Parameters::
+
+            state --
+                A FMU-state.
+
+        Returns::
+            A list with a vector with the serialized FMU-state and internal state values.
+
+        Example::
+            s = fmu.get_fmu_state()
+            serialized_state = fmu.serialize_fmu_state(s)
+        """
+
+        cdef FMIL3.fmi3_status_t status
+        cdef object cap_me, cap_cs
+        cdef FMUState3 internal_state = state
+
+        cdef FMIL.size_t n_bytes
+        cdef np.ndarray[FMIL3.fmi3_byte_t, ndim=1, mode='c'] serialized_state
+
+        cap_me = FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canSerializeFMUState)
+        cap_cs = FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canSerializeFMUState)
+        if not cap_me and not cap_cs:
+            raise FMUException('This FMU dos not support serialization of FMU-state')
+
+        n_bytes = self.serialized_fmu_state_size(state)
+        serialized_state = np.empty(n_bytes, dtype=np.uint8)
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_serialize_fmu_state(self._fmu, internal_state.fmu_state, <FMIL3.fmi3_byte_t*> serialized_state.data, n_bytes)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException('An error occured while serializing the FMU-state, see the log for possible more information')
+
+        # We temporarily return a list with wrapper values in the second entry.
+        # What we need to do is add serialization/deserialization for the wrapper values
+        return [serialized_state, list(internal_state._internal_state_variables.values())]
+
+
+    cpdef deserialize_fmu_state(self, serialized_fmu):
+        """
+        De-serialize the provided byte-vector and returns the corresponding FMU-state.
+
+        Parameters::
+
+            serialized_fmu--
+                A serialized FMU-state.
+
+        Returns::
+
+            A deserialized FMU-state.
+
+        Example::
+
+            s = fmu.get_fmu_state()
+            serialized_fmu = fmu.serialize_fmu_state(s)
+            deserialized_state = fmu.deserialize_fmu_state(serialized_fmu)
+        """
+
+        cdef FMIL3.fmi3_status_t status
+        cdef np.ndarray[FMIL3.fmi3_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu[0]
+        cdef FMUState3 state = FMUState3()
+        cdef FMIL.size_t n_byte = len(ser_fmu)
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_de_serialize_fmu_state(self._fmu, <FMIL3.fmi3_byte_t *> ser_fmu.data, n_byte, &(state.fmu_state))
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException('An error occured while deserializing the FMU-state, see the log for possible more information')
+
+
+        state._internal_state_variables = {'initialized_fmu': serialized_fmu[1][0],
+                                           'has_entered_init_mode': serialized_fmu[1][1],
+                                           'time': serialized_fmu[1][2],
+                                           'callback_log_level': serialized_fmu[1][3],
+                                           'event_info.new_discrete_states_needed': serialized_fmu[1][4],
+                                           'event_info.nominals_of_continuous_states_changed': serialized_fmu[1][5],
+                                           'event_info.terminate_simulation': serialized_fmu[1][6],
+                                           'event_info.values_of_continuous_states_changed': serialized_fmu[1][7],
+                                           'event_info.next_event_time_defined': serialized_fmu[1][8],
+                                           'event_info.next_event_time': serialized_fmu[1][9]}
+
+        return state
+
+    cpdef serialized_fmu_state_size(self, state):
+        """
+        Returns the required size of a vector needed to serialize the specified FMU-state
+
+        Parameters::
+
+            state--
+                A FMU-state
+
+        Returns::
+
+            The size of the vector.
+        """
+
+        cdef FMIL3.fmi3_status_t status
+        cdef FMUState3 internal_state = state
+        cdef FMIL.size_t n_bytes
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_serialized_fmu_state_size(self._fmu, internal_state.fmu_state, &n_bytes)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException(
+                'An error occured while computing the FMU-state size, see the log for possible more information'
+            )
+
+        return n_bytes
+
 cdef class FMUModelME3(FMUModelBase3):
     """
     FMI3 ModelExchange model loaded from a dll
@@ -2992,7 +3269,7 @@ cdef class FMUModelME3(FMUModelBase3):
             event_info    = model.get_event_info()
             nextEventTime = event_info.nextEventTime
         """
-        self._eventInfo.newDiscreteDtatesNeeded           = self._event_info_new_discrete_states_needed
+        self._eventInfo.newDiscreteStatesNeeded           = self._event_info_new_discrete_states_needed
         self._eventInfo.terminateSimulation               = self._event_info_terminate_simulation
         self._eventInfo.nominalsOfContinuousStatesChanged = self._event_info_nominals_of_continuous_states_changed
         self._eventInfo.valuesOfContinuousStatesChanged   = self._event_info_values_of_continuous_states_changed
@@ -3260,8 +3537,8 @@ cdef class FMUModelME3(FMUModelBase3):
             Dictionary with keys:
             needsExecutionTool
             canBeInstantiatedOnlyOncePerProcess
-            canGetAndSetFMUstate
-            canSerializeFMUstate
+            canGetAndSetFMUState
+            canSerializeFMUState
             providesDirectionalDerivatives
             providesAdjointDerivatives
             providesPerElementDependencies
@@ -3271,8 +3548,8 @@ cdef class FMUModelME3(FMUModelBase3):
         cdef dict capabilities = {}
         capabilities['needsExecutionTool']                  = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_needsExecutionTool))
         capabilities['canBeInstantiatedOnlyOncePerProcess'] = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canBeInstantiatedOnlyOncePerProcess))
-        capabilities['canGetAndSetFMUstate']                = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canGetAndSetFMUState))
-        capabilities['canSerializeFMUstate']                = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canSerializeFMUState))
+        capabilities['canGetAndSetFMUState']                = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canGetAndSetFMUState))
+        capabilities['canSerializeFMUState']                = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canSerializeFMUState))
         capabilities['providesDirectionalDerivatives']      = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_providesDirectionalDerivatives))
         capabilities['providesAdjointDerivatives']          = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_providesAdjointDerivatives))
         capabilities['providesPerElementDependencies']      = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_providesPerElementDependencies))
@@ -3283,10 +3560,15 @@ cdef class FMUModelME3(FMUModelBase3):
 
     @functools.cache
     def _provides_directional_derivatives(self):
-        """
-        Check capability to provide directional derivatives.
-        """
+        """Check capability to provide directional derivatives."""
         return bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_providesDirectionalDerivatives))
+
+    @functools.cache
+    def _supports_get_set_FMU_state(self):
+        """Returns True if the FMU supports get and set FMU-state, otherwise False."""
+        # TODO
+        #return bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canGetAndSetFMUState))
+        return True
 
     cdef FMIL3.fmi3_status_t _completed_integrator_step(self,
             FMIL3.fmi3_boolean_t no_set_FMU_state_prior_to_current_point,

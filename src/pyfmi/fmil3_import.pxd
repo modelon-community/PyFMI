@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2025 Modelon AB
@@ -19,6 +20,7 @@
 #==============================================
 
 # This file contains FMIL header content specific to FMI3
+
 cimport pyfmi.fmil_import as FMIL
 from libcpp cimport bool # TODO: Possible issue due to https://github.com/cython/cython/issues/5730 ??
 from libc.stdint cimport (
@@ -37,6 +39,7 @@ cdef extern from 'fmilib.h':
     ctypedef void*    fmi3_instance_environment_t
     ctypedef char*    fmi3_string_t
     ctypedef bool     fmi3_boolean_t
+    ctypedef uint8_t  fmi3_byte_t
     ctypedef double   fmi3_float64_t
     ctypedef float    fmi3_float32_t
     ctypedef int64_t  fmi3_int64_t
@@ -48,6 +51,7 @@ cdef extern from 'fmilib.h':
     ctypedef uint16_t fmi3_uint16_t
     ctypedef uint8_t  fmi3_uint8_t
     ctypedef uint32_t fmi3_value_reference_t
+    ctypedef void*  fmi3_FMU_state_t
 
     # STRUCTS
     ctypedef enum fmi3_boolean_enu_t:
@@ -61,88 +65,88 @@ cdef extern from 'fmilib.h':
         fmi3_fmu_kind_se        = 1 << 3
 
     cdef enum fmi3_base_type_enu_t:
-        fmi3_base_type_float64 = 1,
-        fmi3_base_type_float32 = 2,
-        fmi3_base_type_int64   = 3,
-        fmi3_base_type_int32   = 4,
-        fmi3_base_type_int16   = 5,
-        fmi3_base_type_int8    = 6,
-        fmi3_base_type_uint64  = 7,
-        fmi3_base_type_uint32  = 8,
-        fmi3_base_type_uint16  = 9,
-        fmi3_base_type_uint8   = 10,
-        fmi3_base_type_bool    = 11,
-        fmi3_base_type_binary  = 12,
-        fmi3_base_type_clock   = 13,
-        fmi3_base_type_str     = 14,
+        fmi3_base_type_float64 = 1
+        fmi3_base_type_float32 = 2
+        fmi3_base_type_int64   = 3
+        fmi3_base_type_int32   = 4
+        fmi3_base_type_int16   = 5
+        fmi3_base_type_int8    = 6
+        fmi3_base_type_uint64  = 7
+        fmi3_base_type_uint32  = 8
+        fmi3_base_type_uint16  = 9
+        fmi3_base_type_uint8   = 10
+        fmi3_base_type_bool    = 11
+        fmi3_base_type_binary  = 12
+        fmi3_base_type_clock   = 13
+        fmi3_base_type_str     = 14
         fmi3_base_type_enum    = 15
 
     cdef enum fmi3_causality_enu_t:
-        fmi3_causality_enu_structural_parameter = 0,
-        fmi3_causality_enu_parameter            = 1,
-        fmi3_causality_enu_calculated_parameter = 2,
-        fmi3_causality_enu_input                = 3,
-        fmi3_causality_enu_output               = 4,
-        fmi3_causality_enu_local                = 5,
-        fmi3_causality_enu_independent          = 6,
+        fmi3_causality_enu_structural_parameter = 0
+        fmi3_causality_enu_parameter            = 1
+        fmi3_causality_enu_calculated_parameter = 2
+        fmi3_causality_enu_input                = 3
+        fmi3_causality_enu_output               = 4
+        fmi3_causality_enu_local                = 5
+        fmi3_causality_enu_independent          = 6
         fmi3_causality_enu_unknown              = 7
 
     cdef enum fmi3_variability_enu_t:
-        fmi3_variability_enu_constant    = 0,
-        fmi3_variability_enu_fixed       = 1,
-        fmi3_variability_enu_tunable     = 2,
-        fmi3_variability_enu_discrete    = 3,
-        fmi3_variability_enu_continuous  = 4,
+        fmi3_variability_enu_constant    = 0
+        fmi3_variability_enu_fixed       = 1
+        fmi3_variability_enu_tunable     = 2
+        fmi3_variability_enu_discrete    = 3
+        fmi3_variability_enu_continuous  = 4
         fmi3_variability_enu_unknown     = 5
 
     cdef enum fmi3_initial_enu_t:
-        fmi3_initial_enu_exact      = 0,
-        fmi3_initial_enu_approx     = 1,
-        fmi3_initial_enu_calculated = 2,
+        fmi3_initial_enu_exact      = 0
+        fmi3_initial_enu_approx     = 1
+        fmi3_initial_enu_calculated = 2
         fmi3_initial_enu_unknown    = 3
 
     cdef enum fmi3_dependencies_kind_enu_t:
-        fmi3_dependencies_kind_dependent = 0,
-        fmi3_dependencies_kind_constant  = 1,
-        fmi3_dependencies_kind_fixed     = 2,
-        fmi3_dependencies_kind_tunable   = 3,
-        fmi3_dependencies_kind_discrete  = 4,
+        fmi3_dependencies_kind_dependent = 0
+        fmi3_dependencies_kind_constant  = 1
+        fmi3_dependencies_kind_fixed     = 2
+        fmi3_dependencies_kind_tunable   = 3
+        fmi3_dependencies_kind_discrete  = 4
         fmi3_dependencies_kind_num       = 5
 
     cdef enum fmi3_capabilities_enu_t:
-        fmi3_me_needsExecutionTool                     = 0,
-        fmi3_me_canBeInstantiatedOnlyOncePerProcess    = 1,
-        fmi3_me_canGetAndSetFMUState                   = 2,
-        fmi3_me_canSerializeFMUState                   = 3,
-        fmi3_me_providesDirectionalDerivatives         = 4,
-        fmi3_me_providesAdjointDerivatives             = 5,
-        fmi3_me_providesPerElementDependencies         = 6,
-        fmi3_me_needsCompletedIntegratorStep           = 7,
-        fmi3_me_providesEvaluateDiscreteStates         = 8,
-        fmi3_cs_needsExecutionTool                     = 9,
-        fmi3_cs_canBeInstantiatedOnlyOncePerProcess    = 10,
-        fmi3_cs_canGetAndSetFMUState                   = 11,
-        fmi3_cs_canSerializeFMUState                   = 12,
-        fmi3_cs_providesDirectionalDerivatives         = 13,
-        fmi3_cs_providesAdjointDerivatives             = 14,
-        fmi3_cs_providesPerElementDependencies         = 15,
-        fmi3_cs_canHandleVariableCommunicationStepSize = 16,
-        fmi3_cs_maxOutputDerivativeOrder               = 17,
-        fmi3_cs_providesIntermediateUpdate             = 18,
-        fmi3_cs_mightReturnEarlyFromDoStep             = 19,
-        fmi3_cs_canReturnEarlyAfterIntermediateUpdate  = 20,
-        fmi3_cs_hasEventMode                           = 21,
-        fmi3_cs_providesEvaluateDiscreteStates         = 22,
-        fmi3_cs_fixedInternalStepSize                  = 23,
-        fmi3_cs_recommendedIntermediateInputSmoothness = 24,
-        fmi3_se_needsExecutionTool                     = 25,
-        fmi3_se_canBeInstantiatedOnlyOncePerProcess    = 26,
-        fmi3_se_canGetAndSetFMUState                   = 27,
-        fmi3_se_canSerializeFMUState                   = 28,
-        fmi3_se_providesDirectionalDerivatives         = 29,
-        fmi3_se_providesAdjointDerivatives             = 30,
-        fmi3_se_providesPerElementDependencies         = 31,
-        fmi3_capabilities_num                          = 32,
+        fmi3_me_needsExecutionTool                     = 0
+        fmi3_me_canBeInstantiatedOnlyOncePerProcess    = 1
+        fmi3_me_canGetAndSetFMUState                   = 2
+        fmi3_me_canSerializeFMUState                   = 3
+        fmi3_me_providesDirectionalDerivatives         = 4
+        fmi3_me_providesAdjointDerivatives             = 5
+        fmi3_me_providesPerElementDependencies         = 6
+        fmi3_me_needsCompletedIntegratorStep           = 7
+        fmi3_me_providesEvaluateDiscreteStates         = 8
+        fmi3_cs_needsExecutionTool                     = 9
+        fmi3_cs_canBeInstantiatedOnlyOncePerProcess    = 10
+        fmi3_cs_canGetAndSetFMUState                   = 11
+        fmi3_cs_canSerializeFMUState                   = 12
+        fmi3_cs_providesDirectionalDerivatives         = 13
+        fmi3_cs_providesAdjointDerivatives             = 14
+        fmi3_cs_providesPerElementDependencies         = 15
+        fmi3_cs_canHandleVariableCommunicationStepSize = 16
+        fmi3_cs_maxOutputDerivativeOrder               = 17
+        fmi3_cs_providesIntermediateUpdate             = 18
+        fmi3_cs_mightReturnEarlyFromDoStep             = 19
+        fmi3_cs_canReturnEarlyAfterIntermediateUpdate  = 20
+        fmi3_cs_hasEventMode                           = 21
+        fmi3_cs_providesEvaluateDiscreteStates         = 22
+        fmi3_cs_fixedInternalStepSize                  = 23
+        fmi3_cs_recommendedIntermediateInputSmoothness = 24
+        fmi3_se_needsExecutionTool                     = 25
+        fmi3_se_canBeInstantiatedOnlyOncePerProcess    = 26
+        fmi3_se_canGetAndSetFMUState                   = 27
+        fmi3_se_canSerializeFMUState                   = 28
+        fmi3_se_providesDirectionalDerivatives         = 29
+        fmi3_se_providesAdjointDerivatives             = 30
+        fmi3_se_providesPerElementDependencies         = 31
+        fmi3_capabilities_num                          = 32
 
     cdef struct fmi3_xml_variable_t:
         pass
@@ -273,10 +277,10 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_get_boolean(fmi3_import_t*, fmi3_value_reference_t*, size_t, fmi3_boolean_t*, size_t)
     fmi3_status_t fmi3_import_get_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t)
     fmi3_status_t fmi3_import_get_nominals_of_continuous_states(fmi3_import_t*, fmi3_float64_t*, size_t nx)
-    fmi3_status_t fmi3_import_get_directional_derivative(fmi3_import_t*, 
-        fmi3_value_reference_t*, size_t, 
-        fmi3_value_reference_t*, size_t, 
-        fmi3_float64_t*, size_t, 
+    fmi3_status_t fmi3_import_get_directional_derivative(fmi3_import_t*,
+        fmi3_value_reference_t*, size_t,
+        fmi3_value_reference_t*, size_t,
+        fmi3_float64_t*, size_t,
         fmi3_float64_t*, size_t)
 
     # Misc
@@ -293,6 +297,12 @@ cdef extern from 'fmilib.h':
     double fmi3_import_get_default_experiment_stop(fmi3_import_t*)
     double fmi3_import_get_default_experiment_tolerance(fmi3_import_t*)
     # save states
+    fmi3_status_t fmi3_import_get_fmu_state(fmi3_import_t*, fmi3_FMU_state_t*)
+    fmi3_status_t fmi3_import_set_fmu_state(fmi3_import_t*, fmi3_FMU_state_t)
+    fmi3_status_t fmi3_import_free_fmu_state(fmi3_import_t*, fmi3_FMU_state_t*)
+    fmi3_status_t fmi3_import_serialized_fmu_state_size(fmi3_import_t *, fmi3_FMU_state_t, size_t*)
+    fmi3_status_t fmi3_import_serialize_fmu_state(fmi3_import_t*, fmi3_FMU_state_t, fmi3_byte_t*, size_t)
+    fmi3_status_t fmi3_import_de_serialize_fmu_state(fmi3_import_t*, fmi3_byte_t*, size_t, fmi3_FMU_state_t*)
 
     # FMI HELPER METHODS (3.0)
     fmi3_fmu_kind_enu_t fmi3_import_get_fmu_kind(fmi3_import_t*)

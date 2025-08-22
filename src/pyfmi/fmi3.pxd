@@ -36,13 +36,18 @@ cdef class FMI3ModelVariable:
     cdef FMIL3.fmi3_boolean_t _alias
 
 cdef class FMI3EventInfo:
-    cdef public FMIL3.fmi3_boolean_t newDiscreteDtatesNeeded
+    cdef public FMIL3.fmi3_boolean_t newDiscreteStatesNeeded
     cdef public FMIL3.fmi3_boolean_t terminateSimulation
     cdef public FMIL3.fmi3_boolean_t nominalsOfContinuousStatesChanged
     cdef public FMIL3.fmi3_boolean_t valuesOfContinuousStatesChanged
     cdef public FMIL3.fmi3_boolean_t nextEventTimeDefined
     cdef public FMIL3.fmi3_float64_t nextEventTime
     # This will be populated further once we add support for CS and Clocks in particular.
+
+cdef class FMUState3:
+    """Class representing the FMU state, used with get and set FMU state. """
+    cdef FMIL3.fmi3_FMU_state_t fmu_state
+    cdef dict _internal_state_variables
 
 cdef class FMUModelBase3(FMI_BASE.ModelBase):
     # FMIL related variables
@@ -132,6 +137,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef get_variable_unbounded(self, variablename)
     cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t*)
     cdef _get_alias_description(self, FMIL3.fmi3_import_alias_variable_t*)
+
+    cpdef serialize_fmu_state(self, state)
+    cpdef deserialize_fmu_state(self, serialized_fmu)
+    cpdef serialized_fmu_state_size(self, state)
 
     cpdef get_output_dependencies(self)
     cpdef get_output_dependencies_kind(self)
