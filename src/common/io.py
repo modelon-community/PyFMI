@@ -1292,7 +1292,6 @@ class ResultDymolaBinary(ResultDymola):
             self._is_stream = True
             delayed_trajectory_loading = False
         self._allow_file_updates = allow_file_updates
-        self._last_set_of_indices = (None, None) # used for dealing with cached data and partial trajectories
 
         data_sections = ["name", "dataInfo", "data_2", "data_3", "data_4"]
         if not self._is_stream:
@@ -1414,18 +1413,21 @@ class ResultDymolaBinary(ResultDymola):
         
         return name_dict
 
-    def _can_use_partial_cache(self, start_index: int, stop_index: Union[int, None]):
-        """ Checks if start_index and stop_index are equal to the last cached indices. """
-        return self._allow_file_updates and (self._last_set_of_indices == (start_index, stop_index))
+    def _can_use_partial_cache(self, partial_trajectory: np.ndarray, stop_index: Union[int, None]) -> bool:
+        """Check if (partial) trajectory length is sufficent, or new data needs to be read."""
+        # no file updates = full read only
+        # otherwise check sufficient length is available
+        return (not self._allow_file_updates) or \
+                (self._allow_file_updates and (stop_index is not None) and (len(partial_trajectory) >= stop_index))
 
     def _get_trajectory(self, data_index, start_index = 0, stop_index = None):
         if isinstance(self._data_2, dict):
             self._verify_file_data()
 
-            index_in_cache = data_index in self._data_2
-            partial_cache_ok = self._can_use_partial_cache(start_index, stop_index)
-            if (index_in_cache and not self._allow_file_updates) or (index_in_cache and partial_cache_ok):
-                return self._data_2[data_index]
+            # caching
+            current_data = self._data_2.get(data_index, None)
+            if (current_data is not None) and self._can_use_partial_cache(current_data, stop_index):
+                return self._data_2[data_index][start_index:stop_index]
 
             file_position  = self._data_2_info["file_position"]
             sizeof_type    = self._data_2_info["sizeof_type"]
@@ -1457,13 +1459,12 @@ class ResultDymolaBinary(ResultDymola):
     def _get_diagnostics_trajectory(self, data_index, start_index = 0, stop_index = None):
         """ Returns trajectory for the diagnostics variable that corresponds to index 'data_index'. """
         self._verify_file_data()
-
-        index_in_cache = data_index in self._data_3
-        partial_cache_ok = self._can_use_partial_cache(start_index, stop_index)
-        if (index_in_cache and not self._allow_file_updates) or (index_in_cache and partial_cache_ok):
-            return self._data_3[data_index]
-        self._data_3[data_index] = self._read_trajectory_data(data_index, True, start_index, stop_index)[start_index:stop_index]
-        return self._data_3[data_index]
+        # caching
+        current_data = self._data_3.get(data_index, None)
+        if (current_data is not None) and self._can_use_partial_cache(current_data, stop_index):
+            return self._data_3[data_index][start_index:stop_index]
+        self._data_3[data_index] = self._read_trajectory_data(data_index, True, start_index, stop_index)
+        return self._data_3[data_index][start_index:stop_index]
 
     def _read_trajectory_data(self, data_index, read_diag_data, start_index = 0, stop_index = None):
         """ Reads corresponding trajectory data for variable with index 'data_index',
@@ -1505,10 +1506,9 @@ class ResultDymolaBinary(ResultDymola):
         """ Returns an interpolated trajectory for variable of corresponding index 'data_index'. """
         self._verify_file_data()
 
-        index_in_cache = data_index in self._data_2
-        partial_cache_ok = self._can_use_partial_cache(start_index, stop_index)
-        if (index_in_cache and not self._allow_file_updates) or (index_in_cache and partial_cache_ok):
-            return self._data_2[data_index]
+        current_data = self._data_2.get(data_index, None)
+        if (current_data is not None) and self._can_use_partial_cache(current_data, stop_index):
+            return self._data_2[data_index][start_index:stop_index]
 
         diag_time_vector = self._get_diagnostics_trajectory(0, start_index, stop_index)
         time_vector      = self._read_trajectory_data(0, False, start_index, stop_index)
@@ -1623,8 +1623,6 @@ class ResultDymolaBinary(ResultDymola):
             A Trajectory object containing the time vector and the data vector
             of the variable.
         """
-        # prevent caching interference with 'get_variables_data'
-        self._last_set_of_indices = (None, None)
         return self._get_variable_data_as_trajectory(name)
 
     def get_variables_data(self,
@@ -1702,7 +1700,6 @@ class ResultDymolaBinary(ResultDymola):
         largest_trajectory_length = self._find_max_trajectory_length(trajectories)
         new_start_index = (start_index + largest_trajectory_length) if trajectories else start_index
 
-        self._last_set_of_indices = (start_index, stop_index) # update them before we exit
         return trajectories, new_start_index
 
     def _find_max_trajectory_length(self, trajectories):

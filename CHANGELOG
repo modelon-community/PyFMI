@@ -1,5 +1,6 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+    * Fixed a caching issue in ResultDymolaBinary.get_variables_data().
 
 --- PyFMI-2.18.0 ---
     * Added new class `DynamicDiagnosticsUtils` in `pyfmi.common.diagnostics` providing
