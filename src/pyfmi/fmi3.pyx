@@ -2719,11 +2719,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         """
         cdef FMIL3.fmi3_status_t status
 
-        if state is None:
-            state = FMUState3()
-
         if not self._supports_get_set_FMU_state():
             raise FMUException('This FMU does not support get and set FMU-state')
+
+        if state is None:
+            state = FMUState3()
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_get_fmu_state(self._fmu, &(state.fmu_state))
@@ -2739,12 +2739,12 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         state._internal_state_variables['has_entered_init_mode'] = self._has_entered_init_mode
         state._internal_state_variables['callback_log_level'] = self.callbacks.log_level
 
-        state._internal_state_variables["event_info.new_discrete_states_needed"]            = self._eventInfo.newDiscreteStatesNeeded
-        state._internal_state_variables["event_info.terminate_simulation"]                  = self._eventInfo.terminateSimulation
-        state._internal_state_variables["event_info.nominals_of_continuous_states_changed"] = self._eventInfo.nominalsOfContinuousStatesChanged
-        state._internal_state_variables["event_info.values_of_continuous_states_changed"]   = self._eventInfo.valuesOfContinuousStatesChanged
-        state._internal_state_variables["event_info.next_event_time_defined"]               = self._eventInfo.nextEventTimeDefined
-        state._internal_state_variables["event_info.next_event_time"]                       = self._eventInfo.nextEventTime
+        state._internal_state_variables["event_info.new_discrete_states_needed"]            = self._event_info_new_discrete_states_needed
+        state._internal_state_variables["event_info.terminate_simulation"]                  = self._event_info_terminate_simulation
+        state._internal_state_variables["event_info.nominals_of_continuous_states_changed"] = self._event_info_nominals_of_continuous_states_changed
+        state._internal_state_variables["event_info.values_of_continuous_states_changed"]   = self._event_info_values_of_continuous_states_changed
+        state._internal_state_variables["event_info.next_event_time_defined"]               = self._event_info_next_event_time_defined
+        state._internal_state_variables["event_info.next_event_time"]                       = self._event_info_next_event_time
 
         return state
 
@@ -2787,17 +2787,17 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             self.callbacks.log_level = state._internal_state_variables['callback_log_level']
 
         if state._internal_state_variables["event_info.new_discrete_states_needed"] is not None:
-            self._eventInfo.newDiscreteStatesNeeded = state._internal_state_variables["event_info.new_discrete_states_needed"]
+            self._event_info_new_discrete_states_needed = state._internal_state_variables["event_info.new_discrete_states_needed"]
         if state._internal_state_variables["event_info.nominals_of_continuous_states_changed"] is not None:
-            self._eventInfo.nominalsOfContinuousStatesChanged = state._internal_state_variables["event_info.nominals_of_continuous_states_changed"]
+            self._event_info_nominals_of_continuous_states_changed = state._internal_state_variables["event_info.nominals_of_continuous_states_changed"]
         if state._internal_state_variables["event_info.terminate_simulation"] is not None:
-            self._eventInfo.terminateSimulation = state._internal_state_variables["event_info.terminate_simulation"]
+            self._event_info_terminate_simulation = state._internal_state_variables["event_info.terminate_simulation"]
         if state._internal_state_variables["event_info.values_of_continuous_states_changed"] is not None:
-            self._eventInfo.valuesOfContinuousStatesChanged = state._internal_state_variables["event_info.values_of_continuous_states_changed"]
+            self._event_info_values_of_continuous_states_changed = state._internal_state_variables["event_info.values_of_continuous_states_changed"]
         if state._internal_state_variables["event_info.next_event_time_defined"] is not None:
-            self._eventInfo.nextEventTimeDefined = state._internal_state_variables["event_info.next_event_time_defined"]
+            self._event_info_next_event_time_defined = state._internal_state_variables["event_info.next_event_time_defined"]
         if state._internal_state_variables["event_info.next_event_time"] is not None:
-            self._eventInfo.nextEventTime = state._internal_state_variables["event_info.next_event_time"]
+            self._event_info_next_event_time = state._internal_state_variables["event_info.next_event_time"]
 
 
     def free_fmu_state(self, FMUState3 state):
@@ -2817,12 +2817,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef FMIL3.fmi3_status_t status
         cdef FMIL3.fmi3_FMU_state_t internal_state = state.fmu_state
 
-
         if not self._supports_get_set_FMU_state():
             raise FMUException('This FMU does not support get and set FMU-state')
 
         if internal_state == NULL:
-            print("FMU-state does not seem to be allocated.")
+            logging.warning("FMU-state not allocated, skipping 'fmi3FreeFMUState' call.")
             return
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -2839,7 +2838,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         state._internal_state_variables = {}
 
 
-    cpdef serialize_fmu_state(self, state):
+    cpdef serialize_fmu_state(self, FMUState3 state):
         """
         Serialize the data referenced by the input argument.
 
@@ -2852,27 +2851,26 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             A list with a vector with the serialized FMU-state and internal state values.
 
         Example::
-            s = fmu.get_fmu_state()
-            serialized_state = fmu.serialize_fmu_state(s)
+            state = fmu.get_fmu_state()
+            serialized_state = fmu.serialize_fmu_state(state)
         """
 
         cdef FMIL3.fmi3_status_t status
-        cdef object cap_me, cap_cs
-        cdef FMUState3 internal_state = state
+        cdef FMIL3.bool cap_me, cap_cs
 
         cdef FMIL.size_t n_bytes
-        cdef np.ndarray[FMIL3.fmi3_byte_t, ndim=1, mode='c'] serialized_state
+        cdef np.ndarray[FMIL3.fmi3_byte_t, ndim = 1, mode = 'c'] serialized_state
 
-        cap_me = FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canSerializeFMUState)
-        cap_cs = FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canSerializeFMUState)
+        cap_me = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canSerializeFMUState))
+        cap_cs = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canSerializeFMUState))
         if not cap_me and not cap_cs:
             raise FMUException('This FMU dos not support serialization of FMU-state')
 
         n_bytes = self.serialized_fmu_state_size(state)
-        serialized_state = np.empty(n_bytes, dtype=np.uint8)
+        serialized_state = np.empty(n_bytes, dtype = np.uint8)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-        status = FMIL3.fmi3_import_serialize_fmu_state(self._fmu, internal_state.fmu_state, <FMIL3.fmi3_byte_t*> serialized_state.data, n_bytes)
+        status = FMIL3.fmi3_import_serialize_fmu_state(self._fmu, state.fmu_state, <FMIL3.fmi3_byte_t*> serialized_state.data, n_bytes)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != FMIL3.fmi3_status_ok:
@@ -2880,16 +2878,16 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         # We temporarily return a list with wrapper values in the second entry.
         # What we need to do is add serialization/deserialization for the wrapper values
-        return [serialized_state, list(internal_state._internal_state_variables.values())]
+        return [serialized_state, list(state._internal_state_variables.values())]
 
 
-    cpdef deserialize_fmu_state(self, serialized_fmu):
+    cpdef deserialize_fmu_state(self, list serialized_state):
         """
         De-serialize the provided byte-vector and returns the corresponding FMU-state.
 
         Parameters::
 
-            serialized_fmu--
+            serialized_state--
                 A serialized FMU-state.
 
         Returns::
@@ -2898,15 +2896,16 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         Example::
 
-            s = fmu.get_fmu_state()
-            serialized_fmu = fmu.serialize_fmu_state(s)
-            deserialized_state = fmu.deserialize_fmu_state(serialized_fmu)
+            state = fmu.get_fmu_state()
+            serialized_state = fmu.serialize_fmu_state(state)
+            deserialized_state = fmu.deserialize_fmu_state(serialized_state)
         """
 
         cdef FMIL3.fmi3_status_t status
-        cdef np.ndarray[FMIL3.fmi3_byte_t, ndim=1, mode='c'] ser_fmu = serialized_fmu[0]
+        cdef np.ndarray[FMIL3.fmi3_byte_t, ndim=1, mode='c'] ser_fmu = serialized_state[0]
         cdef FMUState3 state = FMUState3()
         cdef FMIL.size_t n_byte = len(ser_fmu)
+        cdef list internal_state_variables = serialized_state[1]
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_de_serialize_fmu_state(self._fmu, <FMIL3.fmi3_byte_t *> ser_fmu.data, n_byte, &(state.fmu_state))
@@ -2915,21 +2914,20 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if status != FMIL3.fmi3_status_ok:
             raise FMUException('An error occured while deserializing the FMU-state, see the log for possible more information')
 
-
-        state._internal_state_variables = {'initialized_fmu': serialized_fmu[1][0],
-                                           'has_entered_init_mode': serialized_fmu[1][1],
-                                           'time': serialized_fmu[1][2],
-                                           'callback_log_level': serialized_fmu[1][3],
-                                           'event_info.new_discrete_states_needed': serialized_fmu[1][4],
-                                           'event_info.nominals_of_continuous_states_changed': serialized_fmu[1][5],
-                                           'event_info.terminate_simulation': serialized_fmu[1][6],
-                                           'event_info.values_of_continuous_states_changed': serialized_fmu[1][7],
-                                           'event_info.next_event_time_defined': serialized_fmu[1][8],
-                                           'event_info.next_event_time': serialized_fmu[1][9]}
+        state._internal_state_variables = {'initialized_fmu': internal_state_variables[0],
+                                           'has_entered_init_mode': internal_state_variables[1],
+                                           'time': internal_state_variables[2],
+                                           'callback_log_level': internal_state_variables[3],
+                                           'event_info.new_discrete_states_needed': internal_state_variables[4],
+                                           'event_info.nominals_of_continuous_states_changed': internal_state_variables[5],
+                                           'event_info.terminate_simulation': internal_state_variables[6],
+                                           'event_info.values_of_continuous_states_changed': internal_state_variables[7],
+                                           'event_info.next_event_time_defined': internal_state_variables[8],
+                                           'event_info.next_event_time': internal_state_variables[9]}
 
         return state
 
-    cpdef serialized_fmu_state_size(self, state):
+    cpdef serialized_fmu_state_size(self, FMUState3 state):
         """
         Returns the required size of a vector needed to serialize the specified FMU-state
 
@@ -2944,11 +2942,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         """
 
         cdef FMIL3.fmi3_status_t status
-        cdef FMUState3 internal_state = state
         cdef FMIL.size_t n_bytes
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-        status = FMIL3.fmi3_import_serialized_fmu_state_size(self._fmu, internal_state.fmu_state, &n_bytes)
+        status = FMIL3.fmi3_import_serialized_fmu_state_size(self._fmu, state.fmu_state, &n_bytes)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
         if status != FMIL3.fmi3_status_ok:
@@ -3529,7 +3526,7 @@ cdef class FMUModelME3(FMUModelBase3):
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
-    def get_capability_flags(self):
+    def get_capability_flags(self) -> dict:
         """
         Returns a dictionary with the capability flags of the FMU.
 
@@ -3559,12 +3556,12 @@ cdef class FMUModelME3(FMUModelBase3):
         return capabilities
 
     @functools.cache
-    def _provides_directional_derivatives(self):
+    def _provides_directional_derivatives(self) -> bool:
         """Check capability to provide directional derivatives."""
         return bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_providesDirectionalDerivatives))
 
     @functools.cache
-    def _supports_get_set_FMU_state(self):
+    def _supports_get_set_FMU_state(self) -> bool:
         """Returns True if the FMU supports get and set FMU-state, otherwise False."""
         return bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canGetAndSetFMUState))
 

@@ -138,9 +138,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t*)
     cdef _get_alias_description(self, FMIL3.fmi3_import_alias_variable_t*)
 
-    cpdef serialize_fmu_state(self, state)
-    cpdef deserialize_fmu_state(self, serialized_fmu)
-    cpdef serialized_fmu_state_size(self, state)
+    cpdef serialize_fmu_state(self, FMUState3 state)
+    cpdef deserialize_fmu_state(self, list serialized_fmu)
+    cpdef serialized_fmu_state_size(self, FMUState3 state)
 
     cpdef get_output_dependencies(self)
     cpdef get_output_dependencies_kind(self)
