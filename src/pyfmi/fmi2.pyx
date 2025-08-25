@@ -2593,7 +2593,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_FMU_state_t internal_state = state.fmu_state
 
         if not self._supports_get_set_FMU_state():
-            raise FMUException('This FMU dos not support get and set FMU-state')
+            raise FMUException('This FMU does not support get and set FMU-state')
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL2.fmi2_import_set_fmu_state(self._fmu, internal_state)
@@ -4177,7 +4177,7 @@ cdef class FMUModelCS2(FMUModelBase2):
 
     def _supports_get_set_FMU_state(self):
         """
-        Check support for getting and setting the FMU state.
+        Check support for getting and setting the FMU-state.
         """
         return FMIL2.fmi2_import_get_capability(self._fmu, FMIL2.fmi2_cs_canGetAndSetFMUstate)
 
@@ -4859,7 +4859,7 @@ cdef class FMUModelME2(FMUModelBase2):
 
     def _supports_get_set_FMU_state(self):
         """
-        Check support for getting and setting the FMU state.
+        Check support for getting and setting the FMU-state.
         """
         return FMIL2.fmi2_import_get_capability(self._fmu, FMIL2.fmi2_me_canGetAndSetFMUstate)
 

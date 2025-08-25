@@ -115,7 +115,7 @@ class TestFMI3LoadFMU:
 
         event_info = fmu.get_event_info()
         assert isinstance(event_info, FMI3EventInfo)
-        assert not event_info.newDiscreteDtatesNeeded
+        assert not event_info.newDiscreteStatesNeeded
         assert not event_info.terminateSimulation
         assert not event_info.nominalsOfContinuousStatesChanged
         assert not event_info.valuesOfContinuousStatesChanged
@@ -130,7 +130,7 @@ class TestFMI3LoadFMU:
 
         event_info = fmu.get_event_info()
         assert isinstance(event_info, FMI3EventInfo)
-        assert not event_info.newDiscreteDtatesNeeded
+        assert not event_info.newDiscreteStatesNeeded
         assert not event_info.terminateSimulation
         assert not event_info.nominalsOfContinuousStatesChanged
         assert not event_info.valuesOfContinuousStatesChanged
@@ -1092,8 +1092,8 @@ class Test_FMI3ME:
 
         assert capabilities["needsExecutionTool"] is False
         assert capabilities["canBeInstantiatedOnlyOncePerProcess"] is False
-        assert capabilities["canGetAndSetFMUstate"] is True
-        assert capabilities["canSerializeFMUstate"] is True
+        assert capabilities["canGetAndSetFMUState"] is True
+        assert capabilities["canSerializeFMUState"] is True
         assert capabilities["providesDirectionalDerivatives"] is True
         assert capabilities["providesAdjointDerivatives"] is True
         assert capabilities["providesPerElementDependencies"] is False
@@ -1106,7 +1106,7 @@ class Test_FMI3ME:
         fmu.initialize()
 
         A, B, C, D = fmu.get_state_space_representation(A = True, B = True, C = True, D = True, use_structure_info = False)
-        
+
         np.testing.assert_array_almost_equal(A, np.array([[0., 1.], [-1., -3.]]))
         np.testing.assert_array_almost_equal(B, np.array([[], []]))
         # np.testing.assert_array_almost_equal(C, np.array([[1., 0.], [0., 1.]]))
@@ -1131,7 +1131,7 @@ class Test_FMI3Alias:
     def setup_class(cls):
         path = str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "alias")
         cls.fmu = FMUModelME3(path, allow_unzipped_fmu = True, _connect_dll = False)
-        
+
     def test_get_model_variables_with_alias(self):
         """Test get_model_variables including aliases."""
         model_vars = self.fmu.get_model_variables(include_alias = True)
@@ -1145,7 +1145,7 @@ class Test_FMI3Alias:
         assert model_vars["v5_a1"].alias
         assert model_vars["v5_a2"].description == "v5_a2_desc"
         assert model_vars["v5_a2"].alias
-    
+
     def test_get_model_variables_without_alias(self):
         """Test get_model_variables not including aliases."""
         model_vars = self.fmu.get_model_variables(include_alias = False)
