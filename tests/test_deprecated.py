@@ -33,16 +33,6 @@ def test_result_storage():
     with pytest.warns(DeprecationWarning, match = msg):
         ResultStorage()
 
-@pytest.mark.parametrize("result_handling", ["file", "binary", "memory", "csv"])
-def test_get_variable_data(result_handling):
-    """Test deprecation of get_variable_data for result handlers."""
-    fmu = load_fmu(FMI2_REF_FMU_PATH / "Dahlquist.fmu")
-    res = fmu.simulate(options = {"ncp": 0, "result_handling": result_handling})
-
-    msg = "Use get_trajectory or get_trajectories instead."
-    with pytest.warns(DeprecationWarning, match = msg):
-        res.result_data.get_variable_data("time")
-
 @pytest.mark.parametrize("result_handling", 
     [
         "file",

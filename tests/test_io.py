@@ -42,16 +42,27 @@ from pyfmi.common.io import (
     ResultHandlerBinaryFile,
     ResultHandlerFile,
     Trajectory,
-    get_result_handler
+    get_result_handler,
+    ResultReader,
+    ResultStorageMemory,
+    ResultDymolaTextual
 )
 from pyfmi.common.diagnostics import (
     DIAGNOSTICS_PREFIX,
     setup_diagnostics_variables
 )
 
+from pyfmi.fmi1 import FMUModelBase
+from pyfmi.fmi2 import FMUModelBase2
+from pyfmi.fmi3 import FMUModelBase3, FMUModelME3
+from pathlib import Path
+
+
 import pyfmi.fmi as fmi
 from pyfmi.test_util import Dummy_FMUModelME1, Dummy_FMUModelCS1, Dummy_FMUModelME2, Dummy_FMUModelCS2
 
+this_dir = Path(__file__).parent.absolute()
+FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 file_path = os.path.dirname(os.path.abspath(__file__))
 
 def _run_negated_alias(model, result_type, result_file_name=""):
@@ -1972,7 +1983,6 @@ class TestResultDymolaBinary:
         rdb = ResultDymolaBinary(opts["result_file_name"], allow_file_updates = True)
         var_name_1 = "v"
         var_name_2 = "h"
-
         part_traj_v_1 = rdb.get_variables_data([var_name_1], start_index = 0, stop_index = 3)[0][var_name_1].x
         part_traj_h_1 = rdb.get_variables_data([var_name_2], start_index = 0, stop_index = 3)[0][var_name_2].x
 
@@ -2225,3 +2235,54 @@ class TestCustomResultHandlerMissingSupport:
         msg = "The chosen result_handler does not support dynamic_diagnostics. Try using e.g., ResultHandlerBinaryFile."
         with pytest.raises(InvalidOptionException, match = re.escape(msg)):
             model.simulate(options = opts)
+
+def get_model_fmi_1() -> FMUModelBase:
+    """Returns an elementary FMI1 model for simulation."""
+    return Dummy_FMUModelME1([40], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NegatedAlias.fmu"), _connect_dll = False)
+
+def get_model_fmi_2() -> FMUModelBase2:
+    """Returns an elementary FMI2 model for simulation."""
+    return Dummy_FMUModelME2([("x", "y")], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NegatedAlias.fmu"), _connect_dll = False)
+
+def get_model_fmi_3() -> FMUModelBase3:
+    """Returns an elementary FMI3 model for simulation."""
+    return FMUModelME3(FMI3_REF_FMU_PATH / "Dahlquist.fmu")
+
+@pytest.mark.parametrize("get_fmu, result_handling, expected_result_class", 
+    [
+        (get_model_fmi_1, "file", ResultDymolaTextual),
+        (get_model_fmi_1, "binary", ResultDymolaBinary),
+        (get_model_fmi_1, "memory", ResultStorageMemory),
+        (get_model_fmi_1, "csv", ResultCSVTextual),
+
+        (get_model_fmi_2, "file", ResultDymolaTextual),
+        (get_model_fmi_2, "binary", ResultDymolaBinary),
+        (get_model_fmi_2, "memory", ResultStorageMemory),
+        (get_model_fmi_2, "csv", ResultCSVTextual),
+
+        (get_model_fmi_3, "binary", ResultDymolaBinary),
+    ]
+)
+def test_basic_class_functions(get_fmu, result_handling, expected_result_class):
+    """Tests that all implementations of ResultReaders are conform with the basic ResultReader API."""
+    model = get_fmu()
+    res = model.simulate(options = {"ncp": 0, "result_handling": result_handling})
+    res_reader = res.result_data
+    assert isinstance(res_reader, ResultReader)
+    assert isinstance(res_reader, expected_result_class)
+
+    # basic API
+    var_list = res_reader.get_variable_names()
+    assert isinstance(var_list, list)
+    assert len(var_list) > 0
+
+    traj = res_reader.get_trajectory("time")
+    assert isinstance(traj, Trajectory)
+
+    traj = res_reader.get_variable_data("time")
+    assert isinstance(traj, Trajectory)
+
+    trajs = res_reader.get_trajectories(["time"])
+    assert isinstance(trajs, dict)
+    traj = trajs.get("time")
+    assert isinstance(traj, Trajectory)

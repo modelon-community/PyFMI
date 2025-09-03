@@ -122,23 +122,30 @@ class ResultReader(abc.ABC):
         raise NotImplementedError
     
     def get_variable_data(self, name: str) -> Trajectory:
-        """Retrieve a single pyfmi.common.io.Trajectory by variables name."""
-        warnings.warn(
-            "get_variable_data is deprecated and will be removed in a future version."
-            "Use get_trajectory or get_trajectories instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        return self.get_trajectory(name) # For backwards compatibility
+        """Forwards to ResultReader.get_trajectory, see docstring there.
+        Exists for backwards compatibility, use get_trajectory instead."""
+        return self.get_trajectory(name = name)
 
     @abc.abstractmethod
     def get_trajectory(self, name : str) -> Trajectory:
-        """Retrieve a single pyfmi.common.io.Trajectory by variable name."""
+        """Retrieve a single pyfmi.common.io.Trajectory by variables name.
+        Parameters::
+
+            name --
+                String of variable name.
+        Return::
+            pyfmi.common.io.Trajectory corresponding to variable_name.
+        """
         raise NotImplementedError
     
     def get_trajectories(self, names: list[str]) -> dict[str, Trajectory]:
-        """Retrieve multiple trajectories, returns a dictionary of variables trajectories."""
-        return {n: self.get_trajectory(n) for n in names}
+        """Retrieve multiple trajectories, returns a dictionary of variables trajectories.
+            names --
+                List of Strings of variable names.
+        Return::
+            Dictionary: {variable_name: pyfmi.common.io.Trajectory}.
+        """
+        return {n: self.get_trajectory(name = n) for n in names}
 
 
 class ResultHandler:
@@ -429,10 +436,12 @@ class ResultCSVTextual(ResultReader):
             A Trajectory object containing the time vector and the data vector
             of the variable.
         """
+        t = self.data[:,0]
         if name == 'time':
-            return Trajectory(self.data[:,0],self.data[:,0])
+            x = t
         else:
-            return Trajectory(self.data[:,0],self.data[:,self.data_matrix[name]])
+            x = self.data[:,self.data_matrix[name]]
+        return Trajectory(t, x)
 
     def is_variable(self, name):
         return True
@@ -885,7 +894,7 @@ class ResultStorageMemory(ResultDymola):
             of the variable.
         """
         if name == 'time':
-            return Trajectory(self.time,self.time)
+            return Trajectory(self.time, self.time)
         else:
             try:
                 var = self.vars[name]
