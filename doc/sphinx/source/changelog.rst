@@ -2,6 +2,10 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.18.1 ---
+    * Fixed a caching issue in ResultDymolaBinary.get_variables_data().
+    * Removed deprecation of `get_variable_data`, it is recommended to use `get_trajectory` anyways.
+
 --- PyFMI-2.18.0 ---
     * Added new class `DynamicDiagnosticsUtils` in `pyfmi.common.diagnostics` providing
       various utility functions for computing additional diagnostics variables derived

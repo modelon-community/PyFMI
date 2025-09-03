@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+
+--- PyFMI-2.18.1 ---
     * Fixed a caching issue in ResultDymolaBinary.get_variables_data().
     * Removed deprecation of `get_variable_data`, it is recommended to use `get_trajectory` anyways.
 
