@@ -2,6 +2,10 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.18.2 ---
+    * Fixed an issue with `ResultDymolaBinary` result retrieval if `dynamic_diagnostics = True` and 
+      there is only a single solution point.
+
 --- PyFMI-2.18.1 ---
     * Fixed a caching issue in ResultDymolaBinary.get_variables_data().
     * Removed deprecation of `get_variable_data`, it is recommended to use `get_trajectory` anyways.

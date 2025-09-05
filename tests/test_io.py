@@ -2020,6 +2020,19 @@ class TestResultDymolaBinary:
         assert len(set(part_traj_2)) > 1 # some trajectories might be constant and thus not suitable for testing
         np.testing.assert_array_equal(part_traj_2, rdb.get_trajectory(var_name).x[2:8])
 
+    @pytest.mark.parametrize("dynamic_diagnostics", [True, False])
+    def test_start_time_equal_stop_time(self, dynamic_diagnostics):
+        """Test that the edge case of interpolation to the diagnostics time is handled,
+        when there is only a single solution points."""
+        fmu = Dummy_FMUModelME2(
+            [],
+            os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "bouncingBall.fmu"), _connect_dll=False
+        )
+        opts = fmu.simulate_options()
+        opts["dynamic_diagnostics"] = dynamic_diagnostics
+        res = fmu.simulate(0, 0, options = opts)
+        np.testing.assert_array_equal(res['h'], np.array([1.]))
+
 @pytest.mark.assimulo
 class TestFileSizeLimit:
     def _setup(self, result_type, result_file_name="", fmi_type="me"):

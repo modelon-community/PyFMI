@@ -1523,11 +1523,15 @@ class ResultDymolaBinary(ResultDymola):
         time_vector      = self._read_trajectory_data(0, False, start_index, stop_index)
         data             = self._read_trajectory_data(data_index, False, start_index, stop_index)
 
-        n = min(len(time_vector), len(data)) # safety for reading wiith allow_file_updates = True
-        f = scipy.interpolate.interp1d(time_vector[:n], data[:n], fill_value = "extrapolate")
+        n = min(len(time_vector), len(data)) # safety for reading with allow_file_updates = True
+        if n == 1: # length 1 would lead to issues in interpolation
+            data_x = data[:n]
+        else:
+            f = scipy.interpolate.interp1d(time_vector[:n], data[:n], fill_value = "extrapolate")
+            data_x = f(diag_time_vector)
 
         # note that we dont need to slice here because diag_time_vector is already sliced accordingly
-        self._data_2[data_index] = f(diag_time_vector)
+        self._data_2[data_index] = data_x
         return self._data_2[data_index]
 
     def _get_description(self):
