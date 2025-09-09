@@ -2864,7 +2864,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cap_me = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canSerializeFMUState))
         cap_cs = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canSerializeFMUState))
         if not cap_me and not cap_cs:
-            raise FMUException('This FMU dos not support serialization of FMU-state')
+            raise FMUException('This FMU does not support serialization of FMU-state')
 
         n_bytes = self.serialized_fmu_state_size(state)
         serialized_state = np.empty(n_bytes, dtype = np.uint8)
