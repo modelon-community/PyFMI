@@ -1442,7 +1442,52 @@ cdef class Master:
     
     def simulate(self, double start_time=0.0, double final_time=1.0, input=None, options={}):
         """
-        Simulates the system.
+        Parameters::
+
+            start_time --
+                Start time for the simulation.
+                Default: 0.0
+
+            final_time --
+                Final time for the simulation.
+                Default: 1.0
+
+            input --
+                Input signal(s) for the simulation. The input should be a 2-tuple
+                consisting of first a list of (model, input_variable_name) tuples and then
+                the data matrix or a function. If a data matrix, the first
+                column should be a time vector and then the variable vectors as
+                columns. If instead a function, the argument should correspond
+                to time and the output the variable data. See the users-guide
+                for examples.
+                Default: Empty tuple.
+
+            options --
+                The options that should be used in the algorithm. For details on
+                the options do:
+
+                    >> master = Master(...)
+                    >> opts = master.simulate_options()
+                    >> opts?
+
+                Valid values are:
+                    - A dict which gives MasterAlgOptions with
+                      default values on all options except the ones
+                      listed in the dict. Empty dict will thus give all
+                      options with default values.
+                    - An options object.
+                Default: Empty dict
+
+        Returns::
+            dict(model_index: result_object), where
+                model_index: integer 
+                result_object: subclass of common.algorithm_drivers.ResultBase
+
+            Given 
+                >> master = Master(models = models_list, ...)
+                >> res = master.simulate()
+
+                `res[i]` is the simulation result of `models_list[i]`
         """
         self.reset_statistics()
         

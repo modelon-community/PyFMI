@@ -20,6 +20,7 @@ import os
 import numpy as np
 import warnings
 import re
+from pathlib import Path
 
 from pyfmi import Master
 from pyfmi.fmi import FMUException, FMUModelCS2, FMUModelME2
@@ -30,6 +31,9 @@ from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 file_path = os.path.dirname(os.path.abspath(__file__))
 cs2_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0")
 me2_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0")
+
+this_dir = Path(__file__).parent.absolute()
+FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -216,11 +220,9 @@ class Test_Master:
     def test_basic_simulation_none_result(self):
         models, connections = self._load_basic_simulation()
         
-        opts = {"result_handling":None}
+        opts = {"result_handling": None, "step_size": 0.0005}
         
         master = Master(models, connections)
-       
-        opts["step_size"] = 0.0005
         res = master.simulate(options=opts)
         
         assert res[models[0]]._result_data is None
@@ -506,3 +508,43 @@ class Test_Master:
 
         np.testing.assert_equal(ref_res_traj_1_base[1::2], test_res_traj_1_base)
         np.testing.assert_equal(ref_res_traj_2_base[1::2], test_res_traj_2_base)
+
+    @pytest.mark.parametrize("input_traj",
+        [
+            np.transpose( # array variant
+                np.vstack((
+                    np.linspace(0, 5, 10), # time
+                    np.linspace(0, 5, 10), # input 1
+                    np.linspace(0, 5, 10)*2, # input 2
+                ))
+            ),
+            lambda t: [t, 2*t] # function variant
+        ]
+    )
+    def test_external_inputs(self, input_traj):
+        """Test of using external inputs for the Master algorithm."""
+        fmu1 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2]
+        connections = [(fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input")]
+        master = Master(models, connections)
+
+        t_start, t_final = 0, 5
+        opts = master.simulate_options()
+        opts["step_size"] = 1
+
+        # Generate input
+        input_vars = [
+            (fmu1, "Float64_continuous_input"),
+            (fmu2, "Float64_discrete_input")
+        ]
+        input_object = [input_vars, input_traj]
+
+        res = master.simulate(t_start, t_final, options = opts, input = input_object)
+
+        np.testing.assert_array_equal(res[0]["Float64_continuous_output"], [0, 1, 2, 3, 4, 5])
+        np.testing.assert_array_equal(res[1]["Float64_continuous_output"], [0, 1, 2, 3, 4, 5])
+
+        np.testing.assert_array_equal(res[0]["Float64_discrete_output"], [0, 0, 0, 0, 0, 0])
+        np.testing.assert_array_equal(res[1]["Float64_discrete_output"], [0, 2, 4, 6, 8, 10])
