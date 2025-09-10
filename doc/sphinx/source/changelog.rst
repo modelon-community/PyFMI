@@ -2,6 +2,10 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.18.3 ---
+    * Fixed a bug introduced in PyFMI 2.18.0 causing incorrect result storage for `boolean` and `enum` variables
+      with `result_handling = "binary"` (default).
+
 --- PyFMI-2.18.2 ---
     * Fixed an issue with `ResultDymolaBinary` result retrieval if `dynamic_diagnostics = True` and 
       there is only a single solution point.
