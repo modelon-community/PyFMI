@@ -345,7 +345,12 @@ class OptionBase(dict):
                 if not key in self._keys:
                     raise UnrecognizedOptionError(
                         "The key: %s, is not a valid option" %str(key))
+                # default value is a dictionary
                 if isinstance(self[key], dict):
+                    # check input is also a dictionary
+                    if not isinstance(other[key], dict):
+                        raise UnrecognizedOptionError(
+                            "The options in '%s' needs to be provided as a dictionary." %str(key))
                     self[key].update(other[key])
                 else:
                     self[key] = other[key]

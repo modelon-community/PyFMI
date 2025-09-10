@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+    * Added new option `step_size_downsampling_factor` to `Master` algorithm.
+      This allows setting reduced input/output update rates on a per-model basis.
 
 --- PyFMI-2.18.3 ---
     * Fixed a bug introduced in PyFMI 2.18.0 causing incorrect result storing for `boolean` and `enum` variables
