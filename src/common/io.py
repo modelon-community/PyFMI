@@ -2896,8 +2896,8 @@ class ResultHandlerBinaryFile(ResultHandler):
             data_types = [
                 fmi.FMI_REAL,
                 fmi.FMI_INTEGER,
+                fmi.FMI_ENUMERATION,
                 fmi.FMI_BOOLEAN,
-                fmi.FMI_ENUMERATION
             ]
 
         for data_type in data_types:

@@ -24,6 +24,8 @@ import re
 from io import StringIO, BytesIO
 from collections import OrderedDict
 
+from pyfmi import load_fmu
+
 from pyfmi.fmi import (
     FMUException,
     FMUModelME2,
@@ -63,6 +65,7 @@ from pyfmi.test_util import Dummy_FMUModelME1, Dummy_FMUModelCS1, Dummy_FMUModel
 
 this_dir = Path(__file__).parent.absolute()
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
+FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
 file_path = os.path.dirname(os.path.abspath(__file__))
 
 def _run_negated_alias(model, result_type, result_file_name=""):
@@ -2299,3 +2302,56 @@ def test_basic_class_functions(get_fmu, result_handling, expected_result_class):
     assert isinstance(trajs, dict)
     traj = trajs.get("time")
     assert isinstance(traj, Trajectory)
+
+@pytest.mark.parametrize("fmu_path, result_handling", 
+    [
+        (FMI2_REF_FMU_PATH / "Feedthrough.fmu", "file"),
+        (FMI2_REF_FMU_PATH / "Feedthrough.fmu", "binary"),
+        (FMI2_REF_FMU_PATH / "Feedthrough.fmu", "memory"),
+        (FMI2_REF_FMU_PATH / "Feedthrough.fmu", "csv"),
+
+        (FMI3_REF_FMU_PATH / "Feedthrough.fmu", "binary"),
+    ]
+)
+def test_basic_variable_get_set_result_correctness(fmu_path, result_handling):
+    """Test that basic get/set and result values align for the different variable types."""
+    fmu = load_fmu(fmu_path)
+    fmu.initialize()
+    # non-default values
+    bool_val = True
+    int32_val = 15
+    float64_val = 3.14
+    enum_val = 2
+
+    # verify values are not the defaults
+    assert fmu.get("Boolean_input")[0] != bool_val
+    assert fmu.get("Int32_input")[0] != int32_val
+    assert fmu.get("Float64_continuous_input")[0] != float64_val
+    assert fmu.get("Enumeration_input")[0] != enum_val
+
+    fmu.set("Boolean_input", bool_val)
+    fmu.set("Int32_input", int32_val)
+    fmu.set("Float64_continuous_input", float64_val)
+    fmu.set("Enumeration_input", enum_val)
+
+    # verify get/set
+    assert fmu.get("Boolean_input")[0] == bool_val
+    assert fmu.get("Int32_input")[0] == int32_val
+    assert fmu.get("Float64_continuous_input")[0] == float64_val
+    assert fmu.get("Enumeration_input")[0] == enum_val
+
+    fmu.event_update()
+    fmu.enter_continuous_time_mode()
+    opts = {"ncp": 2, "initialize": False, "result_handling": result_handling}
+    res = fmu.simulate(options = opts)
+
+    # verify simulation didn't change value
+    assert fmu.get("Boolean_input")[0] == bool_val
+    assert fmu.get("Int32_input")[0] == int32_val
+    assert fmu.get("Float64_continuous_input")[0] == float64_val
+    assert fmu.get("Enumeration_input")[0] == enum_val
+
+    assert res["Boolean_input"][-1] == bool_val
+    assert res["Int32_input"][-1] == int32_val
+    assert res["Float64_continuous_input"][-1] == float64_val
+    assert res["Enumeration_input"][-1] == enum_val
