@@ -548,3 +548,89 @@ class Test_Master:
 
         np.testing.assert_array_equal(res[0]["Float64_discrete_output"], [0, 0, 0, 0, 0, 0])
         np.testing.assert_array_equal(res[1]["Float64_discrete_output"], [0, 2, 4, 6, 8, 10])
+
+
+class Test_Master_Step_Size_Downsampling:
+    # TODO: Unit tests on option error check
+    # TODO: same for discrete variables
+    """Tests on the 'step_size_downsampling_factor' functionality of the Master algorithm."""
+
+    @pytest.mark.parametrize("rate1, rate2, expected_res1, expected_res2",
+        [
+            # external input only sampled every other step
+            (2, 1,
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11],
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11]
+            ),
+            # connection only updated every other step
+            (1, 2,
+             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11]
+            ),
+            # non-aligned test 1
+            (2, 3,
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11],
+             [1, 1, 1, 3, 3, 3, 7, 7, 7, 9, 9]
+            ),
+            # non-aligned test 2
+            (3, 2,
+             [1, 1, 1, 4, 4, 4, 7, 7, 7, 10, 10],
+             [1, 1, 1, 1, 4, 4, 7, 7, 7, 7, 10]
+            ),
+        ]
+    )
+    def test_two_feedthrough_system(self, rate1, rate2, expected_res1, expected_res2):
+        """Test 'step_size_downsampling_factor' for 2 Feedthrough models + 1 external input."""
+        fmu1 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2]
+        connections = [(fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input")]
+        master = Master(models, connections)
+
+        t_start, t_final = 0, 10
+        opts = master.simulate_options()
+        opts["step_size"] = 1
+        opts["step_size_downsampling_factor"] = {fmu1: rate1, fmu2: rate2}
+
+        # Generate input
+        input_object = [
+            [(fmu1, "Float64_continuous_input")],
+            lambda t: [t + 1] # not starting at zero to test correct values taken with initialization
+        ]
+
+        res = master.simulate(t_start, t_final, options = opts, input = input_object)
+        np.testing.assert_array_equal(res[0]["Float64_continuous_output"], expected_res1)
+        np.testing.assert_array_equal(res[1]["Float64_continuous_output"], expected_res2)
+
+    def test_three_feedthrough_system(self):
+        """Test 'step_size_downsampling_factor' for 3 Feedthrough models + 1 external input,
+        where 2 models connect to the same output."""
+        fmu1 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu3 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2, fmu3]
+        connections = [
+            (fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input"),
+            (fmu1, "Float64_continuous_output", fmu3, "Float64_continuous_input")]
+        master = Master(models, connections)
+
+        t_start, t_final = 0, 10
+        opts = master.simulate_options()
+        opts["step_size"] = 1
+        opts["step_size_downsampling_factor"] = {fmu1: 2, fmu2: 3, fmu3: 4}
+
+        # Generate input
+        input_object = [
+            [(fmu1, "Float64_continuous_input")],
+            lambda t: [t + 1] # not starting at zero to test correct values taken with initialization
+        ]
+
+        res = master.simulate(t_start, t_final, options = opts, input = input_object)
+        expected_res1 = np.array([1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11])
+        expected_res2 = np.array([1, 1, 1, 3, 3, 3, 7, 7, 7, 9, 9])
+        expected_res3 = np.array([1, 1, 1, 1, 5, 5, 5, 5, 9, 9, 9])
+        np.testing.assert_array_equal(res[0]["Float64_continuous_output"], expected_res1)
+        np.testing.assert_array_equal(res[1]["Float64_continuous_output"], expected_res2)
+        np.testing.assert_array_equal(res[2]["Float64_continuous_output"], expected_res3)
