@@ -165,8 +165,8 @@ cdef finalize_result_objects(object models_dict):
         
 def init_f(y, master):
     u = master.L.dot(y)
-    master.set_connection_inputs(u)
-    return y - master.get_connection_outputs()
+    master.set_connection_inputs(u, initialize = True)
+    return y - master.get_connection_outputs(initialize = True)
     
 def init_f_block(ylocal, master, block):
     y = np.zeros((master._len_outputs))
@@ -186,7 +186,7 @@ def init_f_block(ylocal, master, block):
     
 def init_jac(y, master):
     u = master.L.dot(y)
-    master.set_connection_inputs(u)
+    master.set_connection_inputs(u, initialize = True)
     D = master.compute_global_D()
     DL = D.dot(master.L)
     return np.eye(*DL.shape) - DL
@@ -198,7 +198,7 @@ class MasterAlgOptions(OptionBase):
     Options::
 
         step_size --
-            Specfies the global step-size to be used for simulating
+            Specifies the global step-size to be used for simulating
             the coupled system.
             Default: 0.01
             
@@ -344,6 +344,14 @@ class MasterAlgOptions(OptionBase):
             Usage with 'error_controlled' = True is not supported.
             Example: If set to 2: Result contains only every other communication point.
             Default: 1 (no downsampling)
+        # TODO: Interaction with step_size_downsampling_factor?
+
+        step_size_downsampling_factor -- 
+            Dictionary {model: int > 0}. 
+            A given model only updates updates its in&outputs every
+            <step_size_downsampling_factor>-th communication point.
+            Usage with 'error_controlled' = True is not supported.
+            Default: {m: 1 for m in models}
     """
     def __init__(self, master, *args, **kw):
         _defaults= {
@@ -373,7 +381,9 @@ class MasterAlgOptions(OptionBase):
         "experimental_output_solve":False,
         "force_finite_difference_outputs": False,
         "num_threads":None,
-        'result_downsampling_factor': 1
+        "result_downsampling_factor": 1,
+        # TODO: result_downsampling_factor per model? Simple number = all models ? 
+        "step_size_downsampling_factor" : dict((model, 1) for model in master.models),
         }
         super(MasterAlgOptions,self).__init__(_defaults)
         self._update_keep_dict_defaults(*args, **kw)
@@ -384,7 +394,7 @@ cdef class Master:
     cdef public object opts
     cdef public object models_dict, L, L_discrete
     cdef public object _ident_matrix
-    cdef public object y_prev, yd_prev, input_traj
+    cdef public object y_prev, yd_prev, input_traj, y_discrete_prev
     cdef public object DL_prev
     cdef public int algebraic_loops, storing_fmu_state
     cdef public int error_controlled, linear_correction
@@ -404,8 +414,9 @@ cdef class Master:
     cdef public object _display_progress
     cdef public double _time_integration_start
     cdef public int result_downsampling_factor
-    cdef public int _step_number
+    cdef public long long _step_number
     cdef public bool _last_step
+    cdef public dict step_size_downsampling_factor
     
     def __init__(self, models, connections):
         """
@@ -479,10 +490,12 @@ cdef class Master:
         self.define_connection_matrix()
         
         self.y_prev = None
+        self.y_discrete_prev = None
         self.input_traj = None
         self._ident_matrix = sps.eye(self._len_inputs, self._len_outputs, format="csr") #y = Cx + Du , u = Ly -> DLy   DL[inputsXoutputs]
         
         self._error_data = {"time":[], "error":[], "step-size":[], "rejected":[]}
+        self.step_size_downsampling_factor = {m: 1 for m in self.models}
     
     def __del__(self):
         FMIL.free(self.fmu_adresses)
@@ -591,6 +604,7 @@ cdef class Master:
         cdef list row = []
         cdef list col = []
         cdef int i, nlocal, status
+        print("Computing global D = ", self._step_number)
 
         for model in self.models_dict.keys():
             nlocal = self.models_dict[model]["local_input_len"]
@@ -636,6 +650,7 @@ cdef class Master:
         cdef list data = []
         cdef list row = []
         cdef list col = []
+        print("Computing global C at t = ", self._step_number)
 
         for model in self.models_dict.keys():
             if model.get_generation_tool() != "JModelica.org":
@@ -652,6 +667,7 @@ cdef class Master:
         cdef list data = []
         cdef list row = []
         cdef list col = []
+        print("Computing global A at t = ", self._step_number)
 
         for model in self.models_dict.keys():
             if model.get_generation_tool() != "JModelica.org":
@@ -668,6 +684,7 @@ cdef class Master:
         cdef list data = []
         cdef list row = []
         cdef list col = []
+        print("Computing global B at t = ", self._step_number)
 
         for model in self.models_dict.keys():
             if model.get_generation_tool() != "JModelica.org":
@@ -773,28 +790,42 @@ cdef class Master:
                 break
         return self.storing_fmu_state
         
-    cpdef np.ndarray get_connection_outputs(self):
+    cpdef np.ndarray get_connection_outputs(self, bool initialize = False):
         cdef int i, index, index_start, index_end
         cdef np.ndarray y = np.empty((self._len_outputs))
+        print("get_connection_outputs at t = ", self._step_number)
+        if self.y_prev is None:
+            self.y_prev = np.empty((self._len_outputs)) # TODO: Shouldn't be set here
 
-        for model in self.models:
+        for i, model in enumerate(self.models): # TODO: revert
+            print(f"fetching output for model with index = {i}")
+            print(f"step_number = {self._step_number + 1}, downsample_factor: {self.step_size_downsampling_factor[model]}")
+            # TODO: Do not skip during init
             index_start = self.models_dict[model]["global_index_outputs"]
             index_end = index_start + self.models_dict[model]["local_output_len"]
-            local_output_vref_array = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
-            for i, index in enumerate(range(index_start, index_end)):
-                y[index] = local_output_vref_array[i].item()
+            if not initialize and ((self._step_number + 1) % self.step_size_downsampling_factor[model] != 0) and index_start != index_end:
+                y[index_start:index_end] = self.y_prev[index_start:index_end]
+            else:
+                local_output_vref_array = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
+                for i, index in enumerate(range(index_start, index_end)):
+                    y[index] = local_output_vref_array[i].item()
         return y
     
-    cpdef np.ndarray get_connection_outputs_discrete(self):
+    cpdef np.ndarray get_connection_outputs_discrete(self, bool initialize = False):
         cdef int i, index, index_start, index_end
         cdef np.ndarray y = np.empty((self._len_outputs_discrete))
+        if self.y_discrete_prev is None:
+            self.y_discrete_prev = np.empty((self._len_outputs_discrete)) # TODO: Shouldn't be set here
 
         for model in self.models:
             index_start = self.models_dict[model]["global_index_outputs_discrete"]
             index_end = index_start + self.models_dict[model]["local_output_discrete_len"]
             local_output_discrete = model.get(self.models_dict[model]["local_output_discrete"])
-            for i, index in enumerate(range(index_start, index_end)):
-                y[index] = local_output_discrete[i].item()
+            if not initialize and ((self._step_number + 1) % self.step_size_downsampling_factor[model] != 0) and index_start != index_end:
+                y[index_start:index_end] = self.y_discrete_prev[index_start:index_end]
+            else:
+                for i, index in enumerate(range(index_start, index_end)):
+                    y[index] = local_output_discrete[i].item()
         return y
         
     cpdef np.ndarray _get_derivatives(self):
@@ -923,15 +954,20 @@ cdef class Master:
         else:
             return None
             
-    cpdef set_connection_inputs(self, np.ndarray u, np.ndarray ud=None, np.ndarray udd=None):
+    cpdef set_connection_inputs(self, np.ndarray u, np.ndarray ud=None, np.ndarray udd=None, bool initialize = False):
         cdef int i = 0, inext, status
         
+        print("set_connection_inputs at step num = ", self._step_number)
         u = u.ravel()
         for model in self.models:
             i = self.models_dict[model]["global_index_inputs"] #MIGHT BE WRONG
             inext = i + self.models_dict[model]["local_input_len"]
             #model.set(self.models_dict[model]["local_input"], u[i:inext])
+            if not initialize and ((self._step_number + 1) % self.step_size_downsampling_factor[model] != 0):
+                print("\t\t SKIP")
+                continue
             (<FMI2.FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"], u[i:inext])
+            print("\t\t NO SKIP")
             
             if ud is not None: #Set the input derivatives
                 ud = ud.ravel()
@@ -946,11 +982,14 @@ cdef class Master:
             
             i = inext
     
-    cpdef set_connection_inputs_discrete(self, np.ndarray u):
+    cpdef set_connection_inputs_discrete(self, np.ndarray u, bool initialize = False):
         cdef int i = 0, inext, status
         
         u = u.ravel()
         for model in self.models:
+            if not initialize and ((self._step_number + 1) % self.step_size_downsampling_factor[model] != 0):
+                print("\t\t SKIP")
+                continue
             i = self.models_dict[model]["global_index_inputs_discrete"] #MIGHT BE WRONG
             inext = i + self.models_dict[model]["local_input_discrete_len"]
             model.set(self.models_dict[model]["local_input_discrete"], u[i:inext])
@@ -959,12 +998,16 @@ cdef class Master:
         cdef int i = self.models_dict[model]["global_index_inputs"]
         cdef int inext = i + self.models_dict[model]["local_input_len"]
         cdef np.ndarray usliced = u.ravel()[i:inext]
+        # Note: Only relevant in context of block initialization; 
+        # skips conditional to step_size_downsampling_factor do not apply
         (<FMI2.FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"][mask], usliced[mask])
     
     cpdef set_specific_connection_inputs_discrete(self, model, np.ndarray mask, np.ndarray u):
         cdef int i = self.models_dict[model]["global_index_inputs_discrete"]
         cdef int inext = i + self.models_dict[model]["local_input_discrete_len"]
         cdef np.ndarray usliced = u.ravel()[i:inext]
+        # Note: Only relevant in context of block initialization; 
+        # skips conditional to step_size_downsampling_factor do not apply
         model.set(np.array(self.models_dict[model]["local_input_discrete"])[mask], usliced[mask])
     
     cpdef correct_output_second_derivative(self, np.ndarray ydd):
@@ -1055,17 +1098,17 @@ cdef class Master:
     cpdef exchange_connection_data(self):
         #u = Ly
         cdef np.ndarray y = self.get_connection_outputs()
-        cdef np.ndarray y_discrete
+        cdef np.ndarray y_discrete = self.get_connection_outputs_discrete()
         cdef np.ndarray u
         cdef np.ndarray u_discrete
         
         y   = self.correct_output(y, self.y_prev)
         yd  = self.get_connection_derivatives(y)
         ydd = self.get_connection_second_derivatives(yd)
-        y_discrete = self.get_connection_outputs_discrete()
         
         self.y_prev = y.copy()
         self.yd_prev = yd.copy() if yd is not None else None
+        self.y_discrete_prev = y_discrete.copy()
         
         u, ud, udd = self.modify_input(y, yd, ydd)
         u_discrete = self.modify_input_discrete(y_discrete)
@@ -1078,7 +1121,7 @@ cdef class Master:
         return y, yd, u
     
     def initialize(self, double start_time, double final_time, object opts):
-        self.set_input(start_time)
+        self.set_input(start_time, initialize = True)
         
         if opts["block_initialization"]:
             
@@ -1153,32 +1196,33 @@ cdef class Master:
             
             if self.algebraic_loops: #If there is an algebraic loop, solve the resulting system
                 if self.support_directional_derivatives:
-                    res = spopt.root(init_f, self.get_connection_outputs(), args=(self), jac=init_jac)
+                    res = spopt.root(init_f, self.get_connection_outputs(initialize = True), args=(self), jac=init_jac)
                 else:
-                    res = spopt.root(init_f, self.get_connection_outputs(), args=(self))
+                    res = spopt.root(init_f, self.get_connection_outputs(initialize = True), args=(self))
                 if not res["success"]:
                     print(res)
                     raise FMUException("Failed to converge the initialization system.")
                 
-                y_discrete = self.get_connection_outputs_discrete()
+                y_discrete = self.get_connection_outputs_discrete(initialize = True)
                 
                 u = self.L.dot(res["x"])
                 u_discrete = self.L_discrete.dot(y_discrete)
                 
-                self.set_connection_inputs(u)
-                self.set_connection_inputs_discrete(u_discrete)
+                self.set_connection_inputs(u, initialize = True)
+                self.set_connection_inputs_discrete(u_discrete, initialize = True)
             else:
-                y = self.get_connection_outputs()
-                y_discrete = self.get_connection_outputs_discrete()
+                y = self.get_connection_outputs(initialize = True)
+                y_discrete = self.get_connection_outputs_discrete(initialize = True)
                 u = self.L.dot(y)
                 u_discrete = self.L_discrete.dot(y_discrete)
-                self.set_connection_inputs(u)
-                self.set_connection_inputs_discrete(u_discrete)
+                self.set_connection_inputs(u, initialize = True)
+                self.set_connection_inputs_discrete(u_discrete, initialize = True)
+            self.y_discrete_prev = y_discrete.copy()
         
         exit_initialization_mode(self.models, self.elapsed_time_init)
         
         #Store the outputs
-        self.y_prev = self.get_connection_outputs().copy()
+        self.y_prev = self.get_connection_outputs(initialize = True).copy()
         self.set_last_y(self.y_prev)
         
     def initialize_result_objects(self, opts):
@@ -1383,12 +1427,14 @@ cdef class Master:
                                                   input[1][:,1:]))
         self.input_traj = input_traj
         
-    cpdef set_input(self, double time):
+    cpdef set_input(self, double time, bool initialize = False):
         if self.input_traj is not None:
             u = self.input_traj[1].eval(np.array([time]))[0,:]
             
-            for i,m in enumerate(self.input_traj[0]):
-                m[0].set(m[1],u[i])
+            for i, (model, var) in enumerate(self.input_traj[0]):
+                if not initialize and ((self._step_number + 1) % self.step_size_downsampling_factor[model] != 0):
+                    continue
+                model.set(var, u[i])
     
     cdef double estimate_error(self, np.ndarray y_half, np.ndarray y_full, int order=0):
         cdef np.ndarray err = np.abs((y_half - y_full)/(1-2**(order+1)))
@@ -1518,9 +1564,13 @@ cdef class Master:
             if (self.error_controlled == 1) and (options["result_downsampling_factor"] != 1): # result_downsampling_factor = 1 is default
                 warnings.warn("Result downsampling not supported for error controlled simulation, no downsampling will be performed.")
             self.result_downsampling_factor = 1
+            if (self.error_controlled == 1) and (set(options["step_size_downsampling_factor"].values()) != {1}): # step_size_downsampling_factor = {m : 1 for m in models} is default
+                warnings.warn("Step-size downsampling not supported for error controlled simulation, no downsampling will be performed.")
+            self.step_size_downsampling_factor = {m: 1 for m in self.models}
         else:
             self.error_controlled = 0
         
+            # error check "result_downsampling_factor" option
             # Since isinstance(<any boolean>, int) evaluates to True
             is_invalid_type = isinstance(options['result_downsampling_factor'], bool) or \
                                 not isinstance(options['result_downsampling_factor'], int)
@@ -1531,6 +1581,19 @@ cdef class Master:
                 raise FMUException("Valid values for option 'result_downsampling_factor' are only positive integers, " + \
                                         f"was {options['result_downsampling_factor']}")
             self.result_downsampling_factor = options["result_downsampling_factor"]
+
+            # error check and set "step_size_downsampling_factor" option
+            for m, val in options['step_size_downsampling_factor'].items():
+                if not m in self.step_size_downsampling_factor:
+                    raise FMUException(f"Invalid key '{m}' in 'step_size_downsampling_factor' option dictionary, not a model.")
+                is_invalid_type = isinstance(val, bool) or not isinstance(val, int)
+                if is_invalid_type:
+                    raise FMUException("Values in 'step_size_downsampling_factor' option must be of type integer, " + \
+                                        f"got: '{type(val)}'.")
+                if val < 1:
+                    raise FMUException("Valid values for option 'step_size_downsampling_factor' are positive integers, " + \
+                                        f"got: '{val}'.")
+                self.step_size_downsampling_factor[m] = val
 
         if options["extrapolation_order"] > 0:
             if self.support_interpolate_inputs != 1:
@@ -1552,6 +1615,7 @@ cdef class Master:
             self.specify_external_input(input)
         
         #Initialize the models
+        print("\t\t INIT START")
         if options["initialize"]:
             time_start = timer()
             self.initialize(start_time, final_time, options)
@@ -1560,6 +1624,7 @@ cdef class Master:
         
         #Store the inputs
         self.set_last_us(self.L.dot(self.get_connection_outputs()))
+        print("\t\t INIT END")
         
         #Copy FMU address (used when evaluating in parallel)
         self.copy_fmu_addresses()

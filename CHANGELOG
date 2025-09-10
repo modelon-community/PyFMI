@@ -5,6 +5,8 @@
     * Changes to `FMUModelBase2.set_debug_logging()`
       * Now operate on lists of strings instead of bytes.
       * Removed requirement that categories to be set are available via `get_log_categories()`.
+    * Added new option `step_size_downsampling_factor` to `Master` algorithm.
+      This allows setting reduced input/output update rates on a per-model basis.
 
 --- PyFMI-2.18.3 ---
     * Fixed a bug introduced in PyFMI 2.18.0 causing incorrect result storing for `boolean` and `enum` variables

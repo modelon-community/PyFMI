@@ -548,3 +548,167 @@ class Test_Master:
 
         np.testing.assert_array_equal(res[0]["Float64_discrete_output"], [0, 0, 0, 0, 0, 0])
         np.testing.assert_array_equal(res[1]["Float64_discrete_output"], [0, 2, 4, 6, 8, 10])
+
+
+class Test_Master_Step_Size_Downsampling:
+    """Tests on the 'step_size_downsampling_factor' functionality of the Master algorithm."""
+    @classmethod
+    def setup_class(cls):
+        """Called with setup of class, once."""
+        cls.fmu1 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        cls.fmu2 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [cls.fmu1, cls.fmu2]
+        connections = [
+            (cls.fmu1, "Float64_continuous_output", cls.fmu2, "Float64_continuous_input"),
+            (cls.fmu1, "Float64_discrete_output", cls.fmu2, "Float64_discrete_input"),
+        ]
+        cls.master = Master(models, connections)
+
+    def setup_method(self, method):
+        """Called with every test method."""
+        self.master.reset()
+
+    def test_with_error_control(self):
+        """Test 'step_size_downsampling_factor' + 'error_controlled'."""
+        opts = self.master.simulate_options()
+        opts["error_controlled"] = True
+        opts["step_size_downsampling_factor"] = {self.fmu1: 3, self.fmu2: 2}
+        opts["step_size"] = 0.5
+
+        msg = "Step-size downsampling not supported for error controlled simulation, no downsampling will be performed."
+        with pytest.warns(UserWarning, match = re.escape(msg)):
+            self.master.simulate(options = opts)
+
+    def test_check_invalid_option_input_non_dict_via_simulate_options(self):
+        """Test invalid inputs to the option, not a dictionary."""
+        opts = self.master.simulate_options()
+        err_msg = "The options in 'step_size_downsampling_factor' needs to be provided as a dictionary."
+        with pytest.raises(UnrecognizedOptionError, match = re.escape(err_msg)):
+            opts["step_size_downsampling_factor"] = 2
+
+    def test_check_invalid_option_input_non_dict_via_dictionary(self):
+        """Test invalid inputs to the option, not a dictionary."""
+        err_msg = "The options in 'step_size_downsampling_factor' needs to be provided as a dictionary."
+        with pytest.raises(UnrecognizedOptionError, match = re.escape(err_msg)):
+            self.master.simulate(options = {"step_size_downsampling_factor": 1})
+
+    @pytest.mark.parametrize("values, err_msg",
+        [
+            ([0.5, 1], "Values in 'step_size_downsampling_factor' option must be of type integer, got: '<class 'float'>'."),
+            (["aaa", 1], "Values in 'step_size_downsampling_factor' option must be of type integer, got: '<class 'str'>'."),
+            ([-1, 1], "Valid values for option 'step_size_downsampling_factor' are positive integers, got: '-1'."),
+        ]
+    )
+    def test_check_invalid_option_input_dict_values(self, values, err_msg):
+        """Test invalid inputs to the option, not a dictionary."""
+        opts = self.master.simulate_options()
+        opts["step_size_downsampling_factor"] = {self.fmu1: values[0], self.fmu2: values[1]}
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            self.master.simulate(options = opts)
+
+    def test_check_invalid_option_invlid_key(self):
+        """Test invalid inputs to the option, not a dictionary."""
+        opts = self.master.simulate_options()
+        opts["step_size_downsampling_factor"] = {'a': 1, 'b': 1}
+        err_msg = "Invalid key 'a' in 'step_size_downsampling_factor' option dictionary, not a model."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            self.master.simulate(options = opts)
+
+    def test_partial_input(self):
+        """Test that partial input, i.e., not providing a value for all models is supported."""
+        opts = self.master.simulate_options()
+        opts["step_size_downsampling_factor"] = {self.fmu1: 2}
+        opts["step_size"] = 0.25
+        self.master.simulate(options = opts)
+
+    @pytest.mark.parametrize("input_var_name, output_var_name", 
+        [
+            # ("Float64_continuous_input", "Float64_continuous_output"),
+            ("Float64_discrete_input", "Float64_discrete_output"),
+        ]
+    )
+    @pytest.mark.parametrize("rate1, rate2, expected_res1, expected_res2",
+        [
+            # Sanity check
+            (1, 1,
+             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            ),
+            # external input only sampled every other step
+            (2, 1,
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11],
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11]
+            ),
+            # connection only updated every other step
+            (1, 2,
+             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11]
+            ),
+            # non-aligned test 1
+            (2, 3,
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11],
+             [1, 1, 1, 3, 3, 3, 7, 7, 7, 9, 9]
+            ),
+            # non-aligned test 2
+            (3, 2,
+             [1, 1, 1, 4, 4, 4, 7, 7, 7, 10, 10],
+             [1, 1, 1, 1, 4, 4, 7, 7, 7, 7, 10]
+            ),
+        ]
+    )
+    def test_two_feedthrough_system(self, input_var_name, output_var_name, 
+                                    rate1, rate2, expected_res1, expected_res2):
+        """Test 'step_size_downsampling_factor' for 2 Feedthrough models + 1 external input."""
+        t_start, t_final = 0, 10
+        opts = self.master.simulate_options()
+        opts["step_size"] = 1
+        opts["step_size_downsampling_factor"] = {self.fmu1: rate1, self.fmu2: rate2}
+
+        # Generate input
+        input_object = [
+            [(self.fmu1, input_var_name)],
+            lambda t: [t + 1] # not starting at zero to test correct values taken with initialization
+        ]
+
+        res = self.master.simulate(t_start, t_final, options = opts, input = input_object)
+        np.testing.assert_array_equal(res[0][output_var_name], expected_res1)
+        np.testing.assert_array_equal(res[1][output_var_name], expected_res2)
+
+    @pytest.mark.parametrize("input_var_name, output_var_name", 
+        [
+            ("Float64_continuous_input", "Float64_continuous_output"),
+            ("Float64_discrete_input", "Float64_discrete_output"),
+        ]
+    )
+    def test_three_feedthrough_system(self, input_var_name, output_var_name):
+        """Test 'step_size_downsampling_factor' for 3 Feedthrough models + 1 external input,
+        where 2 models connect to the same output."""
+        fmu1 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu3 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2, fmu3]
+        connections = [
+            (fmu1, output_var_name, fmu2, input_var_name),
+            (fmu1, output_var_name, fmu3, input_var_name)]
+        master = Master(models, connections)
+
+        t_start, t_final = 0, 10
+        opts = master.simulate_options()
+        opts["step_size"] = 1
+        opts["step_size_downsampling_factor"] = {fmu1: 2, fmu2: 3, fmu3: 4}
+
+        # Generate input
+        input_object = [
+            [(fmu1, input_var_name)],
+            lambda t: [t + 1] # not starting at zero to test correct values taken with initialization
+        ]
+
+        res = master.simulate(t_start, t_final, options = opts, input = input_object)
+        expected_res1 = np.array([1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11])
+        expected_res2 = np.array([1, 1, 1, 3, 3, 3, 7, 7, 7, 9, 9])
+        expected_res3 = np.array([1, 1, 1, 1, 5, 5, 5, 5, 9, 9, 9])
+        np.testing.assert_array_equal(res[0][output_var_name], expected_res1)
+        np.testing.assert_array_equal(res[1][output_var_name], expected_res2)
+        np.testing.assert_array_equal(res[2][output_var_name], expected_res3)
