@@ -164,32 +164,27 @@ cdef finalize_result_objects(object models_dict):
         models_dict[model]["result"].simulation_end()
         
 def init_f(y, master):
-    y = y.reshape(-1, 1)
     u = master.L.dot(y)
     master.set_connection_inputs(u)
-    temp_y = y - master.get_connection_outputs()
-
-    return temp_y.flatten()
+    return y - master.get_connection_outputs()
     
 def init_f_block(ylocal, master, block):
     y = np.zeros((master._len_outputs))
     y[block["global_outputs_mask"]] = ylocal
-    y = y.reshape(-1,1)
     
     ytmp = np.zeros((master._len_outputs))
-    u = master.L.dot(y.reshape(-1,1))
+    u = master.L.dot(y)
     
     for model in block["inputs"].keys(): #Set the inputs
         master.set_specific_connection_inputs(model, block["inputs_mask"][model], u)
     for model in block["outputs"].keys(): #Get the outputs 
         master.get_specific_connection_outputs(model, block["outputs_mask"][model], ytmp)
     
-    res = y - ytmp.reshape(-1,1)
+    res = y - ytmp
 
-    return res.flatten()[block["global_outputs_mask"]]
+    return res[block["global_outputs_mask"]]
     
 def init_jac(y, master):
-    y = y.reshape(-1, 1)
     u = master.L.dot(y)
     master.set_connection_inputs(u)
     D = master.compute_global_D()
@@ -788,7 +783,7 @@ cdef class Master:
             local_output_vref_array = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
             for i, index in enumerate(range(index_start, index_end)):
                 y[index] = local_output_vref_array[i].item()
-        return y.reshape(-1,1)
+        return y
     
     cpdef np.ndarray get_connection_outputs_discrete(self):
         cdef int i, index, index_start, index_end
@@ -800,7 +795,7 @@ cdef class Master:
             local_output_discrete = model.get(self.models_dict[model]["local_output_discrete"])
             for i, index in enumerate(range(index_start, index_end)):
                 y[index] = local_output_discrete[i].item()
-        return y.reshape(-1,1)
+        return y
         
     cpdef np.ndarray _get_derivatives(self):
         cdef int i, index, index_start, index_end
@@ -817,7 +812,7 @@ cdef class Master:
             for i, index in enumerate(range(index_start, index_end)):
                 xd[index] = local_derivative_vref_array[i].item()
 
-        return xd.reshape(-1,1)
+        return xd
     
     cpdef np.ndarray get_specific_connection_outputs_discrete(self, model, np.ndarray mask, np.ndarray yout):
         cdef int j = 0
@@ -852,8 +847,7 @@ cdef class Master:
                     yd[i:inext] = ydtmp[:inext-i]
                     i = inext
                 
-                return self.correct_output_derivative(yd.reshape(-1,1))
-                #return yd.reshape(-1,1)
+                return self.correct_output_derivative(yd)
                 
             else:
                         
@@ -874,7 +868,7 @@ cdef class Master:
                             else:
                                 return C.dot(xd)+D.dot(ud)
                         else: #First step
-                            return sps.linalg.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(xd)).reshape((-1,1))
+                            return sps.linalg.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(xd))
 
                 y_last = self.get_last_y()
                 if y_last is not None:
@@ -900,7 +894,7 @@ cdef class Master:
                     ydd[i:inext] = yddtmp[:inext-i]
                     i = inext
                 
-                return self.correct_output_second_derivative(ydd.reshape(-1,1))
+                return self.correct_output_second_derivative(ydd)
                 
             else:
                 if self.opts["experimental_output_derivative"]:
@@ -919,7 +913,7 @@ cdef class Master:
                         if ud is not None and udd is not None:
                             return C.dot(A.dot(xd))+C.dot(B.dot(ud+self.get_current_step_size()*udd))+D.dot(udd)
                         else: #First step
-                            return sps.linalg.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(A.dot(xd)+B.dot(self.L.dot(yd_cur)))).reshape((-1,1))
+                            return sps.linalg.spsolve((self._ident_matrix-D.dot(self.L)),C.dot(A.dot(xd)+B.dot(self.L.dot(yd_cur))))
                 
                 yd_last = self.get_last_yd()
                 if yd_last is not None:
@@ -986,7 +980,7 @@ cdef class Master:
                 
                 z = yd - D.dot(uhat)
             
-            yd = sps.linalg.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
+            yd = sps.linalg.spsolve((self._ident_matrix-DL), z)
             """
         return ydd
 
@@ -1001,7 +995,7 @@ cdef class Master:
                 
                 z = yd - D.dot(uhat)
             
-            yd = sps.linalg.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
+            yd = sps.linalg.spsolve((self._ident_matrix-DL), z)
 
         return yd
     
@@ -1017,7 +1011,7 @@ cdef class Master:
                 if not res["success"]:
                     print(res)
                     raise FMUException("Failed to converge the output system.")
-                return res["x"].reshape(-1,1)
+                return res["x"]
                 
         if self.linear_correction and self.algebraic_loops and y_prev is not None:# and self.support_directional_derivatives:
             D = self.compute_global_D()
@@ -1030,7 +1024,7 @@ cdef class Master:
             else:
                 z = y - DL.dot(y_prev)
             
-            y = sps.linalg.spsolve((self._ident_matrix-DL),z).reshape((-1,1))
+            y = sps.linalg.spsolve((self._ident_matrix-DL), z)
 
         elif self.algebraic_loops and self.support_directional_derivatives:
             pass
@@ -1115,11 +1109,11 @@ cdef class Master:
                     
                     #Compute current global input vector
                     if len(y) > 0:
-                        u = self.L.dot(y.reshape(-1,1))
+                        u = self.L.dot(y)
                         for model in block["inputs"].keys(): #Set the inputs
                             self.set_specific_connection_inputs(model, block["inputs_mask"][model], u)
                     if len(y_discrete) > 0:
-                        u_discrete = self.L_discrete.dot(y_discrete.reshape(-1,1))
+                        u_discrete = self.L_discrete.dot(y_discrete)
                         for model in block["inputs"].keys(): #Set the inputs
                             self.set_specific_connection_inputs_discrete(model, block["inputs_discrete_mask"][model], u_discrete)
                         
@@ -1143,7 +1137,7 @@ cdef class Master:
                         raise FMUException("Failed to converge the initialization system.")
                     
                     y[block["global_outputs_mask"]] = res["x"]
-                    u = self.L.dot(y.reshape(-1,1))
+                    u = self.L.dot(y)
                     
                     for model in block["inputs"].keys():
                         #Set the inputs
@@ -1168,7 +1162,7 @@ cdef class Master:
                 
                 y_discrete = self.get_connection_outputs_discrete()
                 
-                u = self.L.dot(res["x"].reshape(-1,1))
+                u = self.L.dot(res["x"])
                 u_discrete = self.L_discrete.dot(y_discrete)
                 
                 self.set_connection_inputs(u)
