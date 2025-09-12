@@ -1458,9 +1458,11 @@ cdef class Master:
                 the data matrix or a function. If a data matrix, the first
                 column should be a time vector and then the variable vectors as
                 columns. If instead a function, the argument should correspond
-                to time and the output the variable data. See the users-guide
-                for examples.
+                to time and the output the variable data.
                 Default: Empty tuple.
+                Example: 
+                    ([(model1, "input1"), (model2, "input")], 
+                     np.transpose(np.vstack(time_vector, input1_vector, input2_vector)))
 
             options --
                 The options that should be used in the algorithm. For details on
