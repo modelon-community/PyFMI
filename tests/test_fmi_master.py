@@ -551,9 +551,25 @@ class Test_Master:
 
 
 class Test_Master_Step_Size_Downsampling:
+    """Tests on the 'step_size_downsampling_factor' functionality of the Master algorithm."""
     # TODO: Unit tests on option error check
     # TODO: same for discrete variables
-    """Tests on the 'step_size_downsampling_factor' functionality of the Master algorithm."""
+    def test_with_error_control(self):
+        """Test 'step_size_downsampling_factor' + 'error_controlled'."""
+        fmu1 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2]
+        connections = [(fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input")]
+        master = Master(models, connections)
+        opts = master.simulate_options()
+        opts["error_controlled"] = True
+        opts["step_size_downsampling_factor"] = {fmu1: 3, fmu2: 2}
+        opts["step_size"] = 0.5
+
+        msg = "Step-size downsampling not supported for error controlled simulation, no downsampling will be performed."
+        with pytest.warns(UserWarning, match = re.escape(msg)):
+            master.simulate(options = opts)
 
     @pytest.mark.parametrize("rate1, rate2, expected_res1, expected_res2",
         [

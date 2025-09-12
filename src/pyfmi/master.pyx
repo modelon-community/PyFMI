@@ -499,6 +499,7 @@ cdef class Master:
         self._ident_matrix = sps.eye(self._len_inputs, self._len_outputs, format="csr") #y = Cx + Du , u = Ly -> DLy   DL[inputsXoutputs]
         
         self._error_data = {"time":[], "error":[], "step-size":[], "rejected":[]}
+        self.step_size_downsampling_factor = {m: 1 for m in self.models}
     
     def __del__(self):
         FMIL.free(self.fmu_adresses)
@@ -1559,7 +1560,7 @@ cdef class Master:
                 warnings.warn("Result downsampling not supported for error controlled simulation, no downsampling will be performed.")
             self.result_downsampling_factor = 1
             if (self.error_controlled == 1) and (set(options["step_size_downsampling_factor"].values()) != {1}): # step_size_downsampling_factor = {m : 1 for m in models} is default
-                warnings.warn("Step-size downsmapling not supported for error controlled simulation, no downsampling will be performed.")
+                warnings.warn("Step-size downsampling not supported for error controlled simulation, no downsampling will be performed.")
             self.step_size_downsampling_factor = {m: 1 for m in self.models}
         else:
             self.error_controlled = 0
@@ -1577,7 +1578,6 @@ cdef class Master:
             self.result_downsampling_factor = options["result_downsampling_factor"]
 
             # error check and set "step_size_downsampling_factor" option
-            self.step_size_downsampling_factor = {m: 1 for m in self.models}
             # TODO: Test that these work and the display for model is correct
             for m, val in options['step_size_downsampling_factor'].items():
                 if not m in self.step_size_downsampling_factor:
