@@ -129,7 +129,6 @@ cdef perform_initialize(list models, double start_time, double final_time, objec
         model.initialize()
 """
 
-#cdef get_fmu_states(list models):
 cdef get_fmu_states(list models, dict states_dict = None):
     """
     Get the FMU states for all the models
@@ -489,13 +488,18 @@ cdef class Master:
         self.set_model_order()
         self.define_connection_matrix()
         
-        self.y_prev = None
-        self.y_discrete_prev = None
+        self.y_prev = np.empty((self._len_outputs))
+        self.y_discrete_prev = np.empty((self._len_outputs_discrete))
         self.input_traj = None
         self._ident_matrix = sps.eye(self._len_inputs, self._len_outputs, format="csr") #y = Cx + Du , u = Ly -> DLy   DL[inputsXoutputs]
         
         self._error_data = {"time":[], "error":[], "step-size":[], "rejected":[]}
         self.step_size_downsampling_factor = {m: 1 for m in self.models}
+
+    cdef inline bool _downsampling_skip(self, bool initialize, object model):
+        """Helper function for 'step_size_downsampling_factor' options.
+        Computes if a model should update in/outputs in a given global step."""
+        return not initialize and ((self._step_number + 1) % self.step_size_downsampling_factor[model] != 0)
     
     def __del__(self):
         FMIL.free(self.fmu_adresses)
@@ -604,9 +608,9 @@ cdef class Master:
         cdef list row = []
         cdef list col = []
         cdef int i, nlocal, status
-        print("Computing global D = ", self._step_number)
 
         for model in self.models_dict.keys():
+            # Note: _downsampling_skip if supporting step_size_downsampling_factor + linear_correction || extrapolation_order > 0
             nlocal = self.models_dict[model]["local_input_len"]
             #v = [0.0]*nlocal
             for i in range(nlocal):
@@ -650,9 +654,9 @@ cdef class Master:
         cdef list data = []
         cdef list row = []
         cdef list col = []
-        print("Computing global C at t = ", self._step_number)
 
         for model in self.models_dict.keys():
+            # Note: _downsampling_skip if supporting step_size_downsampling_factor + linear_correction || extrapolation_order > 0
             if model.get_generation_tool() != "JModelica.org":
                 return None
             v = [0.0]*len(self.models_dict[model]["local_state_vref"])
@@ -667,9 +671,9 @@ cdef class Master:
         cdef list data = []
         cdef list row = []
         cdef list col = []
-        print("Computing global A at t = ", self._step_number)
 
         for model in self.models_dict.keys():
+            # Note: _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 1
             if model.get_generation_tool() != "JModelica.org":
                 return None
             v = [0.0]*len(self.models_dict[model]["local_state_vref"])
@@ -684,9 +688,9 @@ cdef class Master:
         cdef list data = []
         cdef list row = []
         cdef list col = []
-        print("Computing global B at t = ", self._step_number)
 
         for model in self.models_dict.keys():
+            # Note: _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 1
             if model.get_generation_tool() != "JModelica.org":
                 return None
             v = [0.0]*len(self.models_dict[model]["local_input_vref"])
@@ -791,41 +795,29 @@ cdef class Master:
         return self.storing_fmu_state
         
     cpdef np.ndarray get_connection_outputs(self, bool initialize = False):
-        cdef int i, index, index_start, index_end
+        cdef int index_start, index_end
         cdef np.ndarray y = np.empty((self._len_outputs))
-        print("get_connection_outputs at t = ", self._step_number)
-        if self.y_prev is None:
-            self.y_prev = np.empty((self._len_outputs)) # TODO: Shouldn't be set here
 
-        for i, model in enumerate(self.models): # TODO: revert
-            print(f"fetching output for model with index = {i}")
-            print(f"step_number = {self._step_number + 1}, downsample_factor: {self.step_size_downsampling_factor[model]}")
-            # TODO: Do not skip during init
+        for model in [m for m in self.models if self.models_dict[m]["local_output_len"] > 0]:
             index_start = self.models_dict[model]["global_index_outputs"]
             index_end = index_start + self.models_dict[model]["local_output_len"]
-            if not initialize and ((self._step_number + 1) % self.step_size_downsampling_factor[model] != 0) and index_start != index_end:
+            if self._downsampling_skip(initialize, model):
                 y[index_start:index_end] = self.y_prev[index_start:index_end]
             else:
-                local_output_vref_array = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
-                for i, index in enumerate(range(index_start, index_end)):
-                    y[index] = local_output_vref_array[i].item()
+                y[index_start:index_end] = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"])
         return y
     
     cpdef np.ndarray get_connection_outputs_discrete(self, bool initialize = False):
-        cdef int i, index, index_start, index_end
+        cdef int index_start, index_end
         cdef np.ndarray y = np.empty((self._len_outputs_discrete))
-        if self.y_discrete_prev is None:
-            self.y_discrete_prev = np.empty((self._len_outputs_discrete)) # TODO: Shouldn't be set here
 
-        for model in self.models:
+        for model in [m for m in self.models if self.models_dict[m]["local_output_discrete_len"] > 0]:
             index_start = self.models_dict[model]["global_index_outputs_discrete"]
             index_end = index_start + self.models_dict[model]["local_output_discrete_len"]
-            local_output_discrete = model.get(self.models_dict[model]["local_output_discrete"])
-            if not initialize and ((self._step_number + 1) % self.step_size_downsampling_factor[model] != 0) and index_start != index_end:
+            if self._downsampling_skip(initialize, model):
                 y[index_start:index_end] = self.y_discrete_prev[index_start:index_end]
             else:
-                for i, index in enumerate(range(index_start, index_end)):
-                    y[index] = local_output_discrete[i].item()
+                y[index_start:index_end] = np.hstack(model.get(self.models_dict[model]["local_output_discrete"]))
         return y
         
     cpdef np.ndarray _get_derivatives(self):
@@ -837,6 +829,7 @@ cdef class Master:
                 return None
 
         for model in self.models:
+            # Note: _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 0
             index_start = self.models_dict[model]["global_index_derivatives"]
             index_end = index_start + self.models_dict[model]["local_derivative_len"]
             local_derivative_vref_array = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_derivative_vref_array"])
@@ -862,21 +855,21 @@ cdef class Master:
                 j = j + 1
         
     cpdef get_connection_derivatives(self, np.ndarray y_cur):
-        #cdef list yd = []
-        cdef int i = 0, inext = 0, status = 0
-        cdef np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode='c']  yd    = np.empty((self._len_outputs))
-        cdef np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode='c']  ydtmp = np.empty((self._len_outputs))
+        cdef int i, inext, status = 0
+        cdef np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode='c'] yd    = np.empty((self._len_outputs))
+        cdef np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode='c'] ydtmp = np.empty((self._len_outputs))
         cdef np.ndarray y_last = None
         
         if self.opts["extrapolation_order"] > 0:
             if self.max_output_derivative_order > 0 and not self.opts["force_finite_difference_outputs"]:
                 for model in self.models_dict.keys():
-                    #yd.extend(model.get_output_derivatives(self.models_dict[model]["local_output"], 1))
+                    # Note: _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 0
+                    i = self.models_dict[model]["global_index_outputs"]
                     inext = i + self.models_dict[model]["local_output_len"]
                     status = (<FMI2.FMUModelCS2>model)._get_output_derivatives(self.models_dict[model]["local_output_vref_array"], ydtmp, self.models_dict[model]["local_output_vref_ones"])
-                    if status != 0: raise FMUException("Failed to get the output derivatives.")
+                    if status != 0: 
+                        raise FMUException("Failed to get the output derivatives.")
                     yd[i:inext] = ydtmp[:inext-i]
-                    i = inext
                 
                 return self.correct_output_derivative(yd)
                 
@@ -910,8 +903,7 @@ cdef class Master:
             return None
             
     cpdef get_connection_second_derivatives(self, np.ndarray yd_cur):
-
-        cdef int i = 0, inext = 0, status = 0
+        cdef int i, inext, status = 0
         cdef np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode='c']  ydd    = np.empty((self._len_outputs))
         cdef np.ndarray[FMIL2.fmi2_real_t, ndim=1, mode='c']  yddtmp = np.empty((self._len_outputs))
         cdef np.ndarray yd_last = None
@@ -919,11 +911,13 @@ cdef class Master:
         if self.opts["extrapolation_order"] > 1:
             if self.max_output_derivative_order > 1 and not self.opts["force_finite_difference_outputs"]:
                 for model in self.models_dict.keys():
+                    # Note: _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 1
+                    i = self.models_dict[model]["global_index_outputs"]
                     inext = i + self.models_dict[model]["local_output_len"]
                     status = (<FMI2.FMUModelCS2>model)._get_output_derivatives(self.models_dict[model]["local_output_vref_array"], yddtmp, self.models_dict[model]["local_output_vref_twos"])
-                    if status != 0: raise FMUException("Failed to get the output derivatives of second order.")
+                    if status != 0: 
+                        raise FMUException("Failed to get the output derivatives of second order.")
                     ydd[i:inext] = yddtmp[:inext-i]
-                    i = inext
                 
                 return self.correct_output_second_derivative(ydd)
                 
@@ -954,41 +948,31 @@ cdef class Master:
         else:
             return None
             
-    cpdef set_connection_inputs(self, np.ndarray u, np.ndarray ud=None, np.ndarray udd=None, bool initialize = False):
-        cdef int i = 0, inext, status
+    cpdef set_connection_inputs(self, np.ndarray u, np.ndarray ud = None, np.ndarray udd = None, bool initialize = False):
+        cdef int i, inext, status
         
-        print("set_connection_inputs at step num = ", self._step_number)
-        u = u.ravel()
         for model in self.models:
+            if self._downsampling_skip(initialize, model):
+                continue
             i = self.models_dict[model]["global_index_inputs"] #MIGHT BE WRONG
             inext = i + self.models_dict[model]["local_input_len"]
-            #model.set(self.models_dict[model]["local_input"], u[i:inext])
-            if not initialize and ((self._step_number + 1) % self.step_size_downsampling_factor[model] != 0):
-                print("\t\t SKIP")
-                continue
             (<FMI2.FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"], u[i:inext])
-            print("\t\t NO SKIP")
             
             if ud is not None: #Set the input derivatives
-                ud = ud.ravel()
-                #model.set_input_derivatives(self.models_dict[model]["local_input"], ud[i:inext], 1)
                 status = (<FMI2.FMUModelCS2>model)._set_input_derivatives(self.models_dict[model]["local_input_vref_array"], ud[i:inext], self.models_dict[model]["local_input_vref_ones"])
-                if status != 0: raise FMUException("Failed to set the first order input derivatives.")
+                if status != 0: 
+                    raise FMUException("Failed to set the first order input derivatives.")
                 
             if udd is not None: #Set the input derivatives
-                udd = udd.ravel()
                 status = (<FMI2.FMUModelCS2>model)._set_input_derivatives(self.models_dict[model]["local_input_vref_array"], udd[i:inext], self.models_dict[model]["local_input_vref_twos"])
-                if status != 0: raise FMUException("Failed to set the second order input derivatives.")
-            
-            i = inext
+                if status != 0: 
+                    raise FMUException("Failed to set the second order input derivatives.")
     
     cpdef set_connection_inputs_discrete(self, np.ndarray u, bool initialize = False):
-        cdef int i = 0, inext, status
+        cdef int i, inext, status
         
-        u = u.ravel()
         for model in self.models:
-            if not initialize and ((self._step_number + 1) % self.step_size_downsampling_factor[model] != 0):
-                print("\t\t SKIP")
+            if self._downsampling_skip(initialize, model):
                 continue
             i = self.models_dict[model]["global_index_inputs_discrete"] #MIGHT BE WRONG
             inext = i + self.models_dict[model]["local_input_discrete_len"]
@@ -997,17 +981,17 @@ cdef class Master:
     cpdef set_specific_connection_inputs(self, model, np.ndarray mask, np.ndarray u):
         cdef int i = self.models_dict[model]["global_index_inputs"]
         cdef int inext = i + self.models_dict[model]["local_input_len"]
-        cdef np.ndarray usliced = u.ravel()[i:inext]
+        cdef np.ndarray usliced = u[i:inext]
         # Note: Only relevant in context of block initialization; 
-        # skips conditional to step_size_downsampling_factor do not apply
+        # skips conditional to step_size_downsampling_factor NOT relevant here
         (<FMI2.FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"][mask], usliced[mask])
     
     cpdef set_specific_connection_inputs_discrete(self, model, np.ndarray mask, np.ndarray u):
         cdef int i = self.models_dict[model]["global_index_inputs_discrete"]
         cdef int inext = i + self.models_dict[model]["local_input_discrete_len"]
-        cdef np.ndarray usliced = u.ravel()[i:inext]
+        cdef np.ndarray usliced = u[i:inext]
         # Note: Only relevant in context of block initialization; 
-        # skips conditional to step_size_downsampling_factor do not apply
+        # skips conditional to step_size_downsampling_factor NOT relevant here
         model.set(np.array(self.models_dict[model]["local_input_discrete"])[mask], usliced[mask])
     
     cpdef correct_output_second_derivative(self, np.ndarray ydd):
@@ -1033,7 +1017,7 @@ cdef class Master:
             DL = D.dot(self.L)
             
             if self.opts["extrapolation_order"] > 0:
-                uold, udold, uddold = self.get_last_us()
+                uold, udold, _ = self.get_last_us()
                 uhat = udold if udold is not None else np.zeros(np.array(yd).shape)
                 
                 z = yd - D.dot(uhat)
@@ -1432,7 +1416,7 @@ cdef class Master:
             u = self.input_traj[1].eval(np.array([time]))[0,:]
             
             for i, (model, var) in enumerate(self.input_traj[0]):
-                if not initialize and ((self._step_number + 1) % self.step_size_downsampling_factor[model] != 0):
+                if self._downsampling_skip(initialize, model):
                     continue
                 model.set(var, u[i])
     
@@ -1599,6 +1583,12 @@ cdef class Master:
             if self.support_interpolate_inputs != 1:
                 warnings.warn("Extrapolation of inputs only supported if the individual FMUs support interpolation of inputs.")
                 options["extrapolation_order"] = 0
+
+        uses_step_size_downsampling = set(self.step_size_downsampling_factor.values()) != {1}
+        if uses_step_size_downsampling and options["extrapolation_order"] > 0:
+            raise FMUException("Use of 'step_size_downsampling_factor' with 'extrapolation_order' > 0 not supported.")
+        if uses_step_size_downsampling and self.linear_correction:
+            raise FMUException("Use of 'step_size_downsampling_factor' with 'linear_correction' not supported.")
         
         if options["num_threads"] and options["execution"] == "parallel":
             pass
@@ -1615,7 +1605,6 @@ cdef class Master:
             self.specify_external_input(input)
         
         #Initialize the models
-        print("\t\t INIT START")
         if options["initialize"]:
             time_start = timer()
             self.initialize(start_time, final_time, options)
@@ -1624,7 +1613,6 @@ cdef class Master:
         
         #Store the inputs
         self.set_last_us(self.L.dot(self.get_connection_outputs()))
-        print("\t\t INIT END")
         
         #Copy FMU address (used when evaluating in parallel)
         self.copy_fmu_addresses()
