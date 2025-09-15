@@ -38,6 +38,15 @@ FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
 import warnings
 warnings.filterwarnings("ignore")
 
+class FMUModelCS2CapabilityOverwrite(FMUModelCS2):
+    """Dummy testing class with capability flags overwritten, for testing 
+    (in)valid option combinations that require certain capabilities."""
+    def get_capability_flags(self):
+        res = super().get_capability_flags()
+        res["canInterpolateInputs"] = True
+        res["providesDirectionalDerivatives"] = True
+        return res
+
 class Test_Master:
     def test_loading_models(self):
         model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
@@ -549,7 +558,6 @@ class Test_Master:
         np.testing.assert_array_equal(res[0]["Float64_discrete_output"], [0, 0, 0, 0, 0, 0])
         np.testing.assert_array_equal(res[1]["Float64_discrete_output"], [0, 2, 4, 6, 8, 10])
 
-
 class Test_Master_Step_Size_Downsampling:
     """Tests on the 'step_size_downsampling_factor' functionality of the Master algorithm."""
     @classmethod
@@ -580,6 +588,40 @@ class Test_Master_Step_Size_Downsampling:
         with pytest.warns(UserWarning, match = re.escape(msg)):
             self.master.simulate(options = opts)
 
+    def test_extrapolation_order(self):
+        """Test combination with the 'extrapolation_order' option."""
+        fmu1 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2]
+        connections = [(fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input")]
+        master = Master(models, connections)
+        opts = master.simulate_options()
+        opts["step_size_downsampling_factor"] = {fmu1: 3, fmu2: 2}
+        opts["extrapolation_order"] = 1
+        opts["step_size"] = 0.5
+
+        err_msg = "Use of 'step_size_downsampling_factor' with 'extrapolation_order' > 0 not supported."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            master.simulate(options = opts)
+
+    def test_linear_correction(self):
+        """Test combination with the 'linear_correction' option."""
+        fmu1 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2]
+        connections = [(fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input")]
+        master = Master(models, connections)
+        opts = master.simulate_options()
+        opts["step_size_downsampling_factor"] = {fmu1: 3, fmu2: 2}
+        opts["linear_correction"] = True
+        opts["step_size"] = 0.5
+
+        err_msg = "Use of 'step_size_downsampling_factor' with 'linear_correction' not supported."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            master.simulate(options = opts)
+
     def test_check_invalid_option_input_non_dict_via_simulate_options(self):
         """Test invalid inputs to the option, not a dictionary."""
         opts = self.master.simulate_options()
@@ -607,7 +649,7 @@ class Test_Master_Step_Size_Downsampling:
         with pytest.raises(FMUException, match = re.escape(err_msg)):
             self.master.simulate(options = opts)
 
-    def test_check_invalid_option_invlid_key(self):
+    def test_check_invalid_option_invalid_key(self):
         """Test invalid inputs to the option, not a dictionary."""
         opts = self.master.simulate_options()
         opts["step_size_downsampling_factor"] = {'a': 1, 'b': 1}
@@ -616,7 +658,7 @@ class Test_Master_Step_Size_Downsampling:
             self.master.simulate(options = opts)
 
     def test_partial_input(self):
-        """Test that partial input, i.e., not providing a value for all models is supported."""
+        """Test that partial input, i.e., not providing a value for every models is supported."""
         opts = self.master.simulate_options()
         opts["step_size_downsampling_factor"] = {self.fmu1: 2}
         opts["step_size"] = 0.25
@@ -624,7 +666,7 @@ class Test_Master_Step_Size_Downsampling:
 
     @pytest.mark.parametrize("input_var_name, output_var_name", 
         [
-            # ("Float64_continuous_input", "Float64_continuous_output"),
+            ("Float64_continuous_input", "Float64_continuous_output"),
             ("Float64_discrete_input", "Float64_discrete_output"),
         ]
     )
