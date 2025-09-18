@@ -336,13 +336,15 @@ class MasterAlgOptions(OptionBase):
             Default: False
 
         result_downsampling_factor --
-            int > 0, only save solution to result every
+            Dictionary {model: int > 0}.
+            A given model only stores every
             <result_downsampling_factor>-th communication point.
             Start & end point are always included.
             Affects results storing from the 'store_step_before_update' option.
             Usage with 'error_controlled' = True is not supported.
-            Example: If set to 2: Result contains only every other communication point.
-            Default: 1 (no downsampling)
+            It is not required to have all models as keys,
+            missing ones take the default value of 1.
+            Default: {m: 1 for m in models} (no downsampling)
 
         step_size_downsampling_factor -- 
             Dictionary {model: int > 0}. 
@@ -352,7 +354,9 @@ class MasterAlgOptions(OptionBase):
                 'error_controlled' = True
                 'linear_correction' = True
                 'extrapolation_order' > 0
-            Default: {m: 1 for m in models}
+            It is not required to have all models as keys,
+            missing ones take the default value of 1.
+            Default: {m: 1 for m in models} (no downsampling)
     """
     def __init__(self, master, *args, **kw):
         _defaults= {
@@ -399,7 +403,12 @@ class MasterAlgOptions(OptionBase):
     def __setitem__(self, key, value):
         # OptionBase enforce same type (e.g., int, dict) for inputs; exceptions to this format here
         if key == "result_downsampling_factor" and not isinstance(value, dict):
-            # TODO: Deprecate this
+            warnings.warn(
+                "Use of simple value inputs for 'result_downsampling_factor' is deprecated, " \
+                "use a dictionary with models as keys instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
             # non-dict inputs are applied on all models
             factor_dict = {model: value for model in self.__getitem__("result_downsampling_factor").keys()}
             super().__setitem__(key, factor_dict)
@@ -543,15 +552,24 @@ cdef class Master:
     cdef double get_current_step_size(self):
         return self.current_step_size
         
-    def report_solution(self, double cur_time):
-        if self.error_controlled:
-            store_communication_point(self.models_dict)
+    def report_solution(self, double cur_time, bool store_step_before_update = False):
+        models_to_store_solution = None
+        if store_step_before_update: # takes precende of last_step storing
+            # only store those steps that will be updated
+            models_to_store_solution = {m: v for m, v in self.models_dict.items() if \
+                (
+                    ((self._step_number + 1) % self.result_downsampling_factor[m] == 0) and \
+                    ((self._step_number + 1) % self.step_size_downsampling_factor[m] == 0)
+                )
+            }
+        elif self.error_controlled or self._last_step:
+            models_to_store_solution = self.models_dict
         else:
             # _step_number starts at 0
             models_to_store_solution = {m: v for m, v in self.models_dict.items() if \
-                (((self._step_number + 1) % self.result_downsampling_factor[m] == 0) or self._last_step)
+                ((self._step_number + 1) % self.result_downsampling_factor[m] == 0)
             }
-            store_communication_point(models_to_store_solution)
+        store_communication_point(models_to_store_solution)
         
         if self._display_progress:
             if ( timer() - self._time_integration_start) > self._display_counter*10:
@@ -1379,7 +1397,7 @@ cdef class Master:
                 
                 if self.opts["store_step_before_update"]:
                     time_start = timer()
-                    self.report_solution(tcur)
+                    self.report_solution(tcur, store_step_before_update = True)
                     self.elapsed_time["result_handling"] += timer() - time_start
                     
                 #Set external input
@@ -1602,6 +1620,11 @@ cdef class Master:
                     raise FMUException("Valid values for option 'step_size_downsampling_factor' are positive integers, " + \
                                         f"got: '{val}'.")
                 self.step_size_downsampling_factor[m] = val
+
+        if set(self.step_size_downsampling_factor.values()) != {1} and options["logging"]:
+            warnings.warn("Both 'step_size_downsampling_factor' and 'logging' are used. " \
+                        "Logging of A, B, C, and D matrices will be done on the global step-size." \
+                        "Actual values may no longer be sensible.")
 
         if options["extrapolation_order"] > 0:
             if self.support_interpolate_inputs != 1:

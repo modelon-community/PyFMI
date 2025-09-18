@@ -20,6 +20,7 @@ import os
 import numpy as np
 import warnings
 import re
+import scipy.sparse as sps
 from pathlib import Path
 
 from pyfmi import Master
@@ -46,7 +47,10 @@ class FMUModelCS2CapabilityOverwrite(FMUModelCS2):
         res["canInterpolateInputs"] = True
         res["providesDirectionalDerivatives"] = True
         return res
-
+    
+    def _provides_directional_derivatives(self) -> bool:
+        return True
+    
 class Test_Master:
     def test_loading_models(self):
         model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
@@ -482,7 +486,8 @@ class Test_Master_Result_Downsampling:
     )
     def test_downsample_result(self, factor, expected_res):
         """ Test multiple result_downsampling_factor value and verify the result. """
-        res = self._sim_basic_simulation({'result_downsampling_factor': factor}, final_time = 10)
+        factors = {self.fmu1: factor, self.fmu2: factor}
+        res = self._sim_basic_simulation({'result_downsampling_factor': factors}, final_time = 10)
         np.testing.assert_array_equal(res[self.fmu1]["Float64_continuous_output"], expected_res)
         np.testing.assert_array_equal(res[self.fmu2]["Float64_continuous_output"], expected_res)
 
@@ -490,15 +495,15 @@ class Test_Master_Result_Downsampling:
         [
             (1, [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10]), # sanity
             (2, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), # aligned with steps
-            (3, [0, 2, 3, 5, 6, 8, 9, 9, 10]), # not aligned
-            (7, [0, 6, 7, 9, 10]),
+            (3, [0, 2, 3, 5, 6, 8, 9, 10]), # not aligned
+            (7, [0, 6, 7, 10]),
             (10, [0, 9, 10]), # equal to number of steps
-            (20, [0, 9, 10]), # larger
+            (20, [0, 10]), # larger
         ]
     )
     def test_with_store_step_before_update(self, factor, expected_res):
         """ Test result_downsampling_factor with store_step_before_update. """
-        opts_update = {'result_downsampling_factor': factor,
+        opts_update = {'result_downsampling_factor': {self.fmu1: factor, self.fmu2: factor},
                        'store_step_before_update': True}
         res = self._sim_basic_simulation(opts_update, final_time = 10)
         np.testing.assert_array_equal(res[self.fmu1]["Float64_continuous_output"], expected_res)
@@ -509,17 +514,17 @@ class Test_Master_Result_Downsampling:
         """ Verify we get an exception if the option is set to anything less than 1. """
         expected_substr = f"Valid values in option 'result_downsampling_factor' are only positive integers, got: '{value}'."
         with pytest.raises(FMUException, match = re.escape(expected_substr)):
-            self._sim_basic_simulation({'result_downsampling_factor': value})
+            self._sim_basic_simulation({'result_downsampling_factor': {self.fmu1: value}})
 
     @pytest.mark.parametrize("value", [1/2, "0.5", False])
     def test_invalid_type(self, value):
         """ Verify we get an exception if the option is set to anything that is not an integer. """
         expected_substr = f"Values to 'result_downsampling_factor' must be an integer or dictionary with integer values, got: '{type(value)}'."
         with pytest.raises(FMUException, match = re.escape(expected_substr)):
-            self._sim_basic_simulation({'result_downsampling_factor': value})
+            self._sim_basic_simulation({'result_downsampling_factor': {self.fmu1: value}})
     
     def test_error_controlled(self):
-        uptate_options = {'result_downsampling_factor': 2,
+        uptate_options = {'result_downsampling_factor': {self.fmu1: 2, self.fmu2: 2},
                           'error_controlled': True,
                           'rtol': 10}
         msg = "Result downsampling not supported for error controlled simulation, no downsampling will be performed."
@@ -755,3 +760,61 @@ class Test_Master_Step_Size_Downsampling:
         np.testing.assert_array_equal(res[0][output_var_name], expected_res1)
         np.testing.assert_array_equal(res[1][output_var_name], expected_res2)
         np.testing.assert_array_equal(res[2][output_var_name], expected_res3)
+
+    def test_with_store_step_before_update(self):
+        """Test interaction with 'store_step_before_update' option."""
+        t_start, t_final = 0, 10
+        opts = self.master.simulate_options()
+        opts["step_size"] = 1
+        opts["store_step_before_update"] = True
+        opts["step_size_downsampling_factor"] = {self.fmu1: 3, self.fmu2: 2}
+
+        # Generate input
+        input_object = [
+            [(self.fmu1, "Float64_continuous_input")],
+            lambda t: [t + 1] # not starting at zero to test correct values taken with initialization
+        ]
+
+        res = self.master.simulate(t_start, t_final, options = opts, input = input_object)
+        np.testing.assert_array_equal(
+            res[0]["Float64_continuous_output"], 
+        #   [1, 1, 1, X, 4, 4, 4, X, 7, 7, 7, X, 10, last = 10], # X = before update value
+            [1, 1, 1, 1, 4, 4, 4, 4, 7, 7, 7, 7, 10, 10]
+        )
+        np.testing.assert_array_equal(
+            res[1]["Float64_continuous_output"], 
+        #   [1, 1, X, 1, 1, X, 4, 4, X, 7, 7, X, 7, 7, X, last = 10], # X = before update value
+            [1, 1, 1, 1, 1, 1, 4, 4, 4, 7, 7, 7, 7, 7, 7, 10]
+        )
+    
+    def test_with_logging(self):
+        """Test the warning one gets when using 'logging' + 'step_size_downsampling_factor'."""
+        fmu1 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        class MasterX(Master):
+            """Dummy Master class for testing that bypasses FMU calls for evaluating
+            global A, B, C, D matrices."""
+            def compute_global_A(self):
+                return sps.csr_matrix(np.array([1.]))
+            def compute_global_B(self):
+                return sps.csr_matrix(np.array([2.]))
+            def compute_global_C(self):
+                return sps.csr_matrix(np.array([3.]))
+            def compute_global_D(self):
+                return sps.csr_matrix(np.array([4.]))
+
+        models = [fmu1, fmu2]
+        connections = [(fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input")]
+        master = MasterX(models, connections)
+        opts = master.simulate_options()
+        t_start, t_final = 0, 1
+        opts["step_size"] = 0.5
+        opts["logging"] = True
+        opts["step_size_downsampling_factor"] = {fmu1: 2}
+
+        msg = "Both 'step_size_downsampling_factor' and 'logging' are used. " \
+              "Logging of A, B, C, and D matrices will be done on the global step-size." \
+              "Actual values may no longer be sensible."
+        with pytest.warns(UserWarning, match = re.escape(msg)):
+            master.simulate(t_start, t_final, options = opts)
