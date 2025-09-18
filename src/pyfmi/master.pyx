@@ -343,13 +343,15 @@ class MasterAlgOptions(OptionBase):
             Usage with 'error_controlled' = True is not supported.
             Example: If set to 2: Result contains only every other communication point.
             Default: 1 (no downsampling)
-        # TODO: Interaction with step_size_downsampling_factor?
 
         step_size_downsampling_factor -- 
             Dictionary {model: int > 0}. 
             A given model only updates updates its in&outputs every
             <step_size_downsampling_factor>-th communication point.
-            Usage with 'error_controlled' = True is not supported.
+            Usage the following options values is not supported:
+                'error_controlled' = True
+                'linear_correction' = True
+                'extrapolation_order' > 0
             Default: {m: 1 for m in models}
     """
     def __init__(self, master, *args, **kw):
@@ -380,12 +382,29 @@ class MasterAlgOptions(OptionBase):
         "experimental_output_solve":False,
         "force_finite_difference_outputs": False,
         "num_threads":None,
-        "result_downsampling_factor": 1,
-        # TODO: result_downsampling_factor per model? Simple number = all models ? 
+        "result_downsampling_factor": dict((model, 1) for model in master.models),
         "step_size_downsampling_factor" : dict((model, 1) for model in master.models),
         }
         super(MasterAlgOptions,self).__init__(_defaults)
+        # Can be removed once we removed separate treatment of result_downsampling_factor
+        result_downsampling_factor = None
+        for a in args:
+            if "result_downsampling_factor" in a:
+                result_downsampling_factor = a.pop("result_downsampling_factor")
+        if result_downsampling_factor is not None:
+            self.__setitem__("result_downsampling_factor", result_downsampling_factor)
+
         self._update_keep_dict_defaults(*args, **kw)
+
+    def __setitem__(self, key, value):
+        # OptionBase enforce same type (e.g., int, dict) for inputs; exceptions to this format here
+        if key == "result_downsampling_factor" and not isinstance(value, dict):
+            # TODO: Deprecate this
+            # non-dict inputs are applied on all models
+            factor_dict = {model: value for model in self.__getitem__("result_downsampling_factor").keys()}
+            super().__setitem__(key, factor_dict)
+        else:
+            super().__setitem__(key, value)
 
 cdef class Master:
     cdef public list connections, models
@@ -412,7 +431,7 @@ cdef class Master:
     cdef public int _display_counter
     cdef public object _display_progress
     cdef public double _time_integration_start
-    cdef public int result_downsampling_factor
+    cdef public dict result_downsampling_factor
     cdef public long long _step_number
     cdef public bool _last_step
     cdef public dict step_size_downsampling_factor
@@ -495,6 +514,7 @@ cdef class Master:
         
         self._error_data = {"time":[], "error":[], "step-size":[], "rejected":[]}
         self.step_size_downsampling_factor = {m: 1 for m in self.models}
+        self.result_downsampling_factor = {m: 1 for m in self.models}
 
     cdef inline bool _downsampling_skip(self, bool initialize, object model):
         """Helper function for 'step_size_downsampling_factor' options.
@@ -528,8 +548,10 @@ cdef class Master:
             store_communication_point(self.models_dict)
         else:
             # _step_number starts at 0
-            if ((self._step_number + 1) % self.result_downsampling_factor == 0) or self._last_step:
-                store_communication_point(self.models_dict)
+            models_to_store_solution = {m: v for m, v in self.models_dict.items() if \
+                (((self._step_number + 1) % self.result_downsampling_factor[m] == 0) or self._last_step)
+            }
+            store_communication_point(models_to_store_solution)
         
         if self._display_progress:
             if ( timer() - self._time_integration_start) > self._display_counter*10:
@@ -1545,9 +1567,9 @@ cdef class Master:
                 self.error_controlled = 1
                 self.atol = options["atol"]
                 self.rtol = options["rtol"]
-            if (self.error_controlled == 1) and (options["result_downsampling_factor"] != 1): # result_downsampling_factor = 1 is default
+            if (self.error_controlled == 1) and (set(options["result_downsampling_factor"].values()) != {1}): # result_downsampling_factor = {m : 1 for m in models} is default
                 warnings.warn("Result downsampling not supported for error controlled simulation, no downsampling will be performed.")
-            self.result_downsampling_factor = 1
+            self.result_downsampling_factor = {m: 1 for m in self.models}
             if (self.error_controlled == 1) and (set(options["step_size_downsampling_factor"].values()) != {1}): # step_size_downsampling_factor = {m : 1 for m in models} is default
                 warnings.warn("Step-size downsampling not supported for error controlled simulation, no downsampling will be performed.")
             self.step_size_downsampling_factor = {m: 1 for m in self.models}
@@ -1555,16 +1577,18 @@ cdef class Master:
             self.error_controlled = 0
         
             # error check "result_downsampling_factor" option
-            # Since isinstance(<any boolean>, int) evaluates to True
-            is_invalid_type = isinstance(options['result_downsampling_factor'], bool) or \
-                                not isinstance(options['result_downsampling_factor'], int)
-            if is_invalid_type:
-                raise FMUException("Option 'result_downsampling_factor' must be an integer, " + \
-                                        f"was {type(options['result_downsampling_factor'])}")
-            elif options['result_downsampling_factor'] < 1:
-                raise FMUException("Valid values for option 'result_downsampling_factor' are only positive integers, " + \
-                                        f"was {options['result_downsampling_factor']}")
-            self.result_downsampling_factor = options["result_downsampling_factor"]
+            # Type correctness check is done via option setting, safe to assume dict here
+            for m, val in options['result_downsampling_factor'].items():
+                if not m in self.step_size_downsampling_factor:
+                    raise FMUException(f"Invalid key '{m}' in 'result_downsampling_factor' option dictionary, not a model.")
+                is_invalid_type = isinstance(val, bool) or not isinstance(val, int)
+                if is_invalid_type:
+                    raise FMUException("Values to 'result_downsampling_factor' must be an integer or dictionary with integer values, " + \
+                                        f"got: '{type(val)}'.")
+                if val < 1:
+                    raise FMUException("Valid values in option 'result_downsampling_factor' are only positive integers, " + \
+                                        f"got: '{val}'.")
+                self.result_downsampling_factor[m] = val
 
             # error check and set "step_size_downsampling_factor" option
             for m, val in options['step_size_downsampling_factor'].items():
@@ -1634,8 +1658,11 @@ cdef class Master:
         print('')
         print('Simulation interval      : ' + str(start_time) + ' - ' + str(final_time) + ' seconds.')
         print('Elapsed simulation time  : ' + str(time_stop-time_start) + ' seconds.')
-        for model in self.models:
-            print(' %f seconds spent in %s.'%(self.elapsed_time[model],model.get_name()))
+        if self.opts["execution"] == "parallel":
+            print("Simulation time per model only available for 'execution' == 'serial'.")
+        else:
+            for model in self.models:
+                print(' %f seconds spent in %s.'%(self.elapsed_time[model],model.get_name()))
         print(' %f seconds spent saving simulation result.'%(self.elapsed_time["result_handling"]))
         
         #Write the results to file and return
