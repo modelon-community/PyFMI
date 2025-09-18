@@ -19,10 +19,13 @@
 # Also shortlist for any candidates to be removed
 
 import pytest
+import re
 from pathlib import Path
 
 from pyfmi import load_fmu
 from pyfmi.common.io import ResultStorage
+from pyfmi.master import Master
+from pyfmi.fmi2 import FMUModelCS2
 
 this_dir = Path(__file__).parent.absolute()
 FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
@@ -47,3 +50,15 @@ def test_result_handler_name_attribute(result_handling):
     msg = "Use the `get_variable_names` function instead."
     with pytest.warns(DeprecationWarning, match = msg):
         res.result_data.name
+
+def test_master_alg_downsample_result_simple_value():
+    """Test setting a simple value to the 'result_downsampling_factor' option for the Master algorithm."""
+    fmu1 = FMUModelCS2(FMI2_REF_FMU_PATH / "Feedthrough.fmu")
+    fmu2 = FMUModelCS2(FMI2_REF_FMU_PATH / "Feedthrough.fmu")
+
+    models = [fmu1, fmu2]
+    connections = [(fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input")]
+    master = Master(models, connections)
+    msg = "Use of simple value inputs for 'result_downsampling_factor' is deprecated, use a dictionary with models as keys instead."
+    with pytest.warns(DeprecationWarning, match = re.escape(msg)):
+        master.simulate(0, 1, options = {"step_size": 0.5, "result_downsampling_factor": 2})
