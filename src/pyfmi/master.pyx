@@ -554,7 +554,7 @@ cdef class Master:
         
     def report_solution(self, double cur_time, bool store_step_before_update = False):
         models_to_store_solution = None
-        if store_step_before_update: # takes precende of last_step storing
+        if store_step_before_update: # takes precedence over last_step storing
             # only store those steps that will be updated
             models_to_store_solution = {m: v for m, v in self.models_dict.items() if \
                 (
