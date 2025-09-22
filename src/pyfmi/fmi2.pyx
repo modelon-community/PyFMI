@@ -1450,7 +1450,6 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
             A list with the categories available for logging.
         """
-        warnings.warn("'get_categories' is deprecated and will be replaced by 'get_log_categories' soon.", DeprecationWarning)
         return self.get_log_categories()
 
     def get_log_category_descriptions(self):

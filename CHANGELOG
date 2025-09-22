@@ -1,6 +1,6 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
-    * Deprecated "get_categories" function for "FMUModelBase2" and "CoupledFMUModelBase", use "get_log_categories" instead.
+    * New function "get_log_categories for "FMUModelBase2" and "CoupledFMUModelBase", use instead of "get_categories".
     * Added function "get_log_category_descriptions" to "FMUModelBase2" and "CoupledFMUModelBase" for retreiving log category descriptions.
     * "FMUModelBase2.get_log_categories()" and "FMUModelBase2.set_debug_logging()" now operate on lists of strings instead of bytes.
     * Calling "FMUModelBase2.set_debug_logging()" with "logging_on = True" will set the FMU log level to 7 (ALL).
