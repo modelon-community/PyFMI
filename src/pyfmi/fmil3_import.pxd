@@ -236,7 +236,7 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_exit_initialization_mode(fmi3_import_t* fmu)
     fmi3_status_t fmi3_import_enter_event_mode(fmi3_import_t* fmu)
     fmi3_status_t fmi3_import_enter_continuous_time_mode(fmi3_import_t* fmu)
-    # 
+    # misc
     fmi3_status_t fmi3_import_set_debug_logging(fmi3_import_t*, fmi3_boolean_t, size_t, fmi3_string_t*)
     char* fmi3_import_get_version(fmi3_import_t*)
     fmi3_status_t fmi3_import_reset(fmi3_import_t* fmu)

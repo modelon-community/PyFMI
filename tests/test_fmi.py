@@ -80,7 +80,6 @@ FMU_PATHS.ME1.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML",
 FMU_PATHS.ME2.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NominalTests.NominalTest4.fmu")
 
 REFERENCE_FMU_PATH = Path(file_path) / 'files' / 'reference_fmus'
-REFERENCE_FMU_FMI1_PATH = REFERENCE_FMU_PATH / '1.0'
 REFERENCE_FMU_FMI2_PATH = REFERENCE_FMU_PATH / '2.0'
 REFERENCE_FMU_FMI3_PATH = REFERENCE_FMU_PATH / '3.0'
 
