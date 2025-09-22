@@ -19,7 +19,6 @@
 
 import os
 import logging
-import warnings
 cimport cython
 
 import numpy as np
@@ -1379,7 +1378,6 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         """
         Specifies if the debugging should be turned on or off and calls fmi2SetDebugLogging
         for the specified categories, after checking they are valid.
-        TODO: Do we want it that way?
         Automatically invokes .set_log_level() based on logging_on truth value:
             - logging_on is True:  .set_log_level(7) - ALL
             - logging_on is False: .set_log_level(0) - NOTHING
@@ -1390,15 +1388,15 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
                 Boolean value.
 
             categories --
-                List of categories to log, call get_log_categories() for list of categories.
+                List of categories to log, use get_log_categories() to query categories.
                 Default: [] (all categories)
 
         Calls the low-level FMI function: fmi2SetDebugLogging
         """
 
         cdef FMIL2.fmi2_boolean_t log
-        cdef int                 status
-        cdef FMIL.size_t         n_cat = np.size(categories)
+        cdef int                  status
+        cdef FMIL.size_t          n_cat = np.size(categories)
         cdef FMIL2.fmi2_string_t* val
 
         if logging_on:
@@ -1424,51 +1422,36 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         if status != 0:
             raise FMUException('Failed to set the debugging option.')
 
-    def get_log_categories(self):
-        """
-        Method used to retrieve the logging categories. 
-        Use 'get_log_category_descriptions' to get the corresponding descriptions.
-
-        Returns::
-
-            A list with the categories available for logging.
-        """
-        cdef FMIL.size_t i, nbr_categories = FMIL2.fmi2_import_get_log_categories_num(self._fmu)
-        cdef list categories = []
-
-        for i in range(nbr_categories):
-            categories.append(str(FMIL2.fmi2_import_get_log_category(self._fmu, i).decode()))
-
-        return categories
-
-    def get_categories(self):
+    def get_categories(self) -> list[str]:
         """
         [DEPRECATED] Method used to retrieve the logging categories.
-        Use 'get_log_categories' instead
+        Use 'get_log_categories' to get both categories and descriptions instead
 
         Returns::
 
             A list with the categories available for logging.
         """
-        return self.get_log_categories()
+        return list(self.get_log_categories().keys())
 
-    def get_log_category_descriptions(self):
+    def get_log_categories(self) -> dict[str, str]:
         """
-        Method used to retrieve the logging category descriptions.
-        Use 'get_log_categories' to retreive the corresponding categories.
+        Method used to retrieve the logging categories. 
 
         Returns::
 
-            A list with the category descriptions available for logging.
+            dict(category_name, description string)
         """
         cdef FMIL.size_t i, nbr_categories = FMIL2.fmi2_import_get_log_categories_num(self._fmu)
-        cdef list descriptions = []
+        cdef dict ret = {}
+        cdef str cat, descr
 
         for i in range(nbr_categories):
-            descriptions.append(str(FMIL2.fmi2_import_get_log_category_description(self._fmu, i).decode()))
+            cat = str(FMIL2.fmi2_import_get_log_category(self._fmu, i).decode())
+            descr = str(FMIL2.fmi2_import_get_log_category_description(self._fmu, i).decode())
+            ret[cat] = descr
 
-        return descriptions
-
+        return ret
+    
     def get_variable_nominal(self, variable_name=None, valueref=None, _override_erroneous_nominal=True):
         """
         Returns the nominal value from a real variable determined by

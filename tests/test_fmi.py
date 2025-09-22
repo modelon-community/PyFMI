@@ -79,7 +79,10 @@ FMU_PATHS.ME2.coupled_clutches_modified = os.path.join(file_path, "files", "FMUs
 FMU_PATHS.ME1.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "NominalTest4.fmu")
 FMU_PATHS.ME2.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NominalTests.NominalTest4.fmu")
 
-REFERENCE_FMU_PATH = Path(file_path) / 'files' / 'reference_fmus' / '3.0'
+REFERENCE_FMU_PATH = Path(file_path) / 'files' / 'reference_fmus'
+REFERENCE_FMU_FMI1_PATH = REFERENCE_FMU_PATH / '1.0'
+REFERENCE_FMU_FMI2_PATH = REFERENCE_FMU_PATH / '2.0'
+REFERENCE_FMU_FMI3_PATH = REFERENCE_FMU_PATH / '3.0'
 
 # TODO: Many tests here could be parameterized
 # However, in many cases this relies on having FMUs with the same functionality
@@ -141,7 +144,7 @@ class Test_FMU:
         (FMUModelCS1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
         (FMUModelME2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
         (FMUModelCS2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')),
-        (FMUModelME3, REFERENCE_FMU_PATH / "BouncingBall.fmu"),
+        (FMUModelME3, REFERENCE_FMU_FMI3_PATH / "BouncingBall.fmu"),
     ]
 )
 class TestGetUnpackedFMUPath:
@@ -171,8 +174,8 @@ class TestGetUnpackedFMUPath:
         (FMUModelME1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
         (load_fmu   , os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
         (FMUModelME2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
-        (load_fmu   , REFERENCE_FMU_PATH / 'BouncingBall.fmu'),
-        (FMUModelME3, REFERENCE_FMU_PATH / 'BouncingBall.fmu'),
+        (load_fmu   , REFERENCE_FMU_FMI3_PATH / 'BouncingBall.fmu'),
+        (FMUModelME3, REFERENCE_FMU_FMI3_PATH / 'BouncingBall.fmu'),
         (load_fmu   , os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
         (FMUModelCS1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
         (load_fmu   , os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')),
@@ -1610,6 +1613,44 @@ class Test_FMUModelBase2:
     def test_get_variable_description(self):
         model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
         assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
+
+@pytest.mark.parametrize("fmu_path", 
+    [
+        REFERENCE_FMU_FMI2_PATH / "Dahlquist.fmu",
+        REFERENCE_FMU_FMI3_PATH / "Dahlquist.fmu",
+    ]
+)
+class Test_LogCategories:
+    """Test relating to FMI log categories functionality."""
+    def test_get_log_categories(self, fmu_path):
+        """Test getting log categories."""
+        fmu = load_fmu(fmu_path)
+        log_cats = fmu.get_log_categories()
+
+        assert isinstance(log_cats, dict)
+        expected = {
+            "logEvents": "Log events",
+            "logStatusError": "Log error messages",
+        }
+        assert log_cats == expected
+
+    def test_get_set_log_categories(self, fmu_path):
+        """Test setting log categories."""
+        fmu = load_fmu(fmu_path)
+        log_cats = fmu.get_log_categories()
+
+        assert isinstance(log_cats, dict)
+        assert log_cats # not empty
+
+        fmu.set_debug_logging(True, log_cats.keys())
+        assert fmu.get_log_level() == 7
+
+    def test_set_debug_logging_off(self, fmu_path):
+        """Test setting debug logging off."""
+        fmu = load_fmu(fmu_path)
+        fmu.set_debug_logging(False, [])
+        assert fmu.get_log_level() == 0
+
 
 class Test_load_fmu_only_XML:
     @pytest.mark.parametrize("fmu_path, test_class",
