@@ -348,9 +348,9 @@ class MasterAlgOptions(OptionBase):
 
         step_size_downsampling_factor -- 
             Dictionary {model: int > 0}. 
-            A given model only updates updates its in&outputs every
+            A given model only updates its inputs and outputs every
             <step_size_downsampling_factor>-th communication point.
-            Usage the following options values is not supported:
+            The following options values is not supported together with the step-size downsampling option:
                 'error_controlled' = True
                 'linear_correction' = True
                 'extrapolation_order' > 0
