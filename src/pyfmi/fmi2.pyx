@@ -1424,7 +1424,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
     def get_categories(self) -> list[str]:
         """
-        [DEPRECATED] Method used to retrieve the logging categories.
+        Method used to retrieve the logging categories.
         Use 'get_log_categories' to get both categories and descriptions instead
 
         Returns::
