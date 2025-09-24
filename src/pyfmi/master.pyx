@@ -650,7 +650,7 @@ cdef class Master:
         cdef int i, nlocal, status
 
         for model in self.models_dict.keys():
-            # Note: _downsampling_skip if supporting step_size_downsampling_factor + linear_correction || extrapolation_order > 0
+            # Note: Will require _downsampling_skip if supporting step_size_downsampling_factor + linear_correction || extrapolation_order > 0
             nlocal = self.models_dict[model]["local_input_len"]
             #v = [0.0]*nlocal
             for i in range(nlocal):
@@ -696,7 +696,7 @@ cdef class Master:
         cdef list col = []
 
         for model in self.models_dict.keys():
-            # Note: _downsampling_skip if supporting step_size_downsampling_factor + linear_correction || extrapolation_order > 0
+            # Note: Will require _downsampling_skip if supporting step_size_downsampling_factor + linear_correction || extrapolation_order > 0
             if model.get_generation_tool() != "JModelica.org":
                 return None
             v = [0.0]*len(self.models_dict[model]["local_state_vref"])
@@ -713,7 +713,7 @@ cdef class Master:
         cdef list col = []
 
         for model in self.models_dict.keys():
-            # Note: _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 1
+            # Note: Will require _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 1
             if model.get_generation_tool() != "JModelica.org":
                 return None
             v = [0.0]*len(self.models_dict[model]["local_state_vref"])
@@ -730,7 +730,7 @@ cdef class Master:
         cdef list col = []
 
         for model in self.models_dict.keys():
-            # Note: _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 1
+            # Note: Will require _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 1
             if model.get_generation_tool() != "JModelica.org":
                 return None
             v = [0.0]*len(self.models_dict[model]["local_input_vref"])
@@ -869,7 +869,7 @@ cdef class Master:
                 return None
 
         for model in self.models:
-            # Note: _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 0
+            # Note: Will require _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 0
             index_start = self.models_dict[model]["global_index_derivatives"]
             index_end = index_start + self.models_dict[model]["local_derivative_len"]
             local_derivative_vref_array = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_derivative_vref_array"])
@@ -903,7 +903,7 @@ cdef class Master:
         if self.opts["extrapolation_order"] > 0:
             if self.max_output_derivative_order > 0 and not self.opts["force_finite_difference_outputs"]:
                 for model in self.models_dict.keys():
-                    # Note: _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 0
+                    # Note: Will require _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 0
                     i = self.models_dict[model]["global_index_outputs"]
                     inext = i + self.models_dict[model]["local_output_len"]
                     status = (<FMI2.FMUModelCS2>model)._get_output_derivatives(self.models_dict[model]["local_output_vref_array"], ydtmp, self.models_dict[model]["local_output_vref_ones"])
@@ -951,7 +951,7 @@ cdef class Master:
         if self.opts["extrapolation_order"] > 1:
             if self.max_output_derivative_order > 1 and not self.opts["force_finite_difference_outputs"]:
                 for model in self.models_dict.keys():
-                    # Note: _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 1
+                    # Note: Will require _downsampling_skip if supporting step_size_downsampling_factor + extrapolation_order > 1
                     i = self.models_dict[model]["global_index_outputs"]
                     inext = i + self.models_dict[model]["local_output_len"]
                     status = (<FMI2.FMUModelCS2>model)._get_output_derivatives(self.models_dict[model]["local_output_vref_array"], yddtmp, self.models_dict[model]["local_output_vref_twos"])
