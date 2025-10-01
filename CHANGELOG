@@ -4,7 +4,6 @@
       categories and descriptions, use instead of `get_categories`.
     * Changes to `FMUModelBase2.set_debug_logging()`
       * Now operate on lists of strings instead of bytes.
-      * Calls with `logging_on` = `True` will set the FMU log level to 7 (ALL).
       * Removed requirement that categories to be set are available via `get_log_categories()`.
 
 --- PyFMI-2.18.3 ---

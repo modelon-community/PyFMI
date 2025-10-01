@@ -2535,11 +2535,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     def set_debug_logging(self, logging_on, categories = []):
         """
-        Specifies if the debugging should be turned on or off and calls fmi2SetDebugLogging
+        Specifies if the debugging should be turned on or off and calls fmi3SetDebugLogging
         for the specified categories, after checking they are valid.
-        Automatically invokes .set_log_level() based on logging_on truth value:
-            - logging_on is True:  .set_log_level(7) - ALL
-            - logging_on is False: .set_log_level(0) - NOTHING
+
+        Note: An appropriate log_level of the FMU is required for logging.
+        Typically, this is INFO - set via fmu.set_log_level(4).
 
         Parameters::
 
@@ -2550,20 +2550,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 List of categories to log, use get_log_categories() to query categories.
                 Default: [] (all categories)
 
-        Calls the low-level FMI function: fmi2SetDebugLogging
+        Calls the low-level FMI function: fmi3SetDebugLogging
         """
 
-        cdef FMIL3.fmi3_boolean_t log
+        cdef FMIL3.fmi3_boolean_t log = 1 if logging_on else 0
         cdef FMIL3.fmi3_status_t  status
         cdef FMIL.size_t          n_cat = np.size(categories)
         cdef FMIL3.fmi3_string_t* val
-
-        if logging_on:
-            self.set_log_level(7) # FMIL.jm_log_level_all
-            log = 1
-        else:
-            self.set_log_level(0) # FMIL.jm_log_level_nothing
-            log = 0
 
         self._enable_logging = bool(log)
 

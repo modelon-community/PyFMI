@@ -1379,7 +1379,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         Specifies if the debugging should be turned on or off and calls fmi2SetDebugLogging
         for the specified categories, after checking they are valid.
         Automatically invokes .set_log_level() based on logging_on truth value:
-            - logging_on is True:  .set_log_level(7) - ALL
+            - logging_on is True:  .set_log_level(3) - WARNING
             - logging_on is False: .set_log_level(0) - NOTHING
 
         Parameters::
@@ -1400,7 +1400,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef FMIL2.fmi2_string_t* val
 
         if logging_on:
-            self.set_log_level(7) # FMIL.jm_log_level_all
+            self.set_log_level(3) # FMIL.jm_log_level_warning
             log = 1
         else:
             self.set_log_level(0) # FMIL.jm_log_level_nothing

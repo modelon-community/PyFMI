@@ -1613,14 +1613,15 @@ class Test_FMUModelBase2:
         model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
         assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
 
-@pytest.mark.parametrize("fmu_path", 
-    [
-        REFERENCE_FMU_FMI2_PATH / "Dahlquist.fmu",
-        REFERENCE_FMU_FMI3_PATH / "Dahlquist.fmu",
-    ]
-)
+
 class Test_LogCategories:
     """Test relating to FMI log categories functionality."""
+    @pytest.mark.parametrize("fmu_path", 
+        [
+            REFERENCE_FMU_FMI2_PATH / "Dahlquist.fmu",
+            REFERENCE_FMU_FMI3_PATH / "Dahlquist.fmu",
+        ]
+    )
     def test_get_log_categories(self, fmu_path):
         """Test getting log categories."""
         fmu = load_fmu(fmu_path)
@@ -1633,22 +1634,39 @@ class Test_LogCategories:
         }
         assert log_cats == expected
 
-    def test_get_set_log_categories(self, fmu_path):
-        """Test setting log categories."""
-        fmu = load_fmu(fmu_path)
+    def test_get_set_log_categories_fmi2(self):
+        """Test setting log categories, fmi2."""
+        fmu = load_fmu(REFERENCE_FMU_FMI2_PATH / "Dahlquist.fmu", log_level = 4)
         log_cats = fmu.get_log_categories()
 
         assert isinstance(log_cats, dict)
         assert log_cats # not empty
 
         fmu.set_debug_logging(True, log_cats.keys())
-        assert fmu.get_log_level() == 7
+        assert fmu.get_log_level() == 3 # changes log level
 
-    def test_set_debug_logging_off(self, fmu_path):
-        """Test setting debug logging off."""
-        fmu = load_fmu(fmu_path)
+    def test_get_set_log_categories_fmi3(self):
+        """Test setting log categories, fmi3."""
+        fmu = load_fmu(REFERENCE_FMU_FMI3_PATH / "Dahlquist.fmu", log_level = 4)
+        log_cats = fmu.get_log_categories()
+
+        assert isinstance(log_cats, dict)
+        assert log_cats # not empty
+
+        fmu.set_debug_logging(True, log_cats.keys())
+        assert fmu.get_log_level() == 4 # does not change log level
+
+    def test_set_debug_logging_off_fmi2(self):
+        """Test setting debug logging off, fmi2."""
+        fmu = load_fmu(REFERENCE_FMU_FMI2_PATH / "Dahlquist.fmu", log_level = 4)
         fmu.set_debug_logging(False, [])
-        assert fmu.get_log_level() == 0
+        assert fmu.get_log_level() == 0 # changes log level
+
+    def test_set_debug_logging_off_fmi3(self):
+        """Test setting debug logging off, fmi3."""
+        fmu = load_fmu(REFERENCE_FMU_FMI3_PATH / "Dahlquist.fmu", log_level = 4)
+        fmu.set_debug_logging(False, [])
+        assert fmu.get_log_level() == 4 # does not change log level
 
 
 class Test_load_fmu_only_XML:
