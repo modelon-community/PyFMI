@@ -237,6 +237,7 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_enter_event_mode(fmi3_import_t* fmu)
     fmi3_status_t fmi3_import_enter_continuous_time_mode(fmi3_import_t* fmu)
     # misc
+    fmi3_status_t fmi3_import_set_debug_logging(fmi3_import_t*, fmi3_boolean_t, size_t, fmi3_string_t*)
     char* fmi3_import_get_version(fmi3_import_t*)
     fmi3_status_t fmi3_import_reset(fmi3_import_t* fmu)
     fmi3_status_t fmi3_import_terminate(fmi3_import_t* fmu)
@@ -341,6 +342,11 @@ cdef extern from 'fmilib.h':
 
     int fmi3_import_get_output_dependencies(fmi3_import_t*, fmi3_import_variable_t*, size_t*, int*, size_t**, char**)
     int fmi3_import_get_continuous_state_derivative_dependencies(fmi3_import_t*, fmi3_import_variable_t*, size_t*, int*, size_t**, char**);
+
+    # log categories
+    size_t fmi3_import_get_log_categories_num(fmi3_import_t*)
+    char* fmi3_import_get_log_category(fmi3_import_t*, size_t)
+    char* fmi3_import_get_log_category_description(fmi3_import_t*, size_t)
 
     # Getting variables attributes/types
     const char* fmi3_import_get_variable_name(fmi3_import_variable_t*)

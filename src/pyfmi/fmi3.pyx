@@ -2533,6 +2533,66 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         else:
             raise FMUException('Logging is not enabled')
 
+    def set_debug_logging(self, logging_on, categories = []):
+        """
+        Specifies if the debugging should be turned on or off and calls fmi3SetDebugLogging
+        for the specified categories, after checking they are valid.
+
+        Note: An appropriate log_level of the FMU is required for logging.
+        Typically, this is INFO - set via fmu.set_log_level(4).
+
+        Parameters::
+
+            logging_on --
+                Boolean value.
+
+            categories --
+                List of categories to log, use get_log_categories() to query categories.
+                Default: [] (all categories)
+
+        Calls the low-level FMI function: fmi3SetDebugLogging
+        """
+
+        cdef FMIL3.fmi3_boolean_t log = 1 if logging_on else 0
+        cdef FMIL3.fmi3_status_t  status
+        cdef FMIL.size_t          n_cat = np.size(categories)
+        cdef FMIL3.fmi3_string_t* val
+
+        self._enable_logging = bool(log)
+
+        val = <FMIL3.fmi3_string_t*>FMIL.malloc(sizeof(FMIL3.fmi3_string_t)*n_cat)
+        values = [pyfmi_util.encode(cat) for cat in categories]
+        for i in range(n_cat):
+            val[i] = values[i]
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_debug_logging(self._fmu, log, n_cat, val)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        FMIL.free(val)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException('Failed to set the debugging option.')
+
+    def get_log_categories(self) -> dict[str, str]:
+        """
+        Method used to retrieve the logging categories. 
+
+        Returns::
+
+            dict(category_name, description string)
+        """
+        cdef FMIL.size_t i, nbr_categories = FMIL3.fmi3_import_get_log_categories_num(self._fmu)
+        cdef dict ret = {}
+        cdef str cat, descr
+
+        for i in range(nbr_categories):
+            cat = str(FMIL3.fmi3_import_get_log_category(self._fmu, i).decode())
+            descr = str(FMIL3.fmi3_import_get_log_category_description(self._fmu, i).decode())
+            ret[cat] = descr
+
+        return ret
+
     def get_model_version(self):
         """ Returns the version of the FMU. """
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
