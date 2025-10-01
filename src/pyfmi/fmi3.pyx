@@ -2593,72 +2593,72 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return ret
 
-    def get_model_version(self):
+    def get_model_version(self) -> str:
         """ Returns the version of the FMU. """
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
         return pyfmi_util.decode(version) if version != NULL else ""
 
-    def get_version(self):
+    def get_version(self) -> str:
         """ Returns the FMI version of the Model which it was generated according. """
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_version(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return pyfmi_util.decode(version)
 
-    def get_name(self):
+    def get_name(self) -> str:
         """ Return the model name as used in the modeling environment. """
         return self._modelName
 
-    def get_author(self):
+    def get_author(self) -> str:
         """
         Return the name and organization of the model author.
         """
         cdef FMIL3.fmi3_string_t author = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_author(self._fmu)
         return pyfmi_util.decode(author) if author != NULL else ""
 
-    def get_copyright(self):
+    def get_copyright(self) -> str:
         """
         Return the model copyright.
         """
         cdef FMIL3.fmi3_string_t copyright = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_copyright(self._fmu)
         return pyfmi_util.decode(copyright) if copyright != NULL else ""
 
-    def get_description(self):
+    def get_description(self) -> str:
         """
         Return the model description.
         """
         cdef FMIL3.fmi3_string_t desc = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_description(self._fmu)
         return pyfmi_util.decode(desc) if desc != NULL else ""
 
-    def get_model_version(self):
+    def get_model_version(self) -> str:
         """
         Returns the version of the FMU.
         """
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
         return pyfmi_util.decode(version) if version != NULL else ""
 
-    def get_instantiation_token(self):
+    def get_instantiation_token(self) -> str:
         """
         Returns the instatiation token of the FMU.
         """
         cdef FMIL3.fmi3_string_t inst_token = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_instantiation_token(self._fmu)
         return pyfmi_util.decode(inst_token) if inst_token != NULL else ""
 
-    def get_license(self):
+    def get_license(self) -> str:
         """
         Return the model license.
         """
         cdef FMIL3.fmi3_string_t license = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_license(self._fmu)
         return pyfmi_util.decode(license) if license != NULL else ""
 
-    def get_generation_date_and_time(self):
+    def get_generation_date_and_time(self) -> str:
         """
         Return the model generation date and time.
         """
         cdef FMIL3.fmi3_string_t gen = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_generation_date_and_time(self._fmu)
         return pyfmi_util.decode(gen) if gen != NULL else ""
 
-    def get_variable_naming_convention(self):
+    def get_variable_naming_convention(self) -> str:
         """
         Return the variable naming convention.
         """
