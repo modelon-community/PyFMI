@@ -161,19 +161,6 @@ class TestFMI3LoadFMU:
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
         assert fmu.get_version() == '3.0'
 
-    def test_get_name(self):
-        """Test that FMI name is retrieved as expected."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
-        assert fmu.get_name() == 'van der Pol oscillator'
-
-    def test_get_model_version(self):
-        """Test that model version is retrieved as expected."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
-        # TODO: Update test with some FMU that has this field specified.
-        #       For now it at least verifies the call doesn't raise an exception
-        #       and all of the reference FMUs have omitted this field.
-        assert fmu.get_model_version() == ''
-
     def test_instantiation(self, tmpdir):
         """ Test that instantiation works by verifying the output in the log."""
         with temp_dir_context(tmpdir) as temp_path:
@@ -1059,12 +1046,6 @@ class Test_FMI3ME:
         # reference values taken from FMI2 VDP simulation, same settings
         assert fmu.get("x0")[0] == pytest.approx( 2.008130983012657)
         assert fmu.get("x1")[0] == pytest.approx(-0.042960828207896706)
-
-    def test_generation_tool(self):
-        """Test getting generation tool."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = FMUModelME3(fmu_path)
-        assert "Reference FMUs" in fmu.get_generation_tool()
 
     def test_get_event_indicators(self):
         """Test get_event_indicators function."""

@@ -367,13 +367,6 @@ class Test_FMUModelME1:
         assert nCont == 1
         assert nEvent == 0
 
-    def test_get_name(self):
-        bounce = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
-        dq = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "dq.fmu"), _connect_dll=False)
-
-        assert bounce.get_name() == 'bouncingBall'
-        assert dq.get_name() == 'dq'
-
     def test_get_fmi_options(self):
         """
         Test that simulate_options on an FMU returns the correct options

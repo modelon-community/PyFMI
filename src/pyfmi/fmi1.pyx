@@ -1659,7 +1659,7 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
         """
         cdef FMIL1.fmi1_string_t author
         author = <FMIL1.fmi1_string_t>FMIL1.fmi1_import_get_author(self._fmu)
-        return author if author != NULL else ""
+        return pyfmi_util.decode(author) if author != NULL else ""
 
     def get_default_experiment_start_time(self):
         """
