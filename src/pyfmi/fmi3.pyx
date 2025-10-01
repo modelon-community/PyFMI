@@ -506,7 +506,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         raise FMUException("FMUModelBase3 cannot be used directly, use FMUModelME3.")
 
     def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
-        raise NotImplementedError
+        raise NotImplementedError # to implemented in FMUModel(ME|CS|SE)3
 
     def initialize(self,
         tolerance_defined=True,
@@ -515,7 +515,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         stop_time_defined=False,
         stop_time="Default"
     ):
-        raise NotImplementedError
+        raise NotImplementedError # to implemented in FMUModel(ME|CS|SE)3
 
     def _set(self, variable_name, value):
         """
@@ -2593,25 +2593,82 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return ret
 
-    def get_model_version(self):
+    def get_model_version(self) -> str:
         """ Returns the version of the FMU. """
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
         return pyfmi_util.decode(version) if version != NULL else ""
 
-    def get_version(self):
+    def get_version(self) -> str:
         """ Returns the FMI version of the Model which it was generated according. """
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_version(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return pyfmi_util.decode(version)
 
-    def get_name(self):
+    def get_name(self) -> str:
         """ Return the model name as used in the modeling environment. """
         return self._modelName
 
+    def get_author(self) -> str:
+        """
+        Return the name and organization of the model author.
+        """
+        cdef FMIL3.fmi3_string_t author = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_author(self._fmu)
+        return pyfmi_util.decode(author) if author != NULL else ""
+
+    def get_copyright(self) -> str:
+        """
+        Return the model copyright.
+        """
+        cdef FMIL3.fmi3_string_t copyright = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_copyright(self._fmu)
+        return pyfmi_util.decode(copyright) if copyright != NULL else ""
+
+    def get_description(self) -> str:
+        """
+        Return the model description.
+        """
+        cdef FMIL3.fmi3_string_t desc = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_description(self._fmu)
+        return pyfmi_util.decode(desc) if desc != NULL else ""
+
+    def get_model_version(self) -> str:
+        """
+        Returns the version of the FMU.
+        """
+        cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
+        return pyfmi_util.decode(version) if version != NULL else ""
+
+    def get_instantiation_token(self) -> str:
+        """
+        Returns the instatiation token of the FMU.
+        """
+        cdef FMIL3.fmi3_string_t inst_token = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_instantiation_token(self._fmu)
+        return pyfmi_util.decode(inst_token) if inst_token != NULL else ""
+
+    def get_license(self) -> str:
+        """
+        Return the model license.
+        """
+        cdef FMIL3.fmi3_string_t license = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_license(self._fmu)
+        return pyfmi_util.decode(license) if license != NULL else ""
+
+    def get_generation_date_and_time(self) -> str:
+        """
+        Return the model generation date and time.
+        """
+        cdef FMIL3.fmi3_string_t gen = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_generation_date_and_time(self._fmu)
+        return pyfmi_util.decode(gen) if gen != NULL else ""
+
+    def get_variable_naming_convention(self) -> str:
+        """
+        Return the variable naming convention.
+        """
+        cdef FMIL3.fmi3_variable_naming_convension_enu_t conv_enum = FMIL3.fmi3_import_get_naming_convention(self._fmu)
+        cdef FMIL3.fmi3_string_t conv_name = <FMIL3.fmi3_string_t>FMIL3.fmi3_naming_convention_to_string(conv_enum)
+        return pyfmi_util.decode(conv_name) if conv_name != NULL else ""
+
     def get_identifier(self):
         """ Return the model identifier, name of binary model file and prefix in the C-function names of the model. """
-        raise NotImplementedError
+        raise NotImplementedError # to implemented in FMUModel(ME|CS|SE)3
 
     def get_ode_sizes(self):
         """ Returns the number of continuous states and the number of event indicators.
@@ -3085,9 +3142,8 @@ cdef class FMUModelME3(FMUModelBase3):
             raise InvalidVersionException('The FMU could not be loaded. This class only supports FMI 3.0 for Model Exchange.')
 
     def get_identifier(self):
-        if not self._modelId:
+        if self._modelId is None:
             self._modelId = pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_ME(self._fmu))
-
         return self._modelId
 
     def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
