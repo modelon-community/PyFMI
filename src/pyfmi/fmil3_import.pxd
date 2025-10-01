@@ -113,6 +113,11 @@ cdef extern from 'fmilib.h':
         fmi3_dependencies_kind_discrete  = 4
         fmi3_dependencies_kind_num       = 5
 
+    cdef enum fmi3_variable_naming_convension_enu_t:
+        fmi3_naming_enu_flat = 0
+        fmi3_naming_enu_structured = 1
+        fmi3_naming_enu_unknown = 2
+
     cdef enum fmi3_capabilities_enu_t:
         fmi3_me_needsExecutionTool                     = 0
         fmi3_me_canBeInstantiatedOnlyOncePerProcess    = 1
@@ -233,16 +238,16 @@ cdef extern from 'fmilib.h':
         fmi3_float64_t startTime,
         fmi3_boolean_t stopTimeDefined,
         fmi3_float64_t stopTime)
-    fmi3_status_t fmi3_import_exit_initialization_mode(fmi3_import_t* fmu)
-    fmi3_status_t fmi3_import_enter_event_mode(fmi3_import_t* fmu)
-    fmi3_status_t fmi3_import_enter_continuous_time_mode(fmi3_import_t* fmu)
+    fmi3_status_t fmi3_import_exit_initialization_mode(fmi3_import_t*)
+    fmi3_status_t fmi3_import_enter_event_mode(fmi3_import_t*)
+    fmi3_status_t fmi3_import_enter_continuous_time_mode(fmi3_import_t*)
     # misc
     fmi3_status_t fmi3_import_set_debug_logging(fmi3_import_t*, fmi3_boolean_t, size_t, fmi3_string_t*)
     char* fmi3_import_get_version(fmi3_import_t*)
-    fmi3_status_t fmi3_import_reset(fmi3_import_t* fmu)
-    fmi3_status_t fmi3_import_terminate(fmi3_import_t* fmu)
-    void fmi3_import_free_instance(fmi3_import_t* fmu)
-    void fmi3_import_destroy_dllfmu(fmi3_import_t* fmu)
+    fmi3_status_t fmi3_import_reset(fmi3_import_t*)
+    fmi3_status_t fmi3_import_terminate(fmi3_import_t*)
+    void fmi3_import_free_instance(fmi3_import_t*)
+    void fmi3_import_destroy_dllfmu(fmi3_import_t*)
 
     # setting
     fmi3_status_t fmi3_import_set_time(fmi3_import_t*, fmi3_float64_t)
@@ -308,8 +313,19 @@ cdef extern from 'fmilib.h':
     # FMI HELPER METHODS (3.0)
     fmi3_fmu_kind_enu_t fmi3_import_get_fmu_kind(fmi3_import_t*)
     char* fmi3_fmu_kind_to_string(fmi3_fmu_kind_enu_t)
+
+    # Getters for fmiModelDescription attributes
     char* fmi3_import_get_model_name(fmi3_import_t*)
-    const char* fmi3_import_get_generation_tool(fmi3_import_t *)
+    const char* fmi3_import_get_instantiation_token(fmi3_import_t*);
+    const char* fmi3_import_get_description(fmi3_import_t*)
+    const char* fmi3_import_get_author(fmi3_import_t*)
+    const char* fmi3_import_get_model_version(fmi3_import_t*);
+    const char* fmi3_import_get_copyright(fmi3_import_t*);
+    const char* fmi3_import_get_license(fmi3_import_t*);
+    const char* fmi3_import_get_generation_tool(fmi3_import_t*);
+    const char* fmi3_import_get_generation_date_and_time(fmi3_import_t*);
+    fmi3_variable_naming_convension_enu_t fmi3_import_get_naming_convention(fmi3_import_t*);
+    const char* fmi3_naming_convention_to_string(fmi3_variable_naming_convension_enu_t);
 
     unsigned int fmi3_import_get_capability(fmi3_import_t *, fmi3_capabilities_enu_t)
 
@@ -331,7 +347,7 @@ cdef extern from 'fmilib.h':
     fmi3_import_variable_t* fmi3_import_get_variable(fmi3_import_variable_list_t *, size_t)
     fmi3_import_variable_list_t* fmi3_import_get_variable_list(fmi3_import_t*, int)
     size_t fmi3_import_get_variable_list_size(fmi3_import_variable_list_t*)
-    fmi3_import_variable_list_t* fmi3_import_get_continuous_state_derivatives_list(fmi3_import_t* fmu)
+    fmi3_import_variable_list_t* fmi3_import_get_continuous_state_derivatives_list(fmi3_import_t*)
     fmi3_import_float64_variable_t* fmi3_import_get_float64_variable_derivative_of(fmi3_import_float64_variable_t* v)
 
     fmi3_status_t fmi3_import_get_number_of_event_indicators(fmi3_import_t*, size_t*)
@@ -369,4 +385,4 @@ cdef extern from 'fmilib.h':
     const char* fmi3_import_get_alias_variable_name(fmi3_import_alias_variable_t* alias)
     const char* fmi3_import_get_alias_variable_description(fmi3_import_alias_variable_t* alias)
     fmi3_boolean_t fmi3_import_get_variable_has_alias(fmi3_import_variable_t* v)
-    const char* fmi3_import_get_variable_description_by_name(fmi3_import_t* fmu, const char* name)
+    const char* fmi3_import_get_variable_description_by_name(fmi3_import_t*, const char* name)
