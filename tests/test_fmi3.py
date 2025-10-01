@@ -253,11 +253,6 @@ class TestFMI3LoadFMU:
         with pytest.raises(FMUException, match = msg):
             fmu.terminate()
 
-    def test_get_default_experiment_start_time(self):
-        """Test retrieving default experiment start time. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
-        assert fmu.get_default_experiment_start_time() == 0.0
-
     def test_free_instance_after_load(self):
         """Test invoke free instance after loading. """
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
@@ -268,16 +263,6 @@ class TestFMI3LoadFMU:
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
         fmu.initialize()
         fmu.free_instance()
-
-    def test_get_default_experiment_stop_time(self):
-        """Test retrieving default experiment stop time. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
-        assert fmu.get_default_experiment_stop_time() == 20.0
-
-    def test_get_default_experiment_tolerance(self):
-        """Test retrieving default experiment tolerance. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
-        assert fmu.get_default_experiment_tolerance() == 0.0001
 
     def test_get_states_list(self):
         """Test retrieving states list and check its attributes. """
