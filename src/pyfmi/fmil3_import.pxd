@@ -302,6 +302,7 @@ cdef extern from 'fmilib.h':
     double fmi3_import_get_default_experiment_start(fmi3_import_t*)
     double fmi3_import_get_default_experiment_stop(fmi3_import_t*)
     double fmi3_import_get_default_experiment_tolerance(fmi3_import_t*)
+    double fmi3_import_get_default_experiment_step_size(fmi3_import_t*)
     # save states
     fmi3_status_t fmi3_import_get_fmu_state(fmi3_import_t*, fmi3_FMU_state_t*)
     fmi3_status_t fmi3_import_set_fmu_state(fmi3_import_t*, fmi3_FMU_state_t)
