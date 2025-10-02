@@ -2597,6 +2597,28 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return ret
 
+    def get_variable_by_valueref(self, valueref: int) -> str:
+        """
+        Get the name of a variable given a value reference.
+
+        Parameters::
+
+            valueref --
+                The value reference of the variable.
+
+        Returns::
+
+            The name of the variable.
+
+        """
+        # Could have a better name?
+        cdef FMIL3.fmi3_import_variable_t* variable
+        variable = FMIL3.fmi3_import_get_variable_by_vr(self._fmu, <FMIL3.fmi3_value_reference_t> valueref)
+        if variable == NULL:
+            raise FMUException("The variable with the valuref %i could not be found."%valueref)
+
+        return pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
+
     def get_model_version(self) -> str:
         """ Returns the version of the FMU. """
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
