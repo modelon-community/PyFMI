@@ -138,6 +138,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t*)
     cdef _get_alias_description(self, FMIL3.fmi3_import_alias_variable_t*)
 
+    cpdef get_variable_min(self, str variable_name)
+    cpdef get_variable_max(self, str variable_name)
+
     cpdef serialize_fmu_state(self, FMUState3 state)
     cpdef deserialize_fmu_state(self, list serialized_fmu)
     cpdef serialized_fmu_state_size(self, FMUState3 state)
