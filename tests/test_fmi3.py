@@ -811,19 +811,33 @@ class TestFMI3LoadFMU:
         assert fmu.get_variable_by_valueref(1) == "Float32_continuous_input"
 
     def test_get_variable_by_valueref_no_var(self):
-        """Test get_variable_by_valueref for non-existing variables."""
+        """Test get_variable_by_valueref for non-existing variable."""
         fmu = self._get_reference_fmu("Feedthrough")
         err_msg = "The variable with the valuref 10000 could not be found."
         with pytest.raises(FMUException, match = re.escape(err_msg)):
             fmu.get_variable_by_valueref(10000)
 
+    def test_get_variable_variability(self):
+        """Test get_variable_variability."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        assert fmu.get_variable_variability("Float64_fixed_parameter") is FMI3_Variability.FIXED
+        assert fmu.get_variable_variability("Float64_tunable_parameter") is FMI3_Variability.TUNABLE
+        assert fmu.get_variable_variability("Float64_discrete_input") is FMI3_Variability.DISCRETE
+        assert fmu.get_variable_variability("Float64_continuous_input") is FMI3_Variability.CONTINUOUS
+
+    def test_get_variable_variability_no_var(self):
+        """Test get_variable_variability for non-existing variable."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        err_msg = "The variable aaa could not be found."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_variability("aaa")
+
 # get_variable_initial
 # get_variable_max
 # get_variable_min
 # get_variable_nominal
-# get_variable_references
+# get_variable_references # needed?
 # get_variable_start
-# get_variable_variability
 # get_variable_unbounded
 
 class Test_FMI3ME:

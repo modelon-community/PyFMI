@@ -2619,6 +2619,23 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
 
+    def get_variable_variability(self, variable_name: str) -> FMI3_Variability:
+        """
+        Get variability of the variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The variability of the variable as FMI3_Variability enum
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_variability_enu_t variability = FMIL3.fmi3_import_get_variable_variability(variable)
+        return FMI3_Variability(variability)
+
     def get_model_version(self) -> str:
         """ Returns the version of the FMU. """
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
