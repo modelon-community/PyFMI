@@ -2636,6 +2636,23 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef FMIL3.fmi3_variability_enu_t variability = FMIL3.fmi3_import_get_variable_variability(variable)
         return FMI3_Variability(variability)
 
+    def get_variable_initial(self, variable_name) -> FMI3_Initial:
+        """
+        Get initial of the variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The initial of the variable as FMI3_Initial enum
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_initial_enu_t initial = FMIL3.fmi3_import_get_variable_initial(variable)
+        return FMI3_Initial(initial)
+
     def get_model_version(self) -> str:
         """ Returns the version of the FMU. """
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)

@@ -832,11 +832,22 @@ class TestFMI3LoadFMU:
         with pytest.raises(FMUException, match = re.escape(err_msg)):
             fmu.get_variable_variability("aaa")
 
-# get_variable_initial
+    def test_get_variable_initial(self):
+        """Test get_variable_initial."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        assert fmu.get_variable_initial("Float64_continuous_input") is FMI3_Initial.EXACT
+        assert fmu.get_variable_initial("Float64_continuous_output") is FMI3_Initial.CALCULATED
+
+    def test_get_variable_initial_no_var(self):
+        """Test get_variable_initial for non-existing variable."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        err_msg = "The variable aaa could not be found."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_initial("aaa")
+
 # get_variable_max
 # get_variable_min
 # get_variable_nominal
-# get_variable_references # needed?
 # get_variable_start
 # get_variable_unbounded
 
