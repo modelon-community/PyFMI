@@ -76,6 +76,17 @@ def temp_dir_context(tmpdir):
 
 class TestFMI3LoadFMU:
     """Basic unit tests for FMI3 loading via 'load_fmu'."""
+    @classmethod
+    def setup_class(cls):
+        cls._fmu_cache = {}
+
+    def _get_reference_fmu(self, name):
+        # Cache for FMU loading
+        if name not in self._fmu_cache:
+            self._fmu_cache[name] = load_fmu(FMI3_REF_FMU_PATH / (name + ".fmu"))
+        fmu = self._fmu_cache[name]
+        fmu.reset()
+        return fmu
 
     @pytest.mark.parametrize("ref_fmu", [
         FMI3_REF_FMU_PATH / "BouncingBall.fmu",
@@ -109,7 +120,7 @@ class TestFMI3LoadFMU:
 
     def test_get_event_info_1(self,):
         """Test get_event_info() works as expected; no event."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "ME")
+        fmu = self._get_reference_fmu("VanDerPol")
         fmu.initialize()
         fmu.event_update()
 
@@ -124,7 +135,7 @@ class TestFMI3LoadFMU:
 
     def test_get_event_info_2(self):
         """Test get_event_info() works as expected; time events."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu", kind = "ME")
+        fmu = self._get_reference_fmu("Stair")
         fmu.initialize()
         fmu.event_update()
 
@@ -153,12 +164,12 @@ class TestFMI3LoadFMU:
 
     def test_get_model_identifier(self):
         """Test that model identifier is retrieved as expected."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         assert fmu.get_identifier() == 'VanDerPol'
 
     def test_get_get_version(self):
         """Test that FMI version is retrieved as expected."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         assert fmu.get_version() == '3.0'
 
     def test_instantiation(self, tmpdir):
@@ -171,17 +182,17 @@ class TestFMI3LoadFMU:
         assert any(substring_to_find in line for line in fmu.get_log())
 
     @pytest.mark.parametrize("ref_fmu", [
-        FMI3_REF_FMU_PATH / "BouncingBall.fmu",
-        FMI3_REF_FMU_PATH / "Dahlquist.fmu",
-        FMI3_REF_FMU_PATH / "Resource.fmu",
-        FMI3_REF_FMU_PATH / "StateSpace.fmu",
-        FMI3_REF_FMU_PATH / "Feedthrough.fmu",
-        FMI3_REF_FMU_PATH / "Stair.fmu",
-        FMI3_REF_FMU_PATH / "VanDerPol.fmu",
+        "BouncingBall",
+        "Dahlquist",
+        "Resource",
+        "StateSpace",
+        "Feedthrough",
+        "Stair",
+        "VanDerPol",
     ])
     def test_initialize_reset_terminate(self, ref_fmu):
         """Test initialize, reset and terminate of all the ME reference FMUs. """
-        fmu = load_fmu(ref_fmu)
+        fmu = self._get_reference_fmu(ref_fmu)
         # Should simply pass without any exceptions
         fmu.initialize()
         fmu.reset()
@@ -192,34 +203,34 @@ class TestFMI3LoadFMU:
         fmu.terminate()
 
     @pytest.mark.parametrize("ref_fmu", [
-        FMI3_REF_FMU_PATH / "BouncingBall.fmu",
-        FMI3_REF_FMU_PATH / "Dahlquist.fmu",
-        FMI3_REF_FMU_PATH / "Resource.fmu",
-        FMI3_REF_FMU_PATH / "StateSpace.fmu",
-        FMI3_REF_FMU_PATH / "Feedthrough.fmu",
-        FMI3_REF_FMU_PATH / "Stair.fmu",
-        FMI3_REF_FMU_PATH / "VanDerPol.fmu",
+        "BouncingBall",
+        "Dahlquist",
+        "Resource",
+        "StateSpace",
+        "Feedthrough",
+        "Stair",
+        "VanDerPol",
     ])
     def test_enter_continuous_time_mode(self, ref_fmu):
         """Test entering continuous time mode. """
-        fmu = load_fmu(ref_fmu)
+        fmu = self._get_reference_fmu(ref_fmu)
         # Should simply pass without any exceptions
         fmu.initialize()
         fmu.enter_continuous_time_mode()
         fmu.terminate()
 
     @pytest.mark.parametrize("ref_fmu", [
-        FMI3_REF_FMU_PATH / "BouncingBall.fmu",
-        FMI3_REF_FMU_PATH / "Dahlquist.fmu",
-        FMI3_REF_FMU_PATH / "Resource.fmu",
-        FMI3_REF_FMU_PATH / "StateSpace.fmu",
-        FMI3_REF_FMU_PATH / "Feedthrough.fmu",
-        FMI3_REF_FMU_PATH / "Stair.fmu",
-        FMI3_REF_FMU_PATH / "VanDerPol.fmu",
+        "BouncingBall",
+        "Dahlquist",
+        "Resource",
+        "StateSpace",
+        "Feedthrough",
+        "Stair",
+        "VanDerPol",
     ])
     def test_enter_event_mode(self, ref_fmu):
         """Test enter event mode. """
-        fmu = load_fmu(ref_fmu)
+        fmu = self._get_reference_fmu(ref_fmu)
         # Should simply pass without any exceptions
         fmu.initialize()
         fmu.enter_continuous_time_mode()
@@ -227,17 +238,17 @@ class TestFMI3LoadFMU:
         fmu.terminate()
 
     @pytest.mark.parametrize("ref_fmu", [
-        FMI3_REF_FMU_PATH / "BouncingBall.fmu",
-        FMI3_REF_FMU_PATH / "Dahlquist.fmu",
-        FMI3_REF_FMU_PATH / "Resource.fmu",
-        FMI3_REF_FMU_PATH / "StateSpace.fmu",
-        FMI3_REF_FMU_PATH / "Feedthrough.fmu",
-        FMI3_REF_FMU_PATH / "Stair.fmu",
-        FMI3_REF_FMU_PATH / "VanDerPol.fmu",
+        "BouncingBall",
+        "Dahlquist",
+        "Resource",
+        "StateSpace",
+        "Feedthrough",
+        "Stair",
+        "VanDerPol",
     ])
     def test_initialize_manually(self, ref_fmu):
         """Test initialize all the ME reference FMUs by entering/exiting initialization mode manually. """
-        fmu = load_fmu(ref_fmu)
+        fmu = self._get_reference_fmu(ref_fmu)
         assert fmu.time is None
         # Should simply pass without any exceptions
         fmu.enter_initialization_mode()
@@ -246,7 +257,7 @@ class TestFMI3LoadFMU:
 
     def test_get_double_terminate(self):
         """Test invalid call sequence raises an error. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         fmu.initialize()
         fmu.terminate()
         msg = "Termination of FMU failed, see log for possible more information."
@@ -266,7 +277,7 @@ class TestFMI3LoadFMU:
 
     def test_get_states_list(self):
         """Test retrieving states list and check its attributes. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         states = fmu.get_states_list()
 
         assert len(states) == 2
@@ -293,12 +304,12 @@ class TestFMI3LoadFMU:
 
     def test_get_states_list_no_states(self):
         """Test retrieving states list for model without states. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu")
+        fmu = self._get_reference_fmu("Stair")
         assert len(fmu.get_states_list()) == 0
 
     def test_get_derivatives_list(self):
         """Test retrieving derivatives list and check its attributes. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         derivatives = fmu.get_derivatives_list()
 
         assert len(derivatives) == 2
@@ -325,23 +336,23 @@ class TestFMI3LoadFMU:
 
     def test_get_derivatives_list_no_states(self):
         """Test retrieving derivatives list for model without derivatives. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu")
+        fmu = self._get_reference_fmu("Stair")
         assert len(fmu.get_derivatives_list()) == 0
 
     def test_get_relative_tolerance(self):
         """Test get_relative_tolerance(). """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         assert fmu.get_relative_tolerance() == 0.0001
 
     def test_get_absolute_tolerances(self):
         """Test get_absolute_tolerances(). """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         fmu.initialize()
         np.testing.assert_array_almost_equal(fmu.get_absolute_tolerances(), np.array([1e-6, 1e-6]))
 
     def test_get_tolerances(self):
         """Test get_tolerances(). """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         fmu.initialize()
         tolerances = fmu.get_tolerances()
         assert tolerances[0] == 0.0001
@@ -350,16 +361,14 @@ class TestFMI3LoadFMU:
 
     def test_get_tolerances_exception(self):
         """Test that FMUException is raised if FMU is not initialized before get_tolerances()."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         msg = "Unable to retrieve the absolute tolerance, FMU needs to be initialized."
         with pytest.raises(FMUException, match = msg):
             fmu.get_tolerances()
 
     def test_get_and_set_states(self):
         """Test get and set of states."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
 
         assert fmu.get('x0') == np.array([2.])
         fmu.set('x0', 3.0)
@@ -371,8 +380,7 @@ class TestFMI3LoadFMU:
 
     def test_get_derivatives_with_states_set(self):
         """Test retrieve derivatives, verify values combined with setting of states."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         fmu.initialize()
 
         # Note:
@@ -392,23 +400,20 @@ class TestFMI3LoadFMU:
 
     def test_get_description(self):
         """Test get descriptions."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         assert fmu.get_variable_description('x0') == 'the first state'
         assert fmu.get_variable_description('x1') == 'the second state'
         assert fmu.get_variable_description('mu') == ''
 
     def test_get_description_variable_not_found(self):
         """Test get description on a variable that does not exist."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         with pytest.raises(FMUException, match = "The variable idontexist could not be found."):
             fmu.get_variable_description('idontexist')
 
     def test_get_model_variables(self):
         """ Test get_model_variables with default arguments. """
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         variables = fmu.get_model_variables()
 
         assert len(variables) == 6
@@ -422,7 +427,6 @@ class TestFMI3LoadFMU:
         assert v.type            is FMI3_Type.FLOAT64
         assert v.variability     is FMI3_Variability.CONTINUOUS
 
-
         v = variables['x0']
         assert v.description     == 'the first state'
         assert v.name            == 'x0'
@@ -431,7 +435,6 @@ class TestFMI3LoadFMU:
         assert v.initial         is FMI3_Initial.EXACT
         assert v.type            is FMI3_Type.FLOAT64
         assert v.variability     is FMI3_Variability.CONTINUOUS
-
 
         v = variables['der(x0)']
         assert v.description     == ''
@@ -442,7 +445,6 @@ class TestFMI3LoadFMU:
         assert v.type            is FMI3_Type.FLOAT64
         assert v.variability     is FMI3_Variability.CONTINUOUS
 
-
         v = variables['x1']
         assert v.description     == 'the second state'
         assert v.name            == 'x1'
@@ -451,7 +453,6 @@ class TestFMI3LoadFMU:
         assert v.initial         is FMI3_Initial.EXACT
         assert v.type            is FMI3_Type.FLOAT64
         assert v.variability     is FMI3_Variability.CONTINUOUS
-
 
         v = variables['der(x1)']
         assert v.description     == ''
@@ -473,8 +474,7 @@ class TestFMI3LoadFMU:
 
     def test_get_model_variables_causality(self):
         """ Test get_model_variables by specifying causality. """
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         variables = fmu.get_model_variables(causality=FMI3_Causality.PARAMETER)
 
         assert len(variables) == 1
@@ -482,8 +482,7 @@ class TestFMI3LoadFMU:
 
     def test_get_model_variables_type(self):
         """ Test get_model_variables by specifying type. """
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         variables = fmu.get_model_variables(type=FMI3_Type.FLOAT64)
 
         assert len(variables) == 7
@@ -501,8 +500,7 @@ class TestFMI3LoadFMU:
 
     def test_get_model_variables_variability(self):
         """ Test get_model_variables by specifying variability. """
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         variables = fmu.get_model_variables(variability=FMI3_Variability.CONTINUOUS)
 
         assert len(variables) == 5
@@ -510,8 +508,7 @@ class TestFMI3LoadFMU:
 
     def test_get_model_variables_multiple(self):
         """ Test get_model_variables by specifying multiple arguments. """
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         variables = fmu.get_model_variables(type=FMI3_Type.FLOAT64, variability=FMI3_Variability.FIXED)
 
         assert len(variables) == 1
@@ -519,8 +516,7 @@ class TestFMI3LoadFMU:
 
     def test_get_model_variables_several(self):
         """ Test get_model_variables by specifying several arguments. """
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         variables = fmu.get_model_variables(
             type=FMI3_Type.FLOAT64,
             causality=FMI3_Causality.INPUT,
@@ -531,8 +527,7 @@ class TestFMI3LoadFMU:
 
     def test_get_model_variables_only_start(self):
         """ Test get_model_variables by specifying 'only_start'. """
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         variables = fmu.get_model_variables(only_start = True)
 
         expected = [
@@ -559,8 +554,7 @@ class TestFMI3LoadFMU:
 
     def test_get_model_variables_only_fixed(self):
         """ Test get_model_variables by specifying 'only_fixed'. """
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         variables = fmu.get_model_variables(only_fixed = True)
 
         expected = ['Float64_fixed_parameter']
@@ -569,8 +563,7 @@ class TestFMI3LoadFMU:
 
     def test_get_model_variables_filter(self):
         """ Test get_model_variables by specifying filter. """
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         variables = fmu.get_model_variables(filter="der*")
 
         assert len(variables) == 2
@@ -579,8 +572,7 @@ class TestFMI3LoadFMU:
 
     def test_get_model_variables_multiple_filters(self):
         """ Test get_model_variables by specifying multiple filters. """
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         variables = fmu.get_model_variables(filter=['*parameter', 'UInt16*'])
 
         expected = [
@@ -594,8 +586,7 @@ class TestFMI3LoadFMU:
 
     def test_get_model_variables_many_args(self):
         """ Test get_model_variables by specifying almost all inputs. """
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         variables = fmu.get_model_variables(
             type=FMI3_Type.FLOAT64,
             causality=FMI3_Causality.PARAMETER,
@@ -618,8 +609,7 @@ class TestFMI3LoadFMU:
 
     def test_get_input_list(self):
         """ Test get_input_list. """
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         inputs = fmu.get_input_list()
 
         expected = ['Float64_continuous_input']
@@ -628,8 +618,7 @@ class TestFMI3LoadFMU:
 
     def test_get_output_list(self):
         """ Test get_output_list. """
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         outputs = fmu.get_output_list()
 
         expected = ['Float64_continuous_output']
@@ -637,8 +626,7 @@ class TestFMI3LoadFMU:
 
     def test_get_output_dependencies(self):
         """ Test get_output_dependencies, Feedthrough."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         num_outputs = len(fmu.get_output_list())
         state_deps, input_deps = fmu.get_output_dependencies()
 
@@ -650,8 +638,7 @@ class TestFMI3LoadFMU:
 
     def test_get_output_dependencies_2(self):
         """ Test get_output_dependencies, VanDerPol."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         num_outputs = len(fmu.get_output_list())
         state_deps, input_deps = fmu.get_output_dependencies()
 
@@ -665,8 +652,7 @@ class TestFMI3LoadFMU:
 
     def test_get_output_dependencies_kind(self):
         """ Test get_output_dependencies_kind."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         num_outputs = len(fmu.get_output_list())
         state_deps_kinds, input_deps_kinds = fmu.get_output_dependencies_kind()
 
@@ -678,8 +664,7 @@ class TestFMI3LoadFMU:
 
     def test_get_derivatives_dependencies(self):
         """ Test get_derivatives_dependencies."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         num_ders = len(fmu.get_derivatives_list())
         state_deps, input_deps = fmu.get_derivatives_dependencies()
 
@@ -693,8 +678,7 @@ class TestFMI3LoadFMU:
 
     def test_get_derivatives_dependencies_kind(self):
         """ Test get_derivatives_dependencies_kind."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         num_ders = len(fmu.get_derivatives_list())
         state_deps_kinds, input_deps_kinds = fmu.get_derivatives_dependencies_kind()
 
@@ -724,8 +708,7 @@ class TestFMI3LoadFMU:
     )
     def test_getX(self, function_name, valuerefs, expected_result, expected_dtype):
         """Test the various get_TYPE([<valueref>]) functions."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         res = getattr(fmu, function_name)(valuerefs) # fmu.<function_name>(valuerefs)
 
         np.testing.assert_equal(res, expected_result)
@@ -733,8 +716,7 @@ class TestFMI3LoadFMU:
 
     def test_get_string(self):
         """Test the get_string function."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         res = fmu.get_string([29])
 
         np.testing.assert_equal(res, ["Set me!"])
@@ -758,8 +740,7 @@ class TestFMI3LoadFMU:
     )
     def test_set_get(self, variable_name, value, expected_dtype):
         """Test getting and setting variables of various types."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         fmu.set(variable_name, value)
         res = fmu.get(variable_name)
         assert res.dtype == expected_dtype
@@ -770,8 +751,7 @@ class TestFMI3LoadFMU:
     # XXX: Redundant in the future
     def test_set_get_out_of_bounds_overflow_old_numpy(self, variable_name, value):
         """Test setting too large/small value for various integer types."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         with pytest.warns(DeprecationWarning, match = "overflow"):
             fmu.set(variable_name, value)
 
@@ -779,8 +759,7 @@ class TestFMI3LoadFMU:
     @pytest.mark.parametrize("variable_name, value", OVERFLOW_TEST_SET)
     def test_set_get_out_of_bounds_overflow_new_numpy(self, variable_name, value):
         """Test setting too large/small value for various integer types."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         with pytest.raises(OverflowError):
             fmu.set(variable_name, value)
 
@@ -793,15 +772,13 @@ class TestFMI3LoadFMU:
     )
     def test_set_large_int_overflow(self, variable_name, value):
         """Test setting too large/small value for various integer types."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         with pytest.raises(OverflowError):
             fmu.set(variable_name, value)
 
     def test_set_get_string(self):
         """Test getting and setting of string variables."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("Feedthrough")
         variable_name = "String_input"
         value = "hello string"
         fmu.set(variable_name, value)
@@ -811,8 +788,7 @@ class TestFMI3LoadFMU:
 
     def test_directional_derivatives(self):
         """Test directional derivatives."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         fmu.set("mu", 2)
         fmu.initialize()
         fmu.enter_continuous_time_mode()
@@ -828,12 +804,45 @@ class TestFMI3LoadFMU:
         assert dv[0] == 1
         assert dv[1] == -5
 
+    def test_get_variable_by_valueref(self):
+        """Test get_variable_by_valueref."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        assert fmu.get_variable_by_valueref(0) == "time"
+        assert fmu.get_variable_by_valueref(1) == "Float32_continuous_input"
+
+    def test_get_variable_by_valueref_no_var(self):
+        """Test get_variable_by_valueref for non-existing variables."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        err_msg = "The variable with the valuref 10000 could not be found."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_by_valueref(10000)
+
+# get_variable_initial
+# get_variable_max
+# get_variable_min
+# get_variable_nominal
+# get_variable_references
+# get_variable_start
+# get_variable_variability
+# get_variable_unbounded
+
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
-    @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
-    def test_basic(self, ref_fmu):
+    @classmethod
+    def setup_class(cls):
+        cls._fmu_cache = {}
+
+    def _get_reference_fmu(self, name):
+        # Cache for FMU loading
+        if name not in self._fmu_cache:
+            self._fmu_cache[name] = FMUModelME3(FMI3_REF_FMU_PATH / (name + ".fmu"))
+        fmu = self._fmu_cache[name]
+        fmu.reset()
+        return fmu
+    
+    def test_basic(self):
         """Basic construction of FMUModelME3."""
-        fmu = FMUModelME3(ref_fmu, _connect_dll = False)
+        fmu = self._get_reference_fmu("VanDerPol")
         assert isinstance(fmu, FMUModelME3)
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "Clocks.fmu"])
@@ -845,7 +854,7 @@ class Test_FMI3ME:
 
     def test_get_nominals_of_continuous_states(self):
         """Test retrieve the nominals of the continuous states. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         fmu.initialize()
         # TODO: Remove this test in the future when we can simulate the FMU fully
         nominals = fmu._get_nominal_continuous_states()
@@ -853,8 +862,7 @@ class Test_FMI3ME:
 
     def test_get_nominals_of_continuous_states_pre_init(self):
         """Test that Exception is raised if FMU is not initialized before retrieving nominals of continuous states."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         msg = "Unable to retrieve nominals of continuous states, FMU must first be initialized."
         with pytest.raises(FMUException, match = msg):
             fmu._get_nominal_continuous_states()
@@ -907,8 +915,7 @@ class Test_FMI3ME:
 
     def test_set_missing_variable(self):
         """Test setting a variable that does not exists."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        fmu = self._get_reference_fmu("Feedthrough")
         var_name = "x0"
         err_msg = f"The variable {var_name} could not be found."
         with pytest.raises(FMUException, match = err_msg):
@@ -916,8 +923,7 @@ class Test_FMI3ME:
 
     def test_get_missing_variable(self):
         """Test getting a variable that does not exists."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        fmu = self._get_reference_fmu("Feedthrough")
         var_name = "x0"
         err_msg = f"The variable {var_name} could not be found."
         with pytest.raises(FMUException, match = err_msg):
@@ -925,15 +931,13 @@ class Test_FMI3ME:
 
     def test_get_variable_valueref(self):
         """Test getting variable value references."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        fmu = self._get_reference_fmu("Feedthrough")
         assert fmu.get_variable_valueref("time") == 0
         assert fmu.get_variable_valueref("Enumeration_input") == 33
 
     def test_get_variable_valueref_missing(self):
         """Test getting variable value references for variable that does not exist."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        fmu = self._get_reference_fmu("Feedthrough")
         var_name = "x0"
         err_msg = f"The variable {var_name} could not be found."
         with pytest.raises(FMUException, match = err_msg):
@@ -941,24 +945,23 @@ class Test_FMI3ME:
 
     @pytest.mark.parametrize("ref_fmu, expected_ode_size",
         [
-            (FMI3_REF_FMU_PATH / "BouncingBall.fmu", (2, 1)),
-            (FMI3_REF_FMU_PATH / "Dahlquist.fmu",    (1, 0)),
-            (FMI3_REF_FMU_PATH / "Feedthrough.fmu",  (0, 0)),
-            (FMI3_REF_FMU_PATH / "Resource.fmu",     (0, 0)),
-            (FMI3_REF_FMU_PATH / "Stair.fmu" ,       (0, 0)),
-            (FMI3_REF_FMU_PATH / "StateSpace.fmu",   (1, 0)),
-            (FMI3_REF_FMU_PATH / "VanDerPol.fmu",    (2, 0)),
+            ("BouncingBall", (2, 1)),
+            ("Dahlquist",    (1, 0)),
+            ("Feedthrough",  (0, 0)),
+            ("Resource",     (0, 0)),
+            ("Stair" ,       (0, 0)),
+            ("StateSpace",   (1, 0)),
+            ("VanDerPol",    (2, 0)),
         ]
     )
     def test_get_ode_sizes(self, ref_fmu, expected_ode_size):
         """Test get ode sizes."""
-        fmu = load_fmu(ref_fmu)
+        fmu = self._get_reference_fmu(ref_fmu)
         assert fmu.get_ode_sizes() == expected_ode_size
 
     def test_get_variable_data_type_missing(self):
         """Test getting variable data type for missing variable."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        fmu = self._get_reference_fmu("Feedthrough")
         var_name = "x0"
         err_msg = f"The variable {var_name} could not be found."
         with pytest.raises(FMUException, match = err_msg):
@@ -966,16 +969,14 @@ class Test_FMI3ME:
 
     def test_set_array_variable(self):
         """Test setting an array variable (not yet supported). """
-        fmu_path = FMI3_REF_FMU_PATH / "StateSpace.fmu"
-        fmu = FMUModelME3(fmu_path)
+        fmu = self._get_reference_fmu("StateSpace")
         err_msg = "The length of valueref and values are inconsistent. Note: Array variables are not yet supported"
         with pytest.raises(FMUException, match = err_msg):
             fmu.set("x", np.array([1, 2, 3]))
 
     def test_get_continuous_states(self):
         """Test retrieve the continuous states."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = load_fmu(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         fmu.initialize()
         assert all(fmu.continuous_states == np.array([2.0, 0.0]))
 
@@ -1000,30 +1001,27 @@ class Test_FMI3ME:
     )
     def test_get_variable_data_type(self, variable_name, expected_datatype):
         """Test getting variable data types."""
-        fmu_path = FMI3_REF_FMU_PATH / "Feedthrough.fmu"
-        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        fmu = self._get_reference_fmu("Feedthrough")
         assert fmu.get_variable_data_type(variable_name) is expected_datatype
 
     @pytest.mark.parametrize("fmu, variable_name, expected_causality",
         [
-            ("Feedthrough.fmu", "time", FMI3_Causality.INDEPENDENT),
-            ("Feedthrough.fmu", "Float64_fixed_parameter", FMI3_Causality.PARAMETER),
-            ("Feedthrough.fmu", "Float64_continuous_input", FMI3_Causality.INPUT),
-            ("Feedthrough.fmu", "Float64_continuous_output", FMI3_Causality.OUTPUT),
-            ("StateSpace.fmu", "m", FMI3_Causality.STRUCTURAL_PARAMETER),
-            ("StateSpace.fmu", "x", FMI3_Causality.LOCAL),
+            ("Feedthrough", "time", FMI3_Causality.INDEPENDENT),
+            ("Feedthrough", "Float64_fixed_parameter", FMI3_Causality.PARAMETER),
+            ("Feedthrough", "Float64_continuous_input", FMI3_Causality.INPUT),
+            ("Feedthrough", "Float64_continuous_output", FMI3_Causality.OUTPUT),
+            ("StateSpace", "m", FMI3_Causality.STRUCTURAL_PARAMETER),
+            ("StateSpace", "x", FMI3_Causality.LOCAL),
         ]
     )
     def test_get_variable_causality(self, fmu, variable_name, expected_causality):
         """Test getting variable data causalities."""
-        fmu_path = FMI3_REF_FMU_PATH / fmu
-        fmu = FMUModelME3(fmu_path, _connect_dll = False)
+        fmu = self._get_reference_fmu(fmu)
         assert fmu.get_variable_causality(variable_name) is expected_causality
 
     def test_simulate(self):
         """Test basic simulation of an FMU, no result handling."""
-        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
-        fmu = FMUModelME3(fmu_path)
+        fmu = self._get_reference_fmu("VanDerPol")
         options = fmu.simulate_options()
         options["result_handling"] = None
         fmu.simulate(0, 20, options = options)
@@ -1034,7 +1032,7 @@ class Test_FMI3ME:
 
     def test_get_event_indicators(self):
         """Test get_event_indicators function."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "BouncingBall.fmu")
+        fmu = self._get_reference_fmu("BouncingBall")
         assert fmu.get_ode_sizes()[1] > 0
 
         fmu.simulate(options = {"ncp": 0})
@@ -1045,7 +1043,7 @@ class Test_FMI3ME:
 
     def test_get_event_indicators_empty(self):
         """Test get_event_indicators function for a model without state events"""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         assert fmu.get_ode_sizes()[1] == 0
 
         event_ind = fmu.get_event_indicators()
@@ -1053,7 +1051,7 @@ class Test_FMI3ME:
 
     def test_get_capability_flags(self):
         """Test getting capability flags."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         capabilities = fmu.get_capability_flags()
 
         assert capabilities["needsExecutionTool"] is False
@@ -1068,7 +1066,7 @@ class Test_FMI3ME:
 
     def test_get_state_space_representation(self):
         """Test get_state_space_representation function, VanDerPol."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+        fmu = self._get_reference_fmu("VanDerPol")
         fmu.initialize()
 
         A, B, C, D = fmu.get_state_space_representation(A = True, B = True, C = True, D = True, use_structure_info = False)
