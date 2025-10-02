@@ -845,8 +845,70 @@ class TestFMI3LoadFMU:
         with pytest.raises(FMUException, match = re.escape(err_msg)):
             fmu.get_variable_initial("aaa")
 
-# get_variable_max
-# get_variable_min
+    def test_get_variable_min(self):
+        """Test get_variable_min."""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_min("float64") == -6.4
+        assert fmu.get_variable_min("float32") == np.float32(-3.2)
+
+        assert fmu.get_variable_min("int64") == -9223372036854775806
+        assert fmu.get_variable_min("int32") == -2147483646
+        assert fmu.get_variable_min("int16") == -32766
+        assert fmu.get_variable_min("int8") == -126
+        assert fmu.get_variable_min("uint64") == 2
+        assert fmu.get_variable_min("uint32") == 2
+        assert fmu.get_variable_min("uint16") == 2
+        assert fmu.get_variable_min("uint8") == 2
+
+        assert fmu.get_variable_min("enum") == 1
+
+    def test_get_variable_min_no_var(self):
+        """Test get_variable_min for non-existing variable."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        err_msg = "The variable aaa could not be found."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_min("aaa")
+
+    def test_get_variable_min_invalid_basetype(self):
+        """Test get_variable_min for a basetype that does not have minimums."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        err_msg = "Given variable type does not have a minimum."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_min("String_input")
+
+    def test_get_variable_max(self):
+        """Test get_variable_max."""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_max("float64") == 6.4
+        assert fmu.get_variable_max("float32") == np.float32(3.2)
+
+        assert fmu.get_variable_max("int64") == 9223372036854775805
+        assert fmu.get_variable_max("int32") == 2147483645
+        assert fmu.get_variable_max("int16") == 32765
+        assert fmu.get_variable_max("int8") == 125
+        assert fmu.get_variable_max("uint64") == 18446744073709551613
+        assert fmu.get_variable_max("uint32") == 4294967293
+        assert fmu.get_variable_max("uint16") == 65533
+        assert fmu.get_variable_max("uint8") == 253
+
+        assert fmu.get_variable_max("enum") == 2
+
+    def test_get_variable_max_no_var(self):
+        """Test get_variable_max for non-existing variable."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        err_msg = "The variable aaa could not be found."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_max("aaa")
+
+    def test_get_variable_max_invalid_basetype(self):
+        """Test get_variable_max for a basetype that does not have minimums."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        err_msg = "Given variable type does not have a maximum."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_max("String_input")
+
 # get_variable_nominal
 # get_variable_start
 # get_variable_unbounded

@@ -200,6 +200,10 @@ cdef extern from 'fmilib.h':
         pass
     ctypedef fmi3_xml_uint8_variable_t fmi3_import_uint8_variable_t
 
+    cdef struct fmi3_xml_enum_variable_t:
+        pass
+    ctypedef fmi3_xml_enum_variable_t fmi3_import_enum_variable_t
+
     cdef struct fmi3_xml_unit_t:
         pass
     ctypedef fmi3_xml_unit_t fmi3_import_unit_t
@@ -385,6 +389,7 @@ cdef extern from 'fmilib.h':
     fmi3_import_uint32_variable_t*  fmi3_import_get_variable_as_uint32 (fmi3_import_variable_t*)
     fmi3_import_uint16_variable_t*  fmi3_import_get_variable_as_uint16 (fmi3_import_variable_t*)
     fmi3_import_uint8_variable_t*   fmi3_import_get_variable_as_uint8  (fmi3_import_variable_t*)
+    fmi3_import_enum_variable_t*    fmi3_import_get_variable_as_enum   (fmi3_import_variable_t*)
 
     # INTEGER
 
@@ -436,6 +441,7 @@ cdef extern from 'fmilib.h':
     fmi3_uint32_t  fmi3_import_get_uint32_variable_max (fmi3_import_uint32_variable_t*)
     fmi3_uint16_t  fmi3_import_get_uint16_variable_max (fmi3_import_uint16_variable_t*)
     fmi3_uint8_t   fmi3_import_get_uint8_variable_max  (fmi3_import_uint8_variable_t*)
+    fmi3_int64_t   fmi3_import_get_enum_variable_max   (fmi3_import_enum_variable_t*)
     # min
     fmi3_float32_t fmi3_import_get_float32_variable_min(fmi3_import_float32_variable_t*)
     fmi3_float64_t fmi3_import_get_float64_variable_min(fmi3_import_float64_variable_t*)
@@ -447,6 +453,7 @@ cdef extern from 'fmilib.h':
     fmi3_uint32_t  fmi3_import_get_uint32_variable_min (fmi3_import_uint32_variable_t*)
     fmi3_uint16_t  fmi3_import_get_uint16_variable_min (fmi3_import_uint16_variable_t*)
     fmi3_uint8_t   fmi3_import_get_uint8_variable_min  (fmi3_import_uint8_variable_t*)
+    fmi3_int64_t   fmi3_import_get_enum_variable_min   (fmi3_import_enum_variable_t*)
     # nominal
     fmi3_float32_t fmi3_import_get_float32_variable_nominal(fmi3_import_float32_variable_t*)
     fmi3_float64_t fmi3_import_get_float64_variable_nominal(fmi3_import_float64_variable_t*)
@@ -461,6 +468,7 @@ cdef extern from 'fmilib.h':
     fmi3_uint32_t  fmi3_import_get_uint32_variable_start (fmi3_import_uint32_variable_t*)
     fmi3_uint16_t  fmi3_import_get_uint16_variable_start (fmi3_import_uint16_variable_t*)
     fmi3_uint8_t   fmi3_import_get_uint8_variable_start  (fmi3_import_uint8_variable_t*)
+    fmi3_int64_t   fmi3_import_get_enum_variable_start  (fmi3_import_enum_variable_t*);
     # unbounded
     fmi3_boolean_t fmi3_import_get_float32_variable_unbounded(fmi3_import_float32_variable_t*)
     fmi3_boolean_t fmi3_import_get_float64_variable_unbounded(fmi3_import_float64_variable_t*)

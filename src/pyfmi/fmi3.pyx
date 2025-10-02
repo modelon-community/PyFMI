@@ -2653,6 +2653,88 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef FMIL3.fmi3_initial_enu_t initial = FMIL3.fmi3_import_get_variable_initial(variable)
         return FMI3_Initial(initial)
 
+    cpdef get_variable_min(self, str variable_name):
+        """
+        Returns the minimum value for the given variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The minimum value for the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+
+        if base_type == FMIL3.fmi3_base_type_float64:
+            return FMIL3.fmi3_import_get_float64_variable_min(FMIL3.fmi3_import_get_variable_as_float64(variable))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            return FMIL3.fmi3_import_get_float32_variable_min(FMIL3.fmi3_import_get_variable_as_float32(variable))
+        elif base_type == FMIL3.fmi3_base_type_int64:
+            return FMIL3.fmi3_import_get_int64_variable_min(FMIL3.fmi3_import_get_variable_as_int64(variable))
+        elif base_type == FMIL3.fmi3_base_type_int32:
+            return FMIL3.fmi3_import_get_int32_variable_min(FMIL3.fmi3_import_get_variable_as_int32(variable))
+        elif base_type == FMIL3.fmi3_base_type_int16:
+            return FMIL3.fmi3_import_get_int16_variable_min(FMIL3.fmi3_import_get_variable_as_int16(variable))
+        elif base_type == FMIL3.fmi3_base_type_int8:
+            return FMIL3.fmi3_import_get_int8_variable_min(FMIL3.fmi3_import_get_variable_as_int8(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint64:
+            return FMIL3.fmi3_import_get_uint64_variable_min(FMIL3.fmi3_import_get_variable_as_uint64(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint32:
+            return FMIL3.fmi3_import_get_uint32_variable_min(FMIL3.fmi3_import_get_variable_as_uint32(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint16:
+            return FMIL3.fmi3_import_get_uint16_variable_min(FMIL3.fmi3_import_get_variable_as_uint16(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint8:
+            return FMIL3.fmi3_import_get_uint8_variable_min(FMIL3.fmi3_import_get_variable_as_uint8(variable))
+        elif base_type == FMIL3.fmi3_base_type_enum:
+            return FMIL3.fmi3_import_get_enum_variable_min(FMIL3.fmi3_import_get_variable_as_enum(variable))
+        else:
+            raise FMUException("Given variable type does not have a minimum.")
+
+    cpdef get_variable_max(self, str variable_name):
+        """
+        Returns the maximum value for the given variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The maximum value for the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+
+        if base_type == FMIL3.fmi3_base_type_float64:
+            return FMIL3.fmi3_import_get_float64_variable_max(FMIL3.fmi3_import_get_variable_as_float64(variable))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            return FMIL3.fmi3_import_get_float32_variable_max(FMIL3.fmi3_import_get_variable_as_float32(variable))
+        elif base_type == FMIL3.fmi3_base_type_int64:
+            return FMIL3.fmi3_import_get_int64_variable_max(FMIL3.fmi3_import_get_variable_as_int64(variable))
+        elif base_type == FMIL3.fmi3_base_type_int32:
+            return FMIL3.fmi3_import_get_int32_variable_max(FMIL3.fmi3_import_get_variable_as_int32(variable))
+        elif base_type == FMIL3.fmi3_base_type_int16:
+            return FMIL3.fmi3_import_get_int16_variable_max(FMIL3.fmi3_import_get_variable_as_int16(variable))
+        elif base_type == FMIL3.fmi3_base_type_int8:
+            return FMIL3.fmi3_import_get_int8_variable_max(FMIL3.fmi3_import_get_variable_as_int8(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint64:
+            return FMIL3.fmi3_import_get_uint64_variable_max(FMIL3.fmi3_import_get_variable_as_uint64(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint32:
+            return FMIL3.fmi3_import_get_uint32_variable_max(FMIL3.fmi3_import_get_variable_as_uint32(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint16:
+            return FMIL3.fmi3_import_get_uint16_variable_max(FMIL3.fmi3_import_get_variable_as_uint16(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint8:
+            return FMIL3.fmi3_import_get_uint8_variable_max(FMIL3.fmi3_import_get_variable_as_uint8(variable))
+        elif base_type == FMIL3.fmi3_base_type_enum:
+            return FMIL3.fmi3_import_get_enum_variable_max(FMIL3.fmi3_import_get_variable_as_enum(variable))
+        else:
+            raise FMUException("Given variable type does not have a maximum.")
+
     def get_model_version(self) -> str:
         """ Returns the version of the FMU. """
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
