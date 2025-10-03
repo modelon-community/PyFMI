@@ -491,6 +491,13 @@ class Test_Master_Result_Downsampling:
         np.testing.assert_array_equal(res[self.fmu1]["Float64_continuous_output"], expected_res)
         np.testing.assert_array_equal(res[self.fmu2]["Float64_continuous_output"], expected_res)
 
+    def test_master_alg_downsample_result_simple_value(self):
+        """Test setting a simple value to the 'result_downsampling_factor' option for the Master algorithm."""
+        res = self._sim_basic_simulation({'result_downsampling_factor': 2}, final_time = 10)
+        expected_res = [0, 2, 4, 6, 8, 10]
+        np.testing.assert_array_equal(res[self.fmu1]["Float64_continuous_output"], expected_res)
+        np.testing.assert_array_equal(res[self.fmu2]["Float64_continuous_output"], expected_res)
+
     @pytest.mark.parametrize("factor, expected_res",
         [
             (1, [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10]), # sanity

@@ -336,8 +336,8 @@ class MasterAlgOptions(OptionBase):
             Default: False
 
         result_downsampling_factor --
-            Dictionary {model: int > 0}.
-            A given model only stores every
+            int > 0 or dictionary {model: int > 0}.
+            A given model (all, if int value) only stores every
             <result_downsampling_factor>-th communication point.
             Start & end point are always included.
             Affects results storing from the 'store_step_before_update' option.
@@ -403,12 +403,6 @@ class MasterAlgOptions(OptionBase):
     def __setitem__(self, key, value):
         # OptionBase enforce same type (e.g., int, dict) for inputs; exceptions to this format here
         if key == "result_downsampling_factor" and not isinstance(value, dict):
-            warnings.warn(
-                "Use of simple value inputs for 'result_downsampling_factor' is deprecated, " \
-                "use a dictionary with models as keys instead.",
-                DeprecationWarning,
-                stacklevel=2
-            )
             # non-dict inputs are applied on all models
             factor_dict = {model: value for model in self.__getitem__("result_downsampling_factor").keys()}
             super().__setitem__(key, factor_dict)
