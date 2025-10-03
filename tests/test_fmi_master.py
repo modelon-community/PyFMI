@@ -20,6 +20,7 @@ import os
 import numpy as np
 import warnings
 import re
+import scipy.sparse as sps
 from pathlib import Path
 
 from pyfmi import Master
@@ -38,6 +39,18 @@ FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
 import warnings
 warnings.filterwarnings("ignore")
 
+class FMUModelCS2CapabilityOverwrite(FMUModelCS2):
+    """Dummy testing class with capability flags overwritten, for testing 
+    (in)valid option combinations that require certain capabilities."""
+    def get_capability_flags(self):
+        res = super().get_capability_flags()
+        res["canInterpolateInputs"] = True
+        res["providesDirectionalDerivatives"] = True
+        return res
+    
+    def _provides_directional_derivatives(self) -> bool:
+        return True
+    
 class Test_Master:
     def test_loading_models(self):
         model_sub1 = FMUModelCS2(os.path.join(cs2_xml_path, "LinearStability.SubSystem1.fmu"), _connect_dll=False)
@@ -396,119 +409,6 @@ class Test_Master:
         assert abs(res[model_sub1].final("x1")) > 100
         assert abs(res[model_sub2].final("x2")) > 100
 
-    def _verify_downsample_result(self, ref_trajs, test_trajs, steps, factor):
-        """Auxiliary function for result_downsampling_factor testing. 
-        Verify correct length and values of downsampled trajectories."""
-        # all steps, except last one are checked
-        exptected_result_size = (steps - 1)//factor + 2
-        assert len(test_trajs[0]) == exptected_result_size, f"expected result size: {exptected_result_size}, actual : {len(ref_trajs[0])}"
-        assert len(test_trajs[1]) == exptected_result_size, f"expected result size: {exptected_result_size}, actual : {len(ref_trajs[1])}"
-
-        # selection mask for reference result
-        downsample_indices = np.array([i%factor == 0 for i in range(steps+1)])
-        downsample_indices[0] = True
-        downsample_indices[-1] = True
-
-        np.testing.assert_equal(ref_trajs[0][downsample_indices], test_trajs[0])
-        np.testing.assert_equal(ref_trajs[1][downsample_indices], test_trajs[1])
-
-    def test_downsample_result(self):
-        """ Test multiple result_downsampling_factor value and verify the result. """
-        opts_update = {'result_downsampling_factor': 1}
-        models, connections = self._load_basic_simulation()
-        ref_res = self._sim_basic_simulation(models, connections, opts_update)
-
-        ref_traj_length = 2001
-        assert len(ref_res[models[0]]['time']) == ref_traj_length
-        assert len(ref_res[models[1]]['time']) == ref_traj_length
-
-        ref_res_trajs = (ref_res[models[0]]['x1'].copy(), ref_res[models[1]]['x2'].copy())
-
-        for f in [2, 3, 4, 5, 10, 100, 250, 600, 3000]:
-            opts_update = {'result_downsampling_factor': f}
-            models, connections = self._load_basic_simulation()
-            test_res = self._sim_basic_simulation(models, connections, opts_update)
-
-            test_res_trajs = (test_res[models[0]]['x1'], test_res[models[1]]['x2'])
-            self._verify_downsample_result(ref_res_trajs, test_res_trajs, 2000, f)
-
-    @pytest.mark.parametrize("value", [-10, -20, -1, 0])
-    def test_downsample_error_check_invalid_value(self, value):
-        """ Verify we get an exception if the option is set to anything less than 1. """
-        models, connections = self._load_basic_simulation()
-
-        expected_substr = "Valid values for option 'result_downsampling_factor' are only positive integers"
-        with pytest.raises(FMUException, match = expected_substr):
-            self._sim_basic_simulation(models, connections, {'result_downsampling_factor': value})
-
-    @pytest.mark.parametrize("value", [1/2, 1/3, "0.5", False])
-    def test_error_check_invalid_value(self, value):
-        """ Verify we get an exception if the option is set to anything that is not an integer. """
-        models, connections = self._load_basic_simulation()
-
-        expected_substr = "Option 'result_downsampling_factor' must be an integer,"
-        with pytest.raises(FMUException, match = expected_substr):
-            self._sim_basic_simulation(models, connections, {'result_downsampling_factor': value})
-    
-    @pytest.mark.skipif(True, reason = "Error controlled simulation only supported if storing FMU states are available.")
-    def test_error_controlled_with_downsampling(self):
-        models, connections = self._load_basic_simulation()
-        uptate_options = {'result_downsampling_factor': 2,
-                          'error_controlled': True}
-        msg = "Result downsampling not supported for error controlled simulation, no downsampling will be performed."
-        with pytest.warns(UserWarning, match = msg):
-            self._sim_basic_simulation(models, connections, uptate_options)
-
-    def test_downsample_result_with_store_step_before_update(self):
-        """ Test result_downsampling_factor with store_step_before_update. """
-        opts_update = {'result_downsampling_factor': 1,
-                       'store_step_before_update': True}
-        models, connections = self._load_basic_simulation()
-        ref_res = self._sim_basic_simulation(models, connections, opts_update)
-        # default setting = 2000 steps
-
-        assert len(ref_res[models[0]]['time']) == 4001
-        assert len(ref_res[models[1]]['time']) == 4001
-
-        ref_res_traj_1 = ref_res[models[0]]['x1'].copy()[1:]
-        ref_res_traj_2 = ref_res[models[1]]['x2'].copy()[1:]
-
-        # store_step_before_update points
-        ref_res_traj_1_update = ref_res_traj_1[::2]
-        ref_res_traj_2_update = ref_res_traj_2[::2]
-
-        # ordinary solution points (minus start point)
-        ref_res_traj_1_base = ref_res_traj_1[1::2]
-        ref_res_traj_2_base = ref_res_traj_2[1::2]
-
-        # down-sampled variant
-        opts_update = {'result_downsampling_factor': 2,
-                       'store_step_before_update': True}
-        models, connections = self._load_basic_simulation()
-        test_res = self._sim_basic_simulation(models, connections, opts_update)
-
-        assert len(test_res[models[0]]['time']) == 2001
-        assert len(test_res[models[1]]['time']) == 2001
-
-        test_res_traj_1 = test_res[models[0]]['x1'].copy()[1:]
-        test_res_traj_2 = test_res[models[1]]['x2'].copy()[1:]
-
-        # store_step_before_update points
-        test_res_traj_1_update = test_res_traj_1[::2]
-        test_res_traj_2_update = test_res_traj_2[::2]
-
-        # ordinary solution points (minus start point)
-        test_res_traj_1_base = test_res_traj_1[1::2]
-        test_res_traj_2_base = test_res_traj_2[1::2]
-
-        # compare; [1::2] is the downsampling mask, since start-point is not included
-        # and lengths align on final point
-        np.testing.assert_equal(ref_res_traj_1_update[1::2], test_res_traj_1_update)
-        np.testing.assert_equal(ref_res_traj_2_update[1::2], test_res_traj_2_update)
-
-        np.testing.assert_equal(ref_res_traj_1_base[1::2], test_res_traj_1_base)
-        np.testing.assert_equal(ref_res_traj_2_base[1::2], test_res_traj_2_base)
-
     @pytest.mark.parametrize("input_traj",
         [
             np.transpose( # array variant
@@ -548,3 +448,380 @@ class Test_Master:
 
         np.testing.assert_array_equal(res[0]["Float64_discrete_output"], [0, 0, 0, 0, 0, 0])
         np.testing.assert_array_equal(res[1]["Float64_discrete_output"], [0, 2, 4, 6, 8, 10])
+
+class Test_Master_Result_Downsampling:
+    """Tests related to the 'result_downsampling' option of the Master algorithm."""
+    @classmethod
+    def setup_class(cls):
+        """Called with setup of class, once."""
+        cls.fmu1 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        cls.fmu2 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        cls.models = [cls.fmu1, cls.fmu2]
+        connections = [
+            (cls.fmu1, "Float64_continuous_output", cls.fmu2, "Float64_continuous_input"),
+            (cls.fmu1, "Float64_discrete_output", cls.fmu2, "Float64_discrete_input"),
+        ]
+        cls.master = Master(cls.models, connections)
+
+    def _sim_basic_simulation(self, opts_update, final_time = 10) -> dict:
+        opts = self.master.simulate_options().copy()
+        opts["step_size"] = 1
+        opts.update(opts_update)
+        self.master.reset()
+        # use an input to ensure non-trivial result
+        input_vars = [(self.fmu1, "Float64_continuous_input")]
+        input_object = [input_vars, lambda t: [t]]
+        return self.master.simulate(0, final_time, input = input_object, options=opts)
+
+    @pytest.mark.parametrize("factor, expected_res",
+        [
+            (1, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), # sanity check
+            (2, [0, 2, 4, 6, 8, 10]), # aligned with steps
+            (3, [0, 3, 6, 9, 10]), # not aligned
+            (7, [0, 7, 10]),
+            (10, [0, 10]), # equal to number of steps
+            (20, [0, 10]), # larger
+        ]
+    )
+    def test_downsample_result(self, factor, expected_res):
+        """ Test multiple result_downsampling_factor value and verify the result. """
+        factors = {self.fmu1: factor, self.fmu2: factor}
+        res = self._sim_basic_simulation({'result_downsampling_factor': factors}, final_time = 10)
+        np.testing.assert_array_equal(res[self.fmu1]["Float64_continuous_output"], expected_res)
+        np.testing.assert_array_equal(res[self.fmu2]["Float64_continuous_output"], expected_res)
+
+    def test_master_alg_downsample_result_simple_value(self):
+        """Test setting a simple value to the 'result_downsampling_factor' option for the Master algorithm."""
+        res = self._sim_basic_simulation({'result_downsampling_factor': 2}, final_time = 10)
+        expected_res = [0, 2, 4, 6, 8, 10]
+        np.testing.assert_array_equal(res[self.fmu1]["Float64_continuous_output"], expected_res)
+        np.testing.assert_array_equal(res[self.fmu2]["Float64_continuous_output"], expected_res)
+
+    @pytest.mark.parametrize("factor, expected_res",
+        [
+            (1, [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10]), # sanity
+            (2, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), # aligned with steps
+            (3, [0, 2, 3, 5, 6, 8, 9, 10]), # not aligned
+            (7, [0, 6, 7, 10]),
+            (10, [0, 9, 10]), # equal to number of steps
+            (20, [0, 10]), # larger
+        ]
+    )
+    def test_with_store_step_before_update(self, factor, expected_res):
+        """ Test result_downsampling_factor with store_step_before_update. """
+        opts_update = {'result_downsampling_factor': {self.fmu1: factor, self.fmu2: factor},
+                       'store_step_before_update': True}
+        res = self._sim_basic_simulation(opts_update, final_time = 10)
+        np.testing.assert_array_equal(res[self.fmu1]["Float64_continuous_output"], expected_res)
+        np.testing.assert_array_equal(res[self.fmu2]["Float64_continuous_output"], expected_res)
+
+    @pytest.mark.parametrize("value", [-10, 0])
+    def test_invalid_value_non_positive_int(self, value):
+        """ Verify we get an exception if the option is set to anything less than 1. """
+        expected_substr = f"Valid values in option 'result_downsampling_factor' are only positive integers, got: '{value}'."
+        with pytest.raises(FMUException, match = re.escape(expected_substr)):
+            self._sim_basic_simulation({'result_downsampling_factor': {self.fmu1: value}})
+
+    @pytest.mark.parametrize("value", [1/2, "0.5", False])
+    def test_invalid_type(self, value):
+        """ Verify we get an exception if the option is set to anything that is not an integer. """
+        expected_substr = f"Values to 'result_downsampling_factor' must be an integer or dictionary with integer values, got: '{type(value)}'."
+        with pytest.raises(FMUException, match = re.escape(expected_substr)):
+            self._sim_basic_simulation({'result_downsampling_factor': {self.fmu1: value}})
+    
+    def test_error_controlled(self):
+        uptate_options = {'result_downsampling_factor': {self.fmu1: 2, self.fmu2: 2},
+                          'error_controlled': True,
+                          'rtol': 10}
+        msg = "Result downsampling not supported for error controlled simulation, no downsampling will be performed."
+        with pytest.warns(UserWarning, match = msg):
+            self._sim_basic_simulation(uptate_options, final_time = 1)
+
+    def test_different_value_per_model(self):
+        """Test setting different values per model."""
+        factors = {self.fmu1: 2, self.fmu2: 3}
+        res = self._sim_basic_simulation({'result_downsampling_factor': factors})
+        np.testing.assert_array_equal(
+            res[self.fmu1]["Float64_continuous_output"], 
+            [0, 2, 4, 6, 8, 10]
+        )
+        np.testing.assert_array_equal(
+            res[self.fmu2]["Float64_continuous_output"], 
+            [0, 3, 6, 9, 10]
+        )
+
+    def test_partial(self):
+        """Test setting values only for some models."""
+        factors = {self.fmu2: 3}
+        res = self._sim_basic_simulation({'result_downsampling_factor': factors})
+        np.testing.assert_array_equal(
+            res[self.fmu1]["Float64_continuous_output"], 
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        )
+        np.testing.assert_array_equal(
+            res[self.fmu2]["Float64_continuous_output"], 
+            [0, 3, 6, 9, 10]
+        )
+
+    def test_dict_invalid_key(self):
+        """Test using a dictionary as input with invalid key."""
+        factors = {"a": 2}
+        expected_substr = "Invalid key 'a' in 'result_downsampling_factor' option dictionary, not a model."
+        with pytest.raises(FMUException, match = re.escape(expected_substr)):
+            self._sim_basic_simulation({'result_downsampling_factor': factors})
+
+class Test_Master_Step_Size_Downsampling:
+    """Tests on the 'step_size_downsampling_factor' option of the Master algorithm."""
+    @classmethod
+    def setup_class(cls):
+        """Called with setup of class, once."""
+        cls.fmu1 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        cls.fmu2 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [cls.fmu1, cls.fmu2]
+        connections = [
+            (cls.fmu1, "Float64_continuous_output", cls.fmu2, "Float64_continuous_input"),
+            (cls.fmu1, "Float64_discrete_output", cls.fmu2, "Float64_discrete_input"),
+        ]
+        cls.master = Master(models, connections)
+
+    def setup_method(self, method):
+        """Called with every test method."""
+        self.master.reset()
+
+    def test_with_error_control(self):
+        """Test 'step_size_downsampling_factor' + 'error_controlled'."""
+        opts = self.master.simulate_options()
+        opts["error_controlled"] = True
+        opts["step_size_downsampling_factor"] = {self.fmu1: 3, self.fmu2: 2}
+        opts["step_size"] = 0.5
+
+        msg = "Step-size downsampling not supported for error controlled simulation, no downsampling will be performed."
+        with pytest.warns(UserWarning, match = re.escape(msg)):
+            self.master.simulate(options = opts)
+
+    def test_extrapolation_order(self):
+        """Test combination with the 'extrapolation_order' option."""
+        fmu1 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2]
+        connections = [(fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input")]
+        master = Master(models, connections)
+        opts = master.simulate_options()
+        opts["step_size_downsampling_factor"] = {fmu1: 3, fmu2: 2}
+        opts["extrapolation_order"] = 1
+        opts["step_size"] = 0.5
+
+        err_msg = "Use of 'step_size_downsampling_factor' with 'extrapolation_order' > 0 not supported."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            master.simulate(options = opts)
+
+    def test_linear_correction(self):
+        """Test combination with the 'linear_correction' option."""
+        fmu1 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2]
+        connections = [(fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input")]
+        master = Master(models, connections)
+        opts = master.simulate_options()
+        opts["step_size_downsampling_factor"] = {fmu1: 3, fmu2: 2}
+        opts["linear_correction"] = True
+        opts["step_size"] = 0.5
+
+        err_msg = "Use of 'step_size_downsampling_factor' with 'linear_correction' not supported."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            master.simulate(options = opts)
+
+    def test_check_invalid_option_input_non_dict_via_simulate_options(self):
+        """Test invalid inputs to the option, not a dictionary."""
+        opts = self.master.simulate_options()
+        err_msg = "The options in 'step_size_downsampling_factor' needs to be provided as a dictionary."
+        with pytest.raises(UnrecognizedOptionError, match = re.escape(err_msg)):
+            opts["step_size_downsampling_factor"] = 2
+
+    def test_check_invalid_option_input_non_dict_via_dictionary(self):
+        """Test invalid inputs to the option, not a dictionary."""
+        err_msg = "The options in 'step_size_downsampling_factor' needs to be provided as a dictionary."
+        with pytest.raises(UnrecognizedOptionError, match = re.escape(err_msg)):
+            self.master.simulate(options = {"step_size_downsampling_factor": 1})
+
+    @pytest.mark.parametrize("values, err_msg",
+        [
+            ([0.5, 1], "Values in 'step_size_downsampling_factor' option must be of type integer, got: '<class 'float'>'."),
+            (["aaa", 1], "Values in 'step_size_downsampling_factor' option must be of type integer, got: '<class 'str'>'."),
+            ([-1, 1], "Valid values for option 'step_size_downsampling_factor' are positive integers, got: '-1'."),
+        ]
+    )
+    def test_check_invalid_option_input_dict_values(self, values, err_msg):
+        """Test invalid inputs to the option, not a dictionary."""
+        opts = self.master.simulate_options()
+        opts["step_size_downsampling_factor"] = {self.fmu1: values[0], self.fmu2: values[1]}
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            self.master.simulate(options = opts)
+
+    def test_check_invalid_option_invalid_key(self):
+        """Test invalid inputs to the option, not a dictionary."""
+        opts = self.master.simulate_options()
+        opts["step_size_downsampling_factor"] = {'a': 1, 'b': 1}
+        err_msg = "Invalid key 'a' in 'step_size_downsampling_factor' option dictionary, not a model."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            self.master.simulate(options = opts)
+
+    def test_partial_input(self):
+        """Test that partial input, i.e., not providing a value for every models is supported."""
+        opts = self.master.simulate_options()
+        opts["step_size_downsampling_factor"] = {self.fmu1: 2}
+        opts["step_size"] = 0.25
+        self.master.simulate(options = opts)
+
+    @pytest.mark.parametrize("input_var_name, output_var_name", 
+        [
+            ("Float64_continuous_input", "Float64_continuous_output"),
+            ("Float64_discrete_input", "Float64_discrete_output"),
+        ]
+    )
+    @pytest.mark.parametrize("rate1, rate2, expected_res1, expected_res2",
+        [
+            # Sanity check
+            (1, 1,
+             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            ),
+            # external input only sampled every other step
+            (2, 1,
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11],
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11]
+            ),
+            # connection only updated every other step
+            (1, 2,
+             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11]
+            ),
+            # non-aligned test 1
+            (2, 3,
+             [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11],
+             [1, 1, 1, 3, 3, 3, 7, 7, 7, 9, 9]
+            ),
+            # non-aligned test 2
+            (3, 2,
+             [1, 1, 1, 4, 4, 4, 7, 7, 7, 10, 10],
+             [1, 1, 1, 1, 4, 4, 7, 7, 7, 7, 10]
+            ),
+        ]
+    )
+    def test_two_feedthrough_system(self, input_var_name, output_var_name, 
+                                    rate1, rate2, expected_res1, expected_res2):
+        """Test 'step_size_downsampling_factor' for 2 Feedthrough models + 1 external input."""
+        t_start, t_final = 0, 10
+        opts = self.master.simulate_options()
+        opts["step_size"] = 1
+        opts["step_size_downsampling_factor"] = {self.fmu1: rate1, self.fmu2: rate2}
+
+        # Generate input
+        input_object = [
+            [(self.fmu1, input_var_name)],
+            lambda t: [t + 1] # not starting at zero to test correct values taken with initialization
+        ]
+
+        res = self.master.simulate(t_start, t_final, options = opts, input = input_object)
+        np.testing.assert_array_equal(res[0][output_var_name], expected_res1)
+        np.testing.assert_array_equal(res[1][output_var_name], expected_res2)
+
+    @pytest.mark.parametrize("input_var_name, output_var_name", 
+        [
+            ("Float64_continuous_input", "Float64_continuous_output"),
+            ("Float64_discrete_input", "Float64_discrete_output"),
+        ]
+    )
+    def test_three_feedthrough_system(self, input_var_name, output_var_name):
+        """Test 'step_size_downsampling_factor' for 3 Feedthrough models + 1 external input,
+        where 2 models connect to the same output."""
+        fmu1 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu3 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2, fmu3]
+        connections = [
+            (fmu1, output_var_name, fmu2, input_var_name),
+            (fmu1, output_var_name, fmu3, input_var_name)]
+        master = Master(models, connections)
+
+        t_start, t_final = 0, 10
+        opts = master.simulate_options()
+        opts["step_size"] = 1
+        opts["step_size_downsampling_factor"] = {fmu1: 2, fmu2: 3, fmu3: 4}
+
+        # Generate input
+        input_object = [
+            [(fmu1, input_var_name)],
+            lambda t: [t + 1] # not starting at zero to test correct values taken with initialization
+        ]
+
+        res = master.simulate(t_start, t_final, options = opts, input = input_object)
+        expected_res1 = np.array([1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11])
+        expected_res2 = np.array([1, 1, 1, 3, 3, 3, 7, 7, 7, 9, 9])
+        expected_res3 = np.array([1, 1, 1, 1, 5, 5, 5, 5, 9, 9, 9])
+        np.testing.assert_array_equal(res[0][output_var_name], expected_res1)
+        np.testing.assert_array_equal(res[1][output_var_name], expected_res2)
+        np.testing.assert_array_equal(res[2][output_var_name], expected_res3)
+
+    def test_with_store_step_before_update(self):
+        """Test interaction with 'store_step_before_update' option."""
+        t_start, t_final = 0, 10
+        opts = self.master.simulate_options()
+        opts["step_size"] = 1
+        opts["store_step_before_update"] = True
+        opts["step_size_downsampling_factor"] = {self.fmu1: 3, self.fmu2: 2}
+
+        # Generate input
+        input_object = [
+            [(self.fmu1, "Float64_continuous_input")],
+            lambda t: [t + 1] # not starting at zero to test correct values taken with initialization
+        ]
+
+        res = self.master.simulate(t_start, t_final, options = opts, input = input_object)
+        np.testing.assert_array_equal(
+            res[0]["Float64_continuous_output"], 
+        #   [1, 1, 1, X, 4, 4, 4, X, 7, 7, 7, X, 10, last = 10], # X = before update value
+            [1, 1, 1, 1, 4, 4, 4, 4, 7, 7, 7, 7, 10, 10]
+        )
+        np.testing.assert_array_equal(
+            res[1]["Float64_continuous_output"], 
+        #   [1, 1, X, 1, 1, X, 4, 4, X, 7, 7, X, 7, 7, X, last = 10], # X = before update value
+            [1, 1, 1, 1, 1, 1, 4, 4, 4, 7, 7, 7, 7, 7, 7, 10]
+        )
+    
+    def test_with_logging(self):
+        """Test the warning one gets when using 'logging' + 'step_size_downsampling_factor'."""
+        fmu1 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2CapabilityOverwrite(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        class MasterX(Master):
+            """Dummy Master class for testing that bypasses FMU calls for evaluating
+            global A, B, C, D matrices."""
+            def compute_global_A(self):
+                return sps.csr_matrix(np.array([1.]))
+            def compute_global_B(self):
+                return sps.csr_matrix(np.array([2.]))
+            def compute_global_C(self):
+                return sps.csr_matrix(np.array([3.]))
+            def compute_global_D(self):
+                return sps.csr_matrix(np.array([4.]))
+
+        models = [fmu1, fmu2]
+        connections = [(fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input")]
+        master = MasterX(models, connections)
+        opts = master.simulate_options()
+        t_start, t_final = 0, 1
+        opts["step_size"] = 0.5
+        opts["logging"] = True
+        opts["step_size_downsampling_factor"] = {fmu1: 2}
+
+        msg = "Both 'step_size_downsampling_factor' and 'logging' are used. " \
+              "Logging of A, B, C, and D matrices will be done on the global step-size." \
+              "Actual values may no longer be sensible."
+        with pytest.warns(UserWarning, match = re.escape(msg)):
+            master.simulate(t_start, t_final, options = opts)
