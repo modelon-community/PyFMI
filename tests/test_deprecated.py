@@ -19,13 +19,10 @@
 # Also shortlist for any candidates to be removed
 
 import pytest
-import re
 from pathlib import Path
 
 from pyfmi import load_fmu
 from pyfmi.common.io import ResultStorage
-from pyfmi.master import Master
-from pyfmi.fmi2 import FMUModelCS2
 
 this_dir = Path(__file__).parent.absolute()
 FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'

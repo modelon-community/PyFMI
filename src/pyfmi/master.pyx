@@ -350,7 +350,8 @@ class MasterAlgOptions(OptionBase):
             Dictionary {model: int > 0}. 
             A given model only updates its inputs and outputs every
             <step_size_downsampling_factor>-th communication point.
-            The following options values is not supported together with the step-size downsampling option:
+            The following options values are not supported together with 
+            the step_size_downsampling_factor option:
                 'error_controlled' = True
                 'linear_correction' = True
                 'extrapolation_order' > 0
@@ -390,7 +391,8 @@ class MasterAlgOptions(OptionBase):
         "step_size_downsampling_factor" : dict((model, 1) for model in master.models),
         }
         super(MasterAlgOptions,self).__init__(_defaults)
-        # Can be removed once we removed separate treatment of result_downsampling_factor
+        # Exceptions to the above types need to handled here, e.g., allowing both
+        # int & dict values for a given option
         result_downsampling_factor = None
         for a in args:
             if "result_downsampling_factor" in a:
