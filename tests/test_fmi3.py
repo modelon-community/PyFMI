@@ -909,7 +909,36 @@ class TestFMI3LoadFMU:
         with pytest.raises(FMUException, match = re.escape(err_msg)):
             fmu.get_variable_max("String_input")
 
-# get_variable_nominal
+    def test_get_variable_nominal(self):
+        """Test get_variable_nominal."""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_nominal("float64") == 0.1
+        assert fmu.get_variable_nominal("float32") == np.float32(0.2)
+
+    def test_get_variable_nominal_invalid_basetype(self):
+        """Test get_variable_nominal for a basetype that does not have nominals."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        err_msg = "Given variable type does not have a nominal."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_nominal("String_input")
+
+    def test_get_variable_nominal_by_valueref(self):
+        """Test get_variable_nominal_by_valueref."""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_nominal_by_valueref(1) == 0.1
+        assert fmu.get_variable_nominal_by_valueref(2) == np.float32(0.2)
+
+    def test_get_variable_nominal_by_valueref_invalid_basetype(self):
+        """Test get_variable_nominal_by_valueref for a basetype that does not have nominals."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        err_msg = "Given variable type does not have a nominal."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_nominal_by_valueref(11)
+
+# TODO: invalid override?
+
 # get_variable_start
 # get_variable_unbounded
 
