@@ -7,8 +7,7 @@
       * Removed requirement that categories to be set are available via `get_log_categories()`.
     * Added new option `step_size_downsampling_factor` to `Master` algorithm.
       This allows setting reduced input/output update rates on a per-model basis.
-    * `result_downsampling_factor` to `Master` algorithm now  on a per-model basis. 
-      Deprecated used of integer values to this option. 
+    * Enabled use ot `result_downsampling_factor` to `Master` algorithm on a per-model basis. 
 
 --- PyFMI-2.18.3 ---
     * Fixed a bug introduced in PyFMI 2.18.0 causing incorrect result storing for `boolean` and `enum` variables
