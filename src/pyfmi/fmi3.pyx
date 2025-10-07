@@ -2680,18 +2680,21 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         """
         return self._nContinuousStates, self._nEventIndicators
 
-    def get_default_experiment_start_time(self):
+    def get_default_experiment_start_time(self) -> float:
         """ Returns the default experiment start time as defined in modelDescription.xml. """
         return FMIL3.fmi3_import_get_default_experiment_start(self._fmu)
 
-    def get_default_experiment_stop_time(self):
+    def get_default_experiment_stop_time(self) -> float:
         """ Returns the default experiment stop time as defined in modelDescription.xml. """
         return FMIL3.fmi3_import_get_default_experiment_stop(self._fmu)
 
-    def get_default_experiment_tolerance(self):
+    def get_default_experiment_tolerance(self) -> float:
         """ Returns the default experiment tolerance as defined in modelDescription.xml. """
         return FMIL3.fmi3_import_get_default_experiment_tolerance(self._fmu)
 
+    def get_default_experiment_step(self) -> float:
+        """Returns the default experiment step-size as defined in modelDescription.xml."""
+        return FMIL3.fmi3_import_get_default_experiment_step_size(self._fmu)
 
     def get_tolerances(self):
         """ Returns the relative and absolute tolerances. If the relative tolerance

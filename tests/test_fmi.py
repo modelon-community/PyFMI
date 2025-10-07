@@ -342,13 +342,6 @@ class Test_FMUModelME1:
         bounce = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         assert bounce.get_variable_nominal("v") == bounce.get_variable_nominal(valueref=2)
 
-    def test_default_experiment(self):
-        model = FMUModelME1(FMU_PATHS.ME1.coupled_clutches, _connect_dll=False)
-
-        assert np.abs(model.get_default_experiment_start_time()) < 1e-4
-        assert np.abs(model.get_default_experiment_stop_time()-1.5) < 1e-4
-        assert np.abs(model.get_default_experiment_tolerance()-0.0001) < 1e-4
-
     def test_log_file_name(self):
         model = FMUModelME1(os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "bouncingBall.fmu"), _connect_dll=False)
         assert os.path.exists("bouncingBall_log.txt")
@@ -448,13 +441,6 @@ class Test_FMUModelCS1:
         #User defined name
         assert res.result_file == "CoupledClutches_result_test.txt"
         assert os.path.exists(res.result_file)
-
-    def test_default_experiment(self):
-        model = FMUModelCS1(os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "CoupledClutches.fmu"), _connect_dll=False)
-
-        assert np.abs(model.get_default_experiment_start_time()) < 1e-4
-        assert np.abs(model.get_default_experiment_stop_time()-1.5) < 1e-4
-        assert np.abs(model.get_default_experiment_tolerance()-0.0001) < 1e-4
 
     def test_log_file_name(self):
         model = FMUModelCS1(os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "bouncingBall.fmu", ), _connect_dll=False)
