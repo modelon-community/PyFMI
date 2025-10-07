@@ -8,6 +8,7 @@
     * Added new option `step_size_downsampling_factor` to `Master` algorithm.
       This allows setting reduced input/output update rates on a per-model basis.
     * Enabled use of `result_downsampling_factor` to `Master` algorithm on a per-model basis. 
+    * Fixed an issue where `FMUModel(CS|ME)1.get_author()` returned a byte string, rather than a normal string.
 
 --- PyFMI-2.18.3 ---
     * Fixed a bug introduced in PyFMI 2.18.0 causing incorrect result storing for `boolean` and `enum` variables
