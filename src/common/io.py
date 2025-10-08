@@ -28,6 +28,7 @@ from typing import Union
 from shutil import disk_usage
 import abc
 import warnings
+import functools
 
 import numpy as np
 import scipy
@@ -2989,6 +2990,270 @@ class ResultHandlerBinaryFile(ResultHandler):
         subclass of ResultBase.
         """
         return ResultDymolaBinary(self.file_name)
+    
+class _DelayedVarReader4Diags(DelayedVarReader4):
+    def read_sub_array(self, hdr, copy=True):
+        if hdr.name == b"data_2":
+            return {"section": "data_2",
+                   "file_position": self.mat_stream.tell(),
+                   "sizeof_type": hdr.dtype.itemsize,
+                   "nbr_points": hdr.dims[1],
+                   "nbr_variables": hdr.dims[0]}
+        elif hdr.name == b"data_3":
+            return {"section": "data_3",
+                   "file_position": self.mat_stream.tell(),
+                   "sizeof_type": hdr.dtype.itemsize,
+                   "nbr_points": hdr.dims[1],
+                   "nbr_variables": hdr.dims[0]}
+        elif hdr.name == b"name":
+            return {"section": "name",
+                   "file_position": self.mat_stream.tell(),
+                   "sizeof_type": hdr.dtype.itemsize,
+                   "max_length": hdr.dims[0],
+                   "nbr_variables": hdr.dims[1]}
+        elif hdr.name == b"nameExtra":
+            return {"section": "nameExtra",
+                   "file_position": self.mat_stream.tell(),
+                   "sizeof_type": hdr.dtype.itemsize,
+                   "max_length": hdr.dims[0],
+                   "nbr_variables": hdr.dims[1]}
+        else:
+            arr = super().read_sub_array(hdr, copy)
+            return arr
+
+class _DelayedVariableLoadDiags(DelayedVariableLoad):
+    def initialize_read(self):
+        self.dtypes = convert_dtypes(mdtypes_template, self.byte_order)
+        self._matrix_reader = _DelayedVarReader4Diags(self)
+
+class ResultHandlerCalcDiags(ResultReader):
+    def __init__(self, fname):
+        """
+        Load a .mat result file with diagnostics data explicitly written to data_3.
+
+        Parameters::
+
+            fname --
+                Name of file or a file object supported by scipy.io.loadmat,
+                which the result is written to.
+        """
+
+        if isinstance(fname, str):
+            self._fname = fname
+        elif hasattr(fname, "name") and os.path.isfile(fname.name):
+            self._fname = fname.name
+
+        data_sections = [
+            "name",
+            "dataInfo",
+            "data_2", 
+            "nameExtra",
+            "dataInfoExtra",
+            "data_3"
+            ]
+        # TODO: Description, DescriptionExtra, necessary?
+        with open(self._fname, "rb") as f:
+            delayed = _DelayedVariableLoadDiags(f, chars_as_strings=False)
+            self.raw: dict = delayed.get_variables(variable_names = data_sections)
+        self._contains_diagnostic_data: bool = ("data_3" in self.raw) and ("dataInfoExtra" in self.raw) and ("nameExtra" in self.raw)
+
+        self._calc_diags_names : dict = {} # TODO: Redundant when explicitly exporting calculated diagnostics
+        self._calc_diags_utils : DynamicDiagnosticsUtils = DynamicDiagnosticsUtils() # TODO: Redundant when explicitly exporting calculated diagnostics
+
+        self._data_2_info: dict = self.raw["data_2"]
+        self._name_info: dict = self.raw["name"]
+        self._dataInfo: dict = self.raw["dataInfo"]
+        if self._contains_diagnostic_data:
+            self._name_info_extra: dict = self.raw["nameExtra"]
+            self._dataInfoExtra: dict = self.raw["dataInfoExtra"]
+            self._data_3_info: dict = self.raw["data_3"]
+            self._data_3: dict = {} # TODO: Redundant when we start explicitly saving calculated diagnostics
+
+    @functools.cache
+    def _get_variable_name_to_index_dict(self) -> dict[str, int]:
+        name_dict = fmi_util.read_name_list(
+            encode(self._fname),
+            self._name_info["file_position"],
+            int(self._name_info["nbr_variables"]),
+            int(self._name_info["max_length"])
+        )
+        return {decode(k): v for k, v in name_dict.items()}
+    
+    @functools.cache
+    def _get_diagnostics_variable_name_to_index_dict(self) -> dict[str, int]:
+        name_dict_diags = fmi_util.read_name_list(
+            encode(self._fname),
+            self._name_info_extra["file_position"],
+            int(self._name_info_extra["nbr_variables"]),
+            int(self._name_info_extra["max_length"])
+        )
+        return {decode(k): v for k, v in name_dict_diags.items()}
+    
+    @functools.cache
+    def _get_diagnostics_variables_names_calculated(self) -> list[str]:
+        utils: DynamicDiagnosticsUtils = DynamicDiagnosticsUtils()
+        diag_variables = self._get_diagnostics_variable_name_to_index_dict()
+        return [k for k in utils.prepare_calculated_diagnostics({k: 0 for k in diag_variables})]
+    
+    @functools.cache
+    def _get_variable_names(self) -> list[str]:
+        if self._contains_diagnostic_data:
+            return list(self._get_variable_name_to_index_dict().keys()) + \
+                list(self._get_diagnostics_variable_name_to_index_dict().keys()) + \
+                self._get_diagnostics_variables_names_calculated()
+        else:
+            return list(self._get_variable_name_to_index_dict().keys())
+
+    def get_variable_names(self) -> list[str]:
+        return self._get_variable_names()
+    
+    def _get_data_index_mat(self, variable_name: str) -> tuple[int, int]:
+        """ Returns the data index and matrix ID for given variable name. """
+        if variable_name in self._get_variable_name_to_index_dict():
+            variable_index = self._get_variable_name_to_index_dict().get(variable_name)
+            data_mat = self._dataInfo[0][variable_index]
+            data_index = abs(self._dataInfo[1][variable_index]) - 1 # abs due to alias
+            if data_mat == 0:
+                data_mat = 2 if len(self.raw['data_2']) > 0 else 1
+        elif variable_name in self._get_diagnostics_variable_name_to_index_dict():
+            variable_index = self._get_diagnostics_variable_name_to_index_dict().get(variable_name)
+            data_mat = 3
+            data_index = self._dataInfoExtra[1][variable_index] - 1
+        else: 
+            raise KeyError("Could not find variable")
+        return data_index, data_mat
+    
+    @functools.cached_property
+    def _data_1(self):
+        """Non time-varying values, i.e., constants and fixed parameters."""
+        return scipy.io.loadmat(self._fname,chars_as_strings=False, variable_names=["data_1"])["data_1"]
+
+    def get_trajectory(self, name: str) -> Trajectory:
+        """
+        Retrieve the data sequence for a variable with a given name.
+
+        Parameters::
+
+            name --
+                Name of the variable.
+
+        Returns::
+
+            A Trajectory object containing the time vector and the data vector
+            of the variable.
+        """
+        if not self._contains_diagnostic_data:
+            time = self._get_trajectory(0)
+        else:
+            # Since we interpolate data if diagnostics is enabled
+            time = self._get_diagnostics_trajectory(0)
+
+        if name == 'time' or name == 'Time':
+            return Trajectory(time, time)
+        elif self._contains_diagnostic_data and name in self._get_diagnostics_variables_names_calculated():
+            # TODO: Redundant when we start explicitly saving calculated diagnostics
+            return Trajectory(time, self._get_calculated_diags_trajectory(name))
+
+        data_index, data_mat = self._get_data_index_mat(name)
+
+        if data_mat == 1:
+            return Trajectory(self._data_1[0], self._data_1[data_index])
+        elif data_mat == 2:
+            if self._contains_diagnostic_data:
+                return Trajectory(time, self._get_interpolated_trajectory(data_index))
+            else:
+                return Trajectory(time, self._get_trajectory(data_index))
+        elif data_mat == 3:
+            return Trajectory(time, self._get_diagnostics_trajectory(data_index))
+        else:
+            raise Exception("invalid data matrix")
+        
+    @functools.cache
+    def _get_trajectory(self, data_index: int) -> np.ndarray:
+        """ Returns data for the variable that corresponds to index 'data_index'. """
+        return fmi_util.read_trajectory(
+                encode(self._fname),
+                data_index,
+                self._data_2_info["file_position"],
+                self._data_2_info["sizeof_type"],
+                int(self._data_2_info["nbr_points"]),
+                int(self._data_2_info["nbr_variables"])
+            )
+        
+    @functools.cache
+    def _get_diagnostics_trajectory(self, data_index: int) -> np.ndarray:
+        """ Returns data for the diagnostics variable that corresponds to index 'data_index'. """
+        return fmi_util.read_trajectory(
+                encode(self._fname),
+                data_index,
+                self._data_3_info["file_position"],
+                self._data_3_info["sizeof_type"],
+                int(self._data_3_info["nbr_points"]),
+                int(self._data_3_info["nbr_variables"])
+            )
+    
+    @functools.cache
+    def _get_interpolated_trajectory(self, data_index: int) -> np.ndarray:
+        """ Returns an interpolated trajectory for variable of corresponding index 'data_index'. """
+        diag_time_vector = self._get_diagnostics_trajectory(0)
+        time_vector      = self._get_trajectory(0)
+        data             = self._get_trajectory(data_index)
+
+        if len(data) == 1:
+            return data
+        else:
+            f = scipy.interpolate.interp1d(time_vector, data, fill_value = "extrapolate")
+            return f(diag_time_vector)
+    
+    def _get_calculated_diags_trajectory(self, name: str) -> np.ndarray:
+        # TODO: Redundant when we start explicitly saving calculated diagnostics
+        if (name in [
+                    f"{DIAGNOSTICS_PREFIX}nbr_events",
+                    f"{DIAGNOSTICS_PREFIX}nbr_time_events",
+                    f"{DIAGNOSTICS_PREFIX}nbr_state_events",
+                    f"{DIAGNOSTICS_PREFIX}nbr_steps",
+                    ]
+            ):
+            return self._get_calculated_diagnostics_events_and_steps(name)
+        elif name.startswith(f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step"):
+            return self._get_calculated_diagnostics_nbr_state_limits_step(name)
+        elif name == f"{DIAGNOSTICS_PREFIX}cpu_time":
+            return self._get_calculated_diagnostics_cpu_time()
+        else:
+            raise KeyError(f"Unknown calculated diagnostics variable of name '{name}' requested.")
+
+    def _get_calculated_diagnostics_events_and_steps(self, name : str) -> np.ndarray:
+        # TODO: Redundant when we start explicitly saving calculated diagnostics
+        if name in self._data_3:
+            return self._data_3[name]
+        steps_name = f"{DIAGNOSTICS_PREFIX}nbr_steps"
+        try:
+            event_type_data = self.get_trajectory(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
+        except Exception:
+            # can still calculate steps, even without event_type
+            if name == steps_name:
+                self._data_3[steps_name] = np.array(range(len(self._get_diagnostics_trajectory(0))))
+                return self._data_3[name]
+            raise
+        
+        for calc_diag_name, vals in DynamicDiagnosticsUtils.get_events_and_steps(event_type_data).items():
+            self._data_3[calc_diag_name] = vals
+        return self._data_3[name]
+
+    def _get_calculated_diagnostics_nbr_state_limits_step(self, name: str) -> np.ndarray:
+        # TODO: Redundant when we start explicitly saving calculated diagnostics
+        if name in self._data_3:
+            return self._data_3[name]
+        prefix = f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step."
+        state_name = name[len(prefix):]
+        event_type_data = self.get_trajectory(f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type').x
+        state_error_data = self.get_trajectory(f'{DIAGNOSTICS_PREFIX}state_errors.{state_name}').x
+        self._data_3[name] = DynamicDiagnosticsUtils.get_nbr_state_limits(event_type_data, state_error_data)
+        return self._data_3[name]
+
+    def _get_calculated_diagnostics_cpu_time(self) -> np.ndarray:
+        # TODO: Redundant when we start explicitly saving calculated diagnostics
+        return DynamicDiagnosticsUtils.get_cpu_time(self.get_trajectory(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x)
 
 def verify_result_size(file_name, first_point, current_size, previous_size, max_size, ncp, time):
     free_space = get_available_disk_space(file_name)
