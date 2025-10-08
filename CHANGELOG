@@ -9,6 +9,10 @@
       This allows setting reduced input/output update rates on a per-model basis.
     * Enabled use of `result_downsampling_factor` to `Master` algorithm on a per-model basis. 
     * Fixed an issue where `FMUModel(CS|ME)1.get_author()` returned a byte string, rather than a normal string.
+    * Logging will (by default) be explicitly be disabled by calling `fmiSetDebugLogging` 
+      and setting `log_level` to `0` when exceeding `set_max_log_size`.
+      * Use `fmu.set_disable_fmu_logging_after_max_log_size(<bool>)` to toggle this behavior.
+      * Use `fmu.get_disable_fmu_logging_after_max_log_size()` to query behavior, `default = True`.
 
 --- PyFMI-2.18.3 ---
     * Fixed a bug introduced in PyFMI 2.18.0 causing incorrect result storing for `boolean` and `enum` variables
