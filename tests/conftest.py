@@ -48,7 +48,7 @@ def setup_reference_fmus():
 
             with ZipFile(zip_path, 'r') as zf:
                 for fobj in zf.filelist:
-                    if fobj.filename.startswith('3.0') and fobj.filename.endswith('.fmu'):
+                    if (fobj.filename.startswith('1.0') or fobj.filename.startswith('3.0')) and fobj.filename.endswith('.fmu'):
                         zf.extract(fobj, zip_unzip_to)
                         with open(md5_file, 'w') as f:
                             f.write(md5)

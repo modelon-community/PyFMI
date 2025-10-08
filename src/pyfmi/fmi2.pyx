@@ -1374,6 +1374,10 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         else:
             raise FMUException('Logging is not enabled')
 
+    def _deactivate_logging(self):
+        self.set_log_level(0)
+        self.set_debug_logging(False, [])
+
     def set_debug_logging(self, logging_on, categories = []):
         """
         Specifies if the debugging should be turned on or off and calls fmi2SetDebugLogging
