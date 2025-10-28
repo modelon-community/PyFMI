@@ -32,3 +32,5 @@ src/pyfmi/version.txt
 tests/files/reference_fmus/
 
 __pycache__
+
+.venv
