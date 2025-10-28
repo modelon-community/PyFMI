@@ -39,7 +39,6 @@ cdef class ModelBase:
     cdef object _modelId
     cdef public int _log_is_stream, _invoked_dealloc
     cdef public unsigned long long int _current_log_size, _max_log_size
-    cdef int _disable_logging_on_max_log_size
     cdef char* _fmu_temp_dir
 
     cdef str _increment_log_size_and_check_max_size(self, str msg)

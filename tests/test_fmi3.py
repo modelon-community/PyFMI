@@ -48,7 +48,7 @@ from pyfmi.exceptions import (
 # a) Changing the tests in test_fmi.py to use the FMI1/2 reference FMUs
 # b) Mocking the FMUs in some capacity
 
-this_dir = Path(__file__).parent.absolute()
+this_dir = Path(__file__).parent
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
 NUMPY_MAJOR_VERSION = int(np.__version__[0])

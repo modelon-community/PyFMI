@@ -63,7 +63,7 @@ from pathlib import Path
 import pyfmi.fmi as fmi
 from pyfmi.test_util import Dummy_FMUModelME1, Dummy_FMUModelCS1, Dummy_FMUModelME2, Dummy_FMUModelCS2
 
-this_dir = Path(__file__).parent.absolute()
+this_dir = Path(__file__).parent
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
 file_path = os.path.dirname(os.path.abspath(__file__))

@@ -22,7 +22,7 @@ import numpy as np
 from pyfmi import load_fmu
 from pyfmi.fmi3 import FMUState3, FMUModelBase3
 
-this_dir = Path(__file__).parent.absolute()
+this_dir = Path(__file__).parent
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
 class TestFMUState:

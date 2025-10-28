@@ -29,7 +29,7 @@ class Test_DefaultExperiment:
     @classmethod
     def setup_class(cls):
         # load once
-        this_dir = Path(__file__).parent.absolute()
+        this_dir = Path(__file__).parent
         xml_dir = this_dir / "files" / "FMUs" / "XML"
         cls.fmus = {
             1: FMUModelME1(str(xml_dir / "ME1.0" / "modelDescriptionAttributes"), 

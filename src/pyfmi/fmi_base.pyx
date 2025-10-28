@@ -78,7 +78,6 @@ cdef class ModelBase:
         self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
         self._result_file = None
         self._log_handler = LogHandlerDefault(self._max_log_size)
-        self._disable_logging_on_max_log_size = 1
 
     def _set_log_stream(self, stream):
         """ Function that sets the class property 'log_stream' and does error handling. """
@@ -399,7 +398,7 @@ cdef class ModelBase:
         return "Model"
 
     def _deactivate_logging(self):
-        pass # to be implemented in class inheriting from ModelBase
+        raise NotImplementedError
         
     def extract_xml_log(self, file_name=None):
         """
@@ -531,8 +530,7 @@ cdef class ModelBase:
     cdef inline str _increment_log_size_and_check_max_size(self, str msg):
         if self._current_log_size + len(msg) > self._max_log_size:
             msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method.\n"
-            if self._disable_logging_on_max_log_size:
-                self._deactivate_logging()
+            self._deactivate_logging()
             self._max_log_size_msg_sent = True
         self._current_log_size = self._current_log_size + len(msg)
         return msg
@@ -701,26 +699,6 @@ cdef class ModelBase:
         else:
             raise NotImplementedError(f"Unable to convert filter: {expression=}")
         return regexp
-
-    def set_disable_fmu_logging_after_max_log_size(self, val: bool):
-        """
-        Set if logging from the FMU will be disabled via calling
-            `fmu.set_log_level(0)`
-            `fmu.set_debug_logging(False)`
-        upon reaching max_log_size.
-
-        Set this to `False` for continued logging using `additional_logger`.
-        """
-        self._disable_logging_on_max_log_size = int(val)
-
-    def get_disable_fmu_logging_after_max_log_size(self) -> bool:
-        """
-        Returns boolean if logging from the FMU will be disabled via calling
-            `fmu.set_log_level(0)`
-            `fmu.set_debug_logging(False)`
-        upon reaching max_log_size.
-        """
-        return bool(self._disable_logging_on_max_log_size)
 
 class PyEventInfo(): # TODO: Should this be a cpdef + FMIX variants?
     pass
