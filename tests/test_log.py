@@ -17,15 +17,24 @@
 
 import os
 import pytest
+from pathlib import Path
 
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
 from pyfmi.test_util import Dummy_FMUModelME2
 from pyfmi.util import decode
+from pyfmi.fmi1 import FMUModelME1
+from pyfmi.fmi2 import FMUModelME2
+from pyfmi.fmi3 import FMUModelME3
 
 import numpy as np
 file_path = os.path.dirname(os.path.abspath(__file__))
 logs = os.path.join(file_path, "files", "Logs")
+
+this_dir = Path(__file__).parent
+FMI1_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '1.0'
+FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
+FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
 @pytest.mark.assimulo
 class Test_Log:
@@ -230,3 +239,22 @@ class Test_Log:
         fmu.simulate()
         assert not fmu.has_reached_max_log_size()
         assert trunc_log_len < len(fmu.get_log()), "Logging did not appear to resume"
+
+    @pytest.mark.parametrize("fmu_model_class, fmu_path",
+        [
+            (FMUModelME1, FMI1_REF_FMU_PATH / "me" / "Dahlquist.fmu"),
+            (FMUModelME2, FMI2_REF_FMU_PATH / "Dahlquist.fmu"),
+            (FMUModelME3, FMI3_REF_FMU_PATH / "Dahlquist.fmu"),
+        ]
+    )
+    def test_deactivate_logging(self, fmu_model_class, fmu_path):
+        """Test that logging is automatically disabled upon reaching maximal log size."""
+        fmu = fmu_model_class(fmu_path, log_level = 4)
+        fmu.append_log_message("Testing", 4, "additional logging")
+        assert not fmu.has_reached_max_log_size()
+        assert fmu.get_log_level() == 4
+        fmu.set_max_log_size(10)
+
+        fmu.append_log_message("Testing", 4, "additional logging")
+        assert fmu.has_reached_max_log_size()
+        assert fmu.get_log_level() == 0

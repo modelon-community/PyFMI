@@ -33,7 +33,7 @@ file_path = os.path.dirname(os.path.abspath(__file__))
 cs2_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "CS2.0")
 me2_xml_path = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0")
 
-this_dir = Path(__file__).parent.absolute()
+this_dir = Path(__file__).parent
 FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
 
 import warnings

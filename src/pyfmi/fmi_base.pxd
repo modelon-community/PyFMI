@@ -41,6 +41,7 @@ cdef class ModelBase:
     cdef public unsigned long long int _current_log_size, _max_log_size
     cdef char* _fmu_temp_dir
 
+    cdef str _increment_log_size_and_check_max_size(self, str msg)
     cdef _logger(self, FMIL.jm_string module, int log_level, FMIL.jm_string message) with gil
 
 cdef class LogHandler:

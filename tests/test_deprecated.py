@@ -24,7 +24,7 @@ from pathlib import Path
 from pyfmi import load_fmu
 from pyfmi.common.io import ResultStorage
 
-this_dir = Path(__file__).parent.absolute()
+this_dir = Path(__file__).parent
 FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
 
 def test_result_storage():

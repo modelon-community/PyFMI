@@ -780,6 +780,10 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
         if status != 0:
             raise FMUException('Failed to set the String values. See the log for possibly more information.')
 
+    def _deactivate_logging(self):
+        self.set_log_level(0)
+        self.set_debug_logging(False)
+
     def set_debug_logging(self,flag):
         """
         Specifies if the logging from the FMU should be turned on or

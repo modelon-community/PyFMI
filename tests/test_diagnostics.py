@@ -27,7 +27,7 @@ from pyfmi.common.diagnostics import (
     DynamicDiagnosticsUtils
 )
 
-this_dir = Path(__file__).parent.absolute()
+this_dir = Path(__file__).parent
 FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
 
 class ResultStoreCalcDiagnostics(ResultHandler):

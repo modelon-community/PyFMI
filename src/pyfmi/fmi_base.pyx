@@ -397,6 +397,9 @@ cdef class ModelBase:
     def _get_module_name(self):
         return "Model"
 
+    def _deactivate_logging(self):
+        raise NotImplementedError
+        
     def extract_xml_log(self, file_name=None):
         """
         Extract the XML contents of a FMU log and write as a new file.
@@ -524,6 +527,14 @@ cdef class ModelBase:
             self.file_object.close()
             self.file_object = None
 
+    cdef inline str _increment_log_size_and_check_max_size(self, str msg):
+        if self._current_log_size + len(msg) > self._max_log_size:
+            msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method.\n"
+            self._deactivate_logging()
+            self._max_log_size_msg_sent = True
+        self._current_log_size = self._current_log_size + len(msg)
+        return msg
+
     cdef _logger(self, FMIL.jm_string c_module, int log_level, FMIL.jm_string c_message) with gil:
         cdef FMIL.FILE *f
         module  = pyfmi_util.decode(c_module)
@@ -536,11 +547,7 @@ cdef class ModelBase:
             return
 
         msg = "FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message)
-
-        if self._current_log_size + len(msg) > self._max_log_size:
-            msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method.\n"
-            self._max_log_size_msg_sent = True
-        self._current_log_size = self._current_log_size + len(msg)
+        msg = self._increment_log_size_and_check_max_size(msg)
 
         if self._fmu_log_name != NULL:
             if self.file_object:
@@ -578,11 +585,7 @@ cdef class ModelBase:
             return
 
         msg = "FMIL: module = %s, log level = %d: %s\n"%(module, log_level, message)
-
-        if self._current_log_size + len(msg) > self._max_log_size:
-            msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method.\n"
-            self._max_log_size_msg_sent = True
-        self._current_log_size = self._current_log_size + len(msg)
+        msg = self._increment_log_size_and_check_max_size(msg)
 
         if self._fmu_log_name != NULL:
             if self.file_object:

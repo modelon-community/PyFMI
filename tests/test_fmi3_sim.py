@@ -27,7 +27,7 @@ from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg
 from pyfmi.fmi3 import FMUModelME3
 from pyfmi.exceptions import FMUException
 
-this_dir = Path(__file__).parent.absolute()
+this_dir = Path(__file__).parent
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
 class TestSimulation:
