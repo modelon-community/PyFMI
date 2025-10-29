@@ -502,6 +502,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._eventInfo = FMI3EventInfo()
         self._log = []
 
+        super().reset()
+
     def _get_fmu_kind(self):
         raise FMUException("FMUModelBase3 cannot be used directly, use FMUModelME3.")
 
