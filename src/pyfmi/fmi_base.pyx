@@ -70,13 +70,19 @@ cdef class ModelBase:
         self.file_object = None
         self._log_is_stream = 0
         self._additional_logger = None
-        self._current_log_size = 0
-        self._max_log_size = 2*10**9 # 2GB limit
-        self._max_log_size_msg_sent = False
         self._log_stream = None
         self._modelId = None
         self._invoked_dealloc = 0 # Set to 1 when __dealloc__ is called
         self._result_file = None
+        self._init_log_state()
+
+    def reset(self):
+        self._init_log_state()
+
+    def _init_log_state(self):
+        self._current_log_size = 0
+        self._max_log_size = 2*10**9 # 2GB limit
+        self._max_log_size_msg_sent = False
         self._log_handler = LogHandlerDefault(self._max_log_size)
 
     def _set_log_stream(self, stream):

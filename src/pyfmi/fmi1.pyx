@@ -2146,6 +2146,8 @@ cdef class FMUModelCS1(FMUModelBase):
         self._npoints = 0
         self._log = []
 
+        super().reset()
+
 
     def instantiate_slave(self, name='Slave', logging=False):
         """
@@ -2347,6 +2349,8 @@ cdef class FMUModelME1(FMUModelBase):
 
         #Instantiates the model
         self.instantiate_model(logging = self._enable_logging)
+
+        super().reset()
 
 
     def __dealloc__(self):

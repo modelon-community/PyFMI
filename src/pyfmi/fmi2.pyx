@@ -1216,6 +1216,8 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         #Internal values
         self._log = []
 
+        super().reset()
+
     def terminate(self):
         """
         Calls the FMI function fmi2Terminate() on the FMU.
