@@ -1,13 +1,17 @@
 .PHONY: build build-dev-image test shell
-DOCKER_IMAGE := pyfmi-dev 
+DOCKER_IMAGE := pyfmi-dev
+IN_DOCKER_IMG := $(shell test -f /.dockerenv && echo 1 || echo 0)
 
 define _run
-	docker run \
-	--rm $(2) \
-	-v $(CURDIR):/src \
-	-w /src \
-	${DOCKER_IMAGE} \
-	$(1);
+	@if [ $(IN_DOCKER_IMG) -eq 1 ]; then \
+		$(1);\
+	else \
+		docker run \
+		--rm $(2) \
+		-v $(CURDIR):/src \
+		${DOCKER_IMAGE} \
+		$(1); \
+	fi
 endef
 
 build-dev-image:
