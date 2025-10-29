@@ -930,14 +930,34 @@ class TestFMI3LoadFMU:
         assert fmu.get_variable_nominal_by_valueref(1) == 0.1
         assert fmu.get_variable_nominal_by_valueref(2) == np.float32(0.2)
 
+    @pytest.mark.parametrize("value_reference, expected_value, expected_message", 
+        [
+            (3, 1.0, "The nominal value for nominal_zero is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0."),
+            (4, 0.1, "The nominal value for nominal64_negative is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs"),
+            (5, np.float32(0.2), "The nominal value for nominal32_negative is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs"),
+        ])
+    def test_invalid_nominals(self, caplog, value_reference, expected_value, expected_message):
+        """Test getting variable nominals that are auto-corrected to be non-negative"""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                          allow_unzipped_fmu = True, _connect_dll = False, log_level = 3)
+        caplog.set_level(logging.WARNING)
+        assert fmu.get_variable_nominal_by_valueref(value_reference) == expected_value
+        assert any(expected_message in msg for msg in caplog.messages)
+
+    def test_invalid_nominals_overwrite(self):
+        """Test getting variable nominals that are auto-corrected to be non-negative"""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_nominal_by_valueref(3, _override_erroneous_nominal = False) == 0.0
+        assert fmu.get_variable_nominal_by_valueref(4, _override_erroneous_nominal = False) == -0.1
+        assert fmu.get_variable_nominal_by_valueref(5, _override_erroneous_nominal = False) == -np.float32(0.2)
+
     def test_get_variable_nominal_by_valueref_invalid_basetype(self):
         """Test get_variable_nominal_by_valueref for a basetype that does not have nominals."""
         fmu = self._get_reference_fmu("Feedthrough")
         err_msg = "Given variable type does not have a nominal."
         with pytest.raises(FMUException, match = re.escape(err_msg)):
             fmu.get_variable_nominal_by_valueref(11)
-
-# TODO: invalid override?
 
 # get_variable_start
 # get_variable_unbounded

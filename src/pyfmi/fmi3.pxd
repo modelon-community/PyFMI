@@ -137,6 +137,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef get_variable_unbounded(self, variablename)
     cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t*)
     cdef _get_alias_description(self, FMIL3.fmi3_import_alias_variable_t*)
+    cdef double _get_variable_nominal(self, FMIL3.fmi3_import_variable_t* variable, int _override_erroneous_nominal)
 
     cpdef get_variable_min(self, str variable_name)
     cpdef get_variable_max(self, str variable_name)

@@ -2737,9 +2737,33 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         else:
             raise FMUException("Given variable type does not have a maximum.")
 
-    # def _override_erroneous_nominal(self, variable_name: str, nominal_value: float) -> float:
+    cdef double _get_variable_nominal(self, FMIL3.fmi3_import_variable_t* variable, int _override_erroneous_nominal):
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+        cdef double value
+        cdef str variablename
+        cdef char* variable_name
 
-    def get_variable_nominal(self, variable_name: str, override_erroneous_nominal: bool = True) -> float:
+        if base_type == FMIL3.fmi3_base_type_float64:
+            value = FMIL3.fmi3_import_get_float64_variable_nominal(FMIL3.fmi3_import_get_variable_as_float64(variable))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            value = FMIL3.fmi3_import_get_float32_variable_nominal(FMIL3.fmi3_import_get_variable_as_float32(variable))
+        else:
+            raise FMUException("Given variable type does not have a nominal.")
+        
+        if _override_erroneous_nominal and value <= 0:
+            variable_name = FMIL3.fmi3_import_get_variable_name(variable)
+            variablename = pyfmi_util.decode(variable_name)
+            if value == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0."%variablename)
+                value = 1.0
+            elif value < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)."%(variablename, value))
+                value = abs(value)
+        return value
+
+    def get_variable_nominal(self, variable_name: str, _override_erroneous_nominal: bool = True) -> float:
         """
         Returns the nominal value of a float32/64 variable by its name.
 
@@ -2753,29 +2777,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             The nominal value of the given variable.
         """
         cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
-        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
-
-        if base_type == FMIL3.fmi3_base_type_float64:
-            return FMIL3.fmi3_import_get_float64_variable_nominal(FMIL3.fmi3_import_get_variable_as_float64(variable))
-        elif base_type == FMIL3.fmi3_base_type_float32:
-            return FMIL3.fmi3_import_get_float32_variable_nominal(FMIL3.fmi3_import_get_variable_as_float32(variable))
-        else:
-            raise FMUException("Given variable type does not have a nominal.")
-
-        # if _override_erroneous_nominal:
-        #     if variable_name is None:
-        #         variable_name = pyfmi_util.encode(self.get_variable_by_valueref(valueref))
-        #         variablename = variable_name
-        #     if value == 0.0:
-        #         if self.callbacks.log_level >= FMIL.jm_log_level_warning:
-        #             logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
-        #         value = 1.0
-        #     elif value < 0.0:
-        #         if self.callbacks.log_level >= FMIL.jm_log_level_warning:
-        #             logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)"%(variablename, value))
-        #         value = abs(value)
-
-        # return value
+        return self._get_variable_nominal(variable, _override_erroneous_nominal)
 
     def get_variable_nominal_by_valueref(self, valueref: int, _override_erroneous_nominal = True) -> float:
         """
@@ -2791,29 +2793,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             The nominal value of the given variable.
         """
         cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_vr(self._fmu, valueref)
-        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
-
-        if base_type == FMIL3.fmi3_base_type_float64:
-            return FMIL3.fmi3_import_get_float64_variable_nominal(FMIL3.fmi3_import_get_variable_as_float64(variable))
-        elif base_type == FMIL3.fmi3_base_type_float32:
-            return FMIL3.fmi3_import_get_float32_variable_nominal(FMIL3.fmi3_import_get_variable_as_float32(variable))
-        else:
-            raise FMUException("Given variable type does not have a nominal.")
-
-        # if _override_erroneous_nominal:
-        #     if variable_name is None:
-        #         variable_name = pyfmi_util.encode(self.get_variable_by_valueref(valueref))
-        #         variablename = variable_name
-        #     if value == 0.0:
-        #         if self.callbacks.log_level >= FMIL.jm_log_level_warning:
-        #             logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0"%variablename)
-        #         value = 1.0
-        #     elif value < 0.0:
-        #         if self.callbacks.log_level >= FMIL.jm_log_level_warning:
-        #             logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)"%(variablename, value))
-        #         value = abs(value)
-
-        # return value
+        return self._get_variable_nominal(variable, _override_erroneous_nominal)
 
     def get_model_version(self) -> str:
         """ Returns the version of the FMU. """

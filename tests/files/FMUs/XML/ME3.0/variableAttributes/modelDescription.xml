@@ -18,6 +18,10 @@
     <Float64 name="float64"  valueReference="1" min="-6.4" max="6.4" start="1.23" nominal="0.1"/>
     <Float32 name="float32"  valueReference="2" min="-3.2" max="3.2" start="2.34" nominal="0.2"/>
 
+    <Float64 name="nominal_zero"       valueReference="3" nominal="0"/>
+    <Float64 name="nominal64_negative" valueReference="4" nominal="-0.1"/>
+    <Float32 name="nominal32_negative" valueReference="5" nominal="-0.2"/>
+
     <Int64  name="int64"     valueReference="11" min="-9223372036854775806" max="9223372036854775805"  start="11"/>
     <Int32  name="int32"     valueReference="12" min="-2147483646"          max="2147483645"           start="12"/>
     <Int16  name="int16"     valueReference="13" min="-32766"               max="32765"                start="13"/>
