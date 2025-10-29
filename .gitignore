@@ -1,36 +1,16 @@
 
 build/
-
 dist/
-
 PyFMI.egg-info/
-
 build.sh
 
-src/pyfmi/fmi_coupled.c
-
-src/pyfmi/fmi_util.c
-
-src/pyfmi/fmi_extended.c
-
-src/pyfmi/master.c
-
-src/pyfmi/simulation/assimulo_interface.c
-src/pyfmi/simulation/assimulo_interface_fmi1.c
-src/pyfmi/simulation/assimulo_interface_fmi2.c
-
-src/pyfmi/fmi.c
-
-src/pyfmi/test_util.c
-
+src/pyfmi/simulation/*.c
+src/pyfmi/*.c
 src/pyfmi/LICENSE
-
 src/pyfmi/CHANGELOG
-
 src/pyfmi/version.txt
 
 tests/files/reference_fmus/
 
 __pycache__
-
 .venv
