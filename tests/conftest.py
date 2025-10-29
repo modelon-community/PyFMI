@@ -1,3 +1,4 @@
+import os
 import urllib.request
 import hashlib
 from tempfile import TemporaryDirectory
@@ -6,6 +7,19 @@ from pathlib import Path
 import pytest
 
 files_directory = Path(__file__).parent / 'files'
+
+@pytest.fixture(autouse=True, scope="session")
+def test_session_in_tmp_dir_fixture():
+    """As our tests produce output in the form of .mat and log files we
+    run them in a temporary directory. Long term each test should be isolated
+    instead of the session as a whole."""
+    with TemporaryDirectory() as tmpdirname:
+        workdir = Path(tmpdirname)
+        old_cwd = os.getcwd()
+        os.chdir(workdir)
+        yield Path(workdir)
+        os.chdir(old_cwd)
+
 
 @pytest.fixture(autouse=True, scope="session")
 def setup_reference_fmus():
