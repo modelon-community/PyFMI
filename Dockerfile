@@ -6,7 +6,7 @@ RUN apt update && apt install python3.11 python3-pip python3.11-dev python3.11-v
 
 # Install system
 RUN python3.11 -m pip install Cython numpy scipy matplotlib setuptools==69.1.0
-RUN apt-get -y install cmake liblapack-dev libsuitesparse-dev libhypre-dev curl git
+RUN apt-get -y install cmake liblapack-dev libsuitesparse-dev libhypre-dev curl git make vim bash-completion
 RUN cp -v /usr/lib/x86_64-linux-gnu/libblas.so /usr/lib/x86_64-linux-gnu/libblas_OPENMP.so
 
 # Install superlu
@@ -45,3 +45,4 @@ RUN cd /tmp && \
 # Setup a venv to put pip and python on path for convinience running commands
 ARG PYTHON_VENV=/src/.venv
 ENV PATH=${PYTHON_VENV}/bin:$PATH
+WORKDIR /src
