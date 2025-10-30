@@ -494,11 +494,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             A model as an object from the class FMUModelFMU2
         """
 
-        cdef int  status
-        cdef dict reals_continuous
-        cdef dict reals_discrete
-        cdef dict int_discrete
-        cdef dict bool_discrete
+        cdef int status
 
         #Call super
         FMI_BASE.ModelBase.__init__(self)
@@ -2332,8 +2328,6 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         """
         cdef FMIL2.fmi2_import_variable_t* variable
         cdef FMIL2.fmi2_import_display_unit_t* display_unit
-        cdef FMIL2.fmi2_import_variable_typedef_t* variable_typedef
-        cdef FMIL2.fmi2_import_real_typedef_t* variable_real_typedef
         cdef FMIL2.fmi2_real_t display_value, value
         cdef FMIL2.fmi2_value_reference_t  vr
         cdef int relative_quantity

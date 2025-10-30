@@ -3551,10 +3551,10 @@ cdef class FMUModelME3(FMUModelBase3):
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_enter_initialization_mode(
             self._fmu,
-            tolerance_defined,
+            tol_defined,
             tolerance,
             start_time,
-            stop_time_defined,
+            stop_defined,
             stop_time
         )
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
