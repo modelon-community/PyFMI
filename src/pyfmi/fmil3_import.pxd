@@ -204,6 +204,14 @@ cdef extern from 'fmilib.h':
         pass
     ctypedef fmi3_xml_enum_variable_t fmi3_import_enum_variable_t
 
+    cdef struct fmi3_xml_string_variable_t:
+        pass
+    ctypedef fmi3_xml_string_variable_t fmi3_import_string_variable_t
+
+    cdef struct fmi3_xml_bool_variable_t:
+        pass
+    ctypedef fmi3_xml_bool_variable_t fmi3_import_bool_variable_t
+
     cdef struct fmi3_xml_unit_t:
         pass
     ctypedef fmi3_xml_unit_t fmi3_import_unit_t
@@ -251,7 +259,7 @@ cdef extern from 'fmilib.h':
         fmi3_instance_environment_t instance_environment,
         fmi3_status_t status,
         fmi3_string_t category,
-        fmi3_string_t message,
+        fmi3_string_t message
         )
 
     cdef struct fmi3_import_t:
@@ -357,16 +365,16 @@ cdef extern from 'fmilib.h':
 
     # Getters for fmiModelDescription attributes
     char* fmi3_import_get_model_name(fmi3_import_t*)
-    const char* fmi3_import_get_instantiation_token(fmi3_import_t*);
+    const char* fmi3_import_get_instantiation_token(fmi3_import_t*)
     const char* fmi3_import_get_description(fmi3_import_t*)
     const char* fmi3_import_get_author(fmi3_import_t*)
-    const char* fmi3_import_get_model_version(fmi3_import_t*);
-    const char* fmi3_import_get_copyright(fmi3_import_t*);
-    const char* fmi3_import_get_license(fmi3_import_t*);
-    const char* fmi3_import_get_generation_tool(fmi3_import_t*);
-    const char* fmi3_import_get_generation_date_and_time(fmi3_import_t*);
-    fmi3_variable_naming_convension_enu_t fmi3_import_get_naming_convention(fmi3_import_t*);
-    const char* fmi3_naming_convention_to_string(fmi3_variable_naming_convension_enu_t);
+    const char* fmi3_import_get_model_version(fmi3_import_t*)
+    const char* fmi3_import_get_copyright(fmi3_import_t*)
+    const char* fmi3_import_get_license(fmi3_import_t*)
+    const char* fmi3_import_get_generation_tool(fmi3_import_t*)
+    const char* fmi3_import_get_generation_date_and_time(fmi3_import_t*)
+    fmi3_variable_naming_convension_enu_t fmi3_import_get_naming_convention(fmi3_import_t*)
+    const char* fmi3_naming_convention_to_string(fmi3_variable_naming_convension_enu_t)
 
     unsigned int fmi3_import_get_capability(fmi3_import_t *, fmi3_capabilities_enu_t)
 
@@ -374,7 +382,7 @@ cdef extern from 'fmilib.h':
     # Parsing/logging basics
     fmi3_import_t* fmi3_import_parse_xml(FMIL.fmi_import_context_t*, char*, fmi3_xml_callbacks_t*)
     void fmi3_import_free(fmi3_import_t*)
-    void fmi3_log_forwarding(fmi3_instance_environment_t, fmi3_status_t, fmi3_string_t, fmi3_string_t);
+    void fmi3_log_forwarding(fmi3_instance_environment_t, fmi3_status_t, fmi3_string_t, fmi3_string_t)
 
     ### Model information
 
@@ -390,6 +398,8 @@ cdef extern from 'fmilib.h':
     fmi3_import_uint16_variable_t*  fmi3_import_get_variable_as_uint16 (fmi3_import_variable_t*)
     fmi3_import_uint8_variable_t*   fmi3_import_get_variable_as_uint8  (fmi3_import_variable_t*)
     fmi3_import_enum_variable_t*    fmi3_import_get_variable_as_enum   (fmi3_import_variable_t*)
+    fmi3_import_string_variable_t*  fmi3_import_get_variable_as_string (fmi3_import_variable_t*)
+    fmi3_import_bool_variable_t*    fmi3_import_get_variable_as_boolean(fmi3_import_variable_t*)
 
     # INTEGER
 
@@ -409,7 +419,7 @@ cdef extern from 'fmilib.h':
     void fmi3_import_free_variable_list(fmi3_import_variable_list_t*)
 
     int fmi3_import_get_output_dependencies(fmi3_import_t*, fmi3_import_variable_t*, size_t*, int*, size_t**, char**)
-    int fmi3_import_get_continuous_state_derivative_dependencies(fmi3_import_t*, fmi3_import_variable_t*, size_t*, int*, size_t**, char**);
+    int fmi3_import_get_continuous_state_derivative_dependencies(fmi3_import_t*, fmi3_import_variable_t*, size_t*, int*, size_t**, char**)
 
     # log categories
     size_t fmi3_import_get_log_categories_num(fmi3_import_t*)
@@ -468,7 +478,9 @@ cdef extern from 'fmilib.h':
     fmi3_uint32_t  fmi3_import_get_uint32_variable_start (fmi3_import_uint32_variable_t*)
     fmi3_uint16_t  fmi3_import_get_uint16_variable_start (fmi3_import_uint16_variable_t*)
     fmi3_uint8_t   fmi3_import_get_uint8_variable_start  (fmi3_import_uint8_variable_t*)
-    fmi3_int64_t   fmi3_import_get_enum_variable_start  (fmi3_import_enum_variable_t*);
+    fmi3_int64_t   fmi3_import_get_enum_variable_start   (fmi3_import_enum_variable_t*)
+    fmi3_string_t  fmi3_import_get_string_variable_start (fmi3_import_string_variable_t*)
+    fmi3_boolean_t fmi3_import_get_boolean_variable_start(fmi3_import_bool_variable_t*)
     # unbounded
     fmi3_boolean_t fmi3_import_get_float32_variable_unbounded(fmi3_import_float32_variable_t*)
     fmi3_boolean_t fmi3_import_get_float64_variable_unbounded(fmi3_import_float64_variable_t*)

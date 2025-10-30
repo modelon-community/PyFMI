@@ -1714,7 +1714,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         variability: Union[FMI3_Variability, int, None] = None,
         only_start: bool = False,
         only_fixed: bool = False,
-        filter = None) -> Dict[str, FMI3ModelVariable]:
+        filter = None) -> dict[str, FMI3ModelVariable]:
         """
         Extract the names of the variables in a model.
 
@@ -2654,6 +2654,53 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
         cdef FMIL3.fmi3_initial_enu_t initial = FMIL3.fmi3_import_get_variable_initial(variable)
         return FMI3_Initial(initial)
+
+    cpdef get_variable_start(self, variable_name: str):
+        """
+        Returns the start value for the variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable
+
+        Returns::
+
+            The start value.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+        cdef FMIL3.fmi3_string_t string_start
+
+        if base_type == FMIL3.fmi3_base_type_float64:
+            return FMIL3.fmi3_import_get_float64_variable_start(FMIL3.fmi3_import_get_variable_as_float64(variable))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            return FMIL3.fmi3_import_get_float32_variable_start(FMIL3.fmi3_import_get_variable_as_float32(variable))
+        elif base_type == FMIL3.fmi3_base_type_int64:
+            return FMIL3.fmi3_import_get_int64_variable_start(FMIL3.fmi3_import_get_variable_as_int64(variable))
+        elif base_type == FMIL3.fmi3_base_type_int32:
+            return FMIL3.fmi3_import_get_int32_variable_start(FMIL3.fmi3_import_get_variable_as_int32(variable))
+        elif base_type == FMIL3.fmi3_base_type_int16:
+            return FMIL3.fmi3_import_get_int16_variable_start(FMIL3.fmi3_import_get_variable_as_int16(variable))
+        elif base_type == FMIL3.fmi3_base_type_int8:
+            return FMIL3.fmi3_import_get_int8_variable_start(FMIL3.fmi3_import_get_variable_as_int8(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint64:
+            return FMIL3.fmi3_import_get_uint64_variable_start(FMIL3.fmi3_import_get_variable_as_uint64(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint32:
+            return FMIL3.fmi3_import_get_uint32_variable_start(FMIL3.fmi3_import_get_variable_as_uint32(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint16:
+            return FMIL3.fmi3_import_get_uint16_variable_start(FMIL3.fmi3_import_get_variable_as_uint16(variable))
+        elif base_type == FMIL3.fmi3_base_type_uint8:
+            return FMIL3.fmi3_import_get_uint8_variable_start(FMIL3.fmi3_import_get_variable_as_uint8(variable))
+        elif base_type == FMIL3.fmi3_base_type_enum:
+            return FMIL3.fmi3_import_get_enum_variable_start(FMIL3.fmi3_import_get_variable_as_enum(variable))
+        elif base_type == FMIL3.fmi3_base_type_str:
+            string_start = FMIL3.fmi3_import_get_string_variable_start(FMIL3.fmi3_import_get_variable_as_string(variable))
+            return pyfmi_util.decode(string_start) if string_start != NULL else ""
+        elif base_type == FMIL3.fmi3_base_type_bool:
+            return FMIL3.fmi3_import_get_boolean_variable_start(FMIL3.fmi3_import_get_variable_as_boolean(variable))
+        else:
+            raise FMUException("Given variable type does not have a start.")
 
     cpdef get_variable_min(self, str variable_name):
         """

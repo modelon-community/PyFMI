@@ -959,7 +959,27 @@ class TestFMI3LoadFMU:
         with pytest.raises(FMUException, match = re.escape(err_msg)):
             fmu.get_variable_nominal_by_valueref(11)
 
-# get_variable_start
+    def test_get_variable_start(self):
+        """Test get_variable_start."""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_start("float64") == 1.23
+        assert fmu.get_variable_start("float32") == np.float32(2.34)
+
+        assert fmu.get_variable_start("int64") == 11
+        assert fmu.get_variable_start("int32") == 12
+        assert fmu.get_variable_start("int16") == 13
+        assert fmu.get_variable_start("int8") == 14
+        assert fmu.get_variable_start("uint64") == 15
+        assert fmu.get_variable_start("uint32") == 16
+        assert fmu.get_variable_start("uint16") == 17
+        assert fmu.get_variable_start("uint8") == 18
+
+        assert fmu.get_variable_start("enum") == 2
+        assert fmu.get_variable_start("string") == "aa"
+        assert fmu.get_variable_start("string_no_start") == ""
+        assert fmu.get_variable_start("bool") is True
+
 # get_variable_unbounded
 
 class Test_FMI3ME:

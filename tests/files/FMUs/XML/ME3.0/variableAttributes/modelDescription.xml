@@ -32,6 +32,13 @@
     <UInt8  name="uint8"     valueReference="18" min="2"                    max="253"                  start="18"/>
     
     <Enumeration name="enum" valueReference="20" declaredType="td_minimal_enum" min="1" max="2"        start="2"/>
+
+    <String name="string" valueReference="21">
+        <Dimension start="1"/>
+        <Start value="aa"/>
+    </String>
+    <String name="string_no_start" valueReference="22"/>
+    <Boolean name="bool" valueReference="23" start="true"/>
   </ModelVariables>
 
   <ModelStructure>
