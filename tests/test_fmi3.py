@@ -980,7 +980,20 @@ class TestFMI3LoadFMU:
         assert fmu.get_variable_start("string_no_start") == ""
         assert fmu.get_variable_start("bool") is True
 
-# get_variable_unbounded
+    def test_get_variable_unbounded(self):
+        """Test get_variable_unbounded."""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_unbounded("float64") is True
+        assert fmu.get_variable_unbounded("float32") is False
+
+    def test_get_variable_unbounded_invalid_basetype(self):
+        """Test get_variable_unbounded for a variable type that does not have this attribute"""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "Given variable type does not have the unbounded attribute."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_unbounded("int32")
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""

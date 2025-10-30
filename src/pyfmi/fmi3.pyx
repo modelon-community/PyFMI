@@ -2842,6 +2842,31 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_vr(self._fmu, valueref)
         return self._get_variable_nominal(variable, _override_erroneous_nominal)
 
+    cpdef get_variable_unbounded(self, str variable_name):
+        """
+        Get the unbounded attribute of a float32/64 variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            Boolean representing the unbounded attribute of the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+        cdef FMIL3.fmi3_boolean_t res
+
+        if base_type == FMIL3.fmi3_base_type_float64:
+            res = FMIL3.fmi3_import_get_float64_variable_unbounded(FMIL3.fmi3_import_get_variable_as_float64(variable))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            res = FMIL3.fmi3_import_get_float32_variable_unbounded(FMIL3.fmi3_import_get_variable_as_float32(variable))
+        else:
+            raise FMUException("Given variable type does not have the unbounded attribute.")
+        return res == FMIL3.fmi3_true
+
     def get_model_version(self) -> str:
         """ Returns the version of the FMU. """
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
@@ -3001,10 +3026,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         rtol = self.get_relative_tolerance()
         return 0.01*rtol*self.nominal_continuous_states
-
-    cpdef get_variable_unbounded(self, variable_name):
-        """TODO:"""
-        return False
 
     def get_generation_tool(self):
         """ Return the model generation tool. """
