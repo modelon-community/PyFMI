@@ -47,7 +47,7 @@ def get_fmi_ode_problem(
     model,
     result_file_name,
     with_jacobian: bool,
-    start_time: double,
+    start_time: float,
     logging: bool,
     result_handler,
     input_traj = None,

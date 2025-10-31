@@ -15,8 +15,8 @@
   </TypeDefinitions>
 
   <ModelVariables>
-    <Float64 name="float64"  valueReference="1" min="-6.4" max="6.4" start="1.23" nominal="0.1" unbounded="true"/>
-    <Float32 name="float32"  valueReference="2" min="-3.2" max="3.2" start="2.34" nominal="0.2" unbounded="false"/>
+    <Float64 name="float64"  valueReference="1" min="-6.4" max="6.4" start="1.23" nominal="0.1" unbounded="true" relativeQuantity="true"/>
+    <Float32 name="float32"  valueReference="2" min="-3.2" max="3.2" start="2.34" nominal="0.2" unbounded="false" relativeQuantity="false"/>
 
     <Float64 name="nominal_zero"       valueReference="3" nominal="0"/>
     <Float64 name="nominal64_negative" valueReference="4" nominal="-0.1"/>
