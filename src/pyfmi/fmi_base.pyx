@@ -212,13 +212,9 @@ cdef class ModelBase:
             alg = algorithm(start_time, final_time, input, self, options)
             # simulate
             alg.solve()
-        except Exception:
+        finally:
             #close log file
             self._close_log_file()
-            raise #Reraise the exception
-
-        #close log file
-        self._close_log_file()
 
         # get and return result
         return alg.get_result()
@@ -258,13 +254,9 @@ cdef class ModelBase:
             alg = algorithm(parameters, measurements, input, self, options)
             # simulate
             alg.solve()
-        except Exception:
+        finally:
             #close log file
             self._close_log_file()
-            raise #Reraise the exception
-
-        #close log file
-        self._close_log_file()
 
         # get and return result
         return alg.get_result()
@@ -438,6 +430,9 @@ cdef class ModelBase:
                 self._log_stream.seek(0)
             except AttributeError:
                 raise FMUException("In order to extract the XML-log from a stream, it needs to support 'seek'")
+        else:
+            if self.file_object:
+                self.file_object.flush()
 
         if isinstance(self._log_handler, LogHandlerDefault):
             max_size = self._log_handler.get_log_checkpoint() if self._max_log_size_msg_sent else None
@@ -536,8 +531,11 @@ cdef class ModelBase:
     cdef inline str _increment_log_size_and_check_max_size(self, str msg):
         if self._current_log_size + len(msg) > self._max_log_size:
             msg = "The log file has reached its maximum size and further log messages will not be saved. To change the maximum size of the file, please use the 'set_max_log_size' method.\n"
-            self._deactivate_logging()
+            # _max_log_size_msg_sent = True needs to be before 
+            # _deactivate_logging, which triggers another CAPI call and
+            # can thus affect _log_handler checkpoints to retain valid XML
             self._max_log_size_msg_sent = True
+            self._deactivate_logging()
         self._current_log_size = self._current_log_size + len(msg)
         return msg
 
@@ -563,7 +561,7 @@ cdef class ModelBase:
                     with open(self._fmu_log_name,'a') as file:
                         file.write(msg)
                 except Exception: #In some cases (especially when Python closes the above will fail when messages are provided from the FMI terminate/free methods)
-                    f = FMIL.fopen(self._fmu_log_name, "a");
+                    f = FMIL.fopen(self._fmu_log_name, "a")
                     if (f != NULL):
                         FMIL.fprintf(f, "FMIL: module = %s, log level = %d: %s\n",c_module, log_level, c_message)
                         FMIL.fclose(f)

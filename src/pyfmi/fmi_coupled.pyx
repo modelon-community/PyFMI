@@ -134,15 +134,10 @@ cdef class CoupledModelBase:
             alg = algorithm(start_time, final_time, input, self, options)
             # simulate
             alg.solve()
-        except Exception:
+        finally:
             #close log file
             for model in self.models:
                 model._close_log_file()
-            raise #Reraise the exception
-        
-        #close log file
-        for model in self.models:
-            model._close_log_file()
         
         # get and return result
         return alg.get_result()

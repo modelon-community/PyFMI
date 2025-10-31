@@ -1352,14 +1352,9 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
             self.enter_initialization_mode()
             self.exit_initialization_mode()
-        except Exception:
+        finally:
             if not log_open and self.get_log_level() > 2:
                 self._close_log_file()
-
-            raise
-
-        if not log_open and self.get_log_level() > 2:
-            self._close_log_file()
 
     def get_fmil_log_level(self):
         """
