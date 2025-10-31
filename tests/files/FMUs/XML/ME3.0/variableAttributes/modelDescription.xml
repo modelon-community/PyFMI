@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fmiModelDescription
+  fmiVersion="3.0"
+  modelName="test_variable_attributes"
+  instantiationToken="abc">
+  <ModelExchange modelIdentifier="model_identifier"/>
+
+  <TypeDefinitions>
+    <EnumerationType name="td_minimal_enum">
+        <Item name="EnumVar0" value="0"/>
+        <Item name="EnumVar1" value="1"/>
+        <Item name="EnumVar2" value="2"/>
+        <Item name="EnumVar3" value="3"/>
+    </EnumerationType>
+  </TypeDefinitions>
+
+  <ModelVariables>
+    <Float64 name="float64"  valueReference="1" min="-6.4" max="6.4" start="1.23" nominal="0.1" unbounded="true"/>
+    <Float32 name="float32"  valueReference="2" min="-3.2" max="3.2" start="2.34" nominal="0.2" unbounded="false"/>
+
+    <Float64 name="nominal_zero"       valueReference="3" nominal="0"/>
+    <Float64 name="nominal64_negative" valueReference="4" nominal="-0.1"/>
+    <Float32 name="nominal32_negative" valueReference="5" nominal="-0.2"/>
+
+    <Int64  name="int64"     valueReference="11" min="-9223372036854775806" max="9223372036854775805"  start="11"/>
+    <Int32  name="int32"     valueReference="12" min="-2147483646"          max="2147483645"           start="12"/>
+    <Int16  name="int16"     valueReference="13" min="-32766"               max="32765"                start="13"/>
+    <Int8   name="int8"      valueReference="14" min="-126"                 max="125"                  start="14"/>
+    <UInt64 name="uint64"    valueReference="15" min="2"                    max="18446744073709551613" start="15"/>
+    <UInt32 name="uint32"    valueReference="16" min="2"                    max="4294967293"           start="16"/>
+    <UInt16 name="uint16"    valueReference="17" min="2"                    max="65533"                start="17"/>
+    <UInt8  name="uint8"     valueReference="18" min="2"                    max="253"                  start="18"/>
+    
+    <Enumeration name="enum" valueReference="20" declaredType="td_minimal_enum" min="1" max="2"        start="2"/>
+
+    <String name="string" valueReference="21">
+        <Dimension start="1"/>
+        <Start value="aa"/>
+    </String>
+    <String name="string_no_start" valueReference="22"/>
+    <Boolean name="bool" valueReference="23" start="true"/>
+  </ModelVariables>
+
+  <ModelStructure>
+  </ModelStructure>
+
+</fmiModelDescription>
