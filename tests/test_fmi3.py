@@ -1042,6 +1042,73 @@ class TestFMI3LoadFMU:
         with pytest.raises(FMUException, match = re.escape(err_msg)):
             fmu.get_variable_unbounded("int32")
 
+    def test_get_variable_relative_quantity(self):
+        """Test get_variable_relative_quantity."""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_relative_quantity("float64") is True
+        assert fmu.get_variable_relative_quantity("float32") is False
+
+    def test_get_variable_relative_quantity_invalid_basetype(self):
+        """Test get_variable_relative_quantity for a variable type that does not have this attribute"""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "Given variable type does not have the relativeQuantity attribute."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_relative_quantity("int32")
+
+    def test_get_variable_unit(self):
+        """Test get_variable_unit."""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_unit("f64_1") == "K"
+        assert fmu.get_variable_unit("f64_1_C") == "K" # alias
+
+        assert fmu.get_variable_unit("f32_1") == "K"
+        assert fmu.get_variable_unit("f32_1_C") == "K" # alias
+
+    def test_get_variable_unit_when_no_unit(self):
+        """Test get_variable_unit when there is no unit"""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "No unit was found for the variable f64_nounit."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_unit("f64_nounit")
+
+    def test_get_variable_unit_invalid_basetype(self):
+        """Test get_variable_unit on a variable type that does not have units."""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "Given variable type does not have units."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_unit("i32")
+
+    def test_get_variable_display_unit(self):
+        """Test get_variable_display_unit."""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_display_unit("f64_1") == "degC"
+        assert fmu.get_variable_display_unit("f64_1_F") == "degF" # alias
+
+        assert fmu.get_variable_display_unit("f32_1") == "degC"
+        assert fmu.get_variable_display_unit("f32_1_F") == "degF" # alias
+
+    def test_get_variable_display_unit_when_no_display_unit(self):
+        """Test get_variable_display_unit when there is no unit"""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "No display unit was found for the variable f64_1_X."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_display_unit("f64_1_X")
+
+    def test_get_variable_display_unit_invalid_basetype(self):
+        """Test get_variable_display on a variable type that does not have (display) units."""
+        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "Given variable type does not have units."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_display_unit("i32")
+
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
     def test_basic(self):

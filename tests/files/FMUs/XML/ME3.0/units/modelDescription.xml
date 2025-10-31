@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fmiModelDescription fmiVersion="3.0" modelName="" instantiationToken="">
+<ModelExchange modelIdentifier="myModelIdentifier" />
+
+<UnitDefinitions>
+    <Unit name="K">
+        <BaseUnit K="1" />
+		<DisplayUnit name="degF" factor="1.7999999999999998" offset="-459.67" />
+		<DisplayUnit name="degC" offset="-273.15" />
+    </Unit>
+</UnitDefinitions>
+
+<ModelVariables>
+    <Float64 name="f64_1" valueReference="1" displayUnit="degC">
+        <Alias name="f64_1_X"/> 
+        <Alias name="f64_1_C" displayUnit="degC"/> 
+        <Alias name="f64_1_F" displayUnit="degF"/>
+    </Float64>
+    <Float64 name="f64_2" valueReference="2">
+        <Alias name="f64_2_X"/> 
+        <Alias name="f64_2_C" displayUnit="degC"/> 
+        <Alias name="f64_2_F" displayUnit="degF"/>
+    </Float64>
+    <Float32 name="f32_1" valueReference="10" displayUnit="degC">
+        <Alias name="f32_1_X"/> 
+        <Alias name="f32_1_C" displayUnit="degC"/> 
+        <Alias name="f32_1_F" displayUnit="degF"/>
+    </Float32>
+    <Float32 name="f32_2" valueReference="11">
+        <Alias name="f32_2_X"/> 
+        <Alias name="f32_2_C" displayUnit="degC"/> 
+        <Alias name="f32_2_F" displayUnit="degF"/>
+    </Float32>
+    <Float64 name="f64_nounit" valueReference="20"/>
+    <Int32 name="i32" valueReference="21"/>
+</ModelVariables>
+
+<ModelStructure/>
+</fmiModelDescription>
