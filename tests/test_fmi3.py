@@ -807,15 +807,22 @@ class TestFMI3LoadFMU:
     def test_get_variable_by_valueref(self):
         """Test get_variable_by_valueref."""
         fmu = self._get_reference_fmu("Feedthrough")
+        # Testing for backwards compatibility
         assert fmu.get_variable_by_valueref(0) == "time"
         assert fmu.get_variable_by_valueref(1) == "Float32_continuous_input"
 
-    def test_get_variable_by_valueref_no_var(self):
-        """Test get_variable_by_valueref for non-existing variable."""
+    def test_get_variable_name_by_valueref(self):
+        """Test get_variable_name_by_valueref."""
+        fmu = self._get_reference_fmu("Feedthrough")
+        assert fmu.get_variable_name_by_valueref(0) == "time"
+        assert fmu.get_variable_name_by_valueref(1) == "Float32_continuous_input"
+
+    def test_get_variable_name_by_valueref_no_var(self):
+        """Test get_variable_name_by_valueref for non-existing variable."""
         fmu = self._get_reference_fmu("Feedthrough")
         err_msg = "The variable with the valuref 10000 could not be found."
         with pytest.raises(FMUException, match = re.escape(err_msg)):
-            fmu.get_variable_by_valueref(10000)
+            fmu.get_variable_name_by_valueref(10000)
 
     def test_get_variable_variability(self):
         """Test get_variable_variability."""

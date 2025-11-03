@@ -2604,6 +2604,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         return ret
 
     def get_variable_by_valueref(self, valueref: int) -> str:
+        """See get_variable_name_by_valueref."""
+        return self.get_variable_name_by_valueref(valueref)
+
+    def get_variable_name_by_valueref(self, valueref: int) -> str:
         """
         Get the name of a variable given a value reference.
 
@@ -2617,7 +2621,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             The name of the variable.
 
         """
-        # Could have a better name?
         cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_vr(self._fmu, valueref)
         return pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
 
