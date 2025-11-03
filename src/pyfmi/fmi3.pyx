@@ -3246,14 +3246,9 @@ cdef class FMUModelME3(FMUModelBase3):
                 stop_time
             )
             self.exit_initialization_mode()
-        except Exception:
+        finally:
             if not log_open and self.get_log_level() > 2:
                 self._close_log_file()
-
-            raise
-
-        if not log_open and self.get_log_level() > 2:
-            self._close_log_file()
 
         self._initialized_fmu = 1
 
