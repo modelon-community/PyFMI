@@ -174,16 +174,22 @@ cdef inline void _check_input_sizes(np.ndarray input_valueref, np.ndarray set_va
     if np.size(input_valueref) != np.size(set_value):
         raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
 
-cdef inline FMIL3.fmi3_import_variable_t* _get_variable_by_name(FMIL3.fmi3_import_t* fmu, variable_name):
+cdef inline FMIL3.fmi3_import_variable_t* _get_variable_by_name(FMIL3.fmi3_import_t* fmu, str variable_name):
     cdef FMIL3.fmi3_import_variable_t* variable
-    variable_name = pyfmi_util.encode(variable_name)
-    cdef char* variablename = variable_name
+    cdef bytes variable_name_bytes = pyfmi_util.encode(variable_name)
+    cdef char* variablename = variable_name_bytes
 
     variable = FMIL3.fmi3_import_get_variable_by_name(fmu, variablename)
     if variable == NULL:
-        raise FMUException(f"The variable {pyfmi_util.decode(variablename)} could not be found.")
+        raise FMUException(f"The variable {variable_name} could not be found.")
     return variable
 
+cdef inline FMIL3.fmi3_import_variable_t* _get_variable_by_vr(FMIL3.fmi3_import_t* fmu, int valueref):
+    cdef FMIL3.fmi3_import_variable_t* variable
+    variable = FMIL3.fmi3_import_get_variable_by_vr(fmu, <FMIL3.fmi3_value_reference_t> valueref)
+    if variable == NULL:
+        raise FMUException("The variable with the valuref %i could not be found."%valueref)
+    return variable
 
 cdef class FMUState3:
     """ Class containing a pointer to a FMU-state. """
@@ -1710,7 +1716,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         variability: Union[FMI3_Variability, int, None] = None,
         only_start: bool = False,
         only_fixed: bool = False,
-        filter = None) -> Dict[str, FMI3ModelVariable]:
+        filter = None) -> dict[str, FMI3ModelVariable]:
         """
         Extract the names of the variables in a model.
 
@@ -2599,6 +2605,272 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return ret
 
+    def get_variable_by_valueref(self, valueref: int) -> str:
+        """See get_variable_name_by_valueref."""
+        return self.get_variable_name_by_valueref(valueref)
+
+    def get_variable_name_by_valueref(self, valueref: int) -> str:
+        """
+        Get the name of a variable given a value reference.
+
+        Parameters::
+
+            valueref --
+                The value reference of the variable.
+
+        Returns::
+
+            The name of the variable.
+
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_vr(self._fmu, valueref)
+        return pyfmi_util.decode(FMIL3.fmi3_import_get_variable_name(variable))
+
+    def get_variable_variability(self, variable_name: str) -> FMI3_Variability:
+        """
+        Get variability of the variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The variability of the variable as FMI3_Variability enum
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_variability_enu_t variability = FMIL3.fmi3_import_get_variable_variability(variable)
+        return FMI3_Variability(variability)
+
+    def get_variable_initial(self, variable_name: str) -> FMI3_Initial:
+        """
+        Get initial of the variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The initial of the variable as FMI3_Initial enum
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_initial_enu_t initial = FMIL3.fmi3_import_get_variable_initial(variable)
+        return FMI3_Initial(initial)
+
+    cpdef get_variable_start(self, variable_name: str):
+        """
+        Returns the start value for the variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable
+
+        Returns::
+
+            The start value.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+        cdef FMIL3.fmi3_string_t string_start
+
+        if base_type == FMIL3.fmi3_base_type_float64:
+            return np.float64(FMIL3.fmi3_import_get_float64_variable_start(FMIL3.fmi3_import_get_variable_as_float64(variable)))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            return np.float32(FMIL3.fmi3_import_get_float32_variable_start(FMIL3.fmi3_import_get_variable_as_float32(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int64:
+            return np.int64(FMIL3.fmi3_import_get_int64_variable_start(FMIL3.fmi3_import_get_variable_as_int64(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int32:
+            return np.int32(FMIL3.fmi3_import_get_int32_variable_start(FMIL3.fmi3_import_get_variable_as_int32(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int16:
+            return np.int16(FMIL3.fmi3_import_get_int16_variable_start(FMIL3.fmi3_import_get_variable_as_int16(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int8:
+            return np.int8(FMIL3.fmi3_import_get_int8_variable_start(FMIL3.fmi3_import_get_variable_as_int8(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint64:
+            return np.uint64(FMIL3.fmi3_import_get_uint64_variable_start(FMIL3.fmi3_import_get_variable_as_uint64(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint32:
+            return np.uint32(FMIL3.fmi3_import_get_uint32_variable_start(FMIL3.fmi3_import_get_variable_as_uint32(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint16:
+            return np.uint16(FMIL3.fmi3_import_get_uint16_variable_start(FMIL3.fmi3_import_get_variable_as_uint16(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint8:
+            return np.uint8(FMIL3.fmi3_import_get_uint8_variable_start(FMIL3.fmi3_import_get_variable_as_uint8(variable)))
+        elif base_type == FMIL3.fmi3_base_type_enum:
+            return np.int64(FMIL3.fmi3_import_get_enum_variable_start(FMIL3.fmi3_import_get_variable_as_enum(variable)))
+        elif base_type == FMIL3.fmi3_base_type_str:
+            string_start = FMIL3.fmi3_import_get_string_variable_start(FMIL3.fmi3_import_get_variable_as_string(variable))
+            return pyfmi_util.decode(string_start) if string_start != NULL else ""
+        elif base_type == FMIL3.fmi3_base_type_bool:
+            return np.bool_(FMIL3.fmi3_import_get_boolean_variable_start(FMIL3.fmi3_import_get_variable_as_boolean(variable)))
+        else:
+            raise FMUException("Given variable type does not have a start.")
+
+    cpdef get_variable_min(self, str variable_name):
+        """
+        Returns the minimum value for the given variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The minimum value for the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+
+        if base_type == FMIL3.fmi3_base_type_float64:
+            return np.float64(FMIL3.fmi3_import_get_float64_variable_min(FMIL3.fmi3_import_get_variable_as_float64(variable)))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            return np.float32(FMIL3.fmi3_import_get_float32_variable_min(FMIL3.fmi3_import_get_variable_as_float32(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int64:
+            return np.int64(FMIL3.fmi3_import_get_int64_variable_min(FMIL3.fmi3_import_get_variable_as_int64(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int32:
+            return np.int32(FMIL3.fmi3_import_get_int32_variable_min(FMIL3.fmi3_import_get_variable_as_int32(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int16:
+            return np.int16(FMIL3.fmi3_import_get_int16_variable_min(FMIL3.fmi3_import_get_variable_as_int16(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int8:
+            return np.int8(FMIL3.fmi3_import_get_int8_variable_min(FMIL3.fmi3_import_get_variable_as_int8(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint64:
+            return np.uint64(FMIL3.fmi3_import_get_uint64_variable_min(FMIL3.fmi3_import_get_variable_as_uint64(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint32:
+            return np.uint32(FMIL3.fmi3_import_get_uint32_variable_min(FMIL3.fmi3_import_get_variable_as_uint32(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint16:
+            return np.uint16(FMIL3.fmi3_import_get_uint16_variable_min(FMIL3.fmi3_import_get_variable_as_uint16(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint8:
+            return np.uint8(FMIL3.fmi3_import_get_uint8_variable_min(FMIL3.fmi3_import_get_variable_as_uint8(variable)))
+        elif base_type == FMIL3.fmi3_base_type_enum:
+            return np.int64(FMIL3.fmi3_import_get_enum_variable_min(FMIL3.fmi3_import_get_variable_as_enum(variable)))
+        else:
+            raise FMUException("Given variable type does not have a minimum.")
+
+    cpdef get_variable_max(self, str variable_name):
+        """
+        Returns the maximum value for the given variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The maximum value for the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+
+        if base_type == FMIL3.fmi3_base_type_float64:
+            return np.float64(FMIL3.fmi3_import_get_float64_variable_max(FMIL3.fmi3_import_get_variable_as_float64(variable)))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            return np.float32(FMIL3.fmi3_import_get_float32_variable_max(FMIL3.fmi3_import_get_variable_as_float32(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int64:
+            return np.int64(FMIL3.fmi3_import_get_int64_variable_max(FMIL3.fmi3_import_get_variable_as_int64(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int32:
+            return np.int32(FMIL3.fmi3_import_get_int32_variable_max(FMIL3.fmi3_import_get_variable_as_int32(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int16:
+            return np.int16(FMIL3.fmi3_import_get_int16_variable_max(FMIL3.fmi3_import_get_variable_as_int16(variable)))
+        elif base_type == FMIL3.fmi3_base_type_int8:
+            return np.int8(FMIL3.fmi3_import_get_int8_variable_max(FMIL3.fmi3_import_get_variable_as_int8(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint64:
+            return np.uint64(FMIL3.fmi3_import_get_uint64_variable_max(FMIL3.fmi3_import_get_variable_as_uint64(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint32:
+            return np.uint32(FMIL3.fmi3_import_get_uint32_variable_max(FMIL3.fmi3_import_get_variable_as_uint32(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint16:
+            return np.uint16(FMIL3.fmi3_import_get_uint16_variable_max(FMIL3.fmi3_import_get_variable_as_uint16(variable)))
+        elif base_type == FMIL3.fmi3_base_type_uint8:
+            return np.uint8(FMIL3.fmi3_import_get_uint8_variable_max(FMIL3.fmi3_import_get_variable_as_uint8(variable)))
+        elif base_type == FMIL3.fmi3_base_type_enum:
+            return np.int64(FMIL3.fmi3_import_get_enum_variable_max(FMIL3.fmi3_import_get_variable_as_enum(variable)))
+        else:
+            raise FMUException("Given variable type does not have a maximum.")
+
+    cdef _get_variable_nominal(self, FMIL3.fmi3_import_variable_t* variable, int _override_erroneous_nominal):
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+        cdef str variablename
+        cdef char* variable_name
+
+        if base_type == FMIL3.fmi3_base_type_float64:
+            value = np.float64(FMIL3.fmi3_import_get_float64_variable_nominal(FMIL3.fmi3_import_get_variable_as_float64(variable)))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            value = np.float32(FMIL3.fmi3_import_get_float32_variable_nominal(FMIL3.fmi3_import_get_variable_as_float32(variable)))
+        else:
+            raise FMUException("Given variable type does not have a nominal.")
+        
+        if _override_erroneous_nominal and value <= 0:
+            variable_name = FMIL3.fmi3_import_get_variable_name(variable)
+            variablename = pyfmi_util.decode(variable_name)
+            if value == 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is 0.0 which is illegal according to the FMI specification. Setting the nominal to 1.0."%variablename)
+                value = 1.0
+            elif value < 0.0:
+                if self.callbacks.log_level >= FMIL.jm_log_level_warning:
+                    logging.warning("The nominal value for %s is <0.0 which is illegal according to the FMI specification. Setting the nominal to abs(%g)."%(variablename, value))
+                value = abs(value)
+        return value
+
+    def get_variable_nominal(self, variable_name: str, _override_erroneous_nominal: bool = True) -> Union[np.float32, np.float64]:
+        """
+        Returns the nominal value of a float32/64 variable by its name.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The nominal value of the given variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        return self._get_variable_nominal(variable, _override_erroneous_nominal)
+
+    def get_variable_nominal_by_valueref(self, valueref: int, _override_erroneous_nominal = True) -> Union[np.float32, np.float64]:
+        """
+        Returns the nominal value of a float32/64 variable by its value reference.
+
+        Parameters::
+
+            valueref --
+                The value reference of the variable.
+
+        Returns::
+
+            The nominal value of the given variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_vr(self._fmu, valueref)
+        return self._get_variable_nominal(variable, _override_erroneous_nominal)
+
+    cpdef get_variable_unbounded(self, str variable_name):
+        """
+        Get the unbounded attribute of a float32/64 variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            Boolean representing the unbounded attribute of the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+        cdef FMIL3.fmi3_boolean_t res
+
+        if base_type == FMIL3.fmi3_base_type_float64:
+            res = FMIL3.fmi3_import_get_float64_variable_unbounded(FMIL3.fmi3_import_get_variable_as_float64(variable))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            res = FMIL3.fmi3_import_get_float32_variable_unbounded(FMIL3.fmi3_import_get_variable_as_float32(variable))
+        else:
+            raise FMUException("Given variable type does not have the unbounded attribute.")
+        return res == FMIL3.fmi3_true
+
     def get_model_version(self) -> str:
         """ Returns the version of the FMU. """
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
@@ -2758,10 +3030,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         rtol = self.get_relative_tolerance()
         return 0.01*rtol*self.nominal_continuous_states
-
-    cpdef get_variable_unbounded(self, variable_name):
-        """TODO:"""
-        return False
 
     def get_generation_tool(self):
         """ Return the model generation tool. """
@@ -3882,13 +4150,13 @@ cdef class FMUModelME3(FMUModelBase3):
                     nominals = group["nominals"]
                     nominals_pt = <FMIL3.fmi3_float64_t*>PyArray_DATA(nominals)
                     for i in range(len_v):
-                        nominals_pt[i] = self.get_variable_nominal(valueref = v_ref_pt[i])
+                        nominals_pt[i] = self.get_variable_nominal_by_valueref(v_ref_pt[i])
 
             for i in range(len_v):
                 eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominals_pt[i]))
         else:
             for i in range(len_v):
-                tmp_nominal = self.get_variable_nominal(valueref = v_ref_pt[i])
+                tmp_nominal = self.get_variable_nominal_by_valueref(v_ref_pt[i])
                 eps_pt[i] = RUROUND*(max(abs(v_pt[i]), tmp_nominal))
 
         if group is not None:

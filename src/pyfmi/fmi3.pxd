@@ -134,9 +134,14 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef get_variable_description(self, variable_name)
     cdef _add_variable(self, FMIL3.fmi3_import_variable_t* variable)
     cdef FMIL3.fmi3_status_t _get_directional_derivative(self, np.ndarray v_ref, np.ndarray z_ref, np.ndarray dv, np.ndarray dz) except *
-    cpdef get_variable_unbounded(self, variablename)
+    cpdef get_variable_unbounded(self, str variable_name)
     cdef _get_variable_description(self, FMIL3.fmi3_import_variable_t*)
     cdef _get_alias_description(self, FMIL3.fmi3_import_alias_variable_t*)
+    cdef _get_variable_nominal(self, FMIL3.fmi3_import_variable_t* variable, int _override_erroneous_nominal)
+
+    cpdef get_variable_start(self, str variable_name)
+    cpdef get_variable_min(self, str variable_name)
+    cpdef get_variable_max(self, str variable_name)
 
     cpdef serialize_fmu_state(self, FMUState3 state)
     cpdef deserialize_fmu_state(self, list serialized_fmu)
