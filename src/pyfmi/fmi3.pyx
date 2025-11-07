@@ -2871,6 +2871,137 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             raise FMUException("Given variable type does not have the unbounded attribute.")
         return res == FMIL3.fmi3_true
 
+    def get_variable_relative_quantity(self, variable_name: str) -> bool:
+        """
+        Get the relative quantity of a float32/64 variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            Boolean representing the relative quantity attribute of the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+        cdef FMIL3.fmi3_boolean_t res
+
+        if base_type == FMIL3.fmi3_base_type_float64:
+            res = FMIL3.fmi3_import_get_float64_variable_relative_quantity(FMIL3.fmi3_import_get_variable_as_float64(variable))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            res = FMIL3.fmi3_import_get_float32_variable_relative_quantity(FMIL3.fmi3_import_get_variable_as_float32(variable))
+        else:
+            raise FMUException("Given variable type does not have the relativeQuantity attribute.")
+        return res == FMIL3.fmi3_true
+    
+    def get_variable_unit(self, variable_name: str) -> str: 
+        """
+        Get the unit of a float32/64 variable.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            String representing the unit of the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+        cdef FMIL3.fmi3_import_unit_t* unit
+        cdef const char* unit_name
+
+        if base_type == FMIL3.fmi3_base_type_float64:
+            unit = FMIL3.fmi3_import_get_float64_variable_unit(FMIL3.fmi3_import_get_variable_as_float64(variable))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            unit = FMIL3.fmi3_import_get_float32_variable_unit(FMIL3.fmi3_import_get_variable_as_float32(variable))
+        else:
+            raise FMUException("Given variable type does not have units.")
+
+        if unit == NULL:
+            raise FMUException("No unit was found for the variable %s."%variable_name)
+
+        unit_name = FMIL3.fmi3_import_get_unit_name(unit)
+        return pyfmi_util.decode(unit_name) if unit_name != NULL else ""
+
+    def get_variable_display_unit(self, variable_name: str) -> str:
+        """
+        Get the display unit of a float32/64 variable or alias. 
+        Raises FMUException is the given variable/alias has no display unit.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            String representing the display unit of the variable.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable
+        cdef FMIL3.fmi3_base_type_enu_t base_type
+        cdef bytes variable_name_bytes = pyfmi_util.encode(variable_name)
+        cdef char* variablename = variable_name_bytes
+        cdef FMIL3.fmi3_import_display_unit_t* display_unit
+        cdef const char* display_unit_name
+
+        display_unit = FMIL3.fmi3_import_get_variable_display_unit_by_name(self._fmu, variablename)
+        if display_unit == NULL:
+            variable = _get_variable_by_name(self._fmu, variable_name)
+            base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+            if (base_type != FMIL3.fmi3_base_type_float64) and (base_type != FMIL3.fmi3_base_type_float32):
+                raise FMUException("Given variable type does not have units.")
+            raise FMUException("No display unit was found for the variable %s."%variable_name)    
+
+        display_unit_name = FMIL3.fmi3_import_get_display_unit_name(display_unit)
+        return pyfmi_util.decode(display_unit_name) if display_unit_name != NULL else ""
+
+    def get_variable_display_value(self, variable_name: str) -> Union[np.float32, np.float64]:
+        """
+        Get the display value of a float32/64 variable or alias. 
+        This value takes into account the display unit, i.e. converts 
+        the value in its base unit to the value in its display unit.
+        Raises FMUException is the given variable/alias has no display unit.
+
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            Variable value in its display unit.
+        """
+        cdef FMIL3.fmi3_import_variable_t* variable = _get_variable_by_name(self._fmu, variable_name)
+        cdef FMIL3.fmi3_base_type_enu_t base_type = FMIL3.fmi3_import_get_variable_base_type(variable)
+        cdef bytes variable_name_bytes = pyfmi_util.encode(variable_name)
+        cdef char* variablename = variable_name_bytes
+        cdef FMIL3.fmi3_import_display_unit_t* display_unit
+        cdef FMIL3.fmi3_boolean_t relative_quantity
+        cdef FMIL3.fmi3_value_reference_t value_ref
+
+        display_unit = FMIL3.fmi3_import_get_variable_display_unit_by_name(self._fmu, variablename)
+        if display_unit == NULL:
+            if (base_type != FMIL3.fmi3_base_type_float64) and (base_type != FMIL3.fmi3_base_type_float32):
+                raise FMUException("Given variable type does not have units.")
+            raise FMUException("No display unit was found for the variable %s."%variable_name)    
+
+        value_ref = FMIL3.fmi3_import_get_variable_vr(variable)
+        if base_type == FMIL3.fmi3_base_type_float64:
+            relative_quantity = FMIL3.fmi3_import_get_float64_variable_relative_quantity(FMIL3.fmi3_import_get_variable_as_float64(variable))
+            value = self.get_float64([value_ref])[0]
+            return np.float64(FMIL3.fmi3_import_float64_convert_to_display_unit(value, display_unit, relative_quantity))
+        elif base_type == FMIL3.fmi3_base_type_float32:
+            relative_quantity = FMIL3.fmi3_import_get_float32_variable_relative_quantity(FMIL3.fmi3_import_get_variable_as_float32(variable))
+            value = self.get_float32([value_ref])[0]
+            return np.float32(FMIL3.fmi3_import_float32_convert_to_display_unit(value, display_unit, relative_quantity))
+        else:
+            raise FMUException("Given variable type does not have the relativeQuantity attribute.")
+
     def get_model_version(self) -> str:
         """ Returns the version of the FMU. """
         cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_model_version(self._fmu)
@@ -3551,10 +3682,10 @@ cdef class FMUModelME3(FMUModelBase3):
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
         status = FMIL3.fmi3_import_enter_initialization_mode(
             self._fmu,
-            tolerance_defined,
+            tol_defined,
             tolerance,
             start_time,
-            stop_time_defined,
+            stop_defined,
             stop_time
         )
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)

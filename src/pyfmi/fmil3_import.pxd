@@ -484,6 +484,9 @@ cdef extern from 'fmilib.h':
     # unbounded
     fmi3_boolean_t fmi3_import_get_float32_variable_unbounded(fmi3_import_float32_variable_t*)
     fmi3_boolean_t fmi3_import_get_float64_variable_unbounded(fmi3_import_float64_variable_t*)
+    # relative quantity
+    fmi3_boolean_t fmi3_import_get_float32_variable_relative_quantity(fmi3_import_float32_variable_t*)
+    fmi3_boolean_t fmi3_import_get_float64_variable_relative_quantity(fmi3_import_float64_variable_t*)
 
     # Alias
     fmi3_import_alias_variable_list_t* fmi3_import_get_variable_alias_list(fmi3_import_variable_t*)
@@ -493,3 +496,20 @@ cdef extern from 'fmilib.h':
     const char* fmi3_import_get_alias_variable_description(fmi3_import_alias_variable_t* alias)
     fmi3_boolean_t fmi3_import_get_variable_has_alias(fmi3_import_variable_t*)
     const char* fmi3_import_get_variable_description_by_name(fmi3_import_t*, const char* name)
+
+    # Units
+    fmi3_import_unit_t* fmi3_import_get_float32_variable_unit(fmi3_import_float32_variable_t*)
+    fmi3_import_unit_t* fmi3_import_get_float64_variable_unit(fmi3_import_float64_variable_t*)
+
+    const char* fmi3_import_get_unit_name(fmi3_import_unit_t*)
+
+    # Display Unit
+    fmi3_import_display_unit_t* fmi3_import_get_float32_variable_display_unit(fmi3_import_float32_variable_t*)
+    fmi3_import_display_unit_t* fmi3_import_get_float64_variable_display_unit(fmi3_import_float64_variable_t*)
+    fmi3_import_display_unit_t* fmi3_import_get_variable_display_unit_by_name(fmi3_import_t*, const char*)
+
+    const char* fmi3_import_get_display_unit_name(fmi3_import_display_unit_t*)
+
+    # Unit conversion
+    fmi3_float32_t fmi3_import_float32_convert_to_display_unit(fmi3_float32_t, fmi3_import_display_unit_t*, int)
+    fmi3_float64_t fmi3_import_float64_convert_to_display_unit(fmi3_float64_t, fmi3_import_display_unit_t*, int)

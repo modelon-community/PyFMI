@@ -105,6 +105,13 @@ def temp_dir_context(tmpdir):
     """Provides a temporary directory as a context."""
     yield Path(tmpdir)
 
+class FMUModelME3MockGetFloat(FMUModelME3):
+    """Auxiliary class mocking get_float32|64 for display value tests."""
+    def get_float32(self, vr):
+        return np.array([0.]*len(vr))
+    def get_float64(self, vr):
+        return np.array([0.]*len(vr))
+
 class TestFMI3LoadFMU:
     """Basic unit tests for FMI3 loading via 'load_fmu'."""
     @pytest.mark.parametrize("ref_fmu", [
@@ -890,8 +897,8 @@ class TestFMI3LoadFMU:
     )
     def test_get_variable_min(self, var_name, expected_value, expected_type):
         """Test get_variable_min."""
-        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
-                          allow_unzipped_fmu = True, _connect_dll = False)
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
         res = fmu.get_variable_min(var_name)
         assert isinstance(res, expected_type)
         assert res == expected_value
@@ -929,8 +936,8 @@ class TestFMI3LoadFMU:
     )
     def test_get_variable_max(self, var_name, expected_value, expected_type):
         """Test get_variable_max."""
-        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
-                          allow_unzipped_fmu = True, _connect_dll = False)
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
         res = fmu.get_variable_max(var_name)
         assert isinstance(res, expected_type)
         assert res == expected_value
@@ -951,8 +958,8 @@ class TestFMI3LoadFMU:
 
     def test_get_variable_nominal(self):
         """Test get_variable_nominal."""
-        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
-                          allow_unzipped_fmu = True, _connect_dll = False)
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
         assert fmu.get_variable_nominal("float64") == 0.1
         assert fmu.get_variable_nominal("float32") == np.float32(0.2)
 
@@ -965,8 +972,8 @@ class TestFMI3LoadFMU:
 
     def test_get_variable_nominal_by_valueref(self):
         """Test get_variable_nominal_by_valueref."""
-        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
-                          allow_unzipped_fmu = True, _connect_dll = False)
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
         assert fmu.get_variable_nominal_by_valueref(1) == 0.1
         assert fmu.get_variable_nominal_by_valueref(2) == np.float32(0.2)
 
@@ -986,8 +993,8 @@ class TestFMI3LoadFMU:
 
     def test_invalid_nominals_overwrite(self):
         """Test getting variable nominals that are auto-corrected to be non-negative"""
-        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
-                          allow_unzipped_fmu = True, _connect_dll = False)
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
         assert fmu.get_variable_nominal_by_valueref(3, _override_erroneous_nominal = False) == 0.0
         assert fmu.get_variable_nominal_by_valueref(4, _override_erroneous_nominal = False) == -0.1
         assert fmu.get_variable_nominal_by_valueref(5, _override_erroneous_nominal = False) == -np.float32(0.2)
@@ -1021,26 +1028,138 @@ class TestFMI3LoadFMU:
     )
     def test_get_variable_start(self, var_name, expected_value, expected_type):
         """Test get_variable_start."""
-        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
-                          allow_unzipped_fmu = True, _connect_dll = False)
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
         res = fmu.get_variable_start(var_name)
         assert isinstance(res, expected_type)
         assert res == expected_value
 
     def test_get_variable_unbounded(self):
         """Test get_variable_unbounded."""
-        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
-                          allow_unzipped_fmu = True, _connect_dll = False)
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
         assert fmu.get_variable_unbounded("float64") is True
         assert fmu.get_variable_unbounded("float32") is False
 
     def test_get_variable_unbounded_invalid_basetype(self):
         """Test get_variable_unbounded for a variable type that does not have this attribute"""
-        fmu = FMUModelME3(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
-                          allow_unzipped_fmu = True, _connect_dll = False)
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
         err_msg = "Given variable type does not have the unbounded attribute."
         with pytest.raises(FMUException, match = re.escape(err_msg)):
             fmu.get_variable_unbounded("int32")
+
+    @pytest.mark.parametrize("var_name, expected_result",
+        [
+            ("float64", True),
+            ("float32", False),
+        ]
+    )
+    def test_get_variable_relative_quantity(self, var_name, expected_result):
+        """Test get_variable_relative_quantity."""
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_relative_quantity(var_name) == expected_result
+
+    def test_get_variable_relative_quantity_invalid_basetype(self):
+        """Test get_variable_relative_quantity for a variable type that does not have this attribute"""
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "Given variable type does not have the relativeQuantity attribute."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_relative_quantity("int32")
+
+    @pytest.mark.parametrize("var_name, expected_result",
+        [
+            ("f64_1", "K"),
+            ("f64_1_C", "K"), # alias
+            ("f32_1", "K"),
+            ("f32_1_C", "K"), # alias
+        ]
+    )
+    def test_get_variable_unit(self, var_name, expected_result):
+        """Test get_variable_unit."""
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_unit(var_name) == expected_result
+
+    def test_get_variable_unit_when_no_unit(self):
+        """Test get_variable_unit when there is no unit"""
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "No unit was found for the variable f64_nounit."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_unit("f64_nounit")
+
+    def test_get_variable_unit_invalid_basetype(self):
+        """Test get_variable_unit on a variable type that does not have units."""
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "Given variable type does not have units."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_unit("i32")
+
+    @pytest.mark.parametrize("var_name, expected_result",
+        [
+            ("f64_1", "degC"),
+            ("f64_1_F", "degF"), # alias
+            ("f32_1", "degC"),
+            ("f32_1_F", "degF"), # alias
+        ]
+    )
+    def test_get_variable_display_unit(self, var_name, expected_result):
+        """Test get_variable_display_unit."""
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
+        assert fmu.get_variable_display_unit(var_name) == expected_result
+
+    def test_get_variable_display_unit_when_no_display_unit(self):
+        """Test get_variable_display_unit when there is no unit"""
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "No display unit was found for the variable f64_1_X."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_display_unit("f64_1_X")
+
+    def test_get_variable_display_unit_invalid_basetype(self):
+        """Test get_variable_display on a variable type that does not have (display) units."""
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "Given variable type does not have units."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_display_unit("i32")
+
+    @pytest.mark.parametrize("var_name, expected_type, expected_result",
+        [
+            ("f64_1",   np.float64, np.float64(-273.15)), # 0 K -> C
+            ("f64_1_F", np.float64, np.float64(-459.67)), # 0 K -> F (alias)
+            ("f32_1",   np.float32, np.float32(-273.15)), # 0 K -> C
+            ("f32_1_F", np.float32, np.float32(-459.67)), # 0 K -> F (alias)
+        ]
+    )
+    def test_get_variable_display_value(self, var_name, expected_type, expected_result):
+        """Test get_variable_display_value."""
+        fmu = FMUModelME3MockGetFloat(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                          allow_unzipped_fmu = True, _connect_dll = False)
+        res = fmu.get_variable_display_value(var_name)
+        assert isinstance(res, expected_type)
+        assert res == expected_result
+
+    def test_test_get_variable_display_value_no_display_unit(self):
+        """Test get_variable_display_value when there is no display unit."""
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "No display unit was found for the variable f64_1_X."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_display_value("f64_1_X")
+
+    def test_test_get_variable_display_value_invalid_base_type(self):
+        """Test get_variable_display_value for a base type without units."""
+        fmu = _get_fmu(str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "units"),
+                       allow_unzipped_fmu = True, _connect_dll = False)
+        err_msg = "Given variable type does not have units."
+        with pytest.raises(FMUException, match = re.escape(err_msg)):
+            fmu.get_variable_display_value("i32")
 
 class Test_FMI3ME:
     """Basic unit tests for FMI3 import directly via the FMUModelME3 class."""
