@@ -209,7 +209,8 @@ class DynamicDiagnosticsUtils:
     def get_nbr_state_limits(cls, event_type_data: np.ndarray, state_error: np.ndarray) -> np.ndarray:
         """Given event_type_data trajectory, return the cumulative number of times
         the (normalized) state_error exceeded 1 (= limited step-size)."""
-        return np.cumsum((event_type_data == -1) * (state_error >= 1.0))
+        min_nbr_states = min(event_type_data.size, state_error.size)
+        return np.cumsum((event_type_data[:min_nbr_states] == -1) * (state_error[:min_nbr_states] >= 1.0))
     
 def setup_diagnostics_variables(model, start_time, options, solver_options):
     """ Sets up initial diagnostics data. This function is called before a simulation is initiated. """
