@@ -28,4 +28,4 @@ test: .venv
 	$(call _run, pytest)
 
 shell:
-	$(call _run, ,-it)
+	$(call _run, /bin/bash,-it)
