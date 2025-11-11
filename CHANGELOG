@@ -1,5 +1,5 @@
 --- CHANGELOG ---
---- PyFMI-FUTURE ---
+--- PyFMI-2.19.0 ---
     * New function `get_log_categories` for `FMUModelBase2` to retrieve both log 
       categories and descriptions, use instead of `get_categories`.
     * Changes to `FMUModelBase2.set_debug_logging()`
@@ -13,6 +13,7 @@
       and setting `log_level` to `0` when exceeding `set_max_log_size`.
     * Dropping support for Python 3.9 as it is now end of life.
     * Fixed so FMU `reset` resets log size so max log size is per simulation and does not carry over.
+    * Fixed a race-condition for calculated diagnostic variables when using ResultDymolaBinary.get_variables_data().
 
 --- PyFMI-2.18.3 ---
     * Fixed a bug introduced in PyFMI 2.18.0 causing incorrect result storing for `boolean` and `enum` variables
