@@ -170,6 +170,72 @@ cdef class FMI3EventInfo:
         self.nextEventTimeDefined              = FMIL3.fmi3_false
         self.nextEventTime                     = 0.0
 
+cdef class DeclaredType3:
+    """
+    Class defining data structure based on the XML element Type.
+    """
+    def __init__(self, name, description = "", quantity = ""):
+        self._name        = name
+        self._description = description
+        self._quantity = quantity
+
+    def _get_name(self):
+        """
+        Get the value of the name attribute.
+
+        Returns::
+
+            The name attribute value as string.
+        """
+        return self._name
+    name = property(_get_name)
+
+    def _get_description(self):
+        """
+        Get the value of the description attribute.
+
+        Returns::
+
+            The description attribute value as string (empty string if
+            not set).
+        """
+        return self._description
+    description = property(_get_description)
+
+cdef class EnumerationType3(DeclaredType3):
+    """
+    Class defining data structure based on the XML element Enumeration.
+    """
+    def __init__(self, name, description = "", quantity = "", items = None):
+        DeclaredType3.__init__(self, name, description, quantity)
+
+        self._items    = items
+
+    def _get_quantity(self):
+        """
+        Get the quantity of the enumeration type.
+
+        Returns::
+
+            The quantity as string (empty string if
+            not set).
+        """
+        return self._quantity
+    quantity = property(_get_quantity)
+
+    def _get_items(self):
+        """
+        Get the items of the enumeration type.
+
+        Returns::
+
+            The items of the enumeration type as a dict. The key is the
+            enumeration value and the dict value is a tuple containing
+            the name and description of the enumeration item.
+        """
+        return self._items
+    items = property(_get_items)
+
 cdef inline void _check_input_sizes(np.ndarray input_valueref, np.ndarray set_value):
     if np.size(input_valueref) != np.size(set_value):
         raise FMUException('The length of valueref and values are inconsistent. Note: Array variables are not yet supported')
@@ -465,6 +531,70 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             Calls the low-level FMI function: fmi3SetTime or fmi3GetTime.
     """)
 
+    def get_variable_declared_type(self, variable_name):
+        """
+        Return the given variables declared type.
+
+        Parameters::
+
+            variable_name --
+                The name of the variable.
+
+        Returns::
+
+            The declared type.
+        """
+        cdef int item_value
+        cdef unsigned int enum_size
+        cdef FMIL3.fmi3_base_type_enu_t basetype
+        cdef FMIL3.fmi3_import_variable_t* variable
+        cdef FMIL3.fmi3_import_variable_typedef_t* variable_type
+        cdef FMIL3.fmi3_import_enumeration_typedef_t * enumeration_type
+        cdef FMIL3.fmi3_string_t type_name
+        cdef FMIL3.fmi3_string_t type_desc
+        cdef FMIL3.fmi3_string_t type_quantity
+        cdef FMIL3.fmi3_string_t item_desc
+        cdef FMIL3.fmi3_string_t item_name
+
+        variable_name_bytes = pyfmi_util.encode(variable_name)
+        cdef char* variablename = variable_name_bytes
+
+        variable = FMIL3.fmi3_import_get_variable_by_name(self._fmu, variablename)
+        if variable == NULL:
+            raise FMUException("The variable %s could not be found."%variable_name)
+
+        variable_type = FMIL3.fmi3_import_get_variable_declared_type(variable)
+        if variable_type == NULL:
+            raise FMUException("The variable %s does not have a declared type."%variable_name)
+
+        type_name = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_type_name(variable_type)
+        type_desc = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_type_description(variable_type)
+        type_quantity = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_type_quantity(variable_type)
+
+        basetype = FMIL3.fmi3_import_get_variable_base_type(variable)
+
+        if basetype == FMIL3.fmi3_base_type_enum:
+            enumeration_type  = FMIL3.fmi3_import_get_type_as_enum(variable_type)
+            enum_size = FMIL3.fmi3_import_get_enum_type_size(enumeration_type)
+            items = {}
+
+            for i in range(1, enum_size + 1):
+                item_value = FMIL3.fmi3_import_get_enum_type_item_value(enumeration_type, i)
+                item_name  = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_enum_type_item_name(enumeration_type, i)
+                item_desc  = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_enum_type_item_description(enumeration_type, i)
+
+                items[item_value] = (
+                    pyfmi_util.decode(item_name) if item_name != NULL else "",
+                    pyfmi_util.decode(item_desc) if item_desc != NULL else ""
+                )
+
+            return EnumerationType3(
+                pyfmi_util.decode(type_name) if type_name != NULL else "",
+                pyfmi_util.decode(type_desc) if type_desc != NULL else "",
+                pyfmi_util.decode(type_quantity) if type_quantity != NULL else "", items
+            )
+        else:
+            raise NotImplementedError
 
     def terminate(self):
         """ Calls the FMI function fmi3Terminate() on the FMU.
