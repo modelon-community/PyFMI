@@ -44,6 +44,14 @@ cdef class FMI3EventInfo:
     cdef public FMIL3.fmi3_float64_t nextEventTime
     # This will be populated further once we add support for CS and Clocks in particular.
 
+cdef class DeclaredType3:
+    cdef str _name
+    cdef str _description
+    cdef str _quantity
+
+cdef class EnumerationType3(DeclaredType3):
+    cdef dict _items
+
 cdef class FMUState3:
     """Class representing the FMU state, used with get and set FMU state. """
     cdef FMIL3.fmi3_FMU_state_t fmu_state

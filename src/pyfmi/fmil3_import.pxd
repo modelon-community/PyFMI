@@ -228,6 +228,10 @@ cdef extern from 'fmilib.h':
         pass
     ctypedef fmi3_xml_variable_typedef_t fmi3_import_variable_typedef_t
 
+    cdef struct fmi3_xml_enumeration_typedef_t:
+        pass
+    ctypedef fmi3_xml_enumeration_typedef_t fmi3_import_enumeration_typedef_t
+
     # Alias
     cdef struct fmi3_xml_alias_variable_list_t:
         pass
@@ -433,12 +437,21 @@ cdef extern from 'fmilib.h':
     fmi3_initial_enu_t fmi3_import_get_variable_initial(fmi3_import_variable_t*)
     fmi3_string_t fmi3_import_get_variable_description(fmi3_import_variable_t*)
     int fmi3_import_get_variable_has_start(fmi3_import_variable_t*)
+    int fmi3_import_get_enum_type_item_value(fmi3_import_enumeration_typedef_t*, unsigned int)
+    char* fmi3_import_get_model_version(fmi3_import_t*)
     fmi3_import_variable_t* fmi3_import_get_variable(fmi3_import_variable_list_t* vl, size_t index)
     fmi3_import_variable_t* fmi3_import_get_variable_by_name(fmi3_import_t*, char*)
     fmi3_import_variable_t* fmi3_import_get_variable_by_vr(fmi3_import_t*, fmi3_value_reference_t)
     fmi3_value_reference_t fmi3_import_get_variable_vr(fmi3_import_variable_t*)
     fmi3_base_type_enu_t fmi3_import_get_variable_base_type(fmi3_import_variable_t*)
-    char* fmi3_import_get_model_version(fmi3_import_t*)
+    char* fmi3_import_get_type_name(fmi3_import_variable_typedef_t *)
+    char* fmi3_import_get_type_quantity(fmi3_import_variable_typedef_t *)
+    char* fmi3_import_get_enum_type_item_name(fmi3_import_enumeration_typedef_t *, unsigned int)
+    char* fmi3_import_get_enum_type_item_description(fmi3_import_enumeration_typedef_t *, unsigned int)
+    char* fmi3_import_get_type_description(fmi3_import_variable_typedef_t *)
+    unsigned int fmi3_import_get_enum_type_size(fmi3_import_enumeration_typedef_t *)
+    fmi3_import_variable_typedef_t * fmi3_import_get_variable_declared_type(fmi3_import_variable_t *)
+    fmi3_import_enumeration_typedef_t * fmi3_import_get_type_as_enum(fmi3_import_variable_typedef_t *)
 
     # max
     fmi3_float32_t fmi3_import_get_float32_variable_max(fmi3_import_float32_variable_t*)

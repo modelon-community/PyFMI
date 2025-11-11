@@ -1459,6 +1459,37 @@ class Test_FMI3Alias:
         assert self.fmu.get_variable_description("v5_a1") == ""
         assert self.fmu.get_variable_description("v5_a2") == "v5_a2_desc"
 
+class Test_FMUModelBase3:
+    def test_declared_enumeration_type(self):
+        fmu = _get_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", _connect_dll = False)
+        enum = fmu.get_variable_declared_type("Enumeration_input")
+        item_1 = enum.items[1]
+        item_2 = enum.items[2]
+
+        assert len(enum.items.keys()) == 2
+        assert enum.name == "Option"
+        assert enum.description == ""
+
+        assert item_1[0] == "Option 1"
+        assert item_1[1] == "First option"
+
+        assert item_2[0] == "Option 2"
+        assert item_2[1] == "Second option"
+
+    def test_non_existing_enumeration_type(self):
+        fmu = _get_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", _connect_dll = False)
+        err = "The variable non_existing_enumeration_input could not be found."
+
+        with pytest.raises(FMUException, match = re.escape(err)):
+            fmu.get_variable_declared_type("non_existing_enumeration_input")
+
+    def test_declared_variable_with_no_type(self):
+        fmu = _get_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", _connect_dll = False)
+        err = "The variable String_input does not have a declared type."
+
+        with pytest.raises(FMUException, match = re.escape(err)):
+            fmu.get_variable_declared_type("String_input")
+
 class TestFMI3CS:
     # TODO: Unsupported for now
     pass
