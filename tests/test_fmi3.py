@@ -1490,6 +1490,46 @@ class Test_FMUModelBase3:
         with pytest.raises(FMUException, match = re.escape(err)):
             fmu.get_variable_declared_type("String_input")
 
+    def test_set_enum_by_string_name(self):
+        fmu = _get_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", _connect_dll = True)
+        assert fmu.get("Enumeration_input")[0] != np.int64(2)
+        fmu.set_enum(["Enumeration_input"], ["Option 2"])
+        assert fmu.get("Enumeration_input") == [2]
+
+    def test_set_enum_invalid_string(self):
+        fmu = _get_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", _connect_dll = False)
+        with pytest.raises(FMUException) as exc_info:
+            fmu.set_enum(["Enumeration_input"], ["invalid val"])
+        assert "not in the list of allowed enumeration items" in str(exc_info.value)
+        assert "Allowed values: Option 1, Option 2" in str(exc_info.value)
+
+    def test_set_enum_by_value_reference_integer(self):
+        fmu = _get_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", _connect_dll=True)
+        vref = fmu.get_variable_valueref("Enumeration_input")
+        fmu.set_enum([vref], [2])
+        assert fmu.get("Enumeration_input") == [2]
+
+    def test_set_enum_mismatched_lengths(self):
+        fmu = _get_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", _connect_dll=False)
+        with pytest.raises(FMUException) as exc_info:
+            fmu.set_enum(["Enumeration_input"], [1, 2])
+        assert "must have the same length" in str(exc_info.value)
+
+    def test_set_enum_empty_lists(self):
+        fmu = _get_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", _connect_dll=True)
+        fmu.set_enum([], [])
+
+    def test_set_enum_invalid_integer_value(self):
+        fmu = _get_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", _connect_dll=True)
+        with pytest.raises(FMUException):
+            fmu.set_enum(["Enumeration_input"], [999999])
+
+    def test_set_enum_case_sensitivity(self):
+        fmu = _get_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", _connect_dll=False)
+        with pytest.raises(FMUException) as exc_info:
+            fmu.set_enum(["Enumeration_input"], ["option 1"])
+        assert "not in the list of allowed enumeration items" in str(exc_info.value)
+
 class TestFMI3CS:
     # TODO: Unsupported for now
     pass
