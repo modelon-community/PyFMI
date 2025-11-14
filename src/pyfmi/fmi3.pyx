@@ -1144,25 +1144,67 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cpdef set_enum(self, valueref, values):
         """
-        Sets the enum-values in the FMU as defined by the value reference(s).
+        Sets the enum-values in the FMU as defined by the value reference(s) or variable name(s).
 
         Parameters::
 
             valueref --
-                A list of value references.
+                A list of value references (integers) or variable names (strings).
 
             values --
-                Values to be set.
+                Values to be set. Can be integers or enum value name strings.
 
         Example::
 
-            model.set_enum([234, 235],[2, 10])
+            model.set_enum([234, 235], [2, 10])
+            model.set_enum(["myEnumVar"], ["EnumValueName"])
 
         Calls the low-level FMI function: fmi3SetInt64
         """
         cdef int status
-        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref = np.asarray(valueref, dtype = np.uint32).ravel()
-        cdef np.ndarray[FMIL3.fmi3_int64_t, ndim=1, mode='c'] set_value = np.asarray(values, dtype = np.int64).ravel()
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] input_valueref
+        cdef np.ndarray[FMIL3.fmi3_int64_t, ndim=1, mode='c'] set_value
+
+        processed_valuerefs = []
+        variable_names = []
+        for value in valueref:
+            if isinstance(value, str) or isinstance(value, bytes):
+                # It's a variable name, get the value reference
+                value_int = self.get_variable_valueref(value)
+                processed_valuerefs.append(value_int)
+                variable_names.append(value)
+            else:
+                processed_valuerefs.append(int(value))
+                variable_names.append(self.get_variable_name_by_valueref(value))
+
+        if len(valueref) != len(values):
+            raise FMUException("Enum references and values must have the same length")
+
+        processed_values = []
+        for i, value in enumerate(values):
+            if isinstance(value, (str, bytes)):
+                enum_type = self.get_variable_declared_type(variable_names[i])
+                enum_name_to_value = {
+                    pyfmi_util.encode(name): int_val
+                    for int_val, (name, _) in enum_type.items.items()
+                }
+                encoded_value = pyfmi_util.encode(value)
+
+                if encoded_value not in enum_name_to_value:
+                    str_keys = [pyfmi_util.decode(k) for k in enum_name_to_value.keys()]
+                    msg = "The value '{}' is not in the list of allowed enumeration items for variable '{}'. Allowed values: {}".format(
+                        pyfmi_util.decode(value),
+                        pyfmi_util.decode(variable_names[i]),
+                        ", ".join(str_keys)
+                    )
+                    raise FMUException(msg)
+
+                processed_values.append(enum_name_to_value[encoded_value])
+            else:
+                processed_values.append(int(value))
+
+        set_value = np.asarray(processed_values, dtype=np.int64).ravel()
+        input_valueref = np.asarray(processed_valuerefs, dtype=np.uint32).ravel()
         _check_input_sizes(input_valueref, set_value)
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
