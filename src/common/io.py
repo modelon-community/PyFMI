@@ -23,7 +23,7 @@ import re
 import sys
 import os
 import logging as logging_module
-from functools import reduce
+from functools import reduce, cache, cached_property
 from typing import Union
 from shutil import disk_usage
 import abc
@@ -2989,6 +2989,169 @@ class ResultHandlerBinaryFile(ResultHandler):
         subclass of ResultBase.
         """
         return ResultDymolaBinary(self.file_name)
+
+class _DelayedVarReader4Diags(DelayedVarReader4):
+    def read_sub_array(self, hdr, copy=True):
+        match hdr.name:
+            case b"data_2":
+                return {
+                    "section": "data_2",
+                    "file_position": self.mat_stream.tell(),
+                    "sizeof_type": hdr.dtype.itemsize,
+                    "nbr_points": hdr.dims[1],
+                    "nbr_variables": hdr.dims[0]
+                }
+            case b"data_3":
+                return {
+                    "section": "data_3",
+                    "file_position": self.mat_stream.tell(),
+                    "sizeof_type": hdr.dtype.itemsize,
+                    "nbr_points": hdr.dims[1],
+                    "nbr_variables": hdr.dims[0]
+                }
+            case b"name":
+                return {
+                    "section": "name",
+                    "file_position": self.mat_stream.tell(),
+                    "sizeof_type": hdr.dtype.itemsize,
+                    "max_length": hdr.dims[0],
+                    "nbr_variables": hdr.dims[1]
+                }
+            case _:
+                return super().read_sub_array(hdr, copy)
+
+class _DelayedVariableLoadDiags(DelayedVariableLoad):
+    def initialize_read(self):
+        self.dtypes = convert_dtypes(mdtypes_template, self.byte_order)
+        self._matrix_reader = _DelayedVarReader4Diags(self)
+
+class _ResultReaderBinaryMatConsolidated(ResultReader):
+    def __init__(self, fname):
+        """
+        Load a result file containing diagnostics data.
+
+        This function expects the file to include a variable named `data_3`,
+        which stores the diagnostic results in binary format. The `data_3`
+        variable is explicitly written by the exporting process used in
+        ResultHandlerBinaryFile.
+
+        Parameters::
+
+            fname --
+                Name of file or a file object supported by scipy.io.loadmat,
+                which the result is written to.
+        """
+
+        if isinstance(fname, str):
+            self._fname = fname
+        elif hasattr(fname, "name") and os.path.isfile(fname.name):
+            self._fname = fname.name
+
+        data_sections = ["name", "dataInfo", "data_2", "data_3"]
+        with open(self._fname, "rb") as f:
+            delayed = _DelayedVariableLoadDiags(f, chars_as_strings=False)
+            self.raw: dict = delayed.get_variables(variable_names = data_sections)
+
+        self._name_info: dict = self.raw["name"]
+        self._dataInfo: dict = self.raw["dataInfo"]
+        self._data_2_info: dict = self.raw["data_2"]
+        self._contains_diagnostic_data: bool = ("data_3" in self.raw)
+        if self._contains_diagnostic_data:
+            self._data_3_info: dict = self.raw["data_3"]
+
+    @cache
+    def _get_variable_name_to_index_dict(self) -> dict[str, int]:
+        name_dict: dict = fmi_util.read_name_list(
+            encode(self._fname),
+            self._name_info["file_position"],
+            int(self._name_info["nbr_variables"]),
+            int(self._name_info["max_length"])
+        )
+
+        return {decode(k): v for k, v in name_dict.items()}
+
+    def get_variable_names(self) -> list[str]:
+        return list(self._get_variable_name_to_index_dict().keys())
+
+    def _get_data_index_mat(self, variable_name: str) -> tuple[int, int]:
+        """ Returns the data index and matrix ID for given variable name. """
+        if variable_name in self._get_variable_name_to_index_dict():
+            variable_index = self._get_variable_name_to_index_dict().get(variable_name)
+            data_mat = self._dataInfo[0][variable_index]
+            data_index = abs(self._dataInfo[1][variable_index]) - 1 # abs due to alias
+
+            if data_mat == 0:
+                data_mat = 2 if len(self.raw['data_2']) > 0 else 1
+
+            return data_index, data_mat
+
+        raise VariableNotFoundError(f"Cannot find variable '{variable_name}' in data file.")
+
+    @cached_property
+    def _data_1(self):
+        """Non time-varying values, i.e., constants and fixed parameters."""
+        return scipy.io.loadmat(self._fname, chars_as_strings=False, variable_names=["data_1"])["data_1"]
+
+    def get_trajectory(self, name: str) -> Trajectory:
+        time = self._diagnostics_time_vector if self._contains_diagnostic_data else self._time_vector
+
+        if name in ("time", "Time"):
+            return Trajectory(time, time)
+
+        data_index, data_mat = self._get_data_index_mat(name)
+        match data_mat:
+            case 1:
+                return Trajectory(self._data_1[0], self._data_1[data_index])
+            case 2:
+                data = (
+                    self._get_interpolated_trajectory(data_index)
+                    if self._contains_diagnostic_data
+                    else self._get_trajectory(data_index)
+                )
+                return Trajectory(time, data)
+            case 3:
+                return Trajectory(time, self._get_diagnostics_trajectory(data_index))
+            case _:
+                raise ValueError(f"Invalid data matrix: {data_mat}")
+
+    @cached_property
+    def _time_vector(self) -> np.ndarray:
+        return self._get_trajectory(0)
+
+    @cached_property
+    def _diagnostics_time_vector(self) -> np.ndarray:
+        return self._get_diagnostics_trajectory(0)
+
+    def _get_trajectory(self, data_index: int) -> np.ndarray:
+        return fmi_util.read_trajectory(
+            encode(self._fname),
+            data_index,
+            self._data_2_info["file_position"],
+            self._data_2_info["sizeof_type"],
+            int(self._data_2_info["nbr_points"]),
+            int(self._data_2_info["nbr_variables"])
+        )
+
+    def _get_diagnostics_trajectory(self, data_index: int) -> np.ndarray:
+        return fmi_util.read_trajectory(
+            encode(self._fname),
+            data_index,
+            self._data_3_info["file_position"],
+            self._data_3_info["sizeof_type"],
+            int(self._data_3_info["nbr_points"]),
+            int(self._data_3_info["nbr_variables"])
+        )
+
+    def _get_interpolated_trajectory(self, data_index: int) -> np.ndarray:
+        time_vector = self._time_vector
+        diag_time_vector = self._diagnostics_time_vector
+        data = self._get_trajectory(data_index)
+
+        if len(data) == 1:
+            return data
+
+        f = scipy.interpolate.interp1d(time_vector, data, fill_value="extrapolate")
+        return f(diag_time_vector)
 
 def verify_result_size(file_name, first_point, current_size, previous_size, max_size, ncp, time):
     free_space = get_available_disk_space(file_name)
