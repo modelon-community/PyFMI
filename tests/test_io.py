@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import uuid
 import pytest
 import os
 import numpy as np
@@ -25,6 +26,7 @@ from io import StringIO, BytesIO
 from collections import OrderedDict
 
 from pyfmi import load_fmu
+from scipy.io import savemat
 
 from pyfmi.fmi import (
     FMUException,
@@ -43,6 +45,8 @@ from pyfmi.common.io import (
     ResultCSVTextual,
     ResultHandlerBinaryFile,
     ResultHandlerFile,
+    _ResultReaderBinaryMatConsolidated,
+    VariableNotFoundError,
     Trajectory,
     get_result_handler,
     ResultReader,
@@ -2355,3 +2359,142 @@ def test_basic_variable_get_set_result_correctness(fmu_path, result_handling):
     assert res["Int32_input"][-1] == int32_val
     assert res["Float64_continuous_input"][-1] == float64_val
     assert res["Enumeration_input"][-1] == enum_val
+
+def _convert_char_array(names: list[str]) -> np.ndarray:
+    """Convert list of strings into MATLAB-style char array."""
+    max_len = max(map(len, names))
+    arr = np.full((max_len, len(names)), " ", dtype="U1")
+    for j, name in enumerate(names):
+        arr[:len(name), j] = list(name)
+    return arr
+
+def _save_mat_file(tmp_path: Path, data_info: np.ndarray, data_dict: dict, variable_names: list[str]) -> str:
+    filename = f"{uuid.uuid4().hex}.mat"
+    path = tmp_path / filename
+    mat_dict = {"dataInfo": data_info, "name": _convert_char_array(variable_names), **data_dict}
+    savemat(str(path), mat_dict, format="4")
+    return str(path)
+
+@pytest.fixture
+def mat_file(tmp_path):
+    variable_names = [
+        "spring.phi_nominal", "spring.k_constant", "time",
+        "torque.flange.phi", "@Diagnostics.step_time", "@Diagnostics.error_code"
+    ]
+    data_info = np.array([[1, 1, 2, 2, 3, 3], [1, 2, 1, 2, 1, 2]], dtype=np.int32)
+    data_dict = {
+        "data_1": np.vstack([[42.0, 100.0], [1, 2]]),
+        "data_2": np.vstack([np.arange(1, 4, dtype=float), [0.1, 0.2, 0.3]]),
+        "data_3": np.vstack([np.arange(10, 13, dtype=float), [0, 1, 0]])
+    }
+    return _save_mat_file(tmp_path, data_info, data_dict, variable_names)
+
+@pytest.fixture
+def mat_file_no_diag(tmp_path):
+    variable_names = ["time"]
+    data_info = np.zeros((2, len(variable_names)), dtype=np.int32)
+    return _save_mat_file(tmp_path, data_info, {"data_2": np.zeros((4, 3))}, variable_names)
+
+@pytest.fixture
+def mat_file_interpolation(tmp_path):
+    data_info = np.array([[2, 2, 3, 3], [1, 2, 1, 2]], dtype=np.int32)
+    data_dict = {
+        "data_2": np.array([[0, 1, 2], [0, 10, 20]], float),
+        "data_3": np.array([[0, 0.5, 1, 1.5, 2], [0, 0, 0, 0, 0]], float)
+    }
+    return _save_mat_file(
+        tmp_path,
+        data_info,
+        data_dict,
+        ["time", "spring.phi_nominal", "diagnostic_time", "@Diagnostics.step_time"]
+    )
+
+@pytest.fixture
+def mat_file_singular_data(tmp_path):
+    data_info = np.array([[2, 2], [1, 2]], dtype=np.int32)
+    data_dict = {
+        "data_1": np.array([[]], float),
+        "data_2": np.array([[1], [1]], float),
+        "data_3": np.array([[1], [1]], float)
+    }
+    return _save_mat_file(tmp_path, data_info, data_dict, ["time", "spring.phi_nominal"])
+
+class TestResultReaderForBinaryMatConsolidated:
+    def test_get_all_variable_names(self, mat_file):
+        result = _ResultReaderBinaryMatConsolidated(mat_file)
+        variables = result.get_variable_names()
+        expected = {"spring.phi_nominal", "spring.k_constant", "time", "torque.flange.phi", "@Diagnostics.step_time", "@Diagnostics.error_code"}
+        assert set(variables) == expected
+
+    def test_get_values_assert_valid(self, mat_file):
+        result = _ResultReaderBinaryMatConsolidated(mat_file)
+
+        # Test spring.phi_nominal (data_1, constant value)
+        traj_phi = result.get_trajectory("spring.phi_nominal")
+        assert np.allclose(traj_phi.x, 42.0, 100.0)
+
+        # Test spring.k_constant (data_1, constant value)
+        traj_k = result.get_trajectory("spring.k_constant")
+        assert np.allclose(traj_k.x, 1.0, 2.0)
+
+        # Test time (data_2, time series)
+        traj_time = result.get_trajectory("time")
+        assert np.allclose(traj_time.t, [10.0, 11.0, 12.0])
+        assert np.allclose(traj_time.x, [10.0, 11.0, 12.0])
+
+        # Test torque.flange.phi (data_2, values with time)
+        traj_torque = result.get_trajectory("torque.flange.phi")
+        assert np.allclose(traj_torque.t, [10.0, 11.0, 12.0])
+        assert np.allclose(traj_torque.x, [1.0, 1.1, 1.2])
+
+        # Test @Diagnostics.step_time (data_3, time series)
+        traj_step = result.get_trajectory("@Diagnostics.step_time")
+        assert np.allclose(traj_step.t, [10.0, 11.0, 12.0])
+        assert np.allclose(traj_step.x, [10.0, 11.0, 12.0])
+
+        # Test @Diagnostics.error_code (data_3, values with time)
+        traj_error = result.get_trajectory("@Diagnostics.error_code")
+        assert np.allclose(traj_error.t, [10.0, 11.0, 12.0])
+        assert np.allclose(traj_error.x, [0.0, 1.0, 0.0])
+
+    def test_get_data_only_one_len(self, mat_file_singular_data):
+        result = _ResultReaderBinaryMatConsolidated(mat_file_singular_data)
+
+        # Test time variable
+        traj_time = result.get_trajectory("time")
+        assert len(traj_time.t) == 1
+        assert np.allclose(traj_time.t, [1.0])
+        assert np.allclose(traj_time.x, [1.0])
+
+        # Test spring.phi_nominal variable
+        traj_phi = result.get_trajectory("spring.phi_nominal")
+        assert len(traj_phi.t) == 1
+        assert np.allclose(traj_phi.t, [1.0])
+        assert np.allclose(traj_phi.x, [1.0])
+
+    def test_get_all_non_existing_variable_throws(self, mat_file):
+        result = _ResultReaderBinaryMatConsolidated(mat_file)
+        with pytest.raises(VariableNotFoundError):
+            result.get_trajectory("does.not.exist")
+
+    def test_get_trajectories_from_all_matrices(self, mat_file):
+        result = _ResultReaderBinaryMatConsolidated(mat_file)
+        for var in ["spring.phi_nominal", "torque.flange.phi", "@Diagnostics.step_time"]:
+            assert result.get_trajectory(var) is not None
+
+    def test_with_diagnostic_variable(self, mat_file):
+        result = _ResultReaderBinaryMatConsolidated(mat_file)
+        assert result.get_trajectory("@Diagnostics.step_time") is not None
+
+    def test_without_diagnostic_variable(self, mat_file_no_diag):
+        result_no_diag = _ResultReaderBinaryMatConsolidated(mat_file_no_diag)
+        assert "@Diagnostics.step_time" not in result_no_diag.get_variable_names()
+
+def test_interpolation_between_points(mat_file_interpolation):
+    result = _ResultReaderBinaryMatConsolidated(mat_file_interpolation)
+    traj = result.get_trajectory("spring.phi_nominal")
+
+    assert np.allclose(traj.t, [0.0, 0.5, 1.0, 1.5, 2.0])
+    assert traj.x[1] == pytest.approx(5.0)
+    assert traj.x[3] == pytest.approx(15.0)
+    assert traj.x[-1] == pytest.approx(20.0)
