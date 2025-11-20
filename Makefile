@@ -24,7 +24,7 @@ build-dev-image:
 build: .venv
 	$(call _run, python setup.py install --fmil-home=/usr)
 
-test: .venv
+test: build
 	$(call _run, pytest)
 
 shell:
