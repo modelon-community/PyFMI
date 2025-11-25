@@ -389,7 +389,11 @@ class ResultCSVTextual(ResultReader):
         """
 
         if isinstance(filename, str):
-            fid = codecs.open(filename,'r','utf-8')
+            try:
+                fid = codecs.open(filename,'r','utf-8')
+            except FileNotFoundError as e:
+                raise NoResultError(str(e)) from e
+
         else: # assume stream
             if not(hasattr(filename, 'readline') and hasattr(filename, 'seek')):
                 raise JIOError("Given stream needs to support 'readline' and 'seek' in order to retrieve the results.")
@@ -994,7 +998,10 @@ class ResultDymolaTextual(ResultDymola):
                 If fname is a stream, it needs to support 'readline' and 'seek'.
         """
         if isinstance(fname, str):
-            fid = codecs.open(fname,'r','utf-8')
+            try:
+                fid = codecs.open(fname,'r','utf-8')
+            except FileNotFoundError as e:
+                raise NoResultError(str(e)) from e
         else:
             if not (hasattr(fname, 'readline') and hasattr(fname, 'seek')):
                 raise JIOError("Given stream needs to support 'readline' and 'seek' in order to retrieve the results.")
@@ -1304,20 +1311,23 @@ class ResultDymolaBinary(ResultDymola):
 
         data_sections = ["name", "dataInfo", "data_2", "data_3", "data_4"]
         if not self._is_stream:
-            with open(self._fname, "rb") as f:
-                delayed = DelayedVariableLoad(f, chars_as_strings=False)
-                try:
-                    self.raw = delayed.get_variables(variable_names = data_sections)
-                    self._contains_diagnostic_data = True
-                    self._data_3_info = self.raw["data_3"]
-                    self._data_3 = {}
-                    self._data_4_info = self.raw["data_4"]
+            try:
+                with open(self._fname, "rb") as f:
+                    delayed = DelayedVariableLoad(f, chars_as_strings=False)
+                    try:
+                        self.raw = delayed.get_variables(variable_names = data_sections)
+                        self._contains_diagnostic_data = True
+                        self._data_3_info = self.raw["data_3"]
+                        self._data_3 = {}
+                        self._data_4_info = self.raw["data_4"]
 
-                    self._has_file_pos_data = False
+                        self._has_file_pos_data = False
 
-                except Exception:
-                    self._contains_diagnostic_data = False
-                    data_sections = ["name", "dataInfo", "data_2"]
+                    except Exception:
+                        self._contains_diagnostic_data = False
+                        data_sections = ["name", "dataInfo", "data_2"]
+            except FileNotFoundError as e:
+                raise NoResultError(str(e)) from e
         else:
             data_sections = ["name", "dataInfo", "data_2"]
             self._contains_diagnostic_data = False
@@ -1927,9 +1937,12 @@ class ResultHandlerMemory(ResultHandler):
         """
         Method for retrieving the result.
         """
-        t = np.array(self.time_sol)
-        r = np.array(self.real_sol)
-        data = np.c_[t,r]
+        try:
+            t = np.array(self.time_sol)
+            r = np.array(self.real_sol)
+            data = np.c_[t,r]
+        except AttributeError as e:
+            raise NoResultError("No in memory result have been generated") from e
 
         if len(self.int_sol) > 0 and len(self.int_sol[0]) > 0:
             i = np.array(self.int_sol)
@@ -1952,6 +1965,14 @@ class ResultHandlerCSV(ResultHandler):
         self._current_file_size = self._current_file_size+len(msg)
         self._file.write(msg)
 
+    @cache
+    def _get_file_name(self):
+        file_name = self.options["result_file_name"]
+        if file_name == "":
+            return self.model.get_identifier() + '_result.csv'
+
+        return file_name
+
     def initialize_complete(self):
         pass
 
@@ -1969,14 +1990,12 @@ class ResultHandlerCSV(ResultHandler):
         self.nbr_points = 0
         delimiter = self.delimiter
 
-        self.file_name = opts["result_file_name"]
         try:
             self.parameters = opts["sensitivities"]
         except KeyError:
             self.parameters = None
 
-        if self.file_name == "":
-            self.file_name=self.model.get_identifier() + '_result.csv'
+        self.file_name = self._get_file_name()
         self.model._result_file = self.file_name
 
         vars = model.get_model_variables(filter=opts["filter"])
@@ -2121,7 +2140,7 @@ class ResultHandlerCSV(ResultHandler):
         """
         Method for retrieving the result.
         """
-        return ResultCSVTextual(self.file_name, self.delimiter)
+        return ResultCSVTextual(self._get_file_name(), self.delimiter)
 
 class ResultHandlerFile(ResultHandler):
     """
@@ -2133,6 +2152,31 @@ class ResultHandlerFile(ResultHandler):
         self.supports['result_max_size'] = True
         self._current_file_size = 0
         self._first_point = True
+
+    @cache
+    def _get_file_name(self):
+        file_name = self.options["result_file_name"]
+        if file_name == "":
+            return self.model.get_identifier() + '_result.txt'
+
+        return file_name
+
+    @cache
+    def _is_stream(self):
+        file = self._get_file_name()
+        if isinstance(file, str):
+            return False
+        else:
+            if not (hasattr(file, 'write') and hasattr(file, 'seek')):
+                raise FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write' and 'seek'.")
+            return True
+
+    @cache
+    def _get_file_handle(self):
+        if self._is_stream():
+            return self.file_name
+        else:
+            return codecs.open(self.file_name,'w','utf-8')
 
     def initialize_complete(self):
         pass
@@ -2148,17 +2192,14 @@ class ResultHandlerFile(ResultHandler):
 
         # Internal values
         self.file_open = False
-        self._is_stream = False
         self.nbr_points = 0
 
-        self.file_name = opts["result_file_name"]
         try:
             self.parameters = opts["sensitivities"]
         except KeyError:
             self.parameters = None
 
-        if self.file_name == "":
-            self.file_name=self.model.get_identifier() + '_result.txt'
+        self.file_name = self._get_file_name()
         self.model._result_file = self.file_name
 
         # Store the continuous and discrete variables for result writing
@@ -2167,15 +2208,9 @@ class ResultHandlerFile(ResultHandler):
         parameters = self.parameters
 
         # Open file
-        if isinstance(self.file_name, str):
-            f = codecs.open(self.file_name,'w','utf-8')
-        else:
-            if not (hasattr(self.file_name, 'write') and hasattr(self.file_name, 'seek')):
-                raise FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write' and 'seek'.")
-            f = self.file_name # assume it is a stream
-            self._is_stream = True
-        self.file_open = True
+        f = self._get_file_handle()
         self._file = f
+        self.file_open = True
 
         # Write header
         self._write('#1\n')
@@ -2554,7 +2589,7 @@ class ResultHandlerFile(ResultHandler):
             f.seek(self._point_npoints)
             f.write('%d,%d)' % (self.nbr_points, self._nvariables+self._nvariables_sens))
 
-            if self._is_stream: # Seek relative to file end to allowed for string streams
+            if self._is_stream(): # Seek relative to file end to allowed for string streams
                 f.seek(0, os.SEEK_END)
                 f.seek(f.tell()-1, os.SEEK_SET)
             else:
@@ -2570,7 +2605,9 @@ class ResultHandlerFile(ResultHandler):
         result of an instance of ResultBase or of an instance of a
         subclass of ResultBase.
         """
-        return ResultDymolaTextual(self.file_name if not self._is_stream else self._file)
+        return ResultDymolaTextual(
+            self._get_file_handle() if self._is_stream() else self._get_file_name()
+        )
 
 class ResultHandlerDummy(ResultHandler):
     def get_result(self) -> None:
@@ -2601,6 +2638,12 @@ class JIOError(Exception):
         """
         return self.message
 
+class NoResultError(JIOError, FileNotFoundError):
+    """
+    Exception that is thrown when a result does not exists. Note that in the
+    future this exception will no longer inherit from FileNotFoundError.
+    """
+    pass
 
 class VariableNotFoundError(JIOError):
     """
@@ -2657,6 +2700,14 @@ class ResultHandlerBinaryFile(ResultHandler):
         self.data_2_header_end_position = 0
         self._size_point = -1
         self._first_point = True
+
+    @cache
+    def _get_file_name(self):
+        file_name = self.options["result_file_name"]
+        if file_name == "":
+            return self.model.get_identifier() + '_result.mat'
+
+        return file_name
 
     def _data_header(self, name, nbr_rows, nbr_cols, data_type):
         if data_type == "int":
@@ -2748,7 +2799,7 @@ class ResultHandlerBinaryFile(ResultHandler):
                 msg += " 'diagnostics_vars'."
             raise FMUException(msg)
 
-        self.file_name = opts["result_file_name"]
+        self.file_name = self._get_file_name()
         try:
             self.parameters = opts["sensitivities"]
         except KeyError:
@@ -2757,8 +2808,6 @@ class ResultHandlerBinaryFile(ResultHandler):
         if self.parameters:
             raise FMUException("Storing sensitivity results are not supported using this format. Use the file format instead.")
 
-        if self.file_name == "":
-            self.file_name=self.model.get_identifier() + '_result.mat'
         self.model._result_file = self.file_name
 
         # Open file
@@ -2988,7 +3037,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         result of an instance of ResultBase or of an instance of a
         subclass of ResultBase.
         """
-        return ResultDymolaBinary(self.file_name)
+        return ResultDymolaBinary(self._get_file_name())
 
 class _DelayedVarReader4Diags(DelayedVarReader4):
     def read_sub_array(self, hdr, copy=True):
