@@ -47,11 +47,13 @@ from pyfmi.common.io import (
     ResultHandlerFile,
     _ResultReaderBinaryMatConsolidated,
     VariableNotFoundError,
+    ResultHandlerMemory,
     Trajectory,
     get_result_handler,
     ResultReader,
     ResultStorageMemory,
-    ResultDymolaTextual
+    ResultDymolaTextual,
+    NoResultError
 )
 from pyfmi.common.diagnostics import (
     DIAGNOSTICS_PREFIX,
@@ -1584,6 +1586,7 @@ class TestResultCSVTextual:
 class TestResultDymolaBinary:
 
     def test_next_start_index(self):
+
         """
             Test that calculation of the next start index works as expected.
 
@@ -2498,3 +2501,28 @@ def test_interpolation_between_points(mat_file_interpolation):
     assert traj.x[1] == pytest.approx(5.0)
     assert traj.x[3] == pytest.approx(15.0)
     assert traj.x[-1] == pytest.approx(20.0)
+
+@pytest.mark.parametrize("result_handler_cls",
+[
+    pytest.param(ResultHandlerCSV),
+    pytest.param(ResultHandlerBinaryFile),
+    pytest.param(ResultHandlerFile),
+    pytest.param(ResultHandlerMemory),
+])
+def test_given_no_start_simulation_when_get_result_then_no_result_error(result_handler_cls):
+    # Begin by setting up minimal required environment in order to perform the test
+    fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
+            _connect_dll=False)
+
+    result_handler = result_handler_cls(fmu)
+
+    opts = fmu.simulate_options()
+    opts["result_handling"] = "binary"
+    opts["result_file_name"] = "test_given_no_start_simulation_when_get_result_then_error.mat"
+    opts["result_handler"] = result_handler
+
+    fmu.setup_experiment()
+    result_handler.set_options(opts) # required in order to get where result is saved
+
+    with pytest.raises(NoResultError):
+        result_handler.get_result()
