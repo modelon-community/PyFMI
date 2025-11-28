@@ -294,14 +294,7 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
         self.callbacks.logger  = importlogger
         self.callbacks.context = <void*>self #Class loggger
 
-        if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
-            if log_level == FMIL.jm_log_level_nothing:
-                enable_logging = False
-            else:
-                enable_logging = True
-            self.callbacks.log_level = log_level
-        else:
-            raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
+        self._setup_log_state(log_level)
 
         self._fmu_full_path = os.path.abspath(fmu)
         if _unzipped_dir:
@@ -383,7 +376,6 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
         #Internal values
         self._file_open = False
         self._npoints = 0
-        self._enable_logging = enable_logging
         self._pyEventInfo = PyEventInfo()
 
         #Load information from model
@@ -417,6 +409,13 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
                     file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
 
         self._log = []
+
+    def _setup_log_state(self, log_level):
+        if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
+            self._enable_logging = log_level != FMIL.jm_log_level_nothing
+            self.callbacks.log_level = log_level
+        else:
+            raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
 
     cpdef _internal_set_fmu_null(self):
         """

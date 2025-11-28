@@ -555,15 +555,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         self.callBackFunctions.stepFinished         = NULL
         self.callBackFunctions.componentEnvironment = NULL
 
-        if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
-            if log_level == FMIL.jm_log_level_nothing:
-                enable_logging = False
-            else:
-                enable_logging = True
-            self.callbacks.log_level = log_level
-        else:
-            raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
-        self._enable_logging = enable_logging
+        self._setup_log_state(log_level)
 
         self._fmu_full_path = pyfmi_util.encode(os.path.abspath(fmu))
         check_fmu_args(self._allow_unzipped_fmu, fmu, self._fmu_full_path)
@@ -595,14 +587,14 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         # Check the version
         if self._version == FMIL.fmi_version_unknown_enu:
             last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
-            if enable_logging:
+            if self._enable_logging:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. "+last_error)
             else:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version could not be determined. Enable logging for possibly more information.")
 
         if self._version != FMIL.fmi_version_2_0_enu:
             last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
-            if enable_logging:
+            if self._enable_logging:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version is not supported by this class. "+last_error)
             else:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU version is not supported by this class. Enable logging for possibly more information.")
@@ -612,7 +604,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         if self._fmu is NULL:
             last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
-            if enable_logging:
+            if self._enable_logging:
                 raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. "+last_error)
             else:
                 raise InvalidXMLException("The FMU could not be loaded. The model data from 'modelDescription.xml' within the FMU could not be read. Enable logging for possible nore information.")
@@ -624,7 +616,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         #FMU kind is unknown
         if self._fmu_kind == FMIL2.fmi2_fmu_kind_unknown:
             last_error = pyfmi_util.decode(FMIL.jm_get_last_error(&self.callbacks))
-            if enable_logging:
+            if self._enable_logging:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU kind could not be determined. "+last_error)
             else:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU kind could not be determined. Enable logging for possibly more information.")
@@ -643,7 +635,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
             if status == FMIL.jm_status_error:
                 last_error = pyfmi_util.decode(FMIL2.fmi2_import_get_last_error(self._fmu))
-                if enable_logging:
+                if self._enable_logging:
                     raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. " + last_error)
                 else:
                     raise InvalidBinaryException("The FMU could not be loaded. Error loading the binary. Enable logging for possibly more information.")
@@ -681,6 +673,13 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
                     file.write("FMIL: module = %s, log level = %d: %s\n"%(self._log[i][0], self._log[i][1], self._log[i][2]))
 
         self._log = []
+
+    def _setup_log_state(self, log_level):
+        if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
+            self._enable_logging = log_level != FMIL.jm_log_level_nothing
+            self.callbacks.log_level = log_level
+        else:
+            raise FMUException("The log level must be between %d and %d"%(FMIL.jm_log_level_nothing, FMIL.jm_log_level_all))
 
     cpdef np.ndarray get_real(self, valueref):
         """

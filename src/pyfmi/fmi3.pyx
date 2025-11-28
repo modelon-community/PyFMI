@@ -361,14 +361,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self.callbacks.logger  = importlogger3
         self.callbacks.context = <void*>self
 
-        if isinstance(log_level, int) and (log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all):
-            if log_level == FMIL.jm_log_level_nothing:
-                self._enable_logging = False
-            else:
-                self._enable_logging = True
-            self.callbacks.log_level = log_level
-        else:
-            raise FMUException(f"The log level must be an integer between {FMIL.jm_log_level_nothing} and {FMIL.jm_log_level_all}")
+        self._setup_log_state(log_level)
         self._fmu_full_path = pyfmi_util.encode(os.path.abspath(fmu))
         check_fmu_args(self._allow_unzipped_fmu, fmu, self._fmu_full_path)
 
@@ -472,6 +465,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 )
 
         self._log = []
+
+    def _setup_log_state(self, log_level):
+        if isinstance(log_level, int) and (log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all):
+            self._enable_logging = log_level != FMIL.jm_log_level_nothing
+            self.callbacks.log_level = log_level
+        else:
+            raise FMUException(f"The log level must be an integer between {FMIL.jm_log_level_nothing} and {FMIL.jm_log_level_all}")
 
     def __dealloc__(self):
         """ Deallocate allocated memory. """
