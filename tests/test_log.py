@@ -21,7 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pyfmi import load_fmu
+from pyfmi import load_fmu, FMUModelME1
 from pyfmi.common.log import extract_xml_log, parse_xml_log
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
 from pyfmi.test_util import Dummy_FMUModelME2
@@ -275,3 +275,8 @@ class Test_Log:
 
         # Then
         assert not fmu.has_reached_max_log_size()
+        if isinstance(fmu, FMUModelME1):
+            # FMU 1 does not have 'get_fmil_log_level' implemented
+            assert fmu.get_log_level() == 4
+        else:
+            assert fmu.get_fmil_log_level() == 4

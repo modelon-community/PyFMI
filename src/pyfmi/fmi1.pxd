@@ -54,6 +54,7 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
     cdef public object _file_open
     cdef public object _npoints
     cdef public object _enable_logging
+    cdef public object _loaded_with_log_level
     cdef public object _pyEventInfo
     cdef object        _fmu_full_path
     cdef int _version

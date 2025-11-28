@@ -76,6 +76,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     # Internal values
     cdef public float  _last_accepted_time
     cdef public object _enable_logging
+    cdef public object _loaded_with_log_level
     cdef public object _event_info
     cdef object     _fmu_full_path
     cdef object     _modelName
