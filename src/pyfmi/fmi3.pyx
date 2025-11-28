@@ -362,6 +362,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self.callbacks.context = <void*>self
 
         self._setup_log_state(log_level)
+        self._loaded_with_log_level = log_level
+
         self._fmu_full_path = pyfmi_util.encode(os.path.abspath(fmu))
         check_fmu_args(self._allow_unzipped_fmu, fmu, self._fmu_full_path)
 
@@ -638,6 +640,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._eventInfo = FMI3EventInfo()
         self._log = []
 
+        self._setup_log_state(self._loaded_with_log_level)
         super().reset()
 
     def _get_fmu_kind(self):

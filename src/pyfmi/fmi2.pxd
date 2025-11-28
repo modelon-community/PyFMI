@@ -79,6 +79,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
     cdef public float  _last_accepted_time, _relative_tolerance
     cdef object         _fmu_full_path
     cdef public object  _enable_logging
+    cdef public object  _loaded_with_log_level
     cdef int _allow_unzipped_fmu
     cdef int _allocated_dll, _allocated_context, _allocated_xml, _allocated_fmu, _initialized_fmu
     cdef object         _modelName

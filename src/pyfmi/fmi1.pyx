@@ -295,6 +295,7 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
         self.callbacks.context = <void*>self #Class loggger
 
         self._setup_log_state(log_level)
+        self._loaded_with_log_level = log_level
 
         self._fmu_full_path = os.path.abspath(fmu)
         if _unzipped_dir:
@@ -2145,6 +2146,7 @@ cdef class FMUModelCS1(FMUModelBase):
         self._npoints = 0
         self._log = []
 
+        self._setup_log_state(self._loaded_with_log_level)
         super().reset()
 
 
@@ -2349,6 +2351,7 @@ cdef class FMUModelME1(FMUModelBase):
         #Instantiates the model
         self.instantiate_model(logging = self._enable_logging)
 
+        self._setup_log_state(self._loaded_with_log_level)
         super().reset()
 
 
