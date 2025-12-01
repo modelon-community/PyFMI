@@ -37,14 +37,19 @@ FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
 
-@pytest.fixture(name="dahlquist_fmu" ,params=[
+@pytest.fixture(name="dahlquist_fmu_path" ,params=[
         FMI1_REF_FMU_PATH / "me" / "Dahlquist.fmu",
         FMI2_REF_FMU_PATH / "Dahlquist.fmu",
         FMI3_REF_FMU_PATH / "Dahlquist.fmu",
     ]
 )
-def fixture_dahlquist_fmu(request):
-    return load_fmu(request.param, log_level = 4)
+def fixture_dahlquist_fmu_path(request):
+    return request.param
+
+
+@pytest.fixture(name="dahlquist_fmu")
+def fixture_dahlquist_fmu(dahlquist_fmu_path: Path):
+    return load_fmu(dahlquist_fmu_path, log_level = 4)
 
 
 @pytest.mark.assimulo
@@ -280,3 +285,12 @@ class Test_Log:
             assert fmu.get_log_level() == 4
         else:
             assert fmu.get_fmil_log_level() == 4
+
+    def test_given_fmu_loaded_with_log_level_when_reset_then_log_level_resets(
+            self, dahlquist_fmu_path: Path
+    ):
+        loaded_with_log_level = 5
+        fmu = load_fmu(dahlquist_fmu_path, log_level=loaded_with_log_level)
+        fmu.set_log_level(2)
+        fmu.reset()
+        assert fmu.get_log_level() == loaded_with_log_level
