@@ -1,4 +1,7 @@
 --- CHANGELOG ---
+--- PyFMI-FUTURE ---
+    * Fixed so FMU `reset` resets to log level that it was loaded with.
+
 --- PyFMI-2.19.0 ---
     * New function `get_log_categories` for `FMUModelBase2` to retrieve both log 
       categories and descriptions, use instead of `get_categories`.
