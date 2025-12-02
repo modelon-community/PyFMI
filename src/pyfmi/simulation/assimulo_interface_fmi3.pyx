@@ -36,7 +36,8 @@ cimport pyfmi.fmil3_import as FMIL3
 cimport pyfmi.fmi3 as FMI3
 from pyfmi.fmi3 import (
     FMI3_Causality,
-    FMI3_Type
+    FMI3_Type,
+    FMI3_Variability
 )
 from pyfmi.exceptions import (
     FMUException,
@@ -87,6 +88,12 @@ cdef class FMIODE3(cExplicit_Problem):
         # If there is no state in the model, add a dummy state der(y)=0
         if f_nbr == 0:
             self.y0 = np.array([0.0])
+
+        self._name_for_eval = None
+        if f_nbr == 0 and self.model_me3_instance:
+            continuous_vars = model.get_model_variables(variability=FMI3_Variability.CONTINUOUS, causality=FMI3_Causality.OUTPUT)
+            if len(continuous_vars) > 0:
+                self._name_for_eval = next(iter(continuous_vars.keys()))
 
         # Determine the result file name
         if result_file_name == '':
@@ -255,6 +262,13 @@ cdef class FMIODE3(cExplicit_Problem):
         # If there is no state, use the dummy
         if self._f_nbr == 0:
             der = np.array([0.0])
+
+            try:
+                if self._name_for_eval:
+                    self.model_me3.get(self._name_for_eval)
+            except FMUException:
+                raise AssimuloRecoverableError
+
 
         if self._extra_f_nbr > 0:
             der = np.append(der, self._extra_equations.rhs(y_extra))
