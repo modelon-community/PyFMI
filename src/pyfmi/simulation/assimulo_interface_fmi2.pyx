@@ -89,6 +89,12 @@ cdef class FMIODE2(cExplicit_Problem):
         if f_nbr == 0:
             self.y0 = np.array([0.0])
 
+        self._name_for_eval = None
+        if f_nbr == 0 and self.model_me2_instance:
+            continuous_vars = model.get_model_variables(variability=4, causality=3)
+            if len(continuous_vars) > 0:
+                self._name_for_eval = next(iter(continuous_vars.keys()))
+
         # Determine the result file name
         if result_file_name == '':
             self.result_file_name = model.get_name()+'_result.txt'
@@ -257,6 +263,12 @@ cdef class FMIODE2(cExplicit_Problem):
 
         # If there is no state, use the dummy
         if self._f_nbr == 0:
+            try:
+                if self._name_for_eval:
+                    self.model_me2.get(self._name_for_eval)
+            except FMUException:
+                raise AssimuloRecoverableError
+
             der = np.array([0.0])
 
         if self._extra_f_nbr > 0:
