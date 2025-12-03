@@ -3715,6 +3715,10 @@ cdef class FMUModelME3(FMUModelBase3):
         self.force_finite_differences = False
         self.finite_differences_method = FORWARD_DIFFERENCE
 
+        # State nominals retrieved before initialization
+        # TODO: Technically not allowed, but fallback to retrieval via XML
+        self._preinit_nominal_continuous_states = None
+
     def _get_fmu_kind(self):
         if self._fmu_kind & FMIL3.fmi3_fmu_kind_me:
             return FMIL3.fmi3_fmu_kind_me
@@ -4053,7 +4057,10 @@ cdef class FMUModelME3(FMUModelBase3):
         cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c'] xn = np.zeros(self._nContinuousStates, dtype=np.double)
 
         if self._initialized_fmu == 0:
-            raise FMUException("Unable to retrieve nominals of continuous states, FMU must first be initialized.")
+            # raise FMUException("Unable to retrieve nominals of continuous states, FMU must first be initialized.")
+            nominals = np.array([self.get_variable_nominal(var_name) for var_name in self.get_states_list().keys()])
+            self._preinit_nominal_continuous_states = nominals
+            return nominals
 
         status = self._get_nominal_continuous_states_fmil(<FMIL3.fmi3_float64_t*> xn.data, self._nContinuousStates)
         if status != 0:
