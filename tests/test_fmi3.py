@@ -1459,6 +1459,15 @@ class Test_FMI3Alias:
         assert self.fmu.get_variable_description("v5_a1") == ""
         assert self.fmu.get_variable_description("v5_a2") == "v5_a2_desc"
 
+    def test_get_model_variables_filter_including_alias(self):
+        variables = self.fmu.get_model_variables(filter="v5_*", include_alias = True)
+        assert set(variables) == set(["v5_a1", "v5_a2"])
+
+    def test_get_model_variables_filter_excluding_alias(self):
+        variables = self.fmu.get_model_variables(filter="v5_*", include_alias = False)
+        assert set(variables) == set()
+
+
 class Test_FMUModelBase3:
     def test_declared_enumeration_type(self):
         fmu = _get_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", _connect_dll = False)
