@@ -1770,7 +1770,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         cdef int selected_type = 0        #If a type has been selected
         cdef int selected_variability = 0 #If a variability has been selected
         cdef int selected_causality = 0   #If a causality has been selected
-        cdef int has_start, is_fixed
+        cdef int has_start
         cdef int i, j
         cdef int selected_filter = 1 if filter else 0
         cdef int length_filter = 0

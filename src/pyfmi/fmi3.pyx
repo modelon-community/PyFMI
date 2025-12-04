@@ -1902,7 +1902,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 Default: None (i.e all).
 
             include_alias --
-                Currently not supported (does nothing).
                 If alias should be included or not.
                 Default: True
 
@@ -1969,7 +1968,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         variable_filter = filter
         # TODO: Can we rename the keyword arg 'type' to variable_type?
         variable_type = type
-        cdef list filter_list, variable_return_list = []
+        cdef list filter_list = []
         variable_dict = {}
 
         variable_list      = FMIL3.fmi3_import_get_variable_list(self._fmu, 0)
@@ -2013,23 +2012,25 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             if user_specified_causality   and (data_causality   != causality):
                 continue
 
+            _add_variable = True
             if variable_filter:
                 for pattern in filter_list:
                     if pattern.match(name):
                         break
                 else:
-                    continue
+                    _add_variable = False
 
-            variable_dict[name] = FMI3ModelVariable(
-                name,
-                value_ref,
-                data_type,
-                description,
-                data_variability,
-                data_causality,
-                False, # alias
-                data_initial
-            )
+            if _add_variable:
+                variable_dict[name] = FMI3ModelVariable(
+                    name,
+                    value_ref,
+                    data_type,
+                    description,
+                    data_variability,
+                    data_causality,
+                    False, # alias
+                    data_initial
+                )
 
             if include_alias and FMIL3.fmi3_import_get_variable_has_alias(variable):
                 alias_list = FMIL3.fmi3_import_get_variable_alias_list(variable)
@@ -2037,6 +2038,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 for idx in range(alias_list_size):
                     alias_var = FMIL3.fmi3_import_get_alias(alias_list, idx)
                     alias_name = pyfmi_util.decode(FMIL3.fmi3_import_get_alias_variable_name(alias_var))
+
+                    if variable_filter:
+                        for pattern in filter_list:
+                            if pattern.match(alias_name):
+                                break
+                        else:
+                            continue
                     alias_descr = self._get_alias_description(alias_var)
 
                     variable_dict[alias_name] = FMI3ModelVariable(
