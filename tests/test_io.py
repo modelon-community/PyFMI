@@ -182,8 +182,7 @@ class TestResultFileText_Simulation:
         res["mode"] #Check that the enumeration variable is in the dict, otherwise exception
 
 class TestResultFileText:
-    def _get_description(self, result_file_name):
-        model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+    def _get_description(self, model, result_file_name):
         model.initialize()
 
         result_writer = ResultHandlerFile(model)
@@ -199,15 +198,15 @@ class TestResultFileText:
 
         assert res.description[res.get_variable_index("J1.phi")] == "Absolute rotation angle of component"
 
-    def test_get_description_file(self):
-        self._get_description('CoupledClutches_result.txt')
+    def test_get_description_file(self, coupled_clutches_me_1_0):
+        self._get_description(coupled_clutches_me_1_0, 'CoupledClutches_result.txt')
 
-    def test_get_description_stream(self):
+    def test_get_description_stream(self, coupled_clutches_me_1_0):
         stream = StringIO()
-        self._get_description(stream)
+        self._get_description(coupled_clutches_me_1_0, stream)
 
-    def test_description_not_stored(self):
-        model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+    def test_description_not_stored(self, coupled_clutches_me_1_0):
+        model = coupled_clutches_me_1_0
         model.initialize()
 
         opts = model.simulate_options()
@@ -564,6 +563,20 @@ class TestResultFileBinary_Simulation:
         stream = BytesIO()
         _run_negated_alias(simple_alias, "binary", stream)
 
+
+@pytest.fixture
+def coupled_clutches_me_2_0():
+    return Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+
+@pytest.fixture
+def coupled_clutches_cs_2_0():
+    return Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
+
+@pytest.fixture
+def coupled_clutches_me_1_0():
+    return Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+
+
 @pytest.mark.assimulo
 class TestResultFileBinary:
     def _get_description_unicode(self, result_file_name):
@@ -594,8 +607,8 @@ class TestResultFileBinary:
         stream = BytesIO()
         self._get_description_unicode(stream)
 
-    def test_get_description(self):
-        model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+    def test_get_description(self, coupled_clutches_me_1_0):
+        model = coupled_clutches_me_1_0
         model.initialize()
 
         result_writer = ResultHandlerBinaryFile(model)
@@ -609,9 +622,9 @@ class TestResultFileBinary:
 
         assert res.description[res.get_variable_index("J1.phi")] == "Absolute rotation angle of component"
 
-    def test_modified_result_file_data_diagnostics(self):
+    def test_modified_result_file_data_diagnostics(self, coupled_clutches_me_2_0):
         """Verify that computed diagnostics can be retrieved from an updated result file"""
-        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = coupled_clutches_me_2_0
         model.setup_experiment()
         model.initialize()
 
@@ -660,9 +673,9 @@ class TestResultFileBinary:
 
         assert len(res.get_trajectory("@Diagnostics.state_errors.clutch2.w_rel").x) == 4, res.get_trajectory("@Diagnostics.state_errors.clutch2.w_rel").x
 
-    def test_modified_result_file_data_diagnostics_steps(self):
+    def test_modified_result_file_data_diagnostics_steps(self, coupled_clutches_me_2_0):
         """Verify that diagnostics can be retrieved from an updated result file"""
-        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = coupled_clutches_me_2_0
         model.setup_experiment()
         model.initialize()
 
@@ -711,9 +724,9 @@ class TestResultFileBinary:
 
         assert len(res.get_trajectory("@Diagnostics.nbr_steps").x) == 4, res.get_trajectory("@Diagnostics.nbr_steps").x
 
-    def test_modified_result_file_data_2(self):
+    def test_modified_result_file_data_2(self, coupled_clutches_me_2_0):
         """Verify that continuous trajectories are updated when retrieved from a result file"""
-        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = coupled_clutches_me_2_0
         model.setup_experiment()
         model.initialize()
 
@@ -733,9 +746,9 @@ class TestResultFileBinary:
 
         assert len(res.get_trajectory("J1.phi").x) == 2, res.get_trajectory("J1.phi").x
 
-    def test_modified_result_file_data_2_different(self):
+    def test_modified_result_file_data_2_different(self, coupled_clutches_me_2_0):
         """Verify that (different) continuous trajectories are updated when retrieved from a result file"""
-        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = coupled_clutches_me_2_0
         model.setup_experiment()
         model.initialize()
 
@@ -755,9 +768,9 @@ class TestResultFileBinary:
 
         assert len(res.get_trajectory("J2.phi").x) == 2, res.get_trajectory("J2.phi").x
 
-    def test_modified_result_file_data_1(self):
+    def test_modified_result_file_data_1(self, coupled_clutches_me_2_0):
         """Verify that (different) constants/parameters can be retrieved from an updated result file"""
-        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = coupled_clutches_me_2_0
         model.setup_experiment()
         model.initialize()
 
@@ -779,9 +792,9 @@ class TestResultFileBinary:
         #Assert that no exception is raised
         res.get_trajectory("J2.J")
 
-    def test_modified_result_file_data_1_delayed(self):
+    def test_modified_result_file_data_1_delayed(self, coupled_clutches_me_2_0):
         """Verify that constants/parameters can be retrieved from an updated result file"""
-        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = coupled_clutches_me_2_0
         model.setup_experiment()
         model.initialize()
 
@@ -799,9 +812,9 @@ class TestResultFileBinary:
         #Assert that no exception is raised
         res.get_trajectory("J2.J")
 
-    def test_modified_result_file_time(self):
+    def test_modified_result_file_time(self, coupled_clutches_me_2_0):
         """Verify that 'time' can be retrieved from an updated result file"""
-        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = coupled_clutches_me_2_0
         model.setup_experiment()
         model.initialize()
 
@@ -820,8 +833,8 @@ class TestResultFileBinary:
 
         res.get_trajectory("time")
 
-    def test_description_not_stored(self):
-        model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+    def test_description_not_stored(self, coupled_clutches_me_1_0):
+        model = coupled_clutches_me_1_0
         model.initialize()
 
         opts = model.simulate_options()
@@ -838,8 +851,8 @@ class TestResultFileBinary:
 
         assert res.description[res.get_variable_index("J1.phi")] == "", "Description is not empty, " + res.description[res.get_variable_index("J1.phi")]
 
-    def test_overwriting_results(self):
-        model = Dummy_FMUModelME1([], os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu"), _connect_dll=False)
+    def test_overwriting_results(self, coupled_clutches_me_1_0):
+        model = coupled_clutches_me_1_0
         model.initialize()
 
         opts = model.simulate_options()
@@ -1585,8 +1598,7 @@ class TestResultCSVTextual:
 @pytest.mark.assimulo
 class TestResultDymolaBinary:
 
-    def test_next_start_index(self):
-
+    def test_next_start_index(self, coupled_clutches_me_2_0):
         """
             Test that calculation of the next start index works as expected.
 
@@ -1595,8 +1607,7 @@ class TestResultDymolaBinary:
 
         """
         # Begin by setting up minimal required environment in order to perform the test
-        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
-            _connect_dll=False)
+        fmu = coupled_clutches_me_2_0
 
         result_handler = ResultHandlerBinaryFile(fmu)
 
@@ -1660,7 +1671,7 @@ class TestResultDymolaBinary:
             assert rdb._find_max_trajectory_length(trajectories4) == 2
             assert rdb._find_max_trajectory_length(trajectories5) == 3
 
-    def _test_get_variables_data(self, dynamic_diagnostics: bool, nbr_of_calls: int, diag_data_ratio: int,
+    def _test_get_variables_data(self, fmu, dynamic_diagnostics: bool, nbr_of_calls: int, diag_data_ratio: int,
                                  vars_to_test: list, stop_index_function: callable, result_file_name: str) -> dict:
         """
             Simulates a dummy FMU and generates data for get_variables_data.
@@ -1695,9 +1706,6 @@ class TestResultDymolaBinary:
             AssertionError
                 If no test data is generated.
         """
-
-        fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
-            _connect_dll=False)
         f = lambda t : math.sin(5*t + math.pi/2) # function used to set values later on FMU
 
         result_handler = ResultHandlerBinaryFile(fmu)
@@ -1763,10 +1771,10 @@ class TestResultDymolaBinary:
         assert data_to_return, "Something went wrong, no test data was generated"
         return data_to_return
 
-    def test_get_variables_data_values0(self):
+    def test_get_variables_data_values0(self, coupled_clutches_me_2_0):
         """ Verifying values from get_variables_data. """
         vars_to_test = ['J4.phi']
-        test_data_sets = self._test_get_variables_data(False, 3, None, vars_to_test, lambda x: None, "TestFile00.mat")
+        test_data_sets = self._test_get_variables_data(coupled_clutches_me_2_0, False, 3, None, vars_to_test, lambda x: None, "TestFile00.mat")
 
         reference_data = {
             0: [1.00000000, 0.99875026, 0.98877108, 0.96891242, 0.93937271, 0.90044710],
@@ -1777,10 +1785,10 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
-    def test_get_variables_data_values1(self):
+    def test_get_variables_data_values1(self, coupled_clutches_me_2_0):
         """ Verifying values from get_variables_data, with dynamic_diagnostics = True. """
         vars_to_test = ['time', 'J4.phi', '@Diagnostics.step_time', '@Diagnostics.nbr_steps']
-        test_data_sets = self._test_get_variables_data(True, 5, 3, vars_to_test, lambda x: None, "TestFile01.mat")
+        test_data_sets = self._test_get_variables_data(coupled_clutches_me_2_0, True, 5, 3, vars_to_test, lambda x: None, "TestFile01.mat")
 
         reference_data = {
             0: [ 1.00000000,  0.99875026,  0.93937271],
@@ -1795,10 +1803,10 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
-    def test_get_variables_data_values2(self):
+    def test_get_variables_data_values2(self, coupled_clutches_me_2_0):
         """ Verifying values from get_variables_data, retrieving partial trajectories. """
         vars_to_test = ['time', 'J4.phi']
-        test_data_sets = self._test_get_variables_data(False, 5, None, vars_to_test, lambda x: x + 1, "TestFile02.mat")
+        test_data_sets = self._test_get_variables_data(coupled_clutches_me_2_0, False, 5, None, vars_to_test, lambda x: x + 1, "TestFile02.mat")
 
         reference_data = {
             0: [1],
@@ -1811,10 +1819,10 @@ class TestResultDymolaBinary:
         for index, test_data in test_data_sets.items():
             np.testing.assert_array_almost_equal(test_data['J4.phi'].x, reference_data[index])
 
-    def test_get_variables_data_values3(self):
+    def test_get_variables_data_values3(self, coupled_clutches_me_2_0):
         """ Verifying values from get_variables_data, and only asking for diagnostic variables. """
         vars_to_test = ['@Diagnostics.step_time', '@Diagnostics.nbr_steps']
-        test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: None, "TestFile03.mat")
+        test_data_sets = self._test_get_variables_data(coupled_clutches_me_2_0, True, 5, 1, vars_to_test, lambda x: None, "TestFile03.mat")
 
         reference_data = {
             '@Diagnostics.step_time' : {
@@ -1837,10 +1845,10 @@ class TestResultDymolaBinary:
             np.testing.assert_array_almost_equal(test_data['@Diagnostics.step_time'].x, reference_data['@Diagnostics.step_time'][index])
             np.testing.assert_array_almost_equal(test_data['@Diagnostics.nbr_steps'].x, reference_data['@Diagnostics.nbr_steps'][index])
 
-    def test_get_variables_data_values4(self):
+    def test_get_variables_data_values4(self, coupled_clutches_me_2_0):
         """ Verifying values from get_variables_data, partial trajectories and checking both time and diagnostic data."""
         vars_to_test = ['time', '@Diagnostics.nbr_steps']
-        test_data_sets = self._test_get_variables_data(True, 5, 1, vars_to_test, lambda x: x + 2, "TestFile04.mat")
+        test_data_sets = self._test_get_variables_data(coupled_clutches_me_2_0, True, 5, 1, vars_to_test, lambda x: x + 2, "TestFile04.mat")
 
         reference_data = {
             'time' : {
@@ -2045,40 +2053,35 @@ class TestResultDymolaBinary:
 
 @pytest.mark.assimulo
 class TestFileSizeLimit:
-    def _setup(self, result_type, result_file_name="", fmi_type="me"):
-        if fmi_type == "me":
-            model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
-        else:
-            model = Dummy_FMUModelCS2([], os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), _connect_dll=False)
-
+    def _setup(self, result_type, model, result_file_name=""):
         opts = model.simulate_options()
         opts["result_handling"]  = result_type
         opts["result_file_name"] = result_file_name
 
         return model, opts
 
-    def _test_result(self, result_type, result_file_name="", max_size=1e6):
-        model, opts = self._setup(result_type, result_file_name)
+    def _test_result(self, result_type, model, result_file_name="", max_size=1e6):
+        model, opts = self._setup(result_type, model, result_file_name)
 
         opts["result_max_size"] = max_size
 
         # No exception should be raised.
         model.simulate(options=opts)
 
-    def _test_result_exception(self, result_type, result_file_name="", fmi_type="me"):
-        model, opts = self._setup(result_type, result_file_name, fmi_type)
+    def _test_result_exception(self, result_type, model, result_file_name=""):
+        model, opts = self._setup(result_type, model, result_file_name)
 
         opts["result_max_size"] = 10
 
         with pytest.raises(ResultSizeError):
             model.simulate(options=opts)
 
-    def _test_result_size_verification(self, result_type, result_file_name="", dynamic_diagnostics=False):
+    def _test_result_size_verification(self, result_type, model, result_file_name="", dynamic_diagnostics=False):
         """
         Verifies that the ResultSizeError exception is triggered (due to too large result) and also verifies
         that the resulting file is within bounds of the set maximum size.
         """
-        model, opts = self._setup(result_type, result_file_name)
+        model, opts = self._setup(result_type, model, result_file_name)
         model.setup_experiment()
         model.initialize()
 
@@ -2115,33 +2118,12 @@ class TestFileSizeLimit:
         assert file_size > max_size*0.9 and file_size < max_size*1.1, \
                 "The file size is not within 10% of the given max size"
 
-    def _test_result_size_early_abort(self, result_type, result_file_name=""):
+    def _test_result_size_early_abort(self, result_type, model, result_file_name=""):
         """
         Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
         triggered was due to that the ESTIMATE for the result size was too big.
         """
-        model, opts = self._setup(result_type, result_file_name)
-
-        max_size = 1e6
-        opts["result_max_size"] = max_size
-        opts["ncp"] = 10000000
-
-        with pytest.raises(ResultSizeError):
-            model.simulate(options=opts)
-
-        result_file = model.get_last_result_file()
-        if result_file:
-            file_size = os.path.getsize(result_file)
-
-            assert file_size > max_size*0.9 and file_size < max_size*1.1, \
-                   "The file size is not within 10% of the given max size"
-
-    def _test_result_size_early_abort(self, result_type, result_file_name=""):
-        """
-        Verifies that the ResultSizeError is triggered and also verifies that the cause of the error being
-        triggered was due to that the ESTIMATE for the result size was too big.
-        """
-        model, opts = self._setup(result_type, result_file_name)
+        model, opts = self._setup(result_type, model, result_file_name)
 
         max_size = 1e6
         opts["result_max_size"] = max_size
@@ -2158,29 +2140,29 @@ class TestFileSizeLimit:
                     "The file size is not small, no early abort"
 
     @pytest.mark.parametrize("result_type", ["binary", "file", "csv"])
-    def test_binary_file_size_verification(self, result_type):
+    def test_binary_file_size_verification(self, result_type, coupled_clutches_me_2_0):
         """Test file size verification."""
-        self._test_result_size_verification(result_type)
+        self._test_result_size_verification(result_type, coupled_clutches_me_2_0)
 
     @pytest.mark.parametrize("result_type", ["binary"])
-    def test_file_size_verification_diagnostics(self, result_type):
+    def test_file_size_verification_diagnostics(self, result_type, coupled_clutches_me_2_0):
         """Test file size verification when using dynamic_diagnostics."""
-        self._test_result_size_verification(result_type, dynamic_diagnostics=True)
+        self._test_result_size_verification(result_type, coupled_clutches_me_2_0, dynamic_diagnostics=True)
 
     @pytest.mark.parametrize("result_type", ["binary", "file", "csv", "memory"])
-    def test_file_size_early_abort(self, result_type):
+    def test_file_size_early_abort(self, result_type, coupled_clutches_me_2_0):
         """Test result size early abort."""
-        self._test_result_size_early_abort(result_type)
+        self._test_result_size_early_abort(result_type, coupled_clutches_me_2_0)
 
     @pytest.mark.parametrize("result_type", ["binary", "file", "csv", "memory"])
-    def test_small_size_file(self, result_type):
+    def test_small_size_file(self, result_type, coupled_clutches_me_2_0):
         """Test the Exception for too small file sizes."""
-        self._test_result_exception(result_type)
+        self._test_result_exception(result_type, coupled_clutches_me_2_0)
 
     @pytest.mark.parametrize("result_type", ["binary"])
-    def test_small_size_file_cs(self, result_type):
+    def test_small_size_file_cs(self, result_type, coupled_clutches_cs_2_0):
         """Test the Exception for too small file sizes, CS case."""
-        self._test_result_exception(result_type, fmi_type="cs")
+        self._test_result_exception(result_type, coupled_clutches_cs_2_0)
 
     @pytest.mark.parametrize("result_type, result_file_name", 
         [
@@ -2190,9 +2172,9 @@ class TestFileSizeLimit:
             ("memory", StringIO()),
         ]
     )
-    def test_small_size_file_stream(self, result_type, result_file_name):
+    def test_small_size_file_stream(self, result_type, result_file_name, coupled_clutches_me_2_0):
         """Test the Exception for too small file sizes, Stream."""
-        self._test_result_exception(result_type, result_file_name)
+        self._test_result_exception(result_type, coupled_clutches_me_2_0, result_file_name)
 
     @pytest.mark.parametrize("result_type, max_size", 
         [
@@ -2202,9 +2184,9 @@ class TestFileSizeLimit:
             ("memory", 10**6),
         ]
     )
-    def test_large_size_file(self, result_type, max_size):
+    def test_large_size_file(self, result_type, max_size, coupled_clutches_me_2_0):
         """Test the Exception for too large file sizes."""
-        self._test_result(result_type, max_size = max_size)
+        self._test_result(result_type, coupled_clutches_me_2_0, max_size = max_size)
 
     @pytest.mark.parametrize("result_type, result_file_name, max_size", 
         [
@@ -2214,9 +2196,9 @@ class TestFileSizeLimit:
             ("memory", StringIO(), 10**6)
         ]
     )
-    def test_large_size_file_stream(self, result_type, result_file_name, max_size):
+    def test_large_size_file_stream(self, result_type, result_file_name, max_size, coupled_clutches_me_2_0):
         """Test the Exception for too large file sizes, Stream."""
-        self._test_result(result_type, result_file_name, max_size = max_size)
+        self._test_result(result_type, coupled_clutches_me_2_0, result_file_name, max_size = max_size)
 
 
 class ResultHandlerCustomNoSupport(ResultHandler):
@@ -2228,9 +2210,9 @@ class ResultHandlerCustomNoSupport(ResultHandler):
 class TestCustomResultHandlerMissingSupport:
     """Test that ResultHandlers fail gracefully, even if one overwrites the supports attribute."""
     # caplog = pytest.LogCaptureFixture
-    def test_limit_result_size(self, caplog):
+    def test_limit_result_size(self, coupled_clutches_me_2_0, caplog):
         """Test limiting the result size when support is missing."""
-        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = coupled_clutches_me_2_0
 
         opts = model.simulate_options()
         opts["result_handling"] = "custom"
@@ -2244,9 +2226,9 @@ class TestCustomResultHandlerMissingSupport:
         msg = "The chosen result handler does not support limiting the result size. Ignoring option 'result_max_size'."
         assert msg in caplog.text
 
-    def test_dynamic_diags(self):
+    def test_dynamic_diags(self, coupled_clutches_me_2_0):
         """Test simulation with DynamicDiagnostics."""
-        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"), _connect_dll=False)
+        model = coupled_clutches_me_2_0
 
         opts = model.simulate_options()
         opts["result_handling"] = "custom"
@@ -2509,11 +2491,9 @@ def test_interpolation_between_points(mat_file_interpolation):
     pytest.param(ResultHandlerFile),
     pytest.param(ResultHandlerMemory),
 ])
-def test_given_no_start_simulation_when_get_result_then_no_result_error(result_handler_cls):
+def test_given_no_start_simulation_when_get_result_then_no_result_error(result_handler_cls, coupled_clutches_me_2_0):
     # Begin by setting up minimal required environment in order to perform the test
-    fmu = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
-            _connect_dll=False)
-
+    fmu = coupled_clutches_me_2_0
     result_handler = result_handler_cls(fmu)
 
     opts = fmu.simulate_options()
