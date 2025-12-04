@@ -1895,6 +1895,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         """
         Extract the names of the variables in a model.
 
+        Usage of multiple parameters acts as logical AND, e.g.,
+        fmu.get_model_variables(type = FMI3_Type.FLOAT64, causality = FMI3_Causality.OUTPUT)
+        will return all "Float64" variables with causality = "output".
+
         Parameters::
 
             type --
