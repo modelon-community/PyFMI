@@ -89,11 +89,12 @@ cdef class FMIODE3(cExplicit_Problem):
         if f_nbr == 0:
             self.y0 = np.array([0.0])
 
-        self._name_for_eval = None
+        self._vrefs32_nostate_eval = None
+        self._vrefs64_nostate_eval = None
         if f_nbr == 0 and self.model_me3_instance:
-            continuous_vars = model.get_model_variables(variability=FMI3_Variability.CONTINUOUS, causality=FMI3_Causality.OUTPUT)
-            if len(continuous_vars) > 0:
-                self._name_for_eval = next(iter(continuous_vars.keys()))
+            continuous_vars = model.get_model_variables(variability = FMI3_Variability.CONTINUOUS)
+            self._vrefs32_nostate_eval = [v.value_reference for v in continuous_vars.values() if v.type is FMI3_Type.FLOAT32]
+            self._vrefs64_nostate_eval = [v.value_reference for v in continuous_vars.values() if v.type is FMI3_Type.FLOAT64]
 
         # Determine the result file name
         if result_file_name == '':
@@ -259,16 +260,16 @@ cdef class FMIODE3(cExplicit_Problem):
             except FMUException:
                 raise AssimuloRecoverableError
 
-        # If there is no state, use the dummy
         if self._f_nbr == 0:
-            der = np.array([0.0])
-
+            der = np.array([0.0]) # If there is no state, use the dummy
+            # call 'get_*' to trigger re-computations, since _get_derivatives will(may) not
             try:
-                if self._name_for_eval:
-                    self.model_me3.get(self._name_for_eval)
-            except FMUException:
+                if self._vrefs32_nostate_eval:
+                    self.model_me3.get_float32(self._vrefs32_nostate_eval)
+                if self._vrefs64_nostate_eval:
+                    self.model_me3.get_float64(self._vrefs64_nostate_eval)
+            except FMUException as e:
                 raise AssimuloRecoverableError
-
 
         if self._extra_f_nbr > 0:
             der = np.append(der, self._extra_equations.rhs(y_extra))
