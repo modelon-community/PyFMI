@@ -89,6 +89,11 @@ cdef class FMIODE2(cExplicit_Problem):
         if f_nbr == 0:
             self.y0 = np.array([0.0])
 
+        self._vrefs_nostate_eval = None
+        if f_nbr == 0 and self.model_me2_instance:
+            continuous_vars = model.get_model_variables(variability = 4)
+            self._vrefs_nostate_eval = [v.value_reference for v in continuous_vars.values()]
+
         # Determine the result file name
         if result_file_name == '':
             self.result_file_name = model.get_name()+'_result.txt'
@@ -255,9 +260,14 @@ cdef class FMIODE2(cExplicit_Problem):
             except FMUException:
                 raise AssimuloRecoverableError
 
-        # If there is no state, use the dummy
         if self._f_nbr == 0:
-            der = np.array([0.0])
+            der = np.array([0.0]) # If there is no state, use the dummy
+            # call 'get' to trigger re-computations, since _get_derivatives will(may) not
+            try:
+                if self._vrefs_nostate_eval:
+                    self.model_me2.get_real(self._vrefs_nostate_eval)
+            except FMUException:
+                raise AssimuloRecoverableError
 
         if self._extra_f_nbr > 0:
             der = np.append(der, self._extra_equations.rhs(y_extra))
