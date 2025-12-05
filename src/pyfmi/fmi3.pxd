@@ -105,6 +105,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
     cdef int _initialized_fmu
     cdef object _has_entered_init_mode # XXX: this is public in FMI2 but I don't see why
+    cdef public np.ndarray _preinit_nominal_continuous_states
 
     cpdef set_float64(self, valueref, values)
     cpdef set_float32(self, valueref, values)

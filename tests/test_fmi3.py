@@ -1179,16 +1179,15 @@ class Test_FMI3ME:
         """Test retrieve the nominals of the continuous states. """
         fmu = get_fmi3_reference_fmu("VanDerPol")
         fmu.initialize()
-        # TODO: Remove this test in the future when we can simulate the FMU fully
-        nominals = fmu._get_nominal_continuous_states()
+        nominals = fmu.nominal_continuous_states
         assert all(nominals == np.array([1., 1.]))
 
-    def test_get_nominals_of_continuous_states_pre_init(self):
-        """Test that Exception is raised if FMU is not initialized before retrieving nominals of continuous states."""
+    def test_get_nominals_of_continuous_states_before_initialization(self):
+        """Test that one get nominals of continuous states before initialzation."""
         fmu = get_fmi3_reference_fmu("VanDerPol")
-        msg = "Unable to retrieve nominals of continuous states, FMU must first be initialized."
-        with pytest.raises(FMUException, match = msg):
-            fmu._get_nominal_continuous_states()
+        fmu.reset()
+        nominals = fmu.nominal_continuous_states
+        assert all(nominals == np.array([1., 1.]))
 
     def test_logfile_content(self):
         """Test that we get the log content from FMIL parsing the modelDescription.xml."""
