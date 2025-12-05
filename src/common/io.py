@@ -24,7 +24,7 @@ import sys
 import os
 import logging as logging_module
 from functools import reduce, cache, cached_property
-from typing import Union
+from typing import Union, Callable
 from shutil import disk_usage
 import abc
 import warnings
@@ -40,7 +40,7 @@ else:
 
 import pyfmi.fmi as fmi
 import pyfmi.fmi_util as fmi_util
-from pyfmi.fmi3 import FMUModelBase3, FMI3_Type
+from pyfmi.fmi3 import FMUModelBase3, FMI3_Type, FMI3_Variability
 from pyfmi.common import encode, decode
 from pyfmi.common.diagnostics import (
     DIAGNOSTICS_PREFIX, 
@@ -155,7 +155,7 @@ class ResultHandler:
         # should be UPDATED, not REPLACED, for stating supported capabilities
         self.supports = {"dynamic_diagnostics": False,
                          "result_max_size": False}
-        self.is_fmi3 = isinstance(model, FMUModelBase3)
+        self.is_fmi3: bool = isinstance(model, FMUModelBase3)
 
     def simulation_start(self, diagnostics_params = {}, diagnostics_vars = {}):
         """
@@ -1941,12 +1941,28 @@ class ResultHandlerMemory(ResultHandler):
         return ResultStorageMemory(self.model, data, [self.real_var_ref,self.int_var_ref,self.bool_var_ref], self.vars)
 
 class ResultHandlerCSV(ResultHandler):
+    """
+    ResultHandler for saving results in the .csv format. 
+    FMI1, 2: Supports Real, Integer, Boolean, Enumeration.
+    FMI3: Supports Float64, Int32, Boolean, Enumeration.
+    """
     def __init__(self, model, delimiter=";"):
         super().__init__(model)
         self.supports['result_max_size'] = True
         self.delimiter = delimiter
         self._current_file_size = 0
         self._first_point = True
+
+        if self.is_fmi3:
+            self._model_get_real    : Callable = model.get_float64
+            self._model_get_integer : Callable = model.get_int32
+            self._model_get_boolean : Callable = model.get_boolean
+            self._model_get_enum    : Callable = model.get_enum
+        else:
+            self._model_get_real    : Callable = model.get_real
+            self._model_get_integer : Callable = model.get_integer
+            self._model_get_boolean : Callable = model.get_boolean
+            self._model_get_enum    : Callable = model.get_integer
 
     def _write(self, msg):
         self._current_file_size = self._current_file_size+len(msg)
@@ -1981,54 +1997,113 @@ class ResultHandlerCSV(ResultHandler):
 
         vars = model.get_model_variables(filter=opts["filter"])
 
+        # constants/parameters
+        # real
         const_valref_real = []
         const_name_real = []
         const_alias_real = []
+        # ints
         const_valref_int = []
         const_name_int = []
         const_alias_int = []
+        # enums; only used in fmi3
+        const_valref_enum = []
+        const_name_enum = []
+        const_alias_enum = []
+        # bool
         const_valref_bool = []
         const_name_bool = []
         const_alias_bool = []
+
+        # time-varying
+        # real
         cont_valref_real = []
         cont_name_real = []
         cont_alias_real = []
+        # int
         cont_valref_int = []
         cont_name_int = []
         cont_alias_int = []
+        # enum
+        cont_valref_enum = []
+        cont_name_enum = []
+        cont_alias_enum = []
+        # bool
         cont_valref_bool = []
         cont_name_bool = []
         cont_alias_bool = []
 
-        for name in vars.keys():
-            var = vars[name]
-            if var.type == fmi.FMI_REAL:
-                if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
-                    const_valref_real.append(var.value_reference)
-                    const_name_real.append(var.name)
-                    const_alias_real.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
-                else:
-                    cont_valref_real.append(var.value_reference)
-                    cont_name_real.append(var.name)
-                    cont_alias_real.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
-            elif var.type == fmi.FMI_INTEGER or var.type == fmi.FMI_ENUMERATION:
-                if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
-                    const_valref_int.append(var.value_reference)
-                    const_name_int.append(var.name)
-                    const_alias_int.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
-                else:
-                    cont_valref_int.append(var.value_reference)
-                    cont_name_int.append(var.name)
-                    cont_alias_int.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
-            elif var.type == fmi.FMI_BOOLEAN:
-                if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
-                    const_valref_bool.append(var.value_reference)
-                    const_name_bool.append(var.name)
-                    const_alias_bool.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
-                else:
-                    cont_valref_bool.append(var.value_reference)
-                    cont_name_bool.append(var.name)
-                    cont_alias_bool.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+        if self.is_fmi3:
+            for name in vars.keys():
+                var = vars[name]
+                var_is_const = var.variability is FMI3_Variability.CONSTANT or \
+                               var.variability is FMI3_Variability.FIXED
+                if var.type is FMI3_Type.FLOAT64:
+                    if var_is_const:
+                        const_valref_real.append(var.value_reference)
+                        const_name_real.append(var.name)
+                        const_alias_real.append(1)
+                    else:
+                        cont_valref_real.append(var.value_reference)
+                        cont_name_real.append(var.name)
+                        cont_alias_real.append(1)
+                elif var.type is FMI3_Type.INT32:
+                    if var_is_const:
+                        const_valref_int.append(var.value_reference)
+                        const_name_int.append(var.name)
+                        const_alias_int.append(1)
+                    else:
+                        cont_valref_int.append(var.value_reference)
+                        cont_name_int.append(var.name)
+                        cont_alias_int.append(1)
+                elif var.type is FMI3_Type.ENUM:
+                    if var_is_const:
+                        const_valref_enum.append(var.value_reference)
+                        const_name_enum.append(var.name)
+                        const_alias_enum.append(1)
+                    else:
+                        cont_valref_enum.append(var.value_reference)
+                        cont_name_enum.append(var.name)
+                        cont_alias_enum.append(1)
+                elif var.type is FMI3_Type.BOOL:
+                    if var_is_const:
+                        const_valref_bool.append(var.value_reference)
+                        const_name_bool.append(var.name)
+                        const_alias_bool.append(1)
+                    else:
+                        cont_valref_bool.append(var.value_reference)
+                        cont_name_bool.append(var.name)
+                        cont_alias_bool.append(1)
+        else:
+            for name in vars.keys():
+                var = vars[name]
+                if var.type == fmi.FMI_REAL:
+                    if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
+                        const_valref_real.append(var.value_reference)
+                        const_name_real.append(var.name)
+                        const_alias_real.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+                    else:
+                        cont_valref_real.append(var.value_reference)
+                        cont_name_real.append(var.name)
+                        cont_alias_real.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+                elif var.type == fmi.FMI_INTEGER or var.type == fmi.FMI_ENUMERATION:
+                    if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
+                        const_valref_int.append(var.value_reference)
+                        const_name_int.append(var.name)
+                        const_alias_int.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+                    else:
+                        cont_valref_int.append(var.value_reference)
+                        cont_name_int.append(var.name)
+                        cont_alias_int.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+                elif var.type == fmi.FMI_BOOLEAN:
+                    if var.variability == fmi.FMI_CONSTANT or var.variability == fmi.FMI_PARAMETER:
+                        const_valref_bool.append(var.value_reference)
+                        const_name_bool.append(var.name)
+                        const_alias_bool.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
+                    else:
+                        cont_valref_bool.append(var.value_reference)
+                        cont_name_bool.append(var.name)
+                        cont_alias_bool.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
 
         # Open file
         if isinstance(self.file_name, str):
@@ -2043,24 +2118,27 @@ class ResultHandlerCSV(ResultHandler):
 
         if delimiter == ",":
             name_str = '"time"'
-            for name in const_name_real+const_name_int+const_name_bool+cont_name_real+cont_name_int+cont_name_bool:
+            for name in const_name_real+const_name_int+const_name_enum+const_name_bool+cont_name_real+cont_name_int+cont_name_enum+cont_name_bool:
                 name_str += delimiter+'"'+name+'"'
         else:
             name_str = "time"
-            for name in const_name_real+const_name_int+const_name_bool+cont_name_real+cont_name_int+cont_name_bool:
+            for name in const_name_real+const_name_int+const_name_enum+const_name_bool+cont_name_real+cont_name_int+cont_name_enum+cont_name_bool:
                 name_str += delimiter+name
 
         self._write(name_str+"\n")
 
-        const_val_real    = model.get_real(const_valref_real)
-        const_val_int     = model.get_integer(const_valref_int)
-        const_val_bool    = model.get_boolean(const_valref_bool)
+        const_val_real = self._model_get_real(const_valref_real)
+        const_val_int  = self._model_get_integer(const_valref_int)
+        const_val_enum = self._model_get_enum(const_valref_enum)
+        const_val_bool = self._model_get_boolean(const_valref_bool)
 
         const_str = ""
         for i,val in enumerate(const_val_real):
             const_str += "%.14E"%(const_alias_real[i]*val)+delimiter
         for i,val in enumerate(const_val_int):
             const_str += "%.14E"%(const_alias_int[i]*val)+delimiter
+        for i,val in enumerate(const_val_enum):
+            const_str += "%.14E"%(const_alias_enum[i]*val)+delimiter
         for i,val in enumerate(const_val_bool):
             const_str += "%.14E"%(const_alias_bool[i]*val)+delimiter
         self.const_str = const_str
@@ -2068,7 +2146,9 @@ class ResultHandlerCSV(ResultHandler):
         self.cont_valref_real = cont_valref_real
         self.cont_alias_real  = np.array(cont_alias_real)
         self.cont_valref_int  = cont_valref_int
-        self.cont_alias_int  = np.array(cont_alias_int)
+        self.cont_alias_int   = np.array(cont_alias_int)
+        self.cont_valref_enum = cont_valref_enum
+        self.cont_alias_enum  = np.array(cont_alias_enum)
         self.cont_valref_bool = cont_valref_bool
         self.cont_alias_bool  = np.array(cont_alias_bool)
 
@@ -2082,11 +2162,12 @@ class ResultHandlerCSV(ResultHandler):
 
         # Retrieves the time-point
         t = model.time
-        r = model.get_real(self.cont_valref_real)*self.cont_alias_real
-        i = model.get_integer(self.cont_valref_int)*self.cont_alias_int
-        b = model.get_boolean(self.cont_valref_bool)*self.cont_alias_bool
+        r = self._model_get_real(self.cont_valref_real)*self.cont_alias_real
+        i = self._model_get_integer(self.cont_valref_int)*self.cont_alias_int
+        e = self._model_get_enum(self.cont_valref_enum)*self.cont_alias_enum
+        b = self._model_get_boolean(self.cont_valref_bool)*self.cont_alias_bool
 
-        data = np.append(np.append(r,i),b)
+        data = np.concatenate((r, i, e, b))
 
         cont_str = ""
         for val in data:
@@ -3184,7 +3265,7 @@ def verify_result_size(file_name, first_point, current_size, previous_size, max_
 def get_result_handler(model, opts):
     result_handler = None
 
-    if isinstance(model, FMUModelBase3) and (opts['result_handling'] not in ["binary", "custom", None]):
+    if isinstance(model, FMUModelBase3) and (opts['result_handling'] not in ["binary", "custom", "csv", None]):
         raise NotImplementedError(
             f"For FMI3: 'result_handling' set to '{opts['result_handling']}' is not supported. " + \
             "Consider setting this option to 'binary', 'custom' or None to continue.")

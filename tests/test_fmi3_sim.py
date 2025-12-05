@@ -67,7 +67,7 @@ class TestSimulation:
 
         assert all(len(results[v]) == 601 for v in expected_variables)
 
-    @pytest.mark.parametrize("rh", ["file", "memory", "csv"])
+    @pytest.mark.parametrize("rh", ["file", "memory"])
     def test_simulate_unsupported_result_handler(self, rh):
         """Verify unsupported result handlers raises an exception"""
         fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
@@ -136,11 +136,26 @@ class TestSimulation:
             ("Enumeration", 2),
         ]
     )
-    def test_result_handling_sanity_check(self, variable_base_name, value):
-        """Sanity check for result handling of the various supported variable types."""
+    def test_result_handling_sanity_check_binary(self, variable_base_name, value):
+        """Sanity check for binary result handling of the various supported variable types."""
         fmu = load_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu")
         fmu.set(f"{variable_base_name}_input", value)
-        res = fmu.simulate(options = {"ncp": 0})
+        res = fmu.simulate(options = {"ncp": 0, "result_handling": "binary"})
+        assert all(v for v in res[f"{variable_base_name}_output"] == value)
+
+    @pytest.mark.parametrize("variable_base_name, value",
+        [
+            ("Float64_continuous", 3.14),
+            ("Int32", 10),
+            ("Boolean", True),
+            ("Enumeration", 2),
+        ]
+    )
+    def test_result_handling_sanity_check_csv(self, variable_base_name, value):
+        """Sanity check for csv result handling of the various supported variable types."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu")
+        fmu.set(f"{variable_base_name}_input", value)
+        res = fmu.simulate(options = {"ncp": 0, "result_handling": "csv"})
         assert all(v for v in res[f"{variable_base_name}_output"] == value)
 
     def test_result_handler_int64_limitations(self):
