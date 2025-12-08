@@ -1941,6 +1941,15 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             filter = filter
         )
 
+    def _variable_name_matches_filter(self, variable_name: str, filter_list: Union[list, None]) -> bool:
+        """Checks if a given variable_name matches any pattern in the filter_list."""
+        if filter_list is None:
+            return True
+        for pattern in filter_list:
+            if pattern.match(variable_name):
+                return True
+        return False
+
     @enable_caching
     def _get_model_variables(self,
         type,
@@ -1964,18 +1973,16 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         cdef FMIL3.fmi3_import_alias_variable_t*      alias_var
 
         cdef int has_start = 0
-        # TODO: Can we rename the keyword arg 'filter' to variable_filter?
-        variable_filter = filter
         # TODO: Can we rename the keyword arg 'type' to variable_type?
         variable_type = type
-        cdef list filter_list = []
+        cdef list filter_list = None
         variable_dict = {}
 
         variable_list      = FMIL3.fmi3_import_get_variable_list(self._fmu, 0)
         variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
 
-        if variable_filter:
-            filter_list = self._convert_filter(variable_filter)
+        if filter:
+            filter_list = self._convert_filter(filter)
 
         user_specified_type        = isinstance(variable_type, int)
         user_specified_variability = isinstance(variability, int)
@@ -2012,15 +2019,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             if user_specified_causality   and (data_causality   != causality):
                 continue
 
-            _add_variable = True
-            if variable_filter:
-                for pattern in filter_list:
-                    if pattern.match(name):
-                        break
-                else:
-                    _add_variable = False
-
-            if _add_variable:
+            if self._variable_name_matches_filter(name, filter_list):
                 variable_dict[name] = FMI3ModelVariable(
                     name,
                     value_ref,
@@ -2039,12 +2038,8 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                     alias_var = FMIL3.fmi3_import_get_alias(alias_list, idx)
                     alias_name = pyfmi_util.decode(FMIL3.fmi3_import_get_alias_variable_name(alias_var))
 
-                    if variable_filter:
-                        for pattern in filter_list:
-                            if pattern.match(alias_name):
-                                break
-                        else:
-                            continue
+                    if not self._variable_name_matches_filter(alias_name, filter_list):
+                        continue
                     alias_descr = self._get_alias_description(alias_var)
 
                     variable_dict[alias_name] = FMI3ModelVariable(
