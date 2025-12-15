@@ -171,6 +171,7 @@ from pyfmi.fmi3 import (
     # Classes
     FMUModelBase3,
     FMUModelME3,
+    FMUModelCS3,
 )
 
 # Callbacks

@@ -135,9 +135,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     cpdef list       get_string (self, valueref)
     cpdef np.ndarray get_enum   (self, valueref)
 
-    cpdef _get_time(self)
-    cpdef _set_time(self, FMIL3.fmi3_float64_t t)
-
     cpdef FMIL3.fmi3_value_reference_t get_variable_valueref(self, variable_name) except *
     cdef FMIL3.fmi3_base_type_enu_t _get_variable_data_type(self, variable_name) except *
     cdef FMIL3.fmi3_causality_enu_t _get_variable_causality(self, variable_name) except *
@@ -170,6 +167,9 @@ cdef class FMUModelME3(FMUModelBase3):
     cdef public FMIL3.fmi3_boolean_t force_finite_differences
     cdef public int finite_differences_method
 
+    cpdef _get_time(self)
+    cpdef _set_time(self, FMIL3.fmi3_float64_t t)
+
     cpdef get_derivatives(self)
     cdef FMIL3.fmi3_status_t _get_derivatives(self, FMIL3.fmi3_float64_t[:] values)
     cdef FMIL3.fmi3_status_t _get_continuous_states_fmil(self, FMIL3.fmi3_float64_t[:] ndx)
@@ -181,6 +181,10 @@ cdef class FMUModelME3(FMUModelBase3):
         FMIL3.fmi3_boolean_t* terminate_simulation
     )
     cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx)
+
+cdef class FMUModelCS3(FMUModelBase3):
+    cpdef _get_time(self)
+    cpdef _set_time(self, FMIL3.fmi3_float64_t t)
 
 cdef class _WorkerClass3:
     cdef int _dim

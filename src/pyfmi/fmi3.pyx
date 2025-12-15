@@ -318,6 +318,9 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._log = []
 
         # Used for deallocation
+        self._initialized_fmu = 0
+        self._allocated_fmu = 0
+        self._allocated_dll = 0
         self._allocated_context = 0
         self._allocated_xml = 0
         self._fmu_temp_dir = NULL
@@ -507,31 +510,121 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         if self._log_stream:
             self._log_stream = None
 
-    cpdef _get_time(self):
-        """ Returns the current time of the simulation. """
-        return self._t
-
-    cpdef _set_time(self, FMIL3.fmi3_float64_t t):
-        """ Sets the current time of the simulation.
-
-            Parameters::
-                t --
-                    The time to set.
+    def initialize(
+        self,
+        tolerance_defined=True,
+        tolerance="Default",
+        start_time="Default",
+        stop_time_defined=False,
+        stop_time="Default"
+    ):
         """
-        cdef int status
+        Initializes the model and computes initial values for all variables.
+
+        Args:
+            tolerance_defined --
+                Specifies if the model is to be solved with an error
+                controlled algorithm.
+                Default: True
+
+            tolerance --
+                The tolerance used by the error controlled algorithm.
+                Default: The tolerance defined in the model description
+
+            start_time --
+                Start time of the simulation.
+                Default: The start time defined in the model description.
+
+            stop_time_defined --
+                Defines if a fixed stop time is defined or not. If this is
+                set the simulation cannot go past the defined stop time.
+                Default: False
+
+            stop_time --
+                Stop time of the simulation.
+                Default: The stop time defined in the model description.
+
+        Calls the low-level FMI functions: fmi3EnterInitializationMode,
+                                           fmi3ExitInitializationMode
+        """
+        log_open = self._log_open()
+        if not log_open and self.get_log_level() > 2:
+            self._open_log_file()
+
+        try:
+            self.enter_initialization_mode(
+                tolerance_defined,
+                tolerance,
+                start_time,
+                stop_time_defined,
+                stop_time
+            )
+            self.exit_initialization_mode()
+        finally:
+            if not log_open and self.get_log_level() > 2:
+                self._close_log_file()
+
+        self._initialized_fmu = 1
+
+    def enter_initialization_mode(
+        self,
+        tolerance_defined=True,
+        tolerance="Default",
+        start_time="Default",
+        stop_time_defined=False,
+        stop_time="Default"
+    ):
+        """ Enters initialization mode by calling the low level FMI function fmi3EnterInitializationMode.
+            Note that the method initialize() performs both the enter and exit of initialization mode.
+
+            Args:
+                For a full description of the input arguments, see the docstring for method 'initialize'.
+        """
+        cdef FMIL3.fmi3_status_t status
+
+        cdef FMIL3.fmi3_boolean_t stop_defined = FMIL3.fmi3_true if stop_time_defined else FMIL3.fmi3_false
+        cdef FMIL3.fmi3_boolean_t tol_defined = FMIL3.fmi3_true if tolerance_defined else FMIL3.fmi3_false
+
+        if tolerance == "Default":
+            tolerance = self.get_default_experiment_tolerance()
+        if start_time == "Default":
+            start_time = self.get_default_experiment_start_time()
+        if stop_time == "Default":
+            stop_time = self.get_default_experiment_stop_time()
+
+        self._t = start_time
+        self._last_accepted_time = start_time
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-        status = FMIL3.fmi3_import_set_time(self._fmu, t)
+        status = FMIL3.fmi3_import_enter_initialization_mode(
+            self._fmu,
+            tol_defined,
+            tolerance,
+            start_time,
+            stop_defined,
+            stop_time
+        )
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
-        if status != 0:
-            raise FMUException('Failed to set the time.')
-        self._t = t
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException("Failed to enter initialization mode")
 
-    time = property(_get_time, _set_time,
-        doc = """
-            Property for accessing the current time of the simulation.
-            Calls the low-level FMI function: fmi3SetTime or fmi3GetTime.
-    """)
+        self._has_entered_init_mode = True
+
+    def exit_initialization_mode(self):
+        """
+            Exit initialization mode by calling the low level FMI function
+            fmi3ExitInitializationMode.
+
+            Note that the method initialize() performs both the enter and
+            exit of initialization mode.
+        """
+        cdef FMIL3.fmi3_status_t status
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_exit_initialization_mode(self._fmu)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != FMIL3.fmi3_status_ok:
+            raise FMUException("Failed to exit initialization mode")
 
     def get_variable_declared_type(self, variable_name):
         """
@@ -649,14 +742,14 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
         raise NotImplementedError # to implemented in FMUModel(ME|CS|SE)3
 
-    def initialize(self,
-        tolerance_defined=True,
-        tolerance="Default",
-        start_time="Default",
-        stop_time_defined=False,
-        stop_time="Default"
-    ):
-        raise NotImplementedError # to implemented in FMUModel(ME|CS|SE)3
+    # def initialize(self,
+    #     tolerance_defined=True,
+    #     tolerance="Default",
+    #     start_time="Default",
+    #     stop_time_defined=False,
+    #     stop_time="Default"
+    # ):
+    #     raise NotImplementedError # to implemented in FMUModel(ME|CS|SE)3
 
     def _set(self, variable_name, value):
         """
@@ -3658,6 +3751,180 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return n_bytes
 
+cdef class FMUModelCS3(FMUModelBase3):
+    """
+    Co-simulation model loaded from a dll
+    """
+    def __init__(self, fmu, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
+                 _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
+        """
+        Constructor of the model.
+
+        Parameters::
+
+            fmu --
+                Name of the fmu as a string.
+
+            log_file_name --
+                Filename for file used to save logmessages.
+                This argument can also be a stream if it supports 'write', for full functionality
+                it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
+                for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
+                on the stream instance after 'write' has been invoked on the PyFMI side.
+                The stream must also be open and writable during the entire time.
+                Default: "" (Generates automatically)
+
+            log_level --
+                Determines the logging output. Can be set between 0
+                (no logging) and 7 (everything).
+                Default: 2 (log error messages)
+            allow_unzipped_fmu --
+                If set to True, the argument 'fmu' can be a path specifying a directory
+                to an unzipped FMU. The structure of the unzipped FMU must conform
+                to the FMI specification.
+                Default: False
+
+        Returns::
+
+            A model as an object from the class FMUModelCS3
+        """
+
+        #Call super
+        FMUModelBase3.__init__(self, fmu, log_file_name, log_level,
+                               _unzipped_dir, _connect_dll, allow_unzipped_fmu)
+
+        if self.get_capability_flags().get('needsExecutionTool', False):
+            raise FMUException("The FMU specifies 'needsExecutionTool=true' which implies that it requires an external execution tool to simulate, this is not supported.")
+
+        if _connect_dll:
+            self.instantiate()
+
+    def _get_fmu_kind(self):
+        if self._fmu_kind & FMIL3.fmi3_fmu_kind_cs:
+            return FMIL3.fmi3_fmu_kind_cs
+        else:
+            raise InvalidVersionException('The FMU could not be loaded. This class only supports FMI 3.0 for Co Simulation.')
+
+    def get_identifier(self):
+        if self._modelId is None:
+            self._modelId = pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_CS(self._fmu))
+        return self._modelId
+
+    def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
+        """
+        Instantiate the model.
+
+        Parameters::
+
+            name --
+                The name of the instance.
+                Default: 'Model'
+
+            visible --
+                Defines if the simulator application window should be visible or not.
+                Default: False, not visible.
+
+        Calls the respective low-level FMI function: fmi3InstantiateCoSimulation.
+        """
+
+        cdef FMIL3.fmi3_boolean_t log
+        cdef FMIL3.fmi3_boolean_t vis
+        cdef FMIL.jm_status_enu_t status
+        cdef FMIL3.fmi3_boolean_t eventModeUsed = FMIL3.fmi3_false
+        cdef FMIL3.fmi3_boolean_t earlyReturnAllowed = FMIL3.fmi3_false
+
+        log = self._enable_logging
+        vis = visible
+
+        name_as_bytes = pyfmi_util.encode(name)
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_instantiate_co_simulation(
+            self._fmu,
+            name_as_bytes,
+            NULL,
+            vis,
+            log,
+            eventModeUsed,
+            earlyReturnAllowed,
+            NULL, # requiredIntermediateVariables
+            0, # nRequiredIntermediateVariables
+            NULL # intermediateUpdate
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != FMIL.jm_status_success:
+            raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
+
+        self._allocated_fmu = 1
+
+    cpdef _get_time(self):
+        """
+        Returns the current time of the simulation.
+
+        Returns::
+            The time.
+        """
+        return self._t
+
+    cpdef _set_time(self, FMIL3.fmi3_float64_t t):
+        """
+        Sets the current time of the simulation.
+
+        Parameters::
+            t--
+                The time to set.
+        """
+        self._t = t
+
+    time = property(
+        _get_time,
+        _set_time,
+        doc = "Property for accessing the current time of the simulation."
+        )
+
+    def get_capability_flags(self) -> dict[str, bool]:
+        """
+        Returns a dictionary with the capability flags of the FMU.
+
+        Returns::
+            Dictionary with keys:
+            needsExecutionTool
+            canBeInstantiatedOnlyOncePerProcess
+            canGetAndSetFMUState
+            canSerializeFMUState
+            providesDirectionalDerivatives
+            providesAdjointDerivatives
+            providesPerElementDependencies
+            canHandleVariableCommunicationStepSize
+            maxOutputDerivativeOrder
+            providesIntermediateUpdate
+            mightReturnEarlyFromDoStep
+            canReturnEarlyAfterIntermediateUpdate
+            hasEventMode
+            providesEvaluateDiscreteStates
+            fixedInternalStepSize
+            recommendedIntermediateInputSmoothness
+        """
+        cdef dict capabilities = {}
+        capabilities['needsExecutionTool']                     = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_needsExecutionTool))
+        capabilities['canBeInstantiatedOnlyOncePerProcess']    = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canBeInstantiatedOnlyOncePerProcess))
+        capabilities['canGetAndSetFMUState']                   = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canGetAndSetFMUState))
+        capabilities['canSerializeFMUState']                   = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canSerializeFMUState))
+        capabilities['providesDirectionalDerivatives']         = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_providesDirectionalDerivatives))
+        capabilities['providesAdjointDerivatives']             = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_providesAdjointDerivatives))
+        capabilities['providesPerElementDependencies']         = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_providesPerElementDependencies))
+        capabilities['canHandleVariableCommunicationStepSize'] = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canHandleVariableCommunicationStepSize))
+        capabilities['maxOutputDerivativeOrder']               = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_maxOutputDerivativeOrder))
+        capabilities['providesIntermediateUpdate']             = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_providesIntermediateUpdate))
+        capabilities['mightReturnEarlyFromDoStep']             = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_mightReturnEarlyFromDoStep))
+        capabilities['canReturnEarlyAfterIntermediateUpdate']  = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canReturnEarlyAfterIntermediateUpdate))
+        capabilities['hasEventMode']                           = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_hasEventMode))
+        capabilities['providesEvaluateDiscreteStates']         = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_providesEvaluateDiscreteStates))
+        capabilities['fixedInternalStepSize']                  = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_fixedInternalStepSize))
+        capabilities['recommendedIntermediateInputSmoothness'] = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_recommendedIntermediateInputSmoothness))
+
+        return capabilities
+
 cdef class FMUModelME3(FMUModelBase3):
     """
     FMI3 ModelExchange model loaded from a dll
@@ -3700,7 +3967,7 @@ cdef class FMUModelME3(FMUModelBase3):
         FMUModelBase3.__init__(self, fmu, log_file_name, log_level,
                                _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
-        if self.get_capability_flags()['needsExecutionTool']:
+        if self.get_capability_flags().get('needsExecutionTool', False):
             raise FMUException("The FMU specifies 'needsExecutionTool=true' which implies that it requires an external execution tool to simulate, this is not supported.")
 
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -3733,6 +4000,32 @@ cdef class FMUModelME3(FMUModelBase3):
         if self._modelId is None:
             self._modelId = pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_ME(self._fmu))
         return self._modelId
+
+    cpdef _get_time(self):
+        """ Returns the current time of the simulation. """
+        return self._t
+
+    cpdef _set_time(self, FMIL3.fmi3_float64_t t):
+        """ Sets the current time of the simulation.
+
+            Parameters::
+                t --
+                    The time to set.
+        """
+        cdef int status
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_set_time(self._fmu, t)
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if status != 0:
+            raise FMUException('Failed to set the time.')
+        self._t = t
+
+    time = property(_get_time, _set_time,
+        doc = """
+            Property for accessing the current time of the simulation.
+            Calls the low-level FMI function: fmi3SetTime or fmi3GetTime.
+    """)
 
     def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
         """
@@ -3773,123 +4066,6 @@ cdef class FMUModelME3(FMUModelBase3):
             raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
 
         self._allocated_fmu = 1
-
-
-    def initialize(
-        self,
-        tolerance_defined=True,
-        tolerance="Default",
-        start_time="Default",
-        stop_time_defined=False,
-        stop_time="Default"
-    ):
-        """
-        Initializes the model and computes initial values for all variables.
-
-        Args:
-            tolerance_defined --
-                Specifies if the model is to be solved with an error
-                controlled algorithm.
-                Default: True
-
-            tolerance --
-                The tolerance used by the error controlled algorithm.
-                Default: The tolerance defined in the model description
-
-            start_time --
-                Start time of the simulation.
-                Default: The start time defined in the model description.
-
-            stop_time_defined --
-                Defines if a fixed stop time is defined or not. If this is
-                set the simulation cannot go past the defined stop time.
-                Default: False
-
-            stop_time --
-                Stop time of the simulation.
-                Default: The stop time defined in the model description.
-
-        Calls the low-level FMI functions: fmi3EnterInitializationMode,
-                                           fmi3ExitInitializationMode
-        """
-        log_open = self._log_open()
-        if not log_open and self.get_log_level() > 2:
-            self._open_log_file()
-
-        try:
-            self.enter_initialization_mode(
-                tolerance_defined,
-                tolerance,
-                start_time,
-                stop_time_defined,
-                stop_time
-            )
-            self.exit_initialization_mode()
-        finally:
-            if not log_open and self.get_log_level() > 2:
-                self._close_log_file()
-
-        self._initialized_fmu = 1
-
-    def enter_initialization_mode(
-        self,
-        tolerance_defined=True,
-        tolerance="Default",
-        start_time="Default",
-        stop_time_defined=False,
-        stop_time="Default"
-    ):
-        """ Enters initialization mode by calling the low level FMI function fmi3EnterInitializationMode.
-            Note that the method initialize() performs both the enter and exit of initialization mode.
-
-            Args:
-                For a full description of the input arguments, see the docstring for method 'initialize'.
-        """
-        cdef FMIL3.fmi3_status_t status
-
-        cdef FMIL3.fmi3_boolean_t stop_defined = FMIL3.fmi3_true if stop_time_defined else FMIL3.fmi3_false
-        cdef FMIL3.fmi3_boolean_t tol_defined = FMIL3.fmi3_true if tolerance_defined else FMIL3.fmi3_false
-
-        if tolerance == "Default":
-            tolerance = self.get_default_experiment_tolerance()
-        if start_time == "Default":
-            start_time = self.get_default_experiment_start_time()
-        if stop_time == "Default":
-            stop_time = self.get_default_experiment_stop_time()
-
-        self._t = start_time
-        self._last_accepted_time = start_time
-        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-        status = FMIL3.fmi3_import_enter_initialization_mode(
-            self._fmu,
-            tol_defined,
-            tolerance,
-            start_time,
-            stop_defined,
-            stop_time
-        )
-        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
-
-        if status != FMIL3.fmi3_status_ok:
-            raise FMUException("Failed to enter initialization mode")
-
-        self._has_entered_init_mode = True
-
-    def exit_initialization_mode(self):
-        """
-            Exit initialization mode by calling the low level FMI function
-            fmi3ExitInitializationMode.
-
-            Note that the method initialize() performs both the enter and
-            exit of initialization mode.
-        """
-        cdef FMIL3.fmi3_status_t status
-        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-        status = FMIL3.fmi3_import_exit_initialization_mode(self._fmu)
-        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
-
-        if status != FMIL3.fmi3_status_ok:
-            raise FMUException("Failed to exit initialization mode")
 
     def enter_continuous_time_mode(self):
         """ Enter continuous time mode by calling the low level FMI function fmi3EnterContinuousTimeMode. """
@@ -4227,7 +4403,7 @@ cdef class FMUModelME3(FMUModelBase3):
         """
         return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
-    def get_capability_flags(self) -> dict:
+    def get_capability_flags(self) -> dict[str, bool]:
         """
         Returns a dictionary with the capability flags of the FMU.
 
@@ -4764,14 +4940,16 @@ cdef object _load_fmi3_fmu(
             model = FMUModelME3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                                 allow_unzipped_fmu = allow_unzipped_fmu)
         elif fmu_3_kind & FMIL3.fmi3_fmu_kind_cs:
-            raise InvalidFMUException("Import of FMI3 Co-Simulation FMUs is not yet supported.")
+            model = FMUModelCS3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
+                                allow_unzipped_fmu = allow_unzipped_fmu)
         elif fmu_3_kind & FMIL3.fmi3_fmu_kind_se:
             raise InvalidFMUException("Import of FMI3 Scheduled Execution FMUs is not supported.")
     elif (kind.upper() == 'ME') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_me):
         model = FMUModelME3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                             allow_unzipped_fmu = allow_unzipped_fmu)
     elif (kind.upper() == 'CS') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_cs):
-        raise InvalidFMUException("Import of FMI3 Co-Simulation FMUs is not yet supported.")
+        model = FMUModelCS3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
+                            allow_unzipped_fmu = allow_unzipped_fmu)
     elif (kind.upper() == 'SE') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_se):
         raise InvalidFMUException("Import of FMI3 Scheduled Execution FMUs is not supported.")
 

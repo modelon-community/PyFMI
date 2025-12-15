@@ -29,6 +29,7 @@ import scipy.sparse as sps
 from pyfmi import load_fmu
 from pyfmi.fmi import (
     FMUModelME3,
+    FMUModelCS3,
 )
 from pyfmi.fmi3 import (
     FMI3_Type,
@@ -177,9 +178,7 @@ class TestFMI3LoadFMU:
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
     def test_load_kind_CS(self, ref_fmu):
         """Test loading an FMU with kind 'CS'"""
-        msg = "Import of FMI3 Co-Simulation FMUs is not yet supported."
-        with pytest.raises(InvalidFMUException, match = msg):
-            load_fmu(ref_fmu, kind = "CS")
+        load_fmu(ref_fmu, kind = "CS")
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "Clocks.fmu"])
     def test_load_kind_SE(self, ref_fmu):
@@ -1538,9 +1537,52 @@ class Test_FMUModelBase3:
             fmu.set_enum(["Enumeration_input"], ["option 1"])
         assert "not in the list of allowed enumeration items" in str(exc_info.value)
 
-class TestFMI3CS:
-    # TODO: Unsupported for now
-    pass
+class Test_FMI3CS:
+    """Basic unit tests for FMI3 import directly via the FMUModelCS3 class."""
+    def test_basic(self):
+        """Basic construction of FMUModelME3."""
+        name = "VanDerPol"
+        fmu_path = FMI3_REF_FMU_PATH / (name + ".fmu")
+        fmu = FMUModelCS3(fmu_path)
+        assert isinstance(fmu, FMUModelCS3)
+
+    def test_basic_wrong_fmu_type(self):
+        """Test using a non-CS FMU."""
+        fmu_path = str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes")
+        msg = "The FMU could not be loaded. This class only supports FMI 3.0 for Co Simulation."
+        with pytest.raises(InvalidVersionException, match = msg):
+            FMUModelCS3(fmu_path, allow_unzipped_fmu = True, _connect_dll = False)
+
+    def test_instantiation(self, tmpdir):
+        """ Test that instantiation works by verifying the output in the log."""
+        with temp_dir_context(tmpdir) as temp_path:
+             # log_level set to 5 required by test
+            fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS", log_level = 5)
+
+        substring_to_find = 'Successfully loaded all the interface functions'
+        assert any(substring_to_find in line for line in fmu.get_log())
+
+    @pytest.mark.parametrize("ref_fmu", [
+        "BouncingBall",
+        "Dahlquist",
+        "Resource",
+        "StateSpace",
+        "Feedthrough",
+        "Stair",
+        "VanDerPol"
+    ])
+    def test_initialize_reset_terminate(self, ref_fmu):
+        """Test initialize, reset and terminate of all the ME reference FMUs. """
+        fmu_path = FMI3_REF_FMU_PATH / (ref_fmu + ".fmu")
+        fmu = FMUModelCS3(fmu_path)
+        # Should simply pass without any exceptions
+        fmu.initialize()
+        fmu.reset()
+
+        # Test initialize again after resetting followed by terminate,
+        # since terminating does not require reset.
+        fmu.initialize()
+        fmu.terminate()
 
 class TestFMI3SE:
     # TODO: Unsupported for now

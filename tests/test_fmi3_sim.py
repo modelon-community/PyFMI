@@ -30,7 +30,7 @@ from pyfmi.exceptions import FMUException
 this_dir = Path(__file__).parent
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
-class TestSimulation:
+class TestSimulationME:
     """Tests involving simulation of FMUs for FMI 3."""
 
     def test_simulate(self):
@@ -285,6 +285,11 @@ class TestSimulation:
         msg = "Invalid 'finite_differences_method' for FMUModelME3, must be FORWARD_DIFFERENCE (1) or CENTRAL_DIFFERENCE (2)."
         with pytest.raises(FMUException, match = re.escape(msg)):
             fmu._get_A()
+
+
+class TestSimulationCS:
+    pass
+
 
 class TestDynamicDiagnostics:
     """Tests involving simulation of FMI3 FMUs using 'dynamic_diagnostics' == True."""
