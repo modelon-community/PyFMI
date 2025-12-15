@@ -385,6 +385,17 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_serialize_fmu_state(fmi3_import_t*, fmi3_FMU_state_t, fmi3_byte_t*, size_t)
     fmi3_status_t fmi3_import_de_serialize_fmu_state(fmi3_import_t*, fmi3_byte_t*, size_t, fmi3_FMU_state_t*)
 
+    # CS CAPI methods
+    fmi3_status_t fmi3_import_do_step(
+            fmi3_import_t* fmu,
+            fmi3_float64_t currentCommunicationPoint,
+            fmi3_float64_t communicationStepSize,
+            fmi3_boolean_t noSetFMUStatePriorToCurrentPoint,
+            fmi3_boolean_t* eventHandlingNeeded,
+            fmi3_boolean_t* terminate,
+            fmi3_boolean_t* earlyReturn,
+            fmi3_float64_t* lastSuccessfulTime)
+
     # FMI HELPER METHODS (3.0)
     fmi3_fmu_kind_enu_t fmi3_import_get_fmu_kind(fmi3_import_t*)
     char* fmi3_fmu_kind_to_string(fmi3_fmu_kind_enu_t)

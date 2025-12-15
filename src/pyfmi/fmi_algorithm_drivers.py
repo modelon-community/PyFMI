@@ -26,7 +26,7 @@ import scipy.optimize as spopt
 
 from pyfmi.fmi1 import FMUModelME1, FMUModelCS1, FMI_ERROR, FMI_DISCARD, FMI1_LAST_SUCCESSFUL_TIME # TODO
 from pyfmi.fmi2 import FMUModelME2, FMUModelCS2, FMI2_INPUT, FMI2_LAST_SUCCESSFUL_TIME
-from pyfmi.fmi3 import FMUModelME3
+from pyfmi.fmi3 import FMUModelME3, FMUModelCS3
 from pyfmi.fmi_coupled import CoupledFMUModelME2
 from pyfmi.fmi_extended import FMUModelME1Extended
 from pyfmi.fmi_util import parameter_estimation_f
@@ -936,11 +936,11 @@ class FMICSAlg(AlgorithmBase):
         if self.options['initialize']:
             if isinstance(self.model, (FMUModelCS1, FMUModelME1Extended)):
                 self.model.initialize(start_time, final_time, stop_time_defined=self.options["stop_time_defined"])
-
             elif isinstance(self.model, FMUModelCS2):
                 self.model.setup_experiment(start_time=start_time, stop_time_defined=self.options["stop_time_defined"], stop_time=final_time)
                 self.model.initialize()
-
+            elif isinstance(self.model, FMUModelCS3):
+                self.model.initialize(start_time=start_time, stop_time_defined=self.options["stop_time_defined"], stop_time=final_time)
             else:
                 raise FMUException("Unknown model.")
 
@@ -948,7 +948,7 @@ class FMICSAlg(AlgorithmBase):
             self.result_handler.initialize_complete()
             time_res_init = timer() - time_res_init
 
-        elif self.model.time is None and isinstance(self.model, FMUModelCS2):
+        elif self.model.time is None and isinstance(self.model, (FMUModelCS2, FMUModelCS3)):
             raise FMUException("Setup Experiment has not been called, this has to be called prior to the initialization call.")
         elif self.model.time is None:
             raise FMUException("The model need to be initialized prior to calling the simulate method if the option 'initialize' is set to False")

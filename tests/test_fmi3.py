@@ -1584,6 +1584,15 @@ class Test_FMI3CS:
         fmu.initialize()
         fmu.terminate()
 
+    def test_do_step(self):
+        """Test basic call to doStep()."""
+        fmu_path = FMI3_REF_FMU_PATH / "VanDerPol.fmu"
+        fmu = FMUModelCS3(fmu_path)
+        fmu.initialize()
+
+        fmu.do_step(0, 1)
+
+
 class TestFMI3SE:
     # TODO: Unsupported for now
     pass

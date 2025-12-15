@@ -288,8 +288,16 @@ class TestSimulationME:
 
 
 class TestSimulationCS:
-    pass
+    def test_simulate(self):
+        """Test simulate VDP model and verify the integrity of the results. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS")
+        results = fmu.simulate()
 
+        assert results['x0'][0] == 2.0
+        assert results['x1'][0] == 0.0
+        assert results['x0'][-1] == pytest.approx(2.0148418861546133)
+        assert results['x1'][-1] == pytest.approx(0.24419470751904407)
+        np.testing.assert_equal(results['mu'], np.ones(len(results['x0'])))
 
 class TestDynamicDiagnostics:
     """Tests involving simulation of FMI3 FMUs using 'dynamic_diagnostics' == True."""
