@@ -4947,10 +4947,10 @@ cdef class FMUModelME2(FMUModelBase2):
                         nominals_pt[i] = self.get_variable_nominal(valueref = v_ref_pt[i])
 
             for i in range(len_v):
-                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), nominals_pt[i]))
+                eps_pt[i] = RUROUND*(max(abs(v_pt[i]), min(nominals_pt[i], 1)))
         else:
             for i in range(len_v):
-                tmp_nominal = self.get_variable_nominal(valueref = v_ref_pt[i])
+                tmp_nominal = min(1, self.get_variable_nominal(valueref = v_ref_pt[i]))
                 eps_pt[i] = RUROUND*(max(abs(v_pt[i]), tmp_nominal))
 
         if group is not None:

@@ -811,7 +811,7 @@ class Test_FMUModelME2_Simulation:
         run_case(True)
 
         opts["solver"] = "Radau5ODE"
-        run_case(False)
+        run_case(True)
 
         opts["solver"] = "CVode"
         opts["with_jacobian"] = False
