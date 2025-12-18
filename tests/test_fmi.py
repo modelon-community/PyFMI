@@ -26,6 +26,7 @@ import shutil
 from io import StringIO
 from pathlib import Path
 import xml.etree.ElementTree as ET
+import re
 
 from pyfmi.fmi import (
     FMUException,
@@ -57,6 +58,7 @@ from pyfmi.test_util import (
 from pyfmi.common.io import ResultHandler
 from pyfmi.common.algorithm_drivers import UnrecognizedOptionError
 from pyfmi.common.core import create_temp_dir
+from assimulo.solvers.sundials import CVodeError
 
 
 class NoSolveAlg(AssimuloFMIAlg):
@@ -82,6 +84,8 @@ FMU_PATHS.ME2.nominal_test4    = os.path.join(file_path, "files", "FMUs", "XML",
 REFERENCE_FMU_PATH = Path(file_path) / 'files' / 'reference_fmus'
 REFERENCE_FMU_FMI2_PATH = REFERENCE_FMU_PATH / '2.0'
 REFERENCE_FMU_FMI3_PATH = REFERENCE_FMU_PATH / '3.0'
+TEST_FMU_PATH = Path(file_path) / 'files' / 'test_fmus'
+TEST_FMU_FMI2_ME_PATH = TEST_FMU_PATH / '2.0' / 'me'
 
 # TODO: Many tests here could be parameterized
 # However, in many cases this relies on having FMUs with the same functionality
@@ -1661,3 +1665,15 @@ class Test_load_fmu_only_XML:
         """Test loading only the XML without connecting to the DLL."""
         model = test_class(fmu_path, _connect_dll=False)
         assert model.get_name() == "CoupledClutches"
+
+@pytest.mark.parametrize("fmu_path", 
+    [
+        TEST_FMU_FMI2_ME_PATH / "testModels_noStateAssertFailureFunctionLocalVariable.fmu",
+        TEST_FMU_FMI2_ME_PATH / "testModels_noStateAssertFailureFunctionOutputVariable.fmu"
+    ]
+)
+def test_no_state_fmu_eval_failure_caught(fmu_path):
+    fmu = load_fmu(fmu_path)
+    expected_err = "The right-hand side function had repeated recoverable errors"
+    with pytest.raises(CVodeError, match = re.escape(expected_err)):
+        fmu.simulate()
