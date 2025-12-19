@@ -11,6 +11,7 @@ src/pyfmi/CHANGELOG
 src/pyfmi/version.txt
 
 tests/files/reference_fmus/
+tests/files/test_fmus/
 
 __pycache__
 .venv

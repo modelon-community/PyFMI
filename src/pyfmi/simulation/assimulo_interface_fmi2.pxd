@@ -44,3 +44,4 @@ cdef class FMIODE2(cExplicit_Problem):
     cpdef _set_input_values(self, double t)
     cdef _update_model(self, double t, np.ndarray[double, ndim=1, mode="c"] y)
     cdef int _compare(self, double t, np.ndarray[double, ndim=1, mode="c"] y)
+    cdef list _vrefs_nostate_eval
