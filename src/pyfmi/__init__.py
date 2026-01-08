@@ -74,7 +74,7 @@ def check_packages():
     sys.stdout.flush()
     time.sleep(0.25)
     
-    import imp
+    import importlib
     # Test dependencies
     sys.stdout.write("\n\n")
     sys.stdout.write("Dependencies: \n\n".rjust(0))
@@ -98,8 +98,7 @@ def check_packages():
     for package in packages:
         try:
             vers="--"
-            fp, path, desc = imp.find_module(package)
-            mod = imp.load_module(package, fp, path, desc)
+            mod = importlib.import_module(package)
 
             try:
                 if package == "pyreadline":
