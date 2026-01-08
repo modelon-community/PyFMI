@@ -468,10 +468,12 @@ cdef class FMIODE3(cExplicit_Problem):
                 solver.y = self._model.continuous_states.append(solver.y[-self._extra_f_nbr:])
             else:
                 solver.y = self._model.continuous_states
-            # Get new nominal values.
-            if hasattr(solver, "atol"): 
-                # TODO; this can overwrite explicit atol choices?
-                solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
+        # Get new nominal values, note that not every solver has "atol", e.g. ExplicitEuler
+        if eInfo.nominalsOfContinuousStatesChanged == FMIL3.fmi3_true and hasattr(solver, "atol"): 
+            # TODO; this can overwrite explicit atol choices or different scaling choices?
+            # TODO; this needs better handling in case of unbounded states; there:
+            # rtol = vector with zero entries, one cannot have any atol == 0
+            solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
 
         # Check if the simulation should be terminated
         if eInfo.terminateSimulation:

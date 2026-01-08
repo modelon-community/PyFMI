@@ -4008,8 +4008,8 @@ cdef class FMUModelME3(FMUModelBase3):
         Calls the low-level FMI function: fmi3UpdateDiscreteStates
         """
         cdef FMIL3.fmi3_status_t status
-        cdef FMIL3.fmi3_boolean_t tmp_values_continuous_states_changed   = False
-        cdef FMIL3.fmi3_boolean_t tmp_nominals_continuous_states_changed = False
+        cdef FMIL3.fmi3_boolean_t tmp_values_continuous_states_changed   = FMIL3.fmi3_false
+        cdef FMIL3.fmi3_boolean_t tmp_nominals_continuous_states_changed = FMIL3.fmi3_false
 
         if intermediateResult:
             self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -4038,14 +4038,14 @@ cdef class FMUModelME3(FMUModelBase3):
                     &self._event_info_next_event_time)
                 self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
-                tmp_values_continuous_states_changed |= self._event_info_nominals_of_continuous_states_changed
+                tmp_nominals_continuous_states_changed |= self._event_info_nominals_of_continuous_states_changed
                 tmp_values_continuous_states_changed |= self._event_info_values_of_continuous_states_changed
                 if status != FMIL3.fmi3_status_ok:
                     raise FMUException('Failed to update the events at time: %E.'%self.time)
 
             # Values changed at least once during event iteration
-            self._event_info_nominals_of_continuous_states_changed |= tmp_values_continuous_states_changed
-            self._event_info_values_of_continuous_states_changed   |= tmp_nominals_continuous_states_changed
+            self._event_info_nominals_of_continuous_states_changed |= tmp_nominals_continuous_states_changed
+            self._event_info_values_of_continuous_states_changed   |= tmp_values_continuous_states_changed
 
     cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx):
         cdef FMIL3.fmi3_status_t status
