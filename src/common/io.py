@@ -3177,17 +3177,19 @@ class _ResultReaderBinaryMatConsolidated(ResultReader):
         elif hasattr(fname, "name") and os.path.isfile(fname.name):
             self._fname = fname.name
 
-        data_sections = ["name", "dataInfo", "data_2", "data_3"]
-        with open(self._fname, "rb") as f:
-            delayed = _DelayedVariableLoadDiags(f, chars_as_strings=False)
-            self.raw: dict = delayed.get_variables(variable_names = data_sections)
-
+        self.raw = self._load_raw_data_info()
         self._name_info: dict = self.raw["name"]
         self._dataInfo: dict = self.raw["dataInfo"]
         self._data_2_info: dict = self.raw["data_2"]
         self._contains_diagnostic_data: bool = ("data_3" in self.raw)
         if self._contains_diagnostic_data:
             self._data_3_info: dict = self.raw["data_3"]
+
+    def _load_raw_data_info(self) -> dict:
+        data_sections = ["name", "dataInfo", "data_2", "data_3"]
+        with open(self._fname, "rb") as f:
+            delayed = _DelayedVariableLoadDiags(f, chars_as_strings=False)
+            return delayed.get_variables(variable_names = data_sections)
 
     @cache
     def _get_variable_name_to_index_dict(self) -> dict[str, int]:
