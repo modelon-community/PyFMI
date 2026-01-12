@@ -3283,6 +3283,62 @@ class _ResultReaderBinaryMatConsolidated(ResultReader):
         f = scipy.interpolate.interp1d(time_vector, data, fill_value="extrapolate")
         return f(diag_time_vector)
 
+
+class ResultReaderBinaryMat(ResultReader):
+    def __init__(self, fname, allow_file_updates=False):
+        """
+        Load a .mat result file.
+
+        Parameters::
+
+            fname --
+                Name of file or a file object supported by scipy.io.loadmat,
+                which the result is written to.
+
+            allow_file_updates --
+                If this is True, file updates (in terms of more
+                data points being added to the result file) is allowed.
+                The number of variables stored in the file needs to be
+                exactly the same and only the number of data points for
+                the continuous variables are allowed to change.
+                Default: False
+        """
+        self._delegate = self._get_delegate(fname, allow_file_updates)
+
+    
+    def _get_delegate(self, fname, allow_file_updates: bool):
+        """Determines what delegate to use based on input result data"""
+        try:
+            with open(fname, "rb") as f:
+                delayed = DelayedVariableLoad(f, chars_as_strings=False)
+                data_sections = ["name", "dataInfo", "data_2", "data_3", "data_4"]
+                raw_data_info = delayed.get_variables(variable_names = data_sections)
+        except FileNotFoundError as e:
+            raise NoResultError(str(e)) from e
+
+        if raw_data_info.get("data_3") is not None and raw_data_info.get("data_4") is None:
+            # The result is 'consolidated' if 'data_3' exists but not 'data_4', meaning
+            # the dynamic diagnostic variable data exists in 'data_3'. This reader also
+            # handle results only containing 'data_2' but for now 'ResultDymolaBinary' is used.
+            # NOTE: Argument 'allow_file_updates' is ignored here. Consolidated results cannot
+            # be updated so it should not matter what value is given.
+            return _ResultReaderBinaryMatConsolidated(fname)
+        else:
+            return ResultDymolaBinary(
+                fname,
+                allow_file_updates=allow_file_updates,
+            )
+
+    def get_variable_names(self) -> list[str]:
+        return self._delegate.get_variable_names()
+
+    def get_trajectory(self, name: str) -> Trajectory:
+        return self._delegate.get_trajectory(name)
+
+    def get_trajectories(self, names: list[str]) -> dict[str, Trajectory]:
+        return self._delegate.get_trajectories(names)
+
+
 def verify_result_size(file_name, first_point, current_size, previous_size, max_size, ncp, time):
     free_space = get_available_disk_space(file_name)
 
