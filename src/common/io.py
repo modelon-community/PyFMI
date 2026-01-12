@@ -3121,24 +3121,23 @@ class ResultHandlerBinaryFile(ResultHandler):
         return ResultDymolaBinary(self._get_file_name())
 
 class _DelayedVarReader4Diags(DelayedVarReader4):
+    def _create_section_data(self, section_name, hdr):
+        return {
+            "section": section_name,
+            "file_position": self.mat_stream.tell(),
+            "sizeof_type": hdr.dtype.itemsize,
+            "nbr_points": hdr.dims[1],
+            "nbr_variables": hdr.dims[0]
+        }
+    
     def read_sub_array(self, hdr, copy=True):
         match hdr.name:
             case b"data_2":
-                return {
-                    "section": "data_2",
-                    "file_position": self.mat_stream.tell(),
-                    "sizeof_type": hdr.dtype.itemsize,
-                    "nbr_points": hdr.dims[1],
-                    "nbr_variables": hdr.dims[0]
-                }
+                return self._create_section_data("data_2", hdr)
             case b"data_3":
-                return {
-                    "section": "data_3",
-                    "file_position": self.mat_stream.tell(),
-                    "sizeof_type": hdr.dtype.itemsize,
-                    "nbr_points": hdr.dims[1],
-                    "nbr_variables": hdr.dims[0]
-                }
+                return self._create_section_data("data_3", hdr)
+            case b"data_4":
+                return self._create_section_data("data_4", hdr)
             case b"name":
                 return {
                     "section": "name",
@@ -3312,8 +3311,8 @@ class ResultReaderBinaryMat(ResultReader):
         """Determines what delegate to use based on input result data"""
         try:
             with open(fname, "rb") as f:
-                delayed = DelayedVariableLoad(f, chars_as_strings=False)
-                data_sections = ["name", "dataInfo", "data_2", "data_3", "data_4"]
+                delayed = _DelayedVariableLoadDiags(f, chars_as_strings=False)
+                data_sections = ["data_3", "data_4"]
                 raw_data_info = delayed.get_variables(variable_names = data_sections)
         except FileNotFoundError as e:
             raise NoResultError(str(e)) from e
