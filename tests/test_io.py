@@ -2514,6 +2514,12 @@ class TestResultReaderForBinaryMatConsolidated:
         result = ResultReaderBinaryMat(mat_file)
         assert "spring.phi_nominal" in result.name
 
+    def test_is_variable(self, mat_file):
+        result = ResultReaderBinaryMat(mat_file)
+        assert result.is_variable("spring.phi_nominal")
+        assert result.is_variable("time")
+        assert not result.is_variable("spring.k_constant")
+
 
 def test_interpolation_between_points(mat_file_interpolation):
     result = ResultReaderBinaryMat(mat_file_interpolation)
