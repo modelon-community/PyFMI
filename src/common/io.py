@@ -3299,18 +3299,6 @@ class _ResultReaderBinaryMatConsolidated(ResultReader):
         return f(diag_time_vector)
 
     def is_variable(self, name: str) -> bool:
-        """
-        Returns True if the given name corresponds to a time-varying variable.
-
-        Parameters::
-
-            name --
-                Name of the variable/parameter/constant.
-
-        Returns::
-
-            True if the variable is time-varying.
-        """
         if name == 'time' or name== 'Time':
             return True
         
@@ -3323,41 +3311,6 @@ class _ResultReaderBinaryMatConsolidated(ResultReader):
             start_index: int = 0,
             stop_index: int | None = None,
     ) -> tuple[dict[str, Trajectory], Union[int, None]]:
-        """"
-            Returns trajectories for each variable in 'names' with lengths adjusted for the
-            interval [start_index, stop_index], i.e. partial trajectories.
-            Improper values for start_index and stop_index that are out of bounds are automatically corrected,
-            such that:
-                Negative values are always adjusted to 0 or larger.
-                Out of bounds for stop_index is adjusted for the number of available data points, example:
-                If start_index = 0, stop_index = 5 and there are only 3 data points available,
-                then returned trajectories are of length 3.
-                If start_index is larger than or equal to the number of available data points, empty trajectories
-                are returned, i.e. trajectories of length 0.
-            Note that trajectories for parameters are always of length 2 if indices 0 and 1 are
-            part of the requested trajectory since they reflect the values of before and after initialization.
-            Therefore if you request a trajectory for a parameter with start_index>=2, returned trajectory is empty.
-
-            By default, start_index = 0 and stop_index = None, which implies that the full trajectory is returned.
-
-            Parameters::
-
-                names --
-                    List of variables names for which to fetch trajectories.
-
-                start_index --
-                    The index from where the trajectory data starts from.
-
-                stop_index --
-                    The index from where the trajectory data ends. If stop_index is set to None,
-                    it implies that all data in the slice [start_index:] is returned.
-
-            Raises::
-                ValueError                        -- If stop_index < start_index.
-
-            Returns::
-                Tuple: (dict of trajectories with keys corresponding to variable names, next start index (non-negative))
-        """
         if isinstance(start_index, int) and isinstance(stop_index, int) and stop_index < start_index:
             raise ValueError(f"Invalid values for {start_index=} and {stop_index=}, " + \
                               "'start_index' needs to be less than or equal to 'stop_index'.")
@@ -3433,15 +3386,42 @@ class ResultReaderBinaryMat(ResultReader):
             )
 
     def get_variable_names(self) -> list[str]:
+        """Retrieve the names of the variables stored in this class."""
         return self._delegate.get_variable_names()
 
     def get_trajectory(self, name: str) -> Trajectory:
+        """Retrieve a single pyfmi.common.io.Trajectory by variables name.
+        Parameters::
+
+            name --
+                String of variable name.
+        Return::
+            pyfmi.common.io.Trajectory corresponding to variable_name.
+        """
         return self._delegate.get_trajectory(name)
 
     def get_trajectories(self, names: list[str]) -> dict[str, Trajectory]:
+        """Retrieve multiple trajectories, returns a dictionary of variables trajectories.
+            names --
+                List of Strings of variable names.
+        Return::
+            Dictionary: {variable_name: pyfmi.common.io.Trajectory}.
+        """
         return self._delegate.get_trajectories(names)
 
     def is_variable(self, name: str) -> bool:
+        """
+        Returns True if the given name corresponds to a time-varying variable.
+
+        Parameters::
+
+            name --
+                Name of the variable/parameter/constant.
+
+        Returns::
+
+            True if the variable is time-varying.
+        """
         return self._delegate.is_variable(name)
 
     def get_variables_data(
@@ -3450,6 +3430,41 @@ class ResultReaderBinaryMat(ResultReader):
             start_index: int = 0,
             stop_index: int | None = None,
     ) -> tuple[dict[str, Trajectory], Union[int, None]]:
+        """"
+            Returns trajectories for each variable in 'names' with lengths adjusted for the
+            interval [start_index, stop_index], i.e. partial trajectories.
+            Improper values for start_index and stop_index that are out of bounds are automatically corrected,
+            such that:
+                Negative values are always adjusted to 0 or larger.
+                Out of bounds for stop_index is adjusted for the number of available data points, example:
+                If start_index = 0, stop_index = 5 and there are only 3 data points available,
+                then returned trajectories are of length 3.
+                If start_index is larger than or equal to the number of available data points, empty trajectories
+                are returned, i.e. trajectories of length 0.
+            Note that trajectories for parameters are always of length 2 if indices 0 and 1 are
+            part of the requested trajectory since they reflect the values of before and after initialization.
+            Therefore if you request a trajectory for a parameter with start_index>=2, returned trajectory is empty.
+
+            By default, start_index = 0 and stop_index = None, which implies that the full trajectory is returned.
+
+            Parameters::
+
+                names --
+                    List of variables names for which to fetch trajectories.
+
+                start_index --
+                    The index from where the trajectory data starts from.
+
+                stop_index --
+                    The index from where the trajectory data ends. If stop_index is set to None,
+                    it implies that all data in the slice [start_index:] is returned.
+
+            Raises::
+                ValueError                        -- If stop_index < start_index.
+
+            Returns::
+                Tuple: (dict of trajectories with keys corresponding to variable names, next start index (non-negative))
+        """
         return self._delegate.get_variables_data(
             names, start_index=start_index, stop_index=stop_index
         )
