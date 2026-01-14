@@ -1124,6 +1124,11 @@ class ResultDymolaTextual(ResultDymola):
             name --
                 Name of the variable/parameter/constant
 
+        Raises::
+
+            VariableNotFoundError --
+                If variable does not exists.
+
         Returns::
 
             True if the variable is time-varying.
@@ -1791,6 +1796,11 @@ class ResultDymolaBinary(ResultDymola):
 
             name --
                 Name of the variable/parameter/constant.
+
+        Raises::
+
+            VariableNotFoundError --
+                If variable does not exists.
 
         Returns::
 
@@ -3417,6 +3427,11 @@ class ResultReaderBinaryMat(ResultReader):
 
             name --
                 Name of the variable/parameter/constant.
+
+        Raises::
+
+            VariableNotFoundError --
+                If variable does not exists.
 
         Returns::
 
