@@ -115,6 +115,17 @@ class ResultReader(abc.ABC):
       - (optional) get_trajectories(self, names) -> dict(name, Trajectory) for variables in <names>.
         default: Loop over get_trajectory(name).
     """
+
+    def _get_name(self) -> list[str]:
+        warnings.warn(
+            "Getting variable names via the `name` attribute is deprecated and will be removed in a future version."
+            "Use the `get_variable_names` function instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.get_variable_names()
+
+    name = property(fget = _get_name)
     
     @abc.abstractmethod
     def get_variable_names(self) -> list[str]:
@@ -213,17 +224,6 @@ class ResultDymola(ResultReader):
     """
     Base class for representation of a result file.
     """
-
-    def _get_name(self) -> list[str]:
-        warnings.warn(
-            "Getting variable names via the `name` attribute is deprecated and will be removed in a future version."
-            "Use the `get_variable_names` function instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        return self.get_variable_names()
-
-    name = property(fget = _get_name)
 
     def get_variable_names(self) -> list[str]:
         return [decode(n) for n in self.name_lookup.keys()]
