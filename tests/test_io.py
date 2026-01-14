@@ -2521,6 +2521,183 @@ class TestResultReaderForBinaryMatConsolidated:
         assert not result.is_variable("spring.k_constant")
 
 
+class TestConsolidatedGetVariablesData:
+    """Tests for the get_variables_data method"""
+    
+    def test_get_full_trajectories_default_params(self, mat_file):
+        """Test getting full trajectories with default parameters"""
+        result = ResultReaderBinaryMat(mat_file)
+        trajectories, _ = result.get_variables_data(["time", "torque.flange.phi"])
+
+        assert len(trajectories) == 2
+        assert len(trajectories["time"].x) == 3
+        assert len(trajectories["torque.flange.phi"].x) == 3
+    
+    def test_get_partial_trajectories_with_indices(self, mat_file):
+        """Test getting partial trajectories with start and stop indices"""
+        result = ResultReaderBinaryMat(mat_file)
+        trajectories, next_index = result.get_variables_data(
+            ["time", "torque.flange.phi"],
+            start_index=1,
+            stop_index=2,
+        )
+        
+        assert len(trajectories["time"].x) == 1
+        assert len(trajectories["torque.flange.phi"].x) == 1
+        assert np.allclose(trajectories["time"].x, [11.0])
+        assert np.allclose(trajectories["torque.flange.phi"].x, [1.1])
+        assert next_index == 2
+    
+    def test_get_trajectories_start_index_only(self, mat_file):
+        """Test getting trajectories from start_index to end"""
+        result = ResultReaderBinaryMat(mat_file)
+        trajectories, next_index = result.get_variables_data(
+            ["time", "torque.flange.phi"], 
+            start_index=1
+        )
+        
+        assert len(trajectories["time"].x) == 2
+        assert len(trajectories["torque.flange.phi"].x) == 2
+        assert next_index == 3
+    
+    def test_negative_start_index_corrected_to_zero(self, mat_file):
+        """Test that negative start_index is corrected to 0"""
+        result = ResultReaderBinaryMat(mat_file)
+        trajectories, _ = result.get_variables_data(
+            ["time"], 
+            start_index=-5, 
+            stop_index=2
+        )
+
+        assert len(trajectories["time"].x) == 2
+        assert np.allclose(trajectories["time"].x, [10.0, 11.0])
+    
+    def test_out_of_bounds_stop_index_adjusted(self, mat_file):
+        """Test that out of bounds stop_index is adjusted to available data points"""
+        result = ResultReaderBinaryMat(mat_file)
+        trajectories, next_index = result.get_variables_data(
+            ["time"], 
+            start_index=0, 
+            stop_index=100
+        )
+        
+        assert len(trajectories["time"].x) == 3
+        assert np.allclose(trajectories["time"].x, [10.0, 11.0, 12.0])
+        assert next_index == 3
+    
+    def test_start_index_beyond_data_returns_empty(self, mat_file):
+        """Test that start_index >= data points returns empty trajectories"""
+        result = ResultReaderBinaryMat(mat_file)
+        trajectories, next_index = result.get_variables_data(
+            ["torque.flange.phi"], 
+            start_index=10
+        )
+        
+        assert len(trajectories["torque.flange.phi"].x) == 0
+        assert next_index == 10
+    
+    def test_stop_index_less_than_start_raises_error(self, mat_file):
+        """Test that stop_index < start_index raises ValueError"""
+        result = ResultReaderBinaryMat(mat_file)
+        with pytest.raises(ValueError):
+            result.get_variables_data(
+                ["time"], 
+                start_index=5, 
+                stop_index=2
+            )
+    
+    def test_parameter_with_start_index_two_or_more_returns_empty(self, mat_file):
+        """Test that parameters return empty trajectory when start_index > 2"""
+        result = ResultReaderBinaryMat(mat_file)
+        trajectories, _ = result.get_variables_data(
+            ["torque.flange.phi"], 
+            start_index=3
+        )
+        
+        assert len(trajectories["torque.flange.phi"].x) == 0
+    
+    def test_multiple_variables_mixed_types(self, mat_file):
+        """Test getting multiple variables including both parameters and time-series"""
+        result = ResultReaderBinaryMat(mat_file)
+        trajectories, _ = result.get_variables_data(
+            ["spring.phi_nominal", "time", "torque.flange.phi", "spring.k_constant", "@Diagnostics.error_code"],
+            start_index=0,
+            stop_index=1
+        )
+        
+        assert len(trajectories) == 5
+        # Parameters
+        assert len(trajectories["spring.phi_nominal"].x) == 2
+        assert len(trajectories["spring.k_constant"].x) == 2
+
+        # Time-series
+        assert len(trajectories["time"].x) == 1
+        assert len(trajectories["torque.flange.phi"].x) == 1
+        assert len(trajectories["@Diagnostics.error_code"].x) == 1
+    
+    def test_empty_variable_list(self, mat_file):
+        """Test with empty variable names list"""
+        result = ResultReaderBinaryMat(mat_file)
+        trajectories, next_index = result.get_variables_data([])
+        
+        assert len(trajectories) == 0
+        assert next_index == 0
+    
+    def test_diagnostic_variables(self, mat_file):
+        """Test getting diagnostic variables"""
+        result = ResultReaderBinaryMat(mat_file)
+        trajectories, _ = result.get_variables_data(
+            ["@Diagnostics.step_time", "@Diagnostics.error_code"],
+            start_index=0,
+            stop_index=2
+        )
+        
+        assert len(trajectories["@Diagnostics.step_time"].x) == 2
+        assert len(trajectories["@Diagnostics.error_code"].x) == 2
+        assert np.allclose(trajectories["@Diagnostics.error_code"].x, [0.0, 1.0])
+    
+    def test_nonexistent_variable_raises_error(self, mat_file):
+        """Test that requesting non-existent variable raises VariableNotFoundError"""
+        result = ResultReaderBinaryMat(mat_file)
+        with pytest.raises(VariableNotFoundError):
+            result.get_variables_data(["does.not.exist"])
+    
+    def test_next_index_calculation(self, mat_file):
+        """Test that next_index is correctly calculated"""
+        result = ResultReaderBinaryMat(mat_file)
+        
+        # Test with stop_index provided
+        _, next_index = result.get_variables_data(["time"], start_index=0, stop_index=2)
+        assert next_index == 2
+        
+        # Test with stop_index = None (full trajectory)
+        _, next_index = result.get_variables_data(["time"], start_index=0, stop_index=None)
+        assert next_index == 3
+        
+        # Test with start_index beyond data
+        _, next_index = result.get_variables_data(["time"], start_index=10, stop_index=15)
+        assert next_index == 10
+
+    def test_interpolation_values_with_time(self, mat_file):
+        result = ResultReaderBinaryMat(mat_file)
+        def get_clipped_trajectory(name: str):
+            trajs, _ = result.get_variables_data([name], stop_index=2)
+            return trajs[name]
+        
+        traj = get_clipped_trajectory("torque.flange.phi")
+        assert np.allclose(traj.t, [10.0, 11.0])
+        assert np.allclose(traj.x, [1.0, 1.1])
+
+    def test_interpolation_between_points(self, mat_file_interpolation):
+        result = ResultReaderBinaryMat(mat_file_interpolation)
+        trajs, _ = result.get_variables_data(["spring.phi_nominal"], start_index=1, stop_index=4)
+        traj = trajs["spring.phi_nominal"]
+
+        assert np.allclose(traj.t, [0.5, 1.0, 1.5])
+        assert traj.x[0] == pytest.approx(5.0)
+        assert traj.x[2] == pytest.approx(15.0)
+
+
 def test_interpolation_between_points(mat_file_interpolation):
     result = ResultReaderBinaryMat(mat_file_interpolation)
     traj = result.get_trajectory("spring.phi_nominal")
