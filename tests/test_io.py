@@ -2510,6 +2510,10 @@ class TestResultReaderForBinaryMatConsolidated:
         with pytest.raises(NoResultError):
             ResultReaderBinaryMat("does-not-exists")
 
+    def test_deprecated_name_property(self, mat_file):
+        result = ResultReaderBinaryMat(mat_file)
+        assert "spring.phi_nominal" in result.name
+
 
 def test_interpolation_between_points(mat_file_interpolation):
     result = ResultReaderBinaryMat(mat_file_interpolation)
