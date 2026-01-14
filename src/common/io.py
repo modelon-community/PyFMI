@@ -1783,7 +1783,7 @@ class ResultDymolaBinary(ResultDymola):
         """Get trajectory values for cumulative CPU time."""
         return DynamicDiagnosticsUtils.get_cpu_time(self.get_trajectory(f'{DIAGNOSTICS_PREFIX}cpu_time_per_step').x)
 
-    def is_variable(self, name):
+    def is_variable(self, name: str) -> bool:
         """
         Returns True if the given name corresponds to a time-varying variable.
 
@@ -3284,6 +3284,25 @@ class _ResultReaderBinaryMatConsolidated(ResultReader):
         f = scipy.interpolate.interp1d(time_vector, data, fill_value="extrapolate")
         return f(diag_time_vector)
 
+    def is_variable(self, name: str) -> bool:
+        """
+        Returns True if the given name corresponds to a time-varying variable.
+
+        Parameters::
+
+            name --
+                Name of the variable/parameter/constant.
+
+        Returns::
+
+            True if the variable is time-varying.
+        """
+        if name == 'time' or name== 'Time':
+            return True
+        
+        data_index, _ = self._get_data_index_mat(name)
+        return data_index != 1
+
 
 class ResultReaderBinaryMat(ResultReader):
     def __init__(self, fname, allow_file_updates=False):
@@ -3338,6 +3357,9 @@ class ResultReaderBinaryMat(ResultReader):
 
     def get_trajectories(self, names: list[str]) -> dict[str, Trajectory]:
         return self._delegate.get_trajectories(names)
+
+    def is_variable(self, name: str) -> bool:
+        return self._delegate.is_variable(name)
 
 
 def verify_result_size(file_name, first_point, current_size, previous_size, max_size, ncp, time):
