@@ -24,6 +24,7 @@ import math
 import re
 from io import StringIO, BytesIO
 from collections import OrderedDict
+from dataclasses import dataclass
 from typing import Protocol
 
 from pyfmi import load_fmu
@@ -2512,13 +2513,26 @@ class TestResultReaderForBinaryMatConsolidated:
 
     def test_deprecated_name_property(self, mat_file):
         result = ResultReaderBinaryMat(mat_file)
-        assert "spring.phi_nominal" in result.name
+        with pytest.warns(
+            DeprecationWarning,
+            match = "Use the `get_variable_names` function instead.",
+        ):
+            assert "spring.phi_nominal" in result.name
 
     def test_is_variable(self, mat_file):
         result = ResultReaderBinaryMat(mat_file)
         assert result.is_variable("spring.phi_nominal")
         assert result.is_variable("time")
         assert not result.is_variable("spring.k_constant")
+
+        with pytest.raises(VariableNotFoundError):
+            result.is_variable("does.not.exists")
+
+@dataclass
+class IndexCase:
+    start: int
+    stop: int | None
+    expected_next: int
 
 
 class TestConsolidatedGetVariablesData:
@@ -2662,21 +2676,17 @@ class TestConsolidatedGetVariablesData:
         with pytest.raises(VariableNotFoundError):
             result.get_variables_data(["does.not.exist"])
     
-    def test_next_index_calculation(self, mat_file):
+    @pytest.mark.parametrize(
+        "index", [IndexCase(0, 2, 2), IndexCase(0, None, 3), IndexCase(10, 15, 10)]
+    )
+    def test_next_index_calculation(self, index: IndexCase, mat_file):
         """Test that next_index is correctly calculated"""
         result = ResultReaderBinaryMat(mat_file)
         
-        # Test with stop_index provided
-        _, next_index = result.get_variables_data(["time"], start_index=0, stop_index=2)
-        assert next_index == 2
-        
-        # Test with stop_index = None (full trajectory)
-        _, next_index = result.get_variables_data(["time"], start_index=0, stop_index=None)
-        assert next_index == 3
-        
-        # Test with start_index beyond data
-        _, next_index = result.get_variables_data(["time"], start_index=10, stop_index=15)
-        assert next_index == 10
+        _, next_index = result.get_variables_data(
+            ["time"], start_index=index.start, stop_index=index.stop
+        )
+        assert next_index == index.expected_next
 
     def test_interpolation_values_with_time(self, mat_file):
         result = ResultReaderBinaryMat(mat_file)
