@@ -27,6 +27,7 @@ from io import StringIO
 from pathlib import Path
 import xml.etree.ElementTree as ET
 import re
+import platform
 
 from pyfmi.fmi import (
     FMUException,
@@ -1666,6 +1667,7 @@ class Test_load_fmu_only_XML:
         model = test_class(fmu_path, _connect_dll=False)
         assert model.get_name() == "CoupledClutches"
 
+@pytest.mark.skipif(platform.system() != "Linux", reason = "Only Linux binaries")
 @pytest.mark.parametrize("fmu_path", 
     [
         TEST_FMU_FMI2_ME_PATH / "testModels_noStateAssertFailureFunctionLocalVariable.fmu",
