@@ -2,6 +2,12 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.20.0 ---
+    * Fixed so FMU `reset` resets to log_level that it was loaded with.
+    * New exception `pyfmi.common.io.NoResultError` that will be raised for result handlers and writers if result is missing.
+    * Fixed an issue where models without continuous states could erroneuously succeed simulation,
+      despite evaluation failures after a fixed point in time.
+
 --- PyFMI-2.19.0 ---
     * New function `get_log_categories` for `FMUModelBase2` to retrieve both log 
       categories and descriptions, use instead of `get_categories`.
