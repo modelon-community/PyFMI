@@ -393,7 +393,7 @@ def create_temp_dir():
     """
     Create a temporary directory for extracting an FMU in or similar
     """
-    # create JModelica directory for temporary files (if not already created)
+    # create directory for temporary files (if not already created)
     if not os.path.exists(tmp_location):
         try: #Account for race conditions
             os.makedirs(tmp_location)
@@ -410,7 +410,7 @@ def create_temp_file():
     """
     Create a temporary file.
     """
-    # create JModelica directory for temporary files (if not already created)
+    # create directory for temporary files (if not already created)
     if not os.path.exists(tmp_location):
         os.makedirs(tmp_location)
     

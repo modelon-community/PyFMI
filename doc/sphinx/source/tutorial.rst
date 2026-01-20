@@ -4,8 +4,6 @@ Tutorial
 
 This tutorial is intended to give a short introduction on how to use the PyFMI package to load an FMU into Python and to simulate the given model.
 
-For a more detailed description on how to use PyFMI, see the user's documentation in `JModelica.org <https://jmodelica.org>`_
-
 Loading an FMU into Python
 ============================
 

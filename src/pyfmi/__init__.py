@@ -14,9 +14,6 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-The JModelica.org Python package for working with FMI <http:/www.jmodelica.org/>
-"""
 
 __all__ = ['fmi_algorithm_drivers', 'examples', 'fmi', 'common']
 

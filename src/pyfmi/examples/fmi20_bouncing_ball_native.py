@@ -27,7 +27,7 @@ path_to_fmus_me2 = os.path.join(path_to_fmus,"ME2.0")
 
 def run_demo(with_plots=True):
     """
-    This example shows how to use the raw (JModelica.org) FMI interface for
+    This example shows how to use the raw FMI interface for
     simulation of an FMU.
     
     FMU = bouncingBall.fmu 
