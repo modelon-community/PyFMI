@@ -14,10 +14,6 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-The JModelica.org <http:/www.jmodelica.org/> Python package for common classes
-and functions.
-"""
 
 __all__ = ['algorithm_drivers', 'core', 'diagnostics', 'io', 'plotting']
 

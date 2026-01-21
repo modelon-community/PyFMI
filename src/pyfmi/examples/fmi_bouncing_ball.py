@@ -27,7 +27,7 @@ path_to_fmus2 = os.path.join(curr_dir, 'files', 'FMUs','ME2.0')
 
 def run_demo(with_plots=True, version="2.0"):
     """
-    Demonstrates how to use JModelica.org for simulation of 
+    Demonstrates how to use PyFMI / Assimulo for simulation of 
     ME FMUs version 1.0 and 2.0.
     """
     if version == '1.0':

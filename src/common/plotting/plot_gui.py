@@ -35,7 +35,6 @@ try:
 except ImportError:
     print("WX-Python not found. The GUI will not work.")
 
-#JModelica related imports
 from pyfmi.common.io import ResultDymolaTextual
 from pyfmi.common.io import ResultDymolaBinary
 from pyfmi.common.io import ResultCSVTextual
@@ -88,7 +87,7 @@ class MainGUI(wx.Frame):
     
     def __init__(self, parent, ID, filename=None):
         
-        self.title = "JModelica.org Plot GUI"
+        self.title = "PyFMI Plot GUI"
         wx.Frame.__init__(self, parent, ID, self.title,
                          wx.DefaultPosition, wx.Size(self.sizeHeightDefault, self.sizeLengthDefault))
                          
@@ -260,7 +259,7 @@ class MainGUI(wx.Frame):
         self.Destroy() #Close the GUI
     
     def OnMenuAbout(self, event):
-        dlg = wx.MessageDialog(self, 'JModelica.org Plot GUI.\n', 'About',
+        dlg = wx.MessageDialog(self, 'PyFMI Plot GUI.\n', 'About',
                                         wx.OK | wx.ICON_INFORMATION)
         dlg.ShowModal()
         dlg.Destroy()
