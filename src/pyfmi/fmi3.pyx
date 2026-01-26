@@ -2189,6 +2189,32 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         return variable_dict
 
+    def get_initial_unknown_list(self):
+        """ Returns a dictionary with the initial unknowns.
+
+            Returns::
+
+                A dictionary with the initial unknowns variables.
+        """
+        cdef FMIL3.fmi3_import_variable_list_t* variable_list
+        cdef FMIL.size_t                        variable_list_size
+        cdef FMIL3.fmi3_import_variable_t*      variable
+        variable_dict = {}
+
+        variable_list = FMIL3.fmi3_import_get_initial_unknowns_list(self._fmu)
+        if variable_list == NULL:
+            raise FMUException("Unexpected failure in retrieving the continuous state derivatives list.")
+        variable_list_size = FMIL3.fmi3_import_get_variable_list_size(variable_list)
+
+        for i in range(variable_list_size):
+            variable = FMIL3.fmi3_import_get_variable(variable_list, i)
+            scalar_variable = self._add_variable(variable)
+            variable_dict[scalar_variable.name] = scalar_variable
+
+        FMIL3.fmi3_import_free_variable_list(variable_list)
+
+        return variable_dict
+
     def get_derivatives_list(self):
         """
         Returns a dictionary with the states derivatives.

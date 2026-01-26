@@ -114,7 +114,7 @@ cdef class ModelBase:
         if isinstance(variable_name, basestring):
             self._set(variable_name, value) #Scalar case
         else:
-            for i in xrange(len(variable_name)): #A list of variables
+            for i in range(len(variable_name)): #A list of variables
                 self._set(variable_name[i], value[i])
 
     def get(self, variable_name):
@@ -141,7 +141,7 @@ cdef class ModelBase:
         if isinstance(variable_name, basestring):
             return self._get(variable_name) #Scalar case
         else:
-            return [self._get(variable_name[i]) for i in xrange(len(variable_name))]
+            return [self._get(variable_name[i]) for i in range(len(variable_name))]
 
     def get_unpacked_fmu_path(self) -> str:
         """Return absolute path to folder containing the unpacked FMU."""

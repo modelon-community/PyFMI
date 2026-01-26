@@ -486,3 +486,5 @@ cdef extern from 'fmilib.h':
     char* fmi2_capability_to_string(fmi2_capabilities_enu_t)
     fmi2_import_variable_list_t * fmi2_import_get_states_list(fmi2_import_t*)
     fmi2_real_t fmi2_import_get_display_unit_factor(fmi2_import_display_unit_t *)
+
+    fmi2_import_variable_list_t* fmi2_import_get_initial_unknowns_list(fmi2_import_t* fmu)

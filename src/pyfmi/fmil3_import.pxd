@@ -526,3 +526,6 @@ cdef extern from 'fmilib.h':
     # Unit conversion
     fmi3_float32_t fmi3_import_float32_convert_to_display_unit(fmi3_float32_t, fmi3_import_display_unit_t*, int)
     fmi3_float64_t fmi3_import_float64_convert_to_display_unit(fmi3_float64_t, fmi3_import_display_unit_t*, int)
+
+
+    fmi3_import_variable_list_t* fmi3_import_get_initial_unknowns_list(fmi3_import_t* fmu)

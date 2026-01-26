@@ -2887,6 +2887,27 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         return variable_dict
 
+    def get_initial_unknown_list(self):
+        """
+        Returns a dictionary with the initial unknowns
+
+        Returns::
+
+            An ordered dictionary with the initial unknowns variables.
+        """
+        cdef FMIL2.fmi2_import_variable_list_t*   variable_list
+
+        variable_list = FMIL2.fmi2_import_get_initial_unknowns_list(self._fmu)
+        if variable_list == NULL:
+            raise FMUException("The returned states list is NULL.")
+
+        variable_dict = self._add_scalar_variables(variable_list)
+
+        #Free the variable list
+        FMIL2.fmi2_import_free_variable_list(variable_list)
+
+        return variable_dict
+
     cpdef get_output_dependencies(self):
         """
         Retrieve the list of variables that the outputs are
