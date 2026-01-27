@@ -28,7 +28,7 @@ RUN git clone --depth 1 -b v2.7.0 https://github.com/LLNL/sundials /tmp/sundials
     make install
 
 #Install assimulo
-RUN git clone --depth 1 -b Assimulo-3.7.2 https://github.com/modelon-community/Assimulo /tmp/Assimulo && \
+RUN git clone --depth 1 -b Assimulo-3.7.3 https://github.com/modelon-community/Assimulo /tmp/Assimulo && \
     cd /tmp/Assimulo && \
     rm setup.cfg && \
     python3.11 setup.py install --user --sundials-home=/usr --blas-home=/usr/lib/x86_64-linux-gnu/ --lapack-home=/usr/lib/x86_64-linux-gnu/ --superlu-home=/usr
