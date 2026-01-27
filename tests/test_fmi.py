@@ -28,6 +28,7 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 import re
 import platform
+from packaging import version
 
 from pyfmi.fmi import (
     FMUException,
@@ -87,6 +88,14 @@ REFERENCE_FMU_FMI2_PATH = REFERENCE_FMU_PATH / '2.0'
 REFERENCE_FMU_FMI3_PATH = REFERENCE_FMU_PATH / '3.0'
 TEST_FMU_PATH = Path(file_path) / 'files' / 'test_fmus'
 TEST_FMU_FMI2_ME_PATH = TEST_FMU_PATH / '2.0' / 'me'
+
+GLIBC_VERSION = platform.libc_ver()[1]
+
+uses_test_fmus = pytest.mark.skipif(
+    (platform.system() != "Linux") or
+    (version.parse(GLIBC_VERSION) < version.parse("2.33")),
+    reason = "Linux only binaries & requires glibc >= 2.33"
+)
 
 # TODO: Many tests here could be parameterized
 # However, in many cases this relies on having FMUs with the same functionality
@@ -1667,7 +1676,7 @@ class Test_load_fmu_only_XML:
         model = test_class(fmu_path, _connect_dll=False)
         assert model.get_name() == "CoupledClutches"
 
-@pytest.mark.skipif(platform.system() != "Linux", reason = "Only Linux binaries")
+@uses_test_fmus
 @pytest.mark.parametrize("fmu_path", 
     [
         TEST_FMU_FMI2_ME_PATH / "testModels_noStateAssertFailureFunctionLocalVariable.fmu",
