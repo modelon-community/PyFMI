@@ -20,6 +20,7 @@
 import time
 import numpy as np
 cimport numpy as np
+np.import_array()
 
 cimport pyfmi.fmil2_import as FMIL2
 cimport pyfmi.fmi2 as FMI2

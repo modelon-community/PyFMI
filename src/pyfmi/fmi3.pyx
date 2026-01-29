@@ -27,6 +27,7 @@ from typing import Union
 
 import numpy as np
 cimport numpy as np
+np.import_array()
 from numpy cimport PyArray_DATA
 
 cimport pyfmi.fmil_import as FMIL

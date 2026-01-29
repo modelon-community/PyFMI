@@ -19,6 +19,7 @@ from libc.stdio cimport FILE
 
 import numpy as np
 cimport numpy as np
+np.import_array()
 cimport pyfmi.fmi2 as FMI2
 cimport pyfmi.fmi3 as FMI3
 
