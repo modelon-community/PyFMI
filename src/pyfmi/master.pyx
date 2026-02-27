@@ -905,6 +905,9 @@ cdef class Master:
         return xd
     
     cpdef np.ndarray get_specific_connection_outputs_discrete(self, model, np.ndarray mask, np.ndarray yout):
+        if len(mask) == 0:
+            # quick return; nothing to get; prevents index array in array slicing
+            return
         cdef int j = 0
         ytmp = model.get(np.array(self.models_dict[model]["local_output_discrete"])[mask])
         for i, flag in enumerate(mask):
@@ -913,6 +916,9 @@ cdef class Master:
                 j = j + 1
                 
     cpdef np.ndarray get_specific_connection_outputs(self, model, np.ndarray mask, np.ndarray yout):
+        if len(mask) == 0:
+            # quick return; nothing to get; prevents index array in array slicing
+            return
         cdef int j = 0
         cdef np.ndarray ytmp = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"][mask])
         for i, flag in enumerate(mask):
@@ -1045,6 +1051,9 @@ cdef class Master:
             model.set(self.models_dict[model]["local_input_discrete"], u[i:inext])
             
     cpdef set_specific_connection_inputs(self, model, np.ndarray mask, np.ndarray u):
+        if len(mask) == 0:
+            # quick return; nothing to set; prevents index array in array slicing
+            return
         cdef int i = self.models_dict[model]["global_index_inputs"]
         cdef int inext = i + self.models_dict[model]["local_input_len"]
         cdef np.ndarray usliced = u[i:inext]
@@ -1053,6 +1062,9 @@ cdef class Master:
         (<FMI2.FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"][mask], usliced[mask])
     
     cpdef set_specific_connection_inputs_discrete(self, model, np.ndarray mask, np.ndarray u):
+        if len(mask) == 0:
+            # quick return; nothing to set; prevents index array in array slicing
+            return
         cdef int i = self.models_dict[model]["global_index_inputs_discrete"]
         cdef int inext = i + self.models_dict[model]["local_input_discrete_len"]
         cdef np.ndarray usliced = u[i:inext]

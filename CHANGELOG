@@ -1,5 +1,6 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+    * Fixed a crash with the `Master` algorithm option `block_initialization`.
 
 --- PyFMI-2.20.0 ---
     * Fixed so FMU `reset` resets to log_level that it was loaded with.

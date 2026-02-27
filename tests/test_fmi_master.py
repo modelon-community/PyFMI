@@ -451,6 +451,24 @@ class Test_Master:
         np.testing.assert_array_equal(res[0]["Float64_discrete_output"], [0, 0, 0, 0, 0, 0])
         np.testing.assert_array_equal(res[1]["Float64_discrete_output"], [0, 2, 4, 6, 8, 10])
 
+    def test_block_initialization(self):
+        """Basic smoke-test for the 'block_initialization' option."""
+        fmu1 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu3 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2, fmu3]
+        # some inputs/outputs are intentionally left unconnected
+        connections = [
+            (fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input"), 
+            (fmu2, "Float64_discrete_output", fmu3, "Float64_discrete_input"),
+        ]
+        master = Master(models, connections)
+
+        opts = master.simulate_options()
+        opts["block_initialization"] = True
+        master.simulate(0, 1, options=opts)
+
 class Test_Master_Result_Downsampling:
     """Tests related to the 'result_downsampling' option of the Master algorithm."""
     @classmethod
