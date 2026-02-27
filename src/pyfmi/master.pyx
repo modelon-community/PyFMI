@@ -75,6 +75,31 @@ cdef perform_do_step_serial(list models, dict time_spent, double cur_time, doubl
         if status != 0:
             raise FMUException("The step failed for model %s at time %f. See the log for more information. Return flag %d."%(model.get_name(), cur_time, status))
 
+cdef perform_do_step_serial_with_downsampling(
+    long step_number,
+    list models,
+    list downsampling_rates,
+    dict time_spent,
+    double cur_time,
+    double final_time,
+    double step_size,
+    bool new_step):
+    """
+    Perform a do step on all the models.
+    """
+    cdef double time_start = 0.0
+    cdef int status = 0
+    
+    for model, ds_rate in zip(models, downsampling_rates):
+        # Note: step_number is 0 based
+        if (step_number % ds_rate) == 0:
+            time_start = timer()
+            h = min(ds_rate*step_size, abs(final_time - cur_time)) # TODO: eps adjustments here?
+            status = model.do_step(cur_time, h, new_step)
+            time_spent[model] += timer() - time_start
+            if status != 0:
+                raise FMUException("The step failed for model %s at time %f. See the log for more information. Return flag %d."%(model.get_name(), cur_time, status))
+
 cdef perform_do_step_parallel(list models, FMIL2.fmi2_import_t** model_addresses, int n, double cur_time, double step_size, int new_step):
     """
     Perform a do step on all the models.
@@ -358,6 +383,9 @@ class MasterAlgOptions(OptionBase):
             It is not required to have all models as keys,
             missing ones take the default value of 1.
             Default: {m: 1 for m in models} (no downsampling)
+
+        _experimental_serial_downsampling --
+            TODO
     """
     def __init__(self, master, *args, **kw):
         _defaults= {
@@ -389,6 +417,7 @@ class MasterAlgOptions(OptionBase):
         "num_threads":None,
         "result_downsampling_factor": dict((model, 1) for model in master.models),
         "step_size_downsampling_factor" : dict((model, 1) for model in master.models),
+        "_experimental_serial_downsampling": False,
         }
         super(MasterAlgOptions,self).__init__(_defaults)
         # Exceptions to the above types need to handled here, e.g., allowing both
@@ -440,6 +469,7 @@ cdef class Master:
     cdef public long long _step_number
     cdef public bool _last_step
     cdef public dict step_size_downsampling_factor
+    cdef public bool _uses_step_size_downsampling 
     
     def __init__(self, models, connections):
         """
@@ -875,6 +905,9 @@ cdef class Master:
         return xd
     
     cpdef np.ndarray get_specific_connection_outputs_discrete(self, model, np.ndarray mask, np.ndarray yout):
+        if len(mask) == 0:
+            # quick return; nothing to get; prevents index array in array slicing
+            return
         cdef int j = 0
         ytmp = model.get(np.array(self.models_dict[model]["local_output_discrete"])[mask])
         for i, flag in enumerate(mask):
@@ -883,6 +916,9 @@ cdef class Master:
                 j = j + 1
                 
     cpdef np.ndarray get_specific_connection_outputs(self, model, np.ndarray mask, np.ndarray yout):
+        if len(mask) == 0:
+            # quick return; nothing to get; prevents index array in array slicing
+            return
         cdef int j = 0
         cdef np.ndarray ytmp = (<FMI2.FMUModelCS2>model).get_real(self.models_dict[model]["local_output_vref_array"][mask])
         for i, flag in enumerate(mask):
@@ -1015,6 +1051,9 @@ cdef class Master:
             model.set(self.models_dict[model]["local_input_discrete"], u[i:inext])
             
     cpdef set_specific_connection_inputs(self, model, np.ndarray mask, np.ndarray u):
+        if len(mask) == 0:
+            # quick return; nothing to set; prevents index array in array slicing
+            return
         cdef int i = self.models_dict[model]["global_index_inputs"]
         cdef int inext = i + self.models_dict[model]["local_input_len"]
         cdef np.ndarray usliced = u[i:inext]
@@ -1023,6 +1062,9 @@ cdef class Master:
         (<FMI2.FMUModelCS2>model).set_real(self.models_dict[model]["local_input_vref_array"][mask], usliced[mask])
     
     cpdef set_specific_connection_inputs_discrete(self, model, np.ndarray mask, np.ndarray u):
+        if len(mask) == 0:
+            # quick return; nothing to set; prevents index array in array slicing
+            return
         cdef int i = self.models_dict[model]["global_index_inputs_discrete"]
         cdef int inext = i + self.models_dict[model]["local_input_discrete_len"]
         cdef np.ndarray usliced = u[i:inext]
@@ -1388,8 +1430,18 @@ cdef class Master:
                     step_size = final_time - tcur
                     self.set_current_step_size(step_size)
                     self._last_step = True
-                    
-                perform_do_step(self.models, self.elapsed_time, self.fmu_adresses, tcur, step_size, True, calling_setting)
+                if opts["_experimental_serial_downsampling"]:
+                    perform_do_step_serial_with_downsampling(
+                        self._step_number,
+                        self.models,
+                        list(self.step_size_downsampling_factor.values()),
+                        self.elapsed_time,
+                        tcur,
+                        final_time,
+                        step_size,
+                        True)
+                else:
+                    perform_do_step(self.models, self.elapsed_time, self.fmu_adresses, tcur, step_size, True, calling_setting)
                 
                 if self.opts["store_step_before_update"]:
                     time_start = timer()
@@ -1617,7 +1669,9 @@ cdef class Master:
                                         f"got: '{val}'.")
                 self.step_size_downsampling_factor[m] = val
 
-        if set(self.step_size_downsampling_factor.values()) != {1} and options["logging"]:
+        self._uses_step_size_downsampling = set(self.step_size_downsampling_factor.values()) != {1} 
+
+        if  self._uses_step_size_downsampling and options["logging"]:
             warnings.warn("Both 'step_size_downsampling_factor' and 'logging' are used. " \
                         "Logging of A, B, C, and D matrices will be done on the global step-size." \
                         "Actual values may no longer be sensible.")
@@ -1627,10 +1681,9 @@ cdef class Master:
                 warnings.warn("Extrapolation of inputs only supported if the individual FMUs support interpolation of inputs.")
                 options["extrapolation_order"] = 0
 
-        uses_step_size_downsampling = set(self.step_size_downsampling_factor.values()) != {1}
-        if uses_step_size_downsampling and options["extrapolation_order"] > 0:
+        if self._uses_step_size_downsampling and options["extrapolation_order"] > 0:
             raise FMUException("Use of 'step_size_downsampling_factor' with 'extrapolation_order' > 0 not supported.")
-        if uses_step_size_downsampling and self.linear_correction:
+        if self._uses_step_size_downsampling and self.linear_correction:
             raise FMUException("Use of 'step_size_downsampling_factor' with 'linear_correction' not supported.")
         
         if options["num_threads"] and options["execution"] == "parallel":
