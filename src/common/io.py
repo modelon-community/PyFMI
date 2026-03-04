@@ -23,7 +23,7 @@ import re
 import sys
 import os
 import logging as logging_module
-from functools import reduce, cache, cached_property
+from functools import reduce, cached_property
 from typing import Union, Callable
 from shutil import disk_usage
 import abc
@@ -1991,8 +1991,8 @@ class ResultHandlerCSV(ResultHandler):
         self._current_file_size = self._current_file_size+len(msg)
         self._file.write(msg)
 
-    @cache
-    def _get_file_name(self):
+    @cached_property
+    def file_name(self):
         file_name = self.options["result_file_name"]
         if file_name == "":
             return self.model.get_identifier() + '_result.csv'
@@ -2021,7 +2021,6 @@ class ResultHandlerCSV(ResultHandler):
         except KeyError:
             self.parameters = None
 
-        self.file_name = self._get_file_name()
         self.model._result_file = self.file_name
 
         vars = model.get_model_variables(filter=opts["filter"])
@@ -2231,7 +2230,7 @@ class ResultHandlerCSV(ResultHandler):
         """
         Method for retrieving the result.
         """
-        return ResultCSVTextual(self._get_file_name(), self.delimiter)
+        return ResultCSVTextual(self.file_name, self.delimiter)
 
 class ResultHandlerFile(ResultHandler):
     """
@@ -2244,17 +2243,17 @@ class ResultHandlerFile(ResultHandler):
         self._current_file_size = 0
         self._first_point = True
 
-    @cache
-    def _get_file_name(self):
+    @cached_property
+    def file_name(self):
         file_name = self.options["result_file_name"]
         if file_name == "":
             return self.model.get_identifier() + '_result.txt'
 
         return file_name
 
-    @cache
+    @cached_property
     def _is_stream(self):
-        file = self._get_file_name()
+        file = self.file_name
         if isinstance(file, str):
             return False
         else:
@@ -2262,9 +2261,9 @@ class ResultHandlerFile(ResultHandler):
                 raise FMUException("Failed to write the result file. Option 'result_file_name' needs to be a filename or a class that supports 'write' and 'seek'.")
             return True
 
-    @cache
-    def _get_file_handle(self):
-        if self._is_stream():
+    @cached_property
+    def _file_handle(self):
+        if self._is_stream:
             return self.file_name
         else:
             return codecs.open(self.file_name,'w','utf-8')
@@ -2290,7 +2289,6 @@ class ResultHandlerFile(ResultHandler):
         except KeyError:
             self.parameters = None
 
-        self.file_name = self._get_file_name()
         self.model._result_file = self.file_name
 
         # Store the continuous and discrete variables for result writing
@@ -2299,8 +2297,7 @@ class ResultHandlerFile(ResultHandler):
         parameters = self.parameters
 
         # Open file
-        f = self._get_file_handle()
-        self._file = f
+        self._file = self._file_handle
         self.file_open = True
 
         # Write header
@@ -2594,7 +2591,7 @@ class ResultHandlerFile(ResultHandler):
 
         self._write(str_text)
         self._write('\n')
-        self._point_last_t = f.tell()
+        self._point_last_t = self._file.tell()
         self._write("%s" % ' '*28)
         self._write(str_text)
 
@@ -2605,7 +2602,7 @@ class ResultHandlerFile(ResultHandler):
 
 
         self._write('float data_2(')
-        self._point_npoints = f.tell()
+        self._point_npoints = self._file.tell()
         self._write(' '*(14+4+14))
         self._write('\n')
 
@@ -2680,7 +2677,7 @@ class ResultHandlerFile(ResultHandler):
             f.seek(self._point_npoints)
             f.write('%d,%d)' % (self.nbr_points, self._nvariables+self._nvariables_sens))
 
-            if self._is_stream(): # Seek relative to file end to allowed for string streams
+            if self._is_stream: # Seek relative to file end to allowed for string streams
                 f.seek(0, os.SEEK_END)
                 f.seek(f.tell()-1, os.SEEK_SET)
             else:
@@ -2697,7 +2694,7 @@ class ResultHandlerFile(ResultHandler):
         subclass of ResultBase.
         """
         return ResultDymolaTextual(
-            self._get_file_handle() if self._is_stream() else self._get_file_name()
+            self._file_handle if self._is_stream else self.file_name
         )
 
 class ResultHandlerDummy(ResultHandler):
@@ -2792,8 +2789,8 @@ class ResultHandlerBinaryFile(ResultHandler):
         self._size_point = -1
         self._first_point = True
 
-    @cache
-    def _get_file_name(self):
+    @cached_property
+    def file_name(self):
         file_name = self.options["result_file_name"]
         if file_name == "":
             return self.model.get_identifier() + '_result.mat'
@@ -2890,7 +2887,6 @@ class ResultHandlerBinaryFile(ResultHandler):
                 msg += " 'diagnostics_vars'."
             raise FMUException(msg)
 
-        self.file_name = self._get_file_name()
         try:
             self.parameters = opts["sensitivities"]
         except KeyError:
@@ -3128,7 +3124,7 @@ class ResultHandlerBinaryFile(ResultHandler):
         result of an instance of ResultBase or of an instance of a
         subclass of ResultBase.
         """
-        return ResultDymolaBinary(self._get_file_name())
+        return ResultDymolaBinary(self.file_name)
 
 class _DelayedVarReader4Diags(DelayedVarReader4):
     def _create_section_data(self, section_name, hdr):
@@ -3200,8 +3196,8 @@ class _ResultReaderBinaryMatConsolidated(ResultReader):
             delayed = _DelayedVariableLoadDiags(f, chars_as_strings=False)
             return delayed.get_variables(variable_names = data_sections)
 
-    @cache
-    def _get_variable_name_to_index_dict(self) -> dict[str, int]:
+    @cached_property
+    def _variable_name_to_index_dict(self) -> dict[str, int]:
         name_dict: dict = fmi_util.read_name_list(
             encode(self._fname),
             self._name_info["file_position"],
@@ -3212,12 +3208,12 @@ class _ResultReaderBinaryMatConsolidated(ResultReader):
         return {decode(k): v for k, v in name_dict.items()}
 
     def get_variable_names(self) -> list[str]:
-        return list(self._get_variable_name_to_index_dict().keys())
+        return list(self._variable_name_to_index_dict.keys())
 
     def _get_data_index_mat(self, variable_name: str) -> tuple[int, int]:
         """ Returns the data index and matrix ID for given variable name. """
-        if variable_name in self._get_variable_name_to_index_dict():
-            variable_index = self._get_variable_name_to_index_dict().get(variable_name)
+        if variable_name in self._variable_name_to_index_dict:
+            variable_index = self._variable_name_to_index_dict.get(variable_name)
             data_mat = self._dataInfo[0][variable_index]
             data_index = abs(self._dataInfo[1][variable_index]) - 1 # abs due to alias
 
