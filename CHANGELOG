@@ -1,5 +1,6 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+    * Resolved issue where caching in result handling was too persistent and could prevent automatic garbage collection.
 
 --- PyFMI-2.20.0 ---
     * Fixed so FMU `reset` resets to log_level that it was loaded with.
