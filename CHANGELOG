@@ -1,6 +1,4 @@
 --- CHANGELOG ---
---- PyFMI-FUTURE ---
-
 --- PyFMI-2.20.1 ---
     * Resolved issue where caching in result handling was too persistent and could prevent automatic garbage collection.
 
