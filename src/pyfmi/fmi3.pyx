@@ -22,7 +22,6 @@ cimport cython
 import os
 from enum import IntEnum
 import logging
-import functools
 from pathlib import Path
 from typing import Union
 
@@ -4265,12 +4264,10 @@ cdef class FMUModelME3(FMUModelBase3):
 
         return capabilities
 
-    @functools.cache
     def _provides_directional_derivatives(self) -> bool:
         """Check capability to provide directional derivatives."""
         return bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_providesDirectionalDerivatives))
 
-    @functools.cache
     def _supports_get_set_FMU_state(self) -> bool:
         """Returns True if the FMU supports get and set FMU-state, otherwise False."""
         return bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_me_canGetAndSetFMUState))
