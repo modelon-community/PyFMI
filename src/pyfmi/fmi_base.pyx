@@ -35,7 +35,6 @@ import re
 from io import UnsupportedOperation
 cimport cython
 
-import functools
 import marshal
 
 import numpy as np
