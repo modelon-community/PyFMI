@@ -2,6 +2,9 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.20.1 ---
+    * Resolved issue where caching in result handling was too persistent and could prevent automatic garbage collection.
+
 --- PyFMI-2.20.0 ---
     * Fixed so FMU `reset` resets to log_level that it was loaded with.
     * New exception `pyfmi.common.io.NoResultError` that will be raised for result handlers and writers if result is missing.
