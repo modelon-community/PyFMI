@@ -80,6 +80,7 @@ cdef perform_do_step_serial_with_downsampling(
     list models,
     list downsampling_rates,
     dict time_spent,
+    dict do_step_profiling,
     double cur_time,
     double final_time,
     double step_size,
@@ -96,7 +97,9 @@ cdef perform_do_step_serial_with_downsampling(
             time_start = timer()
             h = min(ds_rate*step_size, abs(final_time - cur_time)) # TODO: eps adjustments here?
             status = model.do_step(cur_time, h, new_step)
-            time_spent[model] += timer() - time_start
+            time_spent_for_do_step = timer() - time_start
+            time_spent[model] += time_spent_for_do_step
+            do_step_profiling[model].append(time_spent_for_do_step)
             if status != 0:
                 raise FMUException("The step failed for model %s at time %f. See the log for more information. Return flag %d."%(model.get_name(), cur_time, status))
 
@@ -470,6 +473,7 @@ cdef class Master:
     cdef public bool _last_step
     cdef public dict step_size_downsampling_factor
     cdef public bool _uses_step_size_downsampling 
+    cdef public dict _do_step_profiling
     
     def __init__(self, models, connections):
         """
@@ -509,6 +513,7 @@ cdef class Master:
                                                "direct_dependence": []}) for model in models)
         self.models_id_mapping = {str(id(model)): model for model in models}
         self.elapsed_time = {model: 0.0 for model in models}
+        self._do_step_profiling = {model: [] for model in models}
         self.elapsed_time_init = {model: 0.0 for model in models}
         self.elapsed_time["result_handling"] = 0.0
         self._display_counter = 1
@@ -1436,6 +1441,7 @@ cdef class Master:
                         self.models,
                         list(self.step_size_downsampling_factor.values()),
                         self.elapsed_time,
+                        self._do_step_profiling,
                         tcur,
                         final_time,
                         step_size,
@@ -1776,6 +1782,10 @@ cdef class Master:
         print(' Number of global steps        : %d'%self.statistics["nsteps"])
         if self.error_controlled:
             print(' Number of rejected steps      : %d'%self.statistics["nreject"])
+
+    def get_do_step_profiling(self):
+        """TODO"""
+        return self._do_step_profiling
     
     def _get_support_directional_derivatives(self):
         if self._support_directional_derivatives == -1:
