@@ -981,6 +981,11 @@ class Test_Master_serial_downsampling():
             fmu2.do_step_history,
             test_case.expected_stepsizes_2)
         
+        # check do_step_profiling, TODO: FUTURE; should maybe be a separate test?
+        do_step_profiling = master.get_do_step_profiling()
+        assert len(do_step_profiling[fmu1]) == len(test_case.expected_stepsizes_1)
+        assert len(do_step_profiling[fmu2]) == len(test_case.expected_stepsizes_2)
+        
     @pytest.mark.parametrize("factor", [1, 2, 5, 10])
     def test_rescale_step_size_and_downsampling(self, factor):
         """Test that rescaling both the step-size and downsampling gives identical results."""
@@ -1021,4 +1026,3 @@ class Test_Master_serial_downsampling():
         np.testing.assert_array_equal(
             fmu2.do_step_history,
             [3, 3, 3, 1])
-
