@@ -392,7 +392,7 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
         self._nContinuousStates = FMIL1.fmi1_import_get_number_of_continuous_states(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
-        if not isinstance(log_file_name, str):
+        if not isinstance(log_file_name, (str, Path)):
             self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
                 try:
@@ -403,7 +403,11 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
                     else:
                         logging.warning("Unable to log to stream.")
         else:
-            fmu_log_name = pyfmi_util.encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
+            if log_file_name == "": # default
+                log_file_name = self._modelId + "_log.txt"
+            else:
+                log_file_name = os.path.abspath(log_file_name)
+            fmu_log_name = pyfmi_util.encode(log_file_name)
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
             FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 

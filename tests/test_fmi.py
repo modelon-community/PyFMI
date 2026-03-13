@@ -137,6 +137,12 @@ class Test_FMU:
         shutil.unpack_archive(load_with_path_object.path, format = "zip", extract_dir = tmpdir)
         load_with_path_object.loader(Path(tmpdir), allow_unzipped_fmu = True)
 
+    def test_load_with_log_file_name_as_path(self, load_with_path_object):
+        load_with_path_object.loader(
+            str(load_with_path_object.path),
+            log_file_name = Path("log.txt")
+            )
+
 @pytest.mark.parametrize("fmu_loader, fmu_path",
     [
         (FMUModelME1, PATH_TO_FMU_EXAMPLES/ 'ME1.0' / 'bouncingBall.fmu'),

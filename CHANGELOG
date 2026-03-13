@@ -4,7 +4,9 @@
     * Fixed a result handling issue for `dynamic_diagnostics = True` and `["<solver>_options"]["clock_step"] = False`.
     * Fixed an issue for the `Master` algorithm where connection values could be initialized incorrectly, when FMUs 
       were initialized separately and using `step_size_downsampling_factor`.
-    * Enabled use of `pathlib.Path` objects for paths when loading FMUs.
+    * Enabled use of `pathlib.Path` objects for:
+        * Paths when loading FMUs
+        * `log_file_name` when loading FMUs
 
 --- PyFMI-2.20.1 ---
     * Resolved issue where caching in result handling was too persistent and could prevent automatic garbage collection.
