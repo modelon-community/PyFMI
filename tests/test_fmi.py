@@ -24,6 +24,8 @@ import tempfile
 import types
 import shutil
 from pathlib import Path
+import dataclasses
+from typing import Callable
 
 from pyfmi.fmi import (
     FMUException,
@@ -49,52 +51,76 @@ FMU_PATHS.ME1.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML",
 FMU_PATHS.ME2.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu")
 
 REFERENCE_FMU_PATH = Path(file_path) / 'files' / 'reference_fmus'
+REFERENCE_FMU_FMI1_PATH = REFERENCE_FMU_PATH / '1.0'
 REFERENCE_FMU_FMI2_PATH = REFERENCE_FMU_PATH / '2.0'
 REFERENCE_FMU_FMI3_PATH = REFERENCE_FMU_PATH / '3.0'
+
 TEST_FMU_PATH = Path(file_path) / 'files' / 'test_fmus'
 TEST_FMU_FMI2_ME_PATH = TEST_FMU_PATH / '2.0' / 'me'
 
-# All currently supported FMU loaders (for single FMUs)
-ALL_FMU_LOADERS = [
-    load_fmu,
-    FMUModelME1,
-    FMUModelME2,
-    FMUModelME3,
-    FMUModelCS1,
-    FMUModelCS2,
-]
+PATH_TO_FMU_EXAMPLES = Path(get_examples_folder()) / 'files' / 'FMUs'
+
+@pytest.fixture(params = [
+    pytest.param(load_fmu),
+    pytest.param(FMUModelME1),
+    pytest.param(FMUModelME2),
+    pytest.param(FMUModelME3),
+    pytest.param(FMUModelCS1),
+    pytest.param(FMUModelCS2),
+    ]
+)
+def fmu_loader_for_exception_testing(request):
+    return request.param
+
+@dataclasses.dataclass
+class FMULoadingTestCase:
+    loader: Callable
+    path: Path
+
+@pytest.fixture(params = [
+    pytest.param(FMULoadingTestCase(FMUModelME1, REFERENCE_FMU_FMI1_PATH / 'me' / 'VanDerPol.fmu')),
+    pytest.param(FMULoadingTestCase(FMUModelCS1, REFERENCE_FMU_FMI1_PATH / 'cs' / 'VanDerPol.fmu')),
+    pytest.param(FMULoadingTestCase(FMUModelME2, REFERENCE_FMU_FMI2_PATH / 'VanDerPol.fmu')),
+    pytest.param(FMULoadingTestCase(FMUModelCS2, REFERENCE_FMU_FMI2_PATH / 'VanDerPol.fmu')),
+    pytest.param(FMULoadingTestCase(FMUModelME3, REFERENCE_FMU_FMI3_PATH / 'VanDerPol.fmu')),
+    pytest.param(FMULoadingTestCase(load_fmu, REFERENCE_FMU_FMI1_PATH / 'me' / 'VanDerPol.fmu')),
+    pytest.param(FMULoadingTestCase(load_fmu, REFERENCE_FMU_FMI1_PATH / 'cs' / 'VanDerPol.fmu')),
+    pytest.param(FMULoadingTestCase(load_fmu, REFERENCE_FMU_FMI2_PATH / 'VanDerPol.fmu')),
+    pytest.param(FMULoadingTestCase(load_fmu, REFERENCE_FMU_FMI2_PATH / 'VanDerPol.fmu')),
+    pytest.param(FMULoadingTestCase(load_fmu, REFERENCE_FMU_FMI3_PATH / 'VanDerPol.fmu')),
+    ]
+)
+def load_with_path_object(request):
+    return request.param
 
 class Test_FMU:
     """Tests that can be parameterized for all FMI versions and/or loading types."""
-    @pytest.mark.parametrize("fmu_loader", ALL_FMU_LOADERS)
-    def test_invalid_path(self, fmu_loader):
+    def test_invalid_path(self, fmu_loader_for_exception_testing):
         """Test loading an FMU on a path that does not exist."""
         msg = "Could not locate the FMU in the specified directory."
         with pytest.raises(FMUException, match = msg):
-            fmu_loader("path_that_does_not_exist.fmu")
+            fmu_loader_for_exception_testing("path_that_does_not_exist.fmu")
     
-    @pytest.mark.parametrize("fmu_loader", ALL_FMU_LOADERS)
-    def test_unzipped_fmu_exception_invalid_dir(self, tmpdir, fmu_loader):
+    def test_unzipped_fmu_exception_invalid_dir(self, tmpdir, fmu_loader_for_exception_testing):
         """ Verify that we get an exception if unzipped FMU does not contain modelDescription.xml."""
         err_msg = "Specified fmu path '.*\\' needs to contain a modelDescription.xml according to the FMI specification"
         with pytest.raises(FMUException, match = err_msg):
-            fmu_loader(str(tmpdir), allow_unzipped_fmu = True)
+            fmu_loader_for_exception_testing(str(tmpdir), allow_unzipped_fmu = True)
 
-    @pytest.mark.parametrize("fmu_loader", ALL_FMU_LOADERS)
-    def test_unzipped_fmu_exception_is_file(self, fmu_loader):
+    def test_unzipped_fmu_exception_is_file(self, fmu_loader_for_exception_testing):
         """ Verify exception is raised if 'fmu' is a file and allow_unzipped_fmu is set to True. """
         err_msg = "Argument named 'fmu' must be a directory if argument 'allow_unzipped_fmu' is set to True."
         fmu_path = tempfile.mktemp(dir = ".")
         with pytest.raises(FMUException, match = err_msg):
-            fmu_loader(fmu_path, allow_unzipped_fmu = True)
+            fmu_loader_for_exception_testing(fmu_path, allow_unzipped_fmu = True)
 
     @pytest.mark.parametrize("fmu_loader, fmu_path",
         [
-            (FMUModelME1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
-            (FMUModelCS1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')),
-            (FMUModelME2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
-            (FMUModelCS2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
-            (FMUModelME3, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
+            (FMUModelME1, PATH_TO_FMU_EXAMPLES / 'ME2.0' / 'bouncingBall.fmu'),
+            (FMUModelCS1, PATH_TO_FMU_EXAMPLES / 'CS2.0' / 'bouncingBall.fmu'),
+            (FMUModelME2, PATH_TO_FMU_EXAMPLES / 'ME1.0' / 'bouncingBall.fmu'),
+            (FMUModelCS2, PATH_TO_FMU_EXAMPLES / 'CS1.0' / 'bouncingBall.fmu'),
+            (FMUModelME3, PATH_TO_FMU_EXAMPLES / 'ME1.0' / 'bouncingBall.fmu'),
         ]
     )
     def test_invalid_version(self, fmu_loader, fmu_path):
@@ -103,13 +129,20 @@ class Test_FMU:
         with pytest.raises(InvalidVersionException, match = msg):
             fmu_loader(fmu_path, _connect_dll = False)
 
+    def test_load_using_path_object(self, load_with_path_object):
+        assert isinstance(load_with_path_object.path, Path)
+        load_with_path_object.loader(load_with_path_object.path)
+
+    def test_load_unzipped_using_path_object(self, tmpdir, load_with_path_object):
+        shutil.unpack_archive(load_with_path_object.path, format = "zip", extract_dir = tmpdir)
+        load_with_path_object.loader(Path(tmpdir), allow_unzipped_fmu = True)
 
 @pytest.mark.parametrize("fmu_loader, fmu_path",
     [
-        (FMUModelME1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
-        (FMUModelCS1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
-        (FMUModelME2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
-        (FMUModelCS2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')),
+        (FMUModelME1, PATH_TO_FMU_EXAMPLES/ 'ME1.0' / 'bouncingBall.fmu'),
+        (FMUModelCS1, PATH_TO_FMU_EXAMPLES/ 'CS1.0' / 'bouncingBall.fmu'),
+        (FMUModelME2, PATH_TO_FMU_EXAMPLES/ 'ME2.0' / 'bouncingBall.fmu'),
+        (FMUModelCS2, PATH_TO_FMU_EXAMPLES/ 'CS2.0' / 'bouncingBall.fmu'),
         (FMUModelME3, REFERENCE_FMU_FMI3_PATH / "BouncingBall.fmu"),
     ]
 )
@@ -136,16 +169,16 @@ class TestGetUnpackedFMUPath:
 
 @pytest.mark.parametrize("fmu_loader, fmu_path",
     [
-        (load_fmu   , os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
-        (FMUModelME1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME1.0', 'bouncingBall.fmu')),
-        (load_fmu   , os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
-        (FMUModelME2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'ME2.0', 'bouncingBall.fmu')),
+        (load_fmu   , PATH_TO_FMU_EXAMPLES / 'ME1.0' / 'bouncingBall.fmu'),
+        (FMUModelME1, PATH_TO_FMU_EXAMPLES / 'ME1.0' / 'bouncingBall.fmu'),
+        (load_fmu   , PATH_TO_FMU_EXAMPLES / 'ME2.0' / 'bouncingBall.fmu'),
+        (FMUModelME2, PATH_TO_FMU_EXAMPLES / 'ME2.0' / 'bouncingBall.fmu'),
         (load_fmu   , REFERENCE_FMU_FMI3_PATH / 'BouncingBall.fmu'),
         (FMUModelME3, REFERENCE_FMU_FMI3_PATH / 'BouncingBall.fmu'),
-        (load_fmu   , os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
-        (FMUModelCS1, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS1.0', 'bouncingBall.fmu')),
-        (load_fmu   , os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')),
-        (FMUModelCS2, os.path.join(get_examples_folder(), 'files', 'FMUs', 'CS2.0', 'bouncingBall.fmu')),
+        (load_fmu   , PATH_TO_FMU_EXAMPLES / 'CS1.0' / 'bouncingBall.fmu'),
+        (FMUModelCS1, PATH_TO_FMU_EXAMPLES / 'CS1.0' / 'bouncingBall.fmu'),
+        (load_fmu   , PATH_TO_FMU_EXAMPLES / 'CS2.0' / 'bouncingBall.fmu'),
+        (FMUModelCS2, PATH_TO_FMU_EXAMPLES / 'CS2.0' / 'bouncingBall.fmu'),
     ]
 )
 @pytest.mark.assimulo
