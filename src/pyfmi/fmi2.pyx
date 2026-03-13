@@ -20,6 +20,8 @@
 import os
 import logging
 cimport cython
+from pathlib import Path
+from typing import Union
 
 import numpy as np
 cimport numpy as np
@@ -460,7 +462,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
     """
     FMI Model loaded from a dll.
     """
-    def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu: Union[str, Path], log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
@@ -468,7 +470,7 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         Parameters::
 
             fmu --
-                Name of the fmu as a string.
+                Path to the FMU.
 
             log_file_name --
                 Filename for file used to save logmessages.
@@ -558,7 +560,8 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         self._setup_log_state(log_level)
         self._loaded_with_log_level = log_level
 
-        self._fmu_full_path = pyfmi_util.encode(os.path.abspath(fmu))
+        fmu = os.path.abspath(fmu)
+        self._fmu_full_path = pyfmi_util.encode(fmu)
         check_fmu_args(self._allow_unzipped_fmu, fmu, self._fmu_full_path)
 
         # Create a struct for allocation
@@ -3564,7 +3567,7 @@ cdef class FMUModelCS2(FMUModelBase2):
     """
     Co-simulation model loaded from a dll
     """
-    def __init__(self, fmu, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu: Union[str, Path], log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
@@ -3572,7 +3575,7 @@ cdef class FMUModelCS2(FMUModelBase2):
         Parameters::
 
             fmu --
-                Name of the fmu as a string.
+                Path to the FMU.
 
             log_file_name --
                 Filename for file used to save logmessages.
@@ -4195,7 +4198,7 @@ cdef class FMUModelME2(FMUModelBase2):
     Model-exchange model loaded from a dll
     """
 
-    def __init__(self, fmu, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu: Union[str, Path], log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
@@ -4203,7 +4206,7 @@ cdef class FMUModelME2(FMUModelBase2):
         Parameters::
 
             fmu --
-                Name of the fmu as a string.
+                Path to the FMU.
 
             log_file_name --
                 Filename for file used to save logmessages.
@@ -5178,7 +5181,7 @@ cdef class WorkerClass2:
         return ret
 
 cdef object _load_fmi2_fmu(
-    fmu,
+    fmu: Union[str, Path],
     object log_file_name,
     str kind,
     int log_level,
