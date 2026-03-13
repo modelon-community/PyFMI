@@ -28,6 +28,7 @@ from typing import Union, Callable
 from shutil import disk_usage
 import abc
 import warnings
+from pathlib import Path
 
 import numpy as np
 import scipy
@@ -388,7 +389,7 @@ class ResultCSVTextual(ResultReader):
                 Default: ";""
         """
 
-        if isinstance(filename, str):
+        if isinstance(filename, (str, Path)):
             try:
                 fid = codecs.open(filename,'r','utf-8')
             except FileNotFoundError as e:
@@ -997,7 +998,8 @@ class ResultDymolaTextual(ResultDymola):
                 Name of file or stream object which the result is written to.
                 If fname is a stream, it needs to support 'readline' and 'seek'.
         """
-        if isinstance(fname, str):
+        if isinstance(fname, (str, Path)):
+            fname = os.path.abspath(fname)
             try:
                 fid = codecs.open(fname,'r','utf-8')
             except FileNotFoundError as e:
@@ -1302,8 +1304,8 @@ class ResultDymolaBinary(ResultDymola):
                 Default: False
         """
 
-        if isinstance(fname, str):
-            self._fname = fname
+        if isinstance(fname, (str, Path)):
+            self._fname = os.path.abspath(fname)
             self._is_stream = False
         elif hasattr(fname, "name") and os.path.isfile(fname.name):
             self._fname = fname.name
@@ -2134,7 +2136,7 @@ class ResultHandlerCSV(ResultHandler):
                         cont_alias_bool.append(-1 if var.alias == fmi.FMI_NEGATED_ALIAS else 1)
 
         # Open file
-        if isinstance(self.file_name, str):
+        if isinstance(self.file_name, (str, Path)):
             f = codecs.open(self.file_name,'w','utf-8')
             self.file_open = True
         else:
@@ -2254,7 +2256,7 @@ class ResultHandlerFile(ResultHandler):
     @cached_property
     def _is_stream(self):
         file = self.file_name
-        if isinstance(file, str):
+        if isinstance(file, (str, Path)):
             return False
         else:
             if not (hasattr(file, 'write') and hasattr(file, 'seek')):
@@ -2899,7 +2901,7 @@ class ResultHandlerBinaryFile(ResultHandler):
 
         # Open file
         file_name = self.file_name
-        if isinstance(self.file_name, str):
+        if isinstance(self.file_name, (str, Path)):
             self._file = open(file_name,'wb')
         else:
             if not (hasattr(self.file_name, 'write') and hasattr(self.file_name, 'seek') and (hasattr(self.file_name, 'tell'))):
@@ -3177,7 +3179,7 @@ class _ResultReaderBinaryMatConsolidated(ResultReader):
                 which the result is written to.
         """
 
-        if isinstance(fname, str):
+        if isinstance(fname, (str, Path)):
             self._fname = fname
         elif hasattr(fname, "name") and os.path.isfile(fname.name):
             self._fname = fname.name
