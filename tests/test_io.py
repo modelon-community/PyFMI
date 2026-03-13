@@ -2739,3 +2739,24 @@ def test_given_no_start_simulation_when_get_result_then_no_result_error(result_h
 
     with pytest.raises(NoResultError):
         result_handler.get_result()
+
+@pytest.mark.parametrize("result_reader_class, result_handling, suffix", [
+    (ResultDymolaBinary, "binary", ".mat"),
+    (ResultReaderBinaryMat, "binary", ".mat"),
+    (lambda x: ResultCSVTextual(x, delimiter=","), "csv", ".csv"),
+    (ResultDymolaTextual, "file", ".txt")
+])
+def test_load_results_files_via_path_object(
+    result_reader_class,
+    result_handling,
+    suffix
+):
+    # Functionality itself is FMI agnostic; FMI2 supports most types
+    fmu = load_fmu(FMI2_REF_FMU_PATH / "VanDerPol.fmu")
+    opts = fmu.simulate_options()
+    opts["ncp"] = 0 # speed
+    res_file = str(Path(f"res_file{suffix}"))
+    opts["result_file_name"] = res_file
+    opts["result_handling"] = result_handling
+    fmu.simulate(options = opts)
+    result_reader_class(res_file)
