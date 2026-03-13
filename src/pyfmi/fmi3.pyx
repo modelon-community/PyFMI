@@ -447,7 +447,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._modelName = pyfmi_util.decode(FMIL3.fmi3_import_get_model_name(self._fmu))
 
         # TODO: The code below is identical between FMUModelBase2 and FMUModelBase3, perhaps we can refactor this
-        if not isinstance(log_file_name, str):
+        if not isinstance(log_file_name, (str, Path)):
             self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
                 self._log_stream.write(
@@ -456,7 +456,11 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                     )
                 )
         else:
-            fmu_log_name = pyfmi_util.encode((self._modelId + "_log.txt") if log_file_name=="" else log_file_name)
+            if log_file_name == "": # default
+                log_file_name = self._modelId + "_log.txt"
+            else:
+                log_file_name = os.path.abspath(log_file_name)
+            fmu_log_name = pyfmi_util.encode(log_file_name)
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
             FMIL.strcpy(self._fmu_log_name, fmu_log_name)
 
