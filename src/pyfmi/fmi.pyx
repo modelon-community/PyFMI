@@ -26,6 +26,8 @@ For profiling:
 """
 import os
 cimport cython
+from pathlib import Path
+from typing import Union
 
 cimport pyfmi.fmil_import as FMIL
 
@@ -177,7 +179,7 @@ from pyfmi.fmi3 import (
 cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     (<list>c.context).append("FMIL: module = %s, log level = %d: %s"%(module, log_level, message))
 
-cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
+cpdef load_fmu(fmu: Union[str, Path], log_file_name = "", kind = 'auto',
                log_level = FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):
     """
     Helper method for creating a model instance.
@@ -185,7 +187,7 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
     Parameters::
 
         fmu --
-            Name of the fmu as a string.
+            Path to the fmu.
 
         log_file_name --
             Filename for file used to save log messages.
@@ -266,9 +268,9 @@ cpdef load_fmu(fmu, log_file_name = "", kind = 'auto',
     context = FMIL.fmi_import_allocate_context(&callbacks)
 
     # Get the FMI version of the provided model
-    fmu_temp_dir = pyfmi_util.encode(fmu) if allow_unzipped_fmu else pyfmi_util.encode(create_temp_dir())
-    fmu_full_path = pyfmi_util.encode(fmu_full_path)
-    version = FMI_BASE.import_and_get_version(context, fmu_full_path, fmu_temp_dir, allow_unzipped_fmu)
+    fmu_temp_dir = pyfmi_util.encode(fmu_full_path) if allow_unzipped_fmu else pyfmi_util.encode(create_temp_dir())
+    fmu_full_path_encoded = pyfmi_util.encode(fmu_full_path)
+    version = FMI_BASE.import_and_get_version(context, fmu_full_path_encoded, fmu_temp_dir, allow_unzipped_fmu)
 
     # Check the version & parse XML
     if version == FMIL.fmi_version_1_enu:

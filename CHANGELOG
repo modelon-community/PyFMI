@@ -1,6 +1,11 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
     * Fixed a crash with the `Master` algorithm option `block_initialization`.
+    * Enabled use of `pathlib.Path` objects for:
+        * Paths when loading FMUs
+        * `log_file_name` when loading FMUs
+        * `pyfmi.common.log.parse_xml_log` & `extract_xml_log`, including `fmu.extract_xml_log()`.
+        * `result_file_name` as simulation option and manual use of `ResultReader` classes
 
 --- PyFMI-2.20.1 ---
     * Resolved issue where caching in result handling was too persistent and could prevent automatic garbage collection.

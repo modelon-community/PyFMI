@@ -22,7 +22,7 @@ from pathlib import Path
 import numpy as np
 
 from pyfmi import load_fmu, FMUModelME1
-from pyfmi.common.log import extract_xml_log, parse_xml_log
+from pyfmi.common.log import extract_xml_log, parse_xml_log, parse_fmu_xml_log
 from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
 from pyfmi.test_util import Dummy_FMUModelME2
 from pyfmi.util import decode
@@ -294,3 +294,15 @@ class Test_Log:
         fmu.set_log_level(2)
         fmu.reset()
         assert fmu.get_log_level() == loaded_with_log_level
+
+def test_extract_xml_log_with_paths_and_parse(tmpdir):
+    txt_log = Path(tmpdir) / "log.txt"
+    with open(txt_log, "w") as f:
+        f.write("FMIL: module = Model, log level = 4: [INFO][FMU status:OK] <test></test>")
+    
+    xml_log = Path("xml_log.xml")
+    extract_xml_log(xml_log, txt_log)
+
+    root = parse_xml_log(xml_log)
+
+    assert root.find("test")
