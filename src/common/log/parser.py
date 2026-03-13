@@ -24,6 +24,7 @@ import numpy as np
 from distutils.util import strtobool
 from pyfmi.common.log.tree import Node, Comment
 from pyfmi.exceptions import FMUException
+from pathlib import Path
 
 ## Leaf parser ##
 
@@ -217,12 +218,12 @@ def extract_xml_log(dest, log, modulename = 'Model', max_size = None):
                 Default: None
     """
     # if it is a string, we assume we write to a file (since the file doesn't exist yet)
-    dest_is_file = isinstance(dest, str)
+    dest_is_file = isinstance(dest, (str, Path))
     if not dest_is_file:
         if not hasattr(dest, 'write'):
             raise FMUException("If input argument 'dest' is a stream it needs to support the attribute 'write'.")
 
-    if isinstance(log, str):
+    if isinstance(log, (str, Path)):
         with open(log, 'r') as sourcefile:
             if dest_is_file:
                 with open(dest, 'w') as destfile:
