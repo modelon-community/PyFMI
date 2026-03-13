@@ -147,6 +147,15 @@ class Test_FMU:
         fmu = load_with_path_object.loader(str(load_with_path_object.path))
         fmu.extract_xml_log(Path("xml_log.xml"))
 
+    def test_result_file_name_as_path(self, load_with_path_object):
+        fmu = load_with_path_object.loader(str(load_with_path_object.path))
+        opts = fmu.simulate_options()
+        opts["ncp"] = 1 # speed
+        if opts.get("solver"): # work-around for an FMI1 bug with absolute tolerance adjustments
+            opts["solver"] = "ExplicitEuler"
+        opts["result_file_name"] = Path("res.mat")
+        fmu.simulate(options = opts)
+
 @pytest.mark.parametrize("fmu_loader, fmu_path",
     [
         (FMUModelME1, PATH_TO_FMU_EXAMPLES/ 'ME1.0' / 'bouncingBall.fmu'),
