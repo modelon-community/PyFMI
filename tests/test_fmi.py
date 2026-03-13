@@ -143,6 +143,10 @@ class Test_FMU:
             log_file_name = Path("log.txt")
             )
 
+    def test_extract_xml_log_as_path(self, load_with_path_object):
+        fmu = load_with_path_object.loader(str(load_with_path_object.path))
+        fmu.extract_xml_log(Path("xml_log.xml"))
+
 @pytest.mark.parametrize("fmu_loader, fmu_path",
     [
         (FMUModelME1, PATH_TO_FMU_EXAMPLES/ 'ME1.0' / 'bouncingBall.fmu'),
