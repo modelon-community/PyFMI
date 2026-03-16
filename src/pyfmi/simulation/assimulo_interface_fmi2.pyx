@@ -24,6 +24,7 @@ required by Assimulo.
 
 import numpy as np
 cimport numpy as np
+np.import_array()
 
 import time
 import logging as logging_module
