@@ -321,3 +321,13 @@ class TestDynamicDiagnostics:
         opts["ncp"] = 1
 
         model.simulate(options = opts)
+
+    def test_dynamic_diagnostics_no_time_per_step_should_not_set_cpu_time(self):
+        model = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu")
+
+        opts = model.simulate_options()
+        opts["dynamic_diagnostics"] = True
+        opts["CVode_options"]["clock_step"] = False
+        res = model.simulate(options = opts)
+
+        assert "@Diagnostics.cpu_time" not in res.keys()
