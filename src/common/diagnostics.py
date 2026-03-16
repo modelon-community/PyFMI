@@ -77,12 +77,13 @@ class DynamicDiagnosticsUtils:
         """
         # Fixed variables
         calc_diags = {
-            f"{DIAGNOSTICS_PREFIX}cpu_time"        : (0.0, "Cumulative CPU time"),
             f"{DIAGNOSTICS_PREFIX}nbr_events"      : (0, "Cumulative number of events"),
             f"{DIAGNOSTICS_PREFIX}nbr_time_events" : (0, "Cumulative number of time events"),
             f"{DIAGNOSTICS_PREFIX}nbr_state_events": (0, "Cumulative number of state events"),
             f"{DIAGNOSTICS_PREFIX}nbr_steps"       : (0, "Cumulative number of steps"),
         }
+        if f"{DIAGNOSTICS_PREFIX}cpu_time_per_step" in diagnostics_vars.keys():
+            calc_diags[f"{DIAGNOSTICS_PREFIX}cpu_time"] = (0.0, "Cumulative CPU time")
 
         diagnostics_vars_names = list(diagnostics_vars.keys())
 
@@ -100,13 +101,14 @@ class DynamicDiagnosticsUtils:
         # index maps for calculating diagnostics variables
         calc_diags_names = list(calc_diags.keys())
         self._idx_map_calc_diags = {
-            "cpu_time":         calc_diags_names.index(f'{DIAGNOSTICS_PREFIX}cpu_time'),
             "nbr_events":       calc_diags_names.index(f'{DIAGNOSTICS_PREFIX}nbr_events'),
             "nbr_time_events":  calc_diags_names.index(f'{DIAGNOSTICS_PREFIX}nbr_time_events'),
             "nbr_state_events": calc_diags_names.index(f'{DIAGNOSTICS_PREFIX}nbr_state_events'),
             "nbr_steps":        calc_diags_names.index(f'{DIAGNOSTICS_PREFIX}nbr_steps'),
             "nbr_state_limits": len(calc_diags_names) - self._number_states,
         }
+        if f"{DIAGNOSTICS_PREFIX}cpu_time" in calc_diags_names:
+            self._idx_map_calc_diags["cpu_time"] = calc_diags_names.index(f'{DIAGNOSTICS_PREFIX}cpu_time')
 
         idx_state_errors = None
         for idx, key in enumerate(diagnostics_vars):
