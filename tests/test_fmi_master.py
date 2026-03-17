@@ -843,3 +843,36 @@ class Test_Master_Step_Size_Downsampling:
               "Actual values may no longer be sensible."
         with pytest.warns(UserWarning, match = re.escape(msg)):
             master.simulate(t_start, t_final, options = opts)
+
+    def test_with_manual_initialization(self):
+        fmu1 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu2 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+        fmu3 = FMUModelCS2(os.path.join(FMI2_REF_FMU_PATH, "Feedthrough.fmu"))
+
+        models = [fmu1, fmu2, fmu3]
+        connections = [
+            (fmu1, "Float64_continuous_output", fmu2, "Float64_continuous_input"),
+            (fmu2, "Float64_continuous_output", fmu3, "Float64_continuous_input"),
+
+            (fmu1, "Float64_discrete_output", fmu2, "Float64_discrete_input"),
+            (fmu2, "Float64_discrete_output", fmu3, "Float64_discrete_input"),
+        ]
+        master = Master(models, connections)
+        opts = master.simulate_options()
+        opts["step_size"] = 0.1
+        opts["step_size_downsampling_factor"] = {fmu1: 5, fmu2: 2, fmu3: 1}
+
+        fmu1.initialize()
+        fmu2.initialize()
+        fmu3.initialize()
+        opts["initialize"] = False
+
+        res = master.simulate(options = opts)
+
+        assert set(res[0]["Float64_continuous_output"].tolist()) == set([0.])
+        assert set(res[1]["Float64_continuous_output"].tolist()) == set([0.])
+        assert set(res[2]["Float64_continuous_output"].tolist()) == set([0.])
+
+        assert set(res[0]["Float64_discrete_output"].tolist()) == set([0.])
+        assert set(res[1]["Float64_discrete_output"].tolist()) == set([0.])
+        assert set(res[2]["Float64_discrete_output"].tolist()) == set([0.])

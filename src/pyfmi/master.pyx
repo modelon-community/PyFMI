@@ -1253,10 +1253,6 @@ cdef class Master:
         
         exit_initialization_mode(self.models, self.elapsed_time_init)
         
-        #Store the outputs
-        self.y_prev = self.get_connection_outputs(initialize = True).copy()
-        self.set_last_y(self.y_prev)
-        
     def initialize_result_objects(self, opts):
         if (opts["result_handling"] == "custom") and (not isinstance(opts["result_handler"], dict)):
             raise FMUException("'result_handler' option must be a dictionary for 'result_handling' = 'custom'.")
@@ -1666,8 +1662,13 @@ cdef class Master:
             time_stop  = timer()
             print('Elapsed initialization time: ' + str(time_stop-time_start) + ' seconds.')
         
+        # Get outputs and update previous values
+        self.y_prev = self.get_connection_outputs(initialize = True).copy()
+        self.set_last_y(self.y_prev)
+        self.y_discrete_prev = self.get_connection_outputs_discrete(initialize = True).copy()
+
         #Store the inputs
-        self.set_last_us(self.L.dot(self.get_connection_outputs()))
+        self.set_last_us(self.L.dot(self.y_prev))
         
         #Copy FMU address (used when evaluating in parallel)
         self.copy_fmu_addresses()
