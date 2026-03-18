@@ -232,7 +232,7 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
     """
     An FMI Model loaded from a DLL.
     """
-    def __init__(self, fmu: Union[str, Path], log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu: Union[str, Path], log_file_name=None, log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
@@ -249,7 +249,7 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
                 for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
                 on the stream instance after 'write' has been invoked on the PyFMI side.
                 The stream must also be open and writable during the entire time.
-                Default: "" (Generates automatically)
+                Default: None = Generates automatically as <model_identifier>_log.txt
 
             log_level --
                 Determines the logging output. Can be set between 0
@@ -392,6 +392,9 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
         self._nContinuousStates = FMIL1.fmi1_import_get_number_of_continuous_states(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
 
+        if log_file_name is None:
+            log_file_name = self._get_default_log_file_name()
+
         if not isinstance(log_file_name, (str, Path)):
             self._set_log_stream(log_file_name)
             for i in range(len(self._log)):
@@ -403,10 +406,7 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
                     else:
                         logging.warning("Unable to log to stream.")
         else:
-            if log_file_name == "": # default
-                log_file_name = self._modelId + "_log.txt"
-            else:
-                log_file_name = os.path.abspath(log_file_name)
+            log_file_name = str(log_file_name) # convert e.g. pathlib.Path objects
             fmu_log_name = pyfmi_util.encode(log_file_name)
             self._fmu_log_name = <char*>FMIL.malloc((FMIL.strlen(fmu_log_name)+1)*sizeof(char))
             FMIL.strcpy(self._fmu_log_name, fmu_log_name)
@@ -1720,7 +1720,7 @@ cdef class FMUModelCS1(FMUModelBase):
     #First step only support fmi1_fmu_kind_enu_cs_standalone
     #stepFinished not supported
 
-    def __init__(self, fmu: Union[str, Path], log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu: Union[str, Path], log_file_name=None, log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         #Call super
         FMUModelBase.__init__(self,fmu,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)
@@ -2262,7 +2262,7 @@ cdef class FMUModelME1(FMUModelBase):
     An FMI Model loaded from a DLL.
     """
 
-    def __init__(self, fmu: Union[str, Path], log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL,
+    def __init__(self, fmu: Union[str, Path], log_file_name=None, log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         #Call super
         FMUModelBase.__init__(self,fmu,log_file_name, log_level, _unzipped_dir, _connect_dll, allow_unzipped_fmu)

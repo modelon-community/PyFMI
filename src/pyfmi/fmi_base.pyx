@@ -364,6 +364,9 @@ cdef class ModelBase:
             the fmu has been simulated. Otherwise returns None."""
         return os.path.abspath(self._result_file) if isinstance(self._result_file, str) else None
 
+    def _get_default_log_file_name(self):
+        return f"{self._modelId}_log.txt"
+
     def get_log_filename(self):
         """ Returns a name of the logfile, if logging is done to a stream it returns
             a string formatted base on the model identifier.

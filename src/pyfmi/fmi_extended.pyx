@@ -42,7 +42,7 @@ cdef class FMUModelME1Extended(FMI1.FMUModelME1):
     cdef public dict _input_derivatives, _options
     cdef public np.ndarray _input_tmp
 
-    def __init__(self, fmu, log_file_name="", log_level=FMI_DEFAULT_LOG_LEVEL, _connect_dll=True):
+    def __init__(self, fmu, log_file_name=None, log_level=FMI_DEFAULT_LOG_LEVEL, _connect_dll=True):
         #Instantiate the FMU
         FMI1.FMUModelME1.__init__(self, fmu = fmu, log_file_name = log_file_name, log_level = log_level, _connect_dll=_connect_dll)
         

@@ -179,7 +179,7 @@ from pyfmi.fmi3 import (
 cdef void importlogger_load_fmu(FMIL.jm_callbacks* c, FMIL.jm_string module, FMIL.jm_log_level_enu_t log_level, FMIL.jm_string message):
     (<list>c.context).append("FMIL: module = %s, log level = %d: %s"%(module, log_level, message))
 
-cpdef load_fmu(fmu: Union[str, Path], log_file_name = "", kind = 'auto',
+cpdef load_fmu(fmu: Union[str, Path], log_file_name = None, kind = 'auto',
                log_level = FMI_DEFAULT_LOG_LEVEL, allow_unzipped_fmu = False):
     """
     Helper method for creating a model instance.
@@ -196,7 +196,7 @@ cpdef load_fmu(fmu: Union[str, Path], log_file_name = "", kind = 'auto',
             for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
             on the stream instance after 'write' has been invoked on the PyFMI side.
             The stream must also be open and writable during the entire time.
-            Default: "" (Generates automatically)
+            Default: None = Generates automatically as <model_identifier>_log.txt
 
         kind --
             String indicating the kind of model to create. This is only
