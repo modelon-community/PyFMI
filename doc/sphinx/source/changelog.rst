@@ -2,6 +2,17 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.21.0 ---
+    * Fixed a crash with the `Master` algorithm option `block_initialization`.
+    * Fixed a result handling issue for `dynamic_diagnostics = True` and `["<solver>_options"]["clock_step"] = False`.
+    * Fixed an issue for the `Master` algorithm where connection values could be initialized incorrectly, when FMUs 
+      were initialized separately and using `step_size_downsampling_factor`.
+    * Enabled use of `pathlib.Path` objects for:
+        * Paths when loading FMUs
+        * `log_file_name` when loading FMUs
+        * `pyfmi.common.log.parse_xml_log` & `extract_xml_log`, including `fmu.extract_xml_log()`.
+        * `result_file_name` as simulation option and manual use of `ResultReader` classes
+
 --- PyFMI-2.20.1 ---
     * Resolved issue where caching in result handling was too persistent and could prevent automatic garbage collection.
 
