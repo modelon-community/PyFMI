@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+
+--- PyFMI-2.21.0 ---
     * Fixed a crash with the `Master` algorithm option `block_initialization`.
     * Fixed a result handling issue for `dynamic_diagnostics = True` and `["<solver>_options"]["clock_step"] = False`.
     * Fixed an issue for the `Master` algorithm where connection values could be initialized incorrectly, when FMUs 
