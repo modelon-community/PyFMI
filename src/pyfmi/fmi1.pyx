@@ -25,6 +25,7 @@ from typing import Union
 
 import numpy as np
 cimport numpy as np
+np.import_array()
 
 int   = np.int32
 np.int = np.int32
