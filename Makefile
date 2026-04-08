@@ -1,6 +1,7 @@
 .PHONY: build build-dev-image test shell
 DOCKER_IMAGE := pyfmi-dev
 IN_DOCKER_IMG := $(shell test -f /.dockerenv && echo 1 || echo 0)
+SETUPTOOLS_JFLAG=-j$(shell nproc)
 
 define _run
 	@if [ $(IN_DOCKER_IMG) -eq 1 ]; then \
@@ -22,7 +23,7 @@ build-dev-image:
 	$(call _run, pip install pytest)
 
 build: .venv
-	$(call _run, python setup.py install --fmil-home=/usr)
+	$(call _run, python setup.py build_ext ${SETUPTOOLS_JFLAG} install --fmil-home=/usr)
 
 test: build
 	$(call _run, pytest)
