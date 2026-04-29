@@ -244,22 +244,6 @@ cdef class FMIODE2(cExplicit_Problem):
 
         self._update_model(t, y)
 
-        # Evaluating the rhs
-        if self.model_me2_instance:
-            status = self.model_me2._get_derivatives(self._state_temp_1)
-            if status != 0:
-                raise AssimuloRecoverableError
-
-            if self._f_nbr != 0 and self._extra_f_nbr == 0:
-                return self._state_temp_1
-            else:
-                der = self._state_temp_1.copy()
-        else:
-            try:
-                der = self._model.get_derivatives()
-            except FMUException:
-                raise AssimuloRecoverableError
-
         if self._f_nbr == 0:
             der = np.array([0.0]) # If there is no state, use the dummy
             # call 'get' to trigger re-computations, since _get_derivatives will(may) not
@@ -268,6 +252,22 @@ cdef class FMIODE2(cExplicit_Problem):
                     self.model_me2.get_real(self._vrefs_nostate_eval)
             except FMUException:
                 raise AssimuloRecoverableError
+        else:
+            # Evaluating the rhs
+            if self.model_me2_instance:
+                status = self.model_me2._get_derivatives(self._state_temp_1)
+                if status != 0:
+                    raise AssimuloRecoverableError
+
+                if self._f_nbr != 0 and self._extra_f_nbr == 0:
+                    return self._state_temp_1
+                else:
+                    der = self._state_temp_1.copy()
+            else:
+                try:
+                    der = self._model.get_derivatives()
+                except FMUException:
+                    raise AssimuloRecoverableError
 
         if self._extra_f_nbr > 0:
             der = np.append(der, self._extra_equations.rhs(y_extra))
@@ -506,15 +506,16 @@ cdef class FMIODE2(cExplicit_Problem):
         eInfo = self._model.get_event_info()
 
         # Check if the event affected the state values and if so sets them
-        if eInfo.valuesOfContinuousStatesChanged:
-            if self._extra_f_nbr > 0:
-                solver.y = self._model.continuous_states.append(solver.y[-self._extra_f_nbr:])
-            else:
-                solver.y = self._model.continuous_states
+        if self._f_nbr > 0:
+            if eInfo.valuesOfContinuousStatesChanged:
+                if self._extra_f_nbr > 0:
+                    solver.y = self._model.continuous_states.append(solver.y[-self._extra_f_nbr:])
+                else:
+                    solver.y = self._model.continuous_states
 
-        # Get new nominal values.
-        if eInfo.nominalsOfContinuousStatesChanged:
-            solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
+            # Get new nominal values.
+            if eInfo.nominalsOfContinuousStatesChanged:
+                solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
 
         # Check if the simulation should be terminated
         if eInfo.terminateSimulation:

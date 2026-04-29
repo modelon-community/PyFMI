@@ -285,6 +285,18 @@ class TestSimulation:
         msg = "Invalid 'finite_differences_method' for FMUModelME3, must be FORWARD_DIFFERENCE (1) or CENTRAL_DIFFERENCE (2)."
         with pytest.raises(FMUException, match = re.escape(msg)):
             fmu._get_A()
+    
+    def test_nostate_with_event_update_continous_states_changed_flags_true(self):
+        """Test that models without states robustly handle 'event_update' returning
+        'nominalsOfContinuousStatesChanged' or 'valuesOfContinuousStatesChanged' == True."""
+        class FMUModelME3Test(FMUModelME3):
+            def get_event_info(self):
+                res = super().get_event_info()
+                res.nominalsOfContinuousStatesChanged = True
+                res.valuesOfContinuousStatesChanged = True
+                return res
+        fmu = FMUModelME3Test(FMI3_REF_FMU_PATH / "Stair.fmu")
+        fmu.simulate()
 
 class TestDynamicDiagnostics:
     """Tests involving simulation of FMI3 FMUs using 'dynamic_diagnostics' == True."""

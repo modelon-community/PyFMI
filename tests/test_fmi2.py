@@ -805,6 +805,18 @@ class Test_FMUModelME2:
 
         ET.parse(model.extract_xml_log()) # Exception if not well-formed XML
 
+    def test_nostate_with_event_update_continous_states_changed_flags_true(self):
+        """Test that models without states robustly handle 'event_update' returning
+        'nominalsOfContinuousStatesChanged' or 'valuesOfContinuousStatesChanged' == True."""
+        class FMUModelME2Test(FMUModelME2):
+            def get_event_info(self):
+                res = super().get_event_info()
+                res.nominalsOfContinuousStatesChanged = True
+                res.valuesOfContinuousStatesChanged = True
+                return res
+        fmu = FMUModelME2Test(REFERENCE_FMU_FMI2_PATH / "Stair.fmu")
+        fmu.simulate()
+
 
 @pytest.mark.assimulo
 class Test_FMUModelBase2:

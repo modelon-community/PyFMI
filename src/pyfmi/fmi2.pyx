@@ -4360,11 +4360,11 @@ cdef class FMUModelME2(FMUModelBase2):
             event_info    = model.get_event_info()
             nextEventTime = event_info.nextEventTime
         """
-        self._pyEventInfo.newDiscreteStatesNeeded           = self._eventInfo.newDiscreteStatesNeeded == 1
-        self._pyEventInfo.terminateSimulation               = self._eventInfo.terminateSimulation == 1
-        self._pyEventInfo.nominalsOfContinuousStatesChanged = self._eventInfo.nominalsOfContinuousStatesChanged == 1
-        self._pyEventInfo.valuesOfContinuousStatesChanged   = self._eventInfo.valuesOfContinuousStatesChanged == 1
-        self._pyEventInfo.nextEventTimeDefined              = self._eventInfo.nextEventTimeDefined == 1
+        self._pyEventInfo.newDiscreteStatesNeeded           = self._eventInfo.newDiscreteStatesNeeded == FMI2_TRUE
+        self._pyEventInfo.terminateSimulation               = self._eventInfo.terminateSimulation == FMI2_TRUE
+        self._pyEventInfo.nominalsOfContinuousStatesChanged = self._eventInfo.nominalsOfContinuousStatesChanged == FMI2_TRUE
+        self._pyEventInfo.valuesOfContinuousStatesChanged   = self._eventInfo.valuesOfContinuousStatesChanged == FMI2_TRUE
+        self._pyEventInfo.nextEventTimeDefined              = self._eventInfo.nextEventTimeDefined == FMI2_TRUE
         self._pyEventInfo.nextEventTime                     = self._eventInfo.nextEventTime
 
         return self._pyEventInfo

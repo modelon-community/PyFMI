@@ -472,6 +472,13 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         self._log = []
 
+        self._event_info_new_discrete_states_needed            = FMIL3.fmi3_false
+        self._event_info_terminate_simulation                  = FMIL3.fmi3_false
+        self._event_info_nominals_of_continuous_states_changed = FMIL3.fmi3_false
+        self._event_info_values_of_continuous_states_changed   = FMIL3.fmi3_true
+        self._event_info_next_event_time_defined               = FMIL3.fmi3_false
+        self._event_info_next_event_time                       = 0.0
+
     def _setup_log_state(self, log_level):
         if isinstance(log_level, int) and (log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all):
             self._enable_logging = log_level != FMIL.jm_log_level_nothing

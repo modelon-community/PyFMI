@@ -244,22 +244,6 @@ cdef class FMIODE3(cExplicit_Problem):
 
         self._update_model(t, y)
 
-        # Evaluating the rhs
-        if self.model_me3_instance:
-            status = self.model_me3._get_derivatives(self._state_temp_1)
-            if status != 0:
-                raise AssimuloRecoverableError
-
-            if self._f_nbr != 0 and self._extra_f_nbr == 0:
-                return self._state_temp_1
-            else:
-                der = self._state_temp_1.copy()
-        else:
-            try:
-                der = self._model.get_derivatives()
-            except FMUException:
-                raise AssimuloRecoverableError
-
         if self._f_nbr == 0:
             der = np.array([0.0]) # If there is no state, use the dummy
             # call 'get_*' to trigger re-computations, since _get_derivatives will(may) not
@@ -270,6 +254,22 @@ cdef class FMIODE3(cExplicit_Problem):
                     self.model_me3.get_float64(self._vrefs64_nostate_eval)
             except FMUException as e:
                 raise AssimuloRecoverableError
+        else:
+            # Evaluating the rhs
+            if self.model_me3_instance:
+                status = self.model_me3._get_derivatives(self._state_temp_1)
+                if status != 0:
+                    raise AssimuloRecoverableError
+
+                if self._f_nbr != 0 and self._extra_f_nbr == 0:
+                    return self._state_temp_1
+                else:
+                    der = self._state_temp_1.copy()
+            else:
+                try:
+                    der = self._model.get_derivatives()
+                except FMUException:
+                    raise AssimuloRecoverableError
 
         if self._extra_f_nbr > 0:
             der = np.append(der, self._extra_equations.rhs(y_extra))
@@ -463,17 +463,18 @@ cdef class FMIODE3(cExplicit_Problem):
         eInfo = self._model.get_event_info()
 
         # Check if the event affected the state values and if so sets them
-        if eInfo.valuesOfContinuousStatesChanged:
-            if self._extra_f_nbr > 0:
-                solver.y = self._model.continuous_states.append(solver.y[-self._extra_f_nbr:])
-            else:
-                solver.y = self._model.continuous_states
-        # Get new nominal values, note that not every solver has "atol", e.g. ExplicitEuler
-        if eInfo.nominalsOfContinuousStatesChanged == FMIL3.fmi3_true and hasattr(solver, "atol"): 
-            # TODO; this can overwrite explicit atol choices or different scaling choices?
-            # TODO; this needs better handling in case of unbounded states; there:
-            # rtol = vector with zero entries, one cannot have any atol == 0
-            solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
+        if self._f_nbr > 0:
+            if eInfo.valuesOfContinuousStatesChanged:
+                if self._extra_f_nbr > 0:
+                    solver.y = self._model.continuous_states.append(solver.y[-self._extra_f_nbr:])
+                else:
+                    solver.y = self._model.continuous_states
+            # Get new nominal values, note that not every solver has "atol", e.g. ExplicitEuler
+            if eInfo.nominalsOfContinuousStatesChanged == FMIL3.fmi3_true and hasattr(solver, "atol"): 
+                # TODO; this can overwrite explicit atol choices or different scaling choices?
+                # TODO; this needs better handling in case of unbounded states; there:
+                # rtol = vector with zero entries, one cannot have any atol == 0
+                solver.atol = 0.01*solver.rtol*self._model.nominal_continuous_states
 
         # Check if the simulation should be terminated
         if eInfo.terminateSimulation:
