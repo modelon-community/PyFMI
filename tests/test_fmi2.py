@@ -417,7 +417,6 @@ class Test_FMUModelME2_Simulation:
         run_case(0,1,"Dopri5")
         run_case(0,1,"RodasODE")
         run_case(0,1,"LSODAR")
-        run_case(0,1,"LSODAR")
     
     def test_rtol_auto_update(self):
         """ Test that default rtol picks up the unbounded attribute. """
@@ -601,6 +600,16 @@ class Test_FMUModelME2_Simulation:
         opts["dynamic_diagnostics"] = True
 
         model.simulate(options = opts)
+
+    def test_euler_with_interpolation(self):
+        model = FMUModelME2(REFERENCE_FMU_FMI2_PATH / "Dahlquist.fmu")
+
+        opts = model.simulate_options()
+        opts["solver"] = "ExplicitEuler"
+        opts["ExplicitEuler_options"]["h"] = 1
+        opts["ncp"] = 100
+        res = model.simulate(0, 2, options = opts)
+        assert len(res["time"]) == 101
 
 @pytest.mark.assimulo
 class Test_FMUModelME2:

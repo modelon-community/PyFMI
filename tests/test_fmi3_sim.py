@@ -298,6 +298,16 @@ class TestSimulation:
         fmu = FMUModelME3Test(FMI3_REF_FMU_PATH / "Stair.fmu")
         fmu.simulate()
 
+    def test_euler_with_interpolation(self):
+        model = FMUModelME3(FMI3_REF_FMU_PATH / "Dahlquist.fmu")
+
+        opts = model.simulate_options()
+        opts["solver"] = "ExplicitEuler"
+        opts["ExplicitEuler_options"]["h"] = 1
+        opts["ncp"] = 100
+        res = model.simulate(0, 2, options = opts)
+        assert len(res["time"]) == 101
+
 class TestDynamicDiagnostics:
     """Tests involving simulation of FMI3 FMUs using 'dynamic_diagnostics' == True."""
     # TODO: These should likely be parameterized and bundled with FMI2 tests
