@@ -1,5 +1,7 @@
 FROM ubuntu:22.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 # Install Python
 RUN apt update && apt install software-properties-common -y && add-apt-repository ppa:deadsnakes/ppa
 RUN apt update && apt install python3.11 python3-pip python3.11-dev python3.11-venv -y
