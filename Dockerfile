@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:22.04
 
 # Install Python
 RUN apt update && apt install software-properties-common -y && add-apt-repository ppa:deadsnakes/ppa
