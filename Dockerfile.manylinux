@@ -1,0 +1,9 @@
+FROM quay.io/pypa/manylinux_2_28_x86_64
+
+# Pre-bake FMIL so cibuildwheel can skip before-all and so local
+# `cibuildwheel --platform linux` runs reproduce the CI environment exactly.
+COPY tools/wheels/build_dependencies.sh /tmp/build_dependencies.sh
+RUN bash /tmp/build_dependencies.sh && rm /tmp/build_dependencies.sh
+
+WORKDIR /src
+CMD ["/bin/bash"]

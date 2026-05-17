@@ -1,4 +1,4 @@
-.PHONY: build build-dev-image test shell
+.PHONY: build build-dev-image build-manylinux-image test shell
 DOCKER_IMAGE := pyfmi-dev
 IN_DOCKER_IMG := $(shell test -f /.dockerenv && echo 1 || echo 0)
 
@@ -16,6 +16,9 @@ endef
 
 build-dev-image:
 	docker build -t ${DOCKER_IMAGE} .
+
+build-manylinux-image:
+	docker build -f Dockerfile.manylinux -t pyfmi-manylinux .
 
 .venv:
 	$(call _run, python3.11 -m venv .venv)
