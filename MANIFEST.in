@@ -1,5 +1,0 @@
-include CHANGELOG
-include LICENSE
-include src/pyfmi/*.pyx
-include src/pyfmi/*.pxd
-exclude src/pyfmi/*.dll
