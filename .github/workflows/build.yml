@@ -1,19 +1,31 @@
+name: Smoke build
+
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linux:
+    name: Linux smoke (Py3.11 in Docker)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-    - uses: actions/checkout@v4
-    - name: Install make
-      run: sudo apt install make -y
-    - name: Build
-      run: make build-dev-image && make build
-    - name: Test
-      run: make test
+      - uses: actions/checkout@v4
+      - name: Install make
+        run: sudo apt install make -y
+      - name: Build dev image
+        run: make build-dev-image
+      - name: Build PyFMI
+        run: make build
+      - name: Run tests
+        run: make test
+# Multi-Python coverage lives in wheels.yml, which exercises every supported
+# CPython against its built wheel.
