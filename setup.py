@@ -434,9 +434,7 @@ setup(name=NAME,
       platforms=PLATFORMS,
       classifiers=CLASSIFIERS,
       ext_modules = ext_list,
-      package_dir = {'pyfmi':        os.path.join('src', 'pyfmi'),
-                     'pyfmi.common': os.path.join('src', 'common')
-                    },
+      package_dir = {'pyfmi': os.path.join('src', 'pyfmi')},
       packages=[
         'pyfmi',
         'pyfmi.simulation',

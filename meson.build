@@ -12,6 +12,4 @@ py = import('python').find_installation(pure: false)
 # transition. A pip install via mesonpy at this commit will produce a wheel
 # without compiled extensions — that is intentional for the checkpoint.
 
-install_subdir('src/pyfmi',  install_dir: py.get_install_dir())
-install_subdir('src/common', install_dir: py.get_install_dir() / 'pyfmi/common',
-               strip_directory: true)
+install_subdir('src/pyfmi', install_dir: py.get_install_dir())
