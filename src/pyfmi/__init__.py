@@ -29,14 +29,14 @@ import sys
 import time
 
 try:
-    curr_dir = os.path.dirname(os.path.abspath(__file__))
-    _fpath=os.path.join(curr_dir,'version.txt')
-    with open(_fpath, 'r') as f:
-        __version__=f.readline().strip()
-        __revision__=f.readline().strip()
+    from importlib.metadata import version as _pkg_version, PackageNotFoundError
+    try:
+        __version__ = _pkg_version("PyFMI")
+    except PackageNotFoundError:
+        __version__ = _pkg_version("pyfmi-testing")
 except Exception:
     __version__ = "unknown"
-    __revision__= "unknown"
+__revision__ = "unknown"
 
 
 def check_packages():

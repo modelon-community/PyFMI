@@ -395,30 +395,6 @@ def check_extensions():
 
 ext_list = check_extensions()
 
-try:
-    from subprocess import Popen, PIPE
-    _p = Popen(["svnversion", "."], stdout=PIPE)
-    revision = _p.communicate()[0].decode('ascii')
-except Exception:
-    revision = "unknown"
-version_txt = os.path.join('src', 'pyfmi', 'version.txt')
-
-# If a revision is found, always write it!
-if revision != "unknown" and revision!="":
-    with open(version_txt, 'w') as f:
-        f.write(VERSION+'\n')
-        f.write("r"+revision)
-else:# If it does not, check if the file exists and if not, create the file!
-    if not os.path.isfile(version_txt):
-        with open(version_txt, 'w') as f:
-            f.write(VERSION+'\n')
-            f.write("unknown")
-
-try:
-    shutil.copy2('LICENSE', os.path.join('src', 'pyfmi', 'LICENSE'))
-    shutil.copy2('CHANGELOG', os.path.join('src', 'pyfmi', 'CHANGELOG'))
-except Exception:
-    pass
 extra_package_data = [f'*{fmil_name}*']
 extra_package_data += ['libgcc_s_dw2-1.dll'] if is_windows and copy_gcc_lib else []
 
@@ -448,9 +424,6 @@ setup(name=NAME,
         'examples/files/FMUs/CS1.0/*',
         'examples/files/FMUs/ME2.0/*',
         'examples/files/FMUs/CS2.0/*',
-        'version.txt',
-        'LICENSE',
-        'CHANGELOG',
         'util/*'] + extra_package_data
         },
       script_args=copy_args

@@ -147,3 +147,10 @@ py.extension_module(
 )
 
 install_subdir('src/pyfmi', install_dir: py.get_install_dir())
+
+# LGPL requires the license to ship with the binary; CHANGELOG goes alongside
+# so users can identify the bundled version at runtime.
+install_data(
+  ['LICENSE', 'CHANGELOG'],
+  install_dir: py.get_install_dir() / 'pyfmi',
+)
