@@ -76,12 +76,13 @@ cython_include_dirs = [
 ]
 cython_common_args = ['-3', '-X', 'language_level=3str'] + cython_include_dirs
 
-# --- RPATH for non-wheel Linux installs: point at the FMIL libdir so the
-# shared library is found at runtime. Wheel builds get $ORIGIN added in C4
-# once the FMIL .so is bundled inside the package. ---
+# $ORIGIN lets installed wheels find the bundled libfmilib_shared.so that
+# auditwheel/delvewheel place next to the extension. The configured libdir is
+# kept as a fallback so editable/source installs against a system FMIL also
+# resolve at runtime.
 ext_install_rpath = ''
 if host_machine.system() != 'windows'
-  ext_install_rpath = fmil_libdirs[0]
+  ext_install_rpath = '$ORIGIN:' + fmil_libdirs[0]
 endif
 
 with_openmp     = get_option('openmp')
