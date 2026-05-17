@@ -21,7 +21,6 @@ Parser for a XML based FMU log format
 from xml import sax
 import re
 import numpy as np
-from distutils.util import strtobool
 from pyfmi.common.log.tree import Node, Comment
 from pyfmi.exceptions import FMUException
 from pathlib import Path
@@ -52,7 +51,7 @@ def parse_value(text):
     elif floatingpoint_pattern.match(text):
         return float(text)
     elif boolean_pattern.match(text):
-        return bool(strtobool(text))
+        return text.lower() == "true"
     else:
         if quoted_string_pattern.match(text):
             text = text[1:-1].replace('""','"')
