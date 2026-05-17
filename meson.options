@@ -1,0 +1,1 @@
+# Build options for PyFMI. Populated in C3 with fmil_prefix, openmp, etc.

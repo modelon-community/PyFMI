@@ -1,0 +1,47 @@
+[build-system]
+requires = [
+    "meson-python>=0.16",
+    "meson>=1.4",
+    "ninja",
+    "Cython>=3.0.7",
+    "numpy>=2.1",
+    "assimulo-testing>=3.9.0b1",
+]
+build-backend = "mesonpy"
+
+[project]
+name = "PyFMI"
+version = "3.0.0.dev0"
+description = "A package for working with dynamic models compliant with the Functional Mock-Up Interface standard."
+readme = "README.md"
+license = { text = "LGPL-3.0-only" }
+authors = [{ name = "Modelon AB" }]
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: Unix",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+]
+
+dependencies = [
+    "numpy>=2.1",
+    "scipy>=1.14.0",
+    "matplotlib>=3.0",
+    "assimulo-testing>=3.9.0b1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.4",
+    "meson>=1.4",
+    "meson-python>=0.16",
+    "ninja",
+    "Cython>=3.0.7",
+]
+
+[project.urls]
+Homepage = "https://github.com/modelon-community/PyFMI"
