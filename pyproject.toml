@@ -45,3 +45,21 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/modelon-community/PyFMI"
+
+[tool.cibuildwheel]
+build = "cp311-* cp312-* cp313-*"
+skip  = "*-win32 *-manylinux_i686 *-musllinux*"
+
+[tool.cibuildwheel.linux]
+# FMIL is pre-installed into /usr inside the pyfmi-manylinux image; build it
+# locally with `make build-manylinux-image` before invoking cibuildwheel.
+manylinux-x86_64-image = "pyfmi-manylinux"
+repair-wheel-command   = "auditwheel repair -w {dest_dir} {wheel}"
+config-settings        = {"setup-args" = ["-Dfmil_prefix=/usr"]}
+
+[tool.cibuildwheel.windows]
+# FMIL is built into C:/deps by the workflow's MSYS2 UCRT64 step before
+# cibuildwheel runs. UCRT64 is on PATH so meson selects gcc over MSVC.
+before-build         = "pip install delvewheel"
+repair-wheel-command = "pwsh {project}/tools/wheels/repair_windows.ps1 {wheel} {dest_dir}"
+config-settings      = {"setup-args" = ["-Dfmil_prefix=C:/deps"]}
