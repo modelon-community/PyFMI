@@ -44,7 +44,7 @@ from pyfmi.fmi2 import FMI2_CONTINUOUS, FMI2_INPUT, FMI2_OUTPUT
 from pyfmi.fmi_util import Graph
 from pyfmi.exceptions import FMUException, InvalidFMUException
 
-IF WITH_OPENMP:
+if WITH_OPENMP:
     cimport openmp
 
 DEF SERIAL   = 0
@@ -1643,7 +1643,7 @@ cdef class Master:
         
         if options["num_threads"] and options["execution"] == "parallel":
             pass
-            IF WITH_OPENMP: 
+            if WITH_OPENMP:
                 openmp.omp_set_num_threads(options["num_threads"])
         if options["step_size"] <= 0.0:
             raise FMUException("The step-size must be greater than zero.")

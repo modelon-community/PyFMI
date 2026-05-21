@@ -29,7 +29,7 @@ cimport pyfmi.fmi3 as FMI3
     This is because fseek/ftell is not sufficient as soon as the number of bytes in a result file
     exceed the maximum value for long int.
 """
-IF UNAME_SYSNAME == "Windows":
+if UNAME_SYSNAME == "Windows":
     cdef extern from "stdio.h" nogil:
         ctypedef struct FILE:
             pass
@@ -39,7 +39,7 @@ IF UNAME_SYSNAME == "Windows":
         return _fseeki64(stream, offset, whence)
     cdef inline long long os_specific_ftell(FILE *stream):
         return _ftelli64(stream)
-ELSE:
+else:
     cdef extern from "stdio.h" nogil:
         ctypedef struct FILE:
             pass
