@@ -29,26 +29,14 @@ cimport pyfmi.fmi3 as FMI3
     This is because fseek/ftell is not sufficient as soon as the number of bytes in a result file
     exceed the maximum value for long int.
 """
-if UNAME_SYSNAME == "Windows":
-    cdef extern from "stdio.h" nogil:
-        ctypedef struct FILE:
-            pass
-        long long _ftelli64(FILE *stream)
-        int _fseeki64(FILE *stream, long long offset, int whence)
-    cdef inline int os_specific_fseek(FILE *stream, long long offset, int whence):
-        return _fseeki64(stream, offset, whence)
-    cdef inline long long os_specific_ftell(FILE *stream):
-        return _ftelli64(stream)
-else:
-    cdef extern from "stdio.h" nogil:
-        ctypedef struct FILE:
-            pass
-        long long ftello(FILE *stream)
-        int fseeko(FILE *stream, long long offset, int whence)
-    cdef inline int os_specific_fseek(FILE *stream, long long offset, int whence):
-        return fseeko(stream, offset, whence)
-    cdef inline long long os_specific_ftell(FILE *stream):
-        return ftello(stream)
+cdef extern from "fmi_util_os.h" nogil:
+    int os_fseek(FILE *stream, long long offset, int whence)
+    long long os_ftell(FILE *stream)
+
+cdef inline int os_specific_fseek(FILE *stream, long long offset, int whence) nogil:
+    return os_fseek(stream, offset, whence)
+cdef inline long long os_specific_ftell(FILE *stream) nogil:
+    return os_ftell(stream)
 
 cdef class DumpDataFMI3:
     cdef np.ndarray time_tmp
