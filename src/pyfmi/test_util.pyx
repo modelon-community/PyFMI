@@ -396,6 +396,9 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
     def event_update(self, *args, **kwargs):
         pass
 
+    def enter_event_mode(self, *args, **kwargs):
+        pass
+
     def enter_continuous_time_mode(self, *args, **kwargs):
         pass
 
