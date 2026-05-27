@@ -401,28 +401,32 @@ class ResultCSVTextual(ResultReader):
             fid = filename
             fid.seek(0, 0) # need to start reading from beginning
 
-        if delimiter == ";":
-            name = fid.readline().strip().split(delimiter)
-        elif delimiter == ",":
-            name = [s[1:-1] for s in re.findall('".+?"', fid.readline().strip())]
-        else:
-            raise JIOError('Unsupported separator.')
-        self._name = name
+        try:
+            if delimiter == ";":
+                name = fid.readline().strip().split(delimiter)
+            elif delimiter == ",":
+                name = [s[1:-1] for s in re.findall('".+?"', fid.readline().strip())]
+            else:
+                raise JIOError('Unsupported separator.')
+            self._name = name
 
-        self.data_matrix = {}
-        for i,n in enumerate(name):
-            self.data_matrix[n] = i
+            self.data_matrix = {}
+            for i,n in enumerate(name):
+                self.data_matrix[n] = i
 
-        data = []
-        while True:
-            row = fid.readline().strip().split(delimiter)
+            data = []
+            while True:
+                row = fid.readline().strip().split(delimiter)
 
-            if row[-1] == "" or row[-1] == "\n":
-                break
+                if row[-1] == "" or row[-1] == "\n":
+                    break
 
-            data.append([float(d) for d in row])
+                data.append([float(d) for d in row])
 
-        self.data = np.array(data)
+            self.data = np.array(data)
+        finally:
+            if isinstance(filename, (str, Path)):
+                fid.close()
 
     def get_variable_names(self) -> list[str]:
         return list(self.data_matrix.keys())
@@ -543,6 +547,7 @@ class ResultWriterDymola(ResultWriter):
         # Open file
         f = codecs.open(file_name,'w','utf-8')
         self._file_open = True
+        self._file = f
 
         # Write header
         f.write('#1\n')
@@ -789,7 +794,6 @@ class ResultWriterDymola(ResultWriter):
 
         # f.write('%s,%d)\n' % (' '*14, self._nvariables))
 
-        self._file = f
         self._data_order = valueref_of_continuous_states
 
     def write_point(self, data=None, parameter_data=[]):
@@ -1010,71 +1014,75 @@ class ResultDymolaTextual(ResultDymola):
             fid = fname
             fid.seek(0,0) # Needs to start from beginning of file
 
-        # Read Aclass section
-        nLines = self._find_phrase(fid, 'char Aclass')
+        try:
+            # Read Aclass section
+            nLines = self._find_phrase(fid, 'char Aclass')
 
-        nLines = int(nLines[0])
-        self.Aclass = [fid.readline().strip() for i in range(nLines)]
+            nLines = int(nLines[0])
+            self.Aclass = [fid.readline().strip() for i in range(nLines)]
 
-        # Read name section
-        nLines = self._find_phrase(fid, 'char name')
+            # Read name section
+            nLines = self._find_phrase(fid, 'char name')
 
-        nLines = int(nLines[0])
-        self._name = [fid.readline().strip().replace(" ","") for i in range(nLines)]
-        self.name_lookup = {key:ind for ind,key in enumerate(self._name)}
+            nLines = int(nLines[0])
+            self._name = [fid.readline().strip().replace(" ","") for i in range(nLines)]
+            self.name_lookup = {key:ind for ind,key in enumerate(self._name)}
 
-        # Read description section
-        nLines = self._find_phrase(fid, 'char description')
+            # Read description section
+            nLines = self._find_phrase(fid, 'char description')
 
-        nLines = int(nLines[0])
-        self.description = [fid.readline().strip() for i in range(nLines)]
+            nLines = int(nLines[0])
+            self.description = [fid.readline().strip() for i in range(nLines)]
 
-        # Read dataInfo section
-        nLines = self._find_phrase(fid, 'int dataInfo')
+            # Read dataInfo section
+            nLines = self._find_phrase(fid, 'int dataInfo')
 
-        nCols = nLines[2].partition(')')
-        nLines = int(nLines[0])
-        nCols = int(nCols[0])
-
-        self.dataInfo = np.array([list(map(int,fid.readline().split()[0:nCols])) for i in range(nLines)])
-
-        # Find out how many data matrices there are
-        if len(self._name) == 1: # Only time
-            nData = 2
-        else:
-            nData = max(self.dataInfo[:,0])
-
-        self.data = []
-        for i in range(0,nData):
-            line = fid.readline()
-            tmp = line.partition(' ')
-            while tmp[0]!='float' and tmp[0]!='double' and line!='':
-                line = fid.readline()
-                tmp = line.partition(' ')
-            if line=='':
-                raise JIOError('The result does not seem to be of a supported format.')
-            tmp = tmp[2].partition('(')
-            nLines = tmp[2].partition(',')
             nCols = nLines[2].partition(')')
             nLines = int(nLines[0])
             nCols = int(nCols[0])
-            data = []
-            for i in range(0,nLines):
-                info = []
-                while len(info) < nCols and line != '':
-                    line = fid.readline()
-                    info.extend(line.split())
-                try:
-                    data.append(list(map(float,info[0:nCols])))
-                except ValueError: # Handle 1.#INF's and such
-                    data.append(list(map(robust_float,info[0:nCols])))
-                if len(info) == 0 and i < nLines-1:
-                    raise JIOError("Inconsistent number of lines in the result data.")
-                del(info)
-            self.data.append(np.array(data))
 
-        if len(self.data) == 0:
-            raise JIOError('Could not find any variable data in the result file.')
+            self.dataInfo = np.array([list(map(int,fid.readline().split()[0:nCols])) for i in range(nLines)])
+
+            # Find out how many data matrices there are
+            if len(self._name) == 1: # Only time
+                nData = 2
+            else:
+                nData = max(self.dataInfo[:,0])
+
+            self.data = []
+            for i in range(0,nData):
+                line = fid.readline()
+                tmp = line.partition(' ')
+                while tmp[0]!='float' and tmp[0]!='double' and line!='':
+                    line = fid.readline()
+                    tmp = line.partition(' ')
+                if line=='':
+                    raise JIOError('The result does not seem to be of a supported format.')
+                tmp = tmp[2].partition('(')
+                nLines = tmp[2].partition(',')
+                nCols = nLines[2].partition(')')
+                nLines = int(nLines[0])
+                nCols = int(nCols[0])
+                data = []
+                for i in range(0,nLines):
+                    info = []
+                    while len(info) < nCols and line != '':
+                        line = fid.readline()
+                        info.extend(line.split())
+                    try:
+                        data.append(list(map(float,info[0:nCols])))
+                    except ValueError: # Handle 1.#INF's and such
+                        data.append(list(map(robust_float,info[0:nCols])))
+                    if len(info) == 0 and i < nLines-1:
+                        raise JIOError("Inconsistent number of lines in the result data.")
+                    del(info)
+                self.data.append(np.array(data))
+
+            if len(self.data) == 0:
+                raise JIOError('Could not find any variable data in the result file.')
+        finally:
+            if isinstance(fname, (str, Path)):
+                fid.close()
 
     def _find_phrase(self,fid, phrase):
         line = fid.readline()

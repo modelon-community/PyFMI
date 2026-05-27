@@ -91,7 +91,6 @@ def check_packages():
     
     error_packages=[]
     warning_packages=[]
-    fp = None
     for package in packages:
         try:
             vers="--"
@@ -113,9 +112,6 @@ def check_packages():
                 sys.stdout.write("%s %s %s " % (package.ljust(le,'.'), vers.ljust(le_short), "Package missing - Error issued, see details below.".ljust(le_short)))
                 error_packages.append(package)
             pass
-        finally:
-            if fp:
-                fp.close()
         sys.stdout.write("\n")
         sys.stdout.flush()
         time.sleep(0.25)

@@ -243,7 +243,7 @@ def setup_diagnostics_variables(model, start_time, options, solver_options):
             if (rtol is None) or (atol is None):
                 rtol, atol = model.get_tolerances()
             
-            # is atol is scalar, convert to list
+            # if atol is scalar, convert to list
             if isinstance(atol, numbers.Number): 
                 atol = [atol]*len(states_list)
             # atol is "pseudoscalar", array/list with single entry; 
