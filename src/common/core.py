@@ -385,6 +385,7 @@ def unzip_unit(archive, path='.'):
     
     # extract all into temp_dir
     archive.extractall(path=tmpdir)
+    archive.close()
     
     return tmpdir
 
