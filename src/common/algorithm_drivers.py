@@ -39,7 +39,7 @@ class AlgorithmBase(object):
         pass
     
     @classmethod
-    def get_default_options(self): 
+    def get_default_options(cls):
         pass
     
 class ResultBase(object):

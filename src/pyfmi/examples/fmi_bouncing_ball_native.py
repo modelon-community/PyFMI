@@ -124,6 +124,7 @@ def run_demo(with_plots=True):
         
             #Get new nominal values.
             if eInfo.stateValueReferencesChanged:
+                rtol = 1e-6
                 atol = 0.01*rtol*bouncing_fmu.nominal_continuous_states
                 
             #Check for new time event

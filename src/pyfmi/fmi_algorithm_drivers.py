@@ -392,44 +392,48 @@ class AssimuloFMIAlg(AlgorithmBase):
         else:
             self.result_handler.simulation_start()
 
-        self.timings["initializing_result"] = timer() - time_start + time_res_init
+        try:
+            self.timings["initializing_result"] = timer() - time_start + time_res_init
 
-        # Sensitivities?
-        if self.options["sensitivities"]:
-            if self.model.get_generation_tool() != "JModelica.org" and \
-               self.model.get_generation_tool() != "Optimica Compiler Toolkit":
-                if isinstance(self.model, FMUModelME2):
-                    for var in self.options["sensitivities"]:
-                        causality = self.model.get_variable_causality(var)
-                        if causality != FMI2_INPUT:
-                            raise FMUException("The sensitivity parameter is not specified as an input which is required.")
-                else:
-                    raise FMUException("Sensitivity calculations only possible with JModelica.org generated FMUs")
+            # Sensitivities?
+            if self.options["sensitivities"]:
+                if self.model.get_generation_tool() != "JModelica.org" and \
+                   self.model.get_generation_tool() != "Optimica Compiler Toolkit":
+                    if isinstance(self.model, FMUModelME2):
+                        for var in self.options["sensitivities"]:
+                            causality = self.model.get_variable_causality(var)
+                            if causality != FMI2_INPUT:
+                                raise FMUException("The sensitivity parameter is not specified as an input which is required.")
+                    else:
+                        raise FMUException("Sensitivity calculations only possible with JModelica.org generated FMUs")
 
-            if self.options["solver"] != "CVode":
-                raise FMUException("Sensitivity simulations currently only supported using the solver CVode.")
+                if self.options["solver"] != "CVode":
+                    raise FMUException("Sensitivity simulations currently only supported using the solver CVode.")
 
-            # Checks to see if all the sensitivities are inside the model
-            # else there will be an exception
-            self.model.get(self.options["sensitivities"])
+                # Checks to see if all the sensitivities are inside the model
+                # else there will be an exception
+                self.model.get(self.options["sensitivities"])
 
-        self.probl = get_fmi_ode_problem(
-            model = self.model,
-            result_file_name = self.result_file_name,
-            with_jacobian = self.with_jacobian,
-            start_time = self.start_time,
-            logging = self.options["logging"],
-            result_handler = self.result_handler,
-            input_traj = input_traj,
-            number_of_diagnostics_variables = number_of_diagnostics_variables,
-            sensitivities = self.options["sensitivities"],
-            extra_equations = self.options["extra_equations"],
-            synchronize_simulation = self.options["synchronize_simulation"]
-        )
+            self.probl = get_fmi_ode_problem(
+                model = self.model,
+                result_file_name = self.result_file_name,
+                with_jacobian = self.with_jacobian,
+                start_time = self.start_time,
+                logging = self.options["logging"],
+                result_handler = self.result_handler,
+                input_traj = input_traj,
+                number_of_diagnostics_variables = number_of_diagnostics_variables,
+                sensitivities = self.options["sensitivities"],
+                extra_equations = self.options["extra_equations"],
+                synchronize_simulation = self.options["synchronize_simulation"]
+            )
 
-        # instantiate solver and set options
-        self.simulator = self.solver(self.probl)
-        self._set_solver_options()
+            # instantiate solver and set options
+            self.simulator = self.solver(self.probl)
+            self._set_solver_options()
+        except:
+            self.result_handler.simulation_end()
+            raise
 
     def _set_options(self):
         """
@@ -1031,54 +1035,55 @@ class FMICSAlg(AlgorithmBase):
         #Start of simulation, start the clock
         time_start = timer()
 
-        for step, t in enumerate(grid):
-            if self._synchronize_factor > 0:
-                under_run = t/self._synchronize_factor - (timer()-time_start)
-                if under_run > 0:
-                    time.sleep(under_run)
+        try:
+            for step, t in enumerate(grid):
+                if self._synchronize_factor > 0:
+                    under_run = t/self._synchronize_factor - (timer()-time_start)
+                    if under_run > 0:
+                        time.sleep(under_run)
 
-            status = self.model.do_step(t,h)
-            self.status = status
+                status = self.model.do_step(t,h)
+                self.status = status
 
-            if status != 0:
+                if status != 0:
 
-                if status == FMI_ERROR:
-                    result_handler.simulation_end()
-                    raise FMUException("The simulation failed. See the log for more information. Return flag %d."%status)
+                    if status == FMI_ERROR:
+                        raise FMUException("The simulation failed. See the log for more information. Return flag %d."%status)
 
-                elif status == FMI_DISCARD and isinstance(self.model, (FMUModelCS1, FMUModelCS2)):
+                    elif status == FMI_DISCARD and isinstance(self.model, (FMUModelCS1, FMUModelCS2)):
 
-                    try:
-                        if isinstance(self.model, FMUModelCS1):
-                            last_time = self.model.get_real_status(FMI1_LAST_SUCCESSFUL_TIME)
-                        else:
-                            last_time = self.model.get_real_status(FMI2_LAST_SUCCESSFUL_TIME)
-                        if last_time > t: #Solver succeeded in taken a step a little further than the last time
-                            self.model.time = last_time
-                            final_time = last_time
+                        try:
+                            if isinstance(self.model, FMUModelCS1):
+                                last_time = self.model.get_real_status(FMI1_LAST_SUCCESSFUL_TIME)
+                            else:
+                                last_time = self.model.get_real_status(FMI2_LAST_SUCCESSFUL_TIME)
+                            if last_time > t: #Solver succeeded in taken a step a little further than the last time
+                                self.model.time = last_time
+                                final_time = last_time
 
-                            start_time_point = timer()
-                            result_handler.integration_point()
-                            self.timings["storing_result"] += timer() - start_time_point
-                    except FMUException:
-                        pass
-                break
-                #result_handler.simulation_end()
-                #raise Exception("The simulation failed. See the log for more information. Return flag %d"%status)
+                                start_time_point = timer()
+                                result_handler.integration_point()
+                                self.timings["storing_result"] += timer() - start_time_point
+                        except FMUException:
+                            pass
+                    break
 
-            final_time = t+h
+                final_time = t+h
 
-            start_time_point = timer()
-            # down-sampling of result; step starts at 0
-            if ((step + 1) % self.result_downsampling_factor == 0) or ((step + 1) == self.ncp):
-                self.result_handler.integration_point()
-            self.timings["storing_result"] += timer() - start_time_point
+                start_time_point = timer()
+                # down-sampling of result; step starts at 0
+                if ((step + 1) % self.result_downsampling_factor == 0) or ((step + 1) == self.ncp):
+                    self.result_handler.integration_point()
+                self.timings["storing_result"] += timer() - start_time_point
 
-            if self.options["time_limit"] and (timer() - time_start) > self.options["time_limit"]:
-                raise TimeLimitExceeded("The time limit was exceeded at integration time %.8E."%final_time)
+                if self.options["time_limit"] and (timer() - time_start) > self.options["time_limit"]:
+                    raise TimeLimitExceeded("The time limit was exceeded at integration time %.8E."%final_time)
 
-            if self.input_traj is not None:
-                self.model.set(self.input_traj[0], self.input_traj[1].eval(t+h)[0,:])
+                if self.input_traj is not None:
+                    self.model.set(self.input_traj[0], self.input_traj[1].eval(t+h)[0,:])
+        except Exception:
+            result_handler.simulation_end()
+            raise
 
         #End of simulation, stop the clock
         time_stop = timer()

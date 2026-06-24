@@ -385,6 +385,7 @@ def unzip_unit(archive, path='.'):
     
     # extract all into temp_dir
     archive.extractall(path=tmpdir)
+    archive.close()
     
     return tmpdir
 
@@ -458,10 +459,7 @@ def list_to_string(item_list):
         item_list = [1, 2, 3]
         return value: '1;2;3'
     """
-    ret_str = ''
-    for l in item_list:
-        ret_str =ret_str+str(l)+os.pathsep
-    return ret_str
+    return os.pathsep.join(str(l) for l in item_list)
 
 class Trajectory:
     """
