@@ -186,6 +186,8 @@ cdef class FMUModelCS3(FMUModelBase3):
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL3.fmi3_float64_t t)
 
+    cpdef FMIL3.fmi3_status_t do_step(self, FMIL3.fmi3_float64_t current_t, FMIL3.fmi3_float64_t step_size, new_step=*)
+
 cdef class _WorkerClass3:
     cdef int _dim
 
