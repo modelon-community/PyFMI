@@ -28,6 +28,7 @@ from pyfmi.fmi3 import FMUModelME3
 from pyfmi.exceptions import FMUException
 
 this_dir = Path(__file__).parent
+FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
 class TestSimulationME:
@@ -310,8 +311,86 @@ class TestSimulationME:
 
 
 class TestSimulationCS:
-    pass
+    # Reference FMUs that can be simulated as CS FMUs
+    # 'Stair' is intentionally excluded, see test_simulate_stair_not_supported.
+    SIMULATABLE_REFERENCE_FMUS = ["VanDerPol", "Dahlquist", "BouncingBall", "Feedthrough", "Resource"]
 
+    def test_simulate(self):
+        """Test simulate VDP model and verify the integrity of the results. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS")
+        results = fmu.simulate()
+
+        assert results['x0'][0] == 2.0
+        assert results['x1'][0] == 0.0
+        assert results['x0'][-1] == pytest.approx(2.0148418861546133)
+        assert results['x1'][-1] == pytest.approx(0.24419470751904407)
+        np.testing.assert_equal(results['mu'], np.ones(len(results['x0'])))
+
+    @pytest.mark.parametrize("ref_fmu", SIMULATABLE_REFERENCE_FMUS)
+    def test_simulate_reference_fmus(self, ref_fmu):
+        """Test that the relevant reference FMUs simulate as Co-simulation. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "CS")
+        results = fmu.simulate()
+        # The result should at least cover the default experiment interval.
+        assert results['time'][0] == fmu.get_default_experiment_start_time()
+        assert results['time'][-1] == pytest.approx(fmu.get_default_experiment_stop_time())
+
+    @pytest.mark.parametrize("ref_fmu", SIMULATABLE_REFERENCE_FMUS)
+    def test_simulate_identical_to_fmi2(self, ref_fmu, tmp_path):
+        """Test that CS simulation results are numerically identical to FMI2. """
+        # Distinct result files, otherwise the (lazy) binary result readers
+        # collide since both versions share the same model name.
+        res2 = load_fmu(FMI2_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "CS").simulate(
+            options = {"result_handling": "binary",
+                       "result_file_name": str(tmp_path / f"{ref_fmu}_fmi2.mat")})
+        res3 = load_fmu(FMI3_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "CS").simulate(
+            options = {"result_handling": "binary",
+                       "result_file_name": str(tmp_path / f"{ref_fmu}_fmi3.mat")})
+
+        # All variables the two versions have in common should match exactly.
+        common_variables = set(res2.keys()) & set(res3.keys())
+        assert "time" in common_variables
+        for var in common_variables:
+            np.testing.assert_array_equal(
+                np.asarray(res3[var]), np.asarray(res2[var]),
+                err_msg = f"Mismatch between FMI3 and FMI2 for variable '{var}'")
+
+    @pytest.mark.parametrize("result_handling", ["binary", "csv"])
+    def test_simulate_result_handlers(self, result_handling):
+        """Test CS simulation with the supported result handlers. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", kind = "CS")
+        fmu.set("Float64_continuous_input", 3.14)
+        res = fmu.simulate(options = {"ncp": 2,
+                                      "result_handling": result_handling})
+        assert all(v == 3.14 for v in res["Float64_continuous_output"])
+
+    def test_simulate_result_handler_none(self):
+        """Test CS simulation with result handling disabled. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS")
+        # With result_handling = None no results are stored, but the
+        # simulation should still run through without raising.
+        fmu.simulate(options = {"result_handling": None})
+
+    @pytest.mark.parametrize("result_handling", ["file", "memory"])
+    def test_simulate_unsupported_result_handler(self, result_handling):
+        """Verify unsupported result handlers raise an exception for CS FMUs. """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS")
+        msg = f"For FMI3: 'result_handling' set to '{result_handling}' is not supported. " + \
+                "Consider setting this option to 'binary', 'custom' or None to continue."
+        with pytest.raises(NotImplementedError, match = msg):
+            fmu.simulate(options = {"result_handling": result_handling})
+
+    def test_simulate_stair_not_supported(self):
+        """The Stair reference FMU cannot yet be simulated as Co-simulation.
+
+        Its doStep returns FMI_ERROR once the internal counter reaches its
+        maximum. Handling this gracefully (as FMI2 does via DISCARD and the
+        last successful time) requires additional master algorithm support,
+        which is out of scope for the current basic doStep implementation.
+        """
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu", kind = "CS")
+        with pytest.raises(FMUException, match = "The simulation failed"):
+            fmu.simulate()
 
 class TestDynamicDiagnostics:
     """Tests involving simulation of FMI3 FMUs using 'dynamic_diagnostics' == True."""
