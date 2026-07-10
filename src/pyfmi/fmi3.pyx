@@ -3770,24 +3770,24 @@ cdef class FMUModelCS3(FMUModelBase3):
     """
     Co-simulation model loaded from a dll
     """
-    def __init__(self, fmu, log_file_name = "", log_level=FMI_DEFAULT_LOG_LEVEL,
-                 _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
+    def __init__(self, fmu: Union[str, Path], log_file_name = None, log_level = FMI_DEFAULT_LOG_LEVEL,
+                 _unzipped_dir = None, _connect_dll = True, allow_unzipped_fmu = False):
         """
         Constructor of the model.
 
         Parameters::
 
             fmu --
-                Name of the fmu as a string.
+                Path to the FMU.
 
             log_file_name --
-                Filename for file used to save logmessages.
+                Filename for file used to save log messages.
                 This argument can also be a stream if it supports 'write', for full functionality
                 it must also support 'seek' and 'readlines'. If the stream requires use of other methods, such as 'drain'
                 for asyncio-streams, then this needs to be implemented on the user-side, there is no additional methods invoked
                 on the stream instance after 'write' has been invoked on the PyFMI side.
                 The stream must also be open and writable during the entire time.
-                Default: "" (Generates automatically)
+                Default: None = Generates automatically as <model_identifier>_log.txt
 
             log_level --
                 Determines the logging output. Can be set between 0
@@ -3897,9 +3897,12 @@ cdef class FMUModelCS3(FMUModelBase3):
         doc = "Property for accessing the current time of the simulation."
         )
 
-    def get_capability_flags(self) -> dict[str, bool]:
+    def get_capability_flags(self) -> dict:
         """
         Returns a dictionary with the capability flags of the FMU.
+
+        Note that 'maxOutputDerivativeOrder' and 'recommendedIntermediateInputSmoothness'
+        are integer-valued, all other flags are booleans.
 
         Returns::
             Dictionary with keys:
@@ -3929,14 +3932,14 @@ cdef class FMUModelCS3(FMUModelBase3):
         capabilities['providesAdjointDerivatives']             = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_providesAdjointDerivatives))
         capabilities['providesPerElementDependencies']         = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_providesPerElementDependencies))
         capabilities['canHandleVariableCommunicationStepSize'] = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canHandleVariableCommunicationStepSize))
-        capabilities['maxOutputDerivativeOrder']               = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_maxOutputDerivativeOrder))
+        capabilities['maxOutputDerivativeOrder']               = int(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_maxOutputDerivativeOrder))
         capabilities['providesIntermediateUpdate']             = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_providesIntermediateUpdate))
         capabilities['mightReturnEarlyFromDoStep']             = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_mightReturnEarlyFromDoStep))
         capabilities['canReturnEarlyAfterIntermediateUpdate']  = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canReturnEarlyAfterIntermediateUpdate))
         capabilities['hasEventMode']                           = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_hasEventMode))
         capabilities['providesEvaluateDiscreteStates']         = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_providesEvaluateDiscreteStates))
         capabilities['fixedInternalStepSize']                  = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_fixedInternalStepSize))
-        capabilities['recommendedIntermediateInputSmoothness'] = bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_recommendedIntermediateInputSmoothness))
+        capabilities['recommendedIntermediateInputSmoothness'] = int(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_recommendedIntermediateInputSmoothness))
 
         return capabilities
 
