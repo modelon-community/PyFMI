@@ -30,6 +30,7 @@ from pyfmi import load_fmu
 from pyfmi.fmi import (
     FMUModelME3,
     FMUModelCS3,
+    FMI_OK,
 )
 from pyfmi.fmi3 import (
     FMI3_Type,
@@ -1674,7 +1675,7 @@ class Test_FMI3CS:
         fmu = FMUModelCS3(fmu_path)
         fmu.initialize()
 
-        fmu.do_step(0, 1)
+        assert fmu.do_step(0, 1) == FMI_OK
 
 class TestFMI3SE:
     # TODO: Unsupported for now

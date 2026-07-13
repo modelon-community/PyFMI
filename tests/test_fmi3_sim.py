@@ -381,13 +381,7 @@ class TestSimulationCS:
             fmu.simulate(options = {"result_handling": result_handling})
 
     def test_simulate_stair_not_supported(self):
-        """The Stair reference FMU cannot yet be simulated as Co-simulation.
-
-        Its doStep returns FMI_ERROR once the internal counter reaches its
-        maximum. Handling this gracefully (as FMI2 does via DISCARD and the
-        last successful time) requires additional master algorithm support,
-        which is out of scope for the current basic doStep implementation.
-        """
+        """Stair reference FMU requires support for terminate with CS FMUs."""
         fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu", kind = "CS")
         with pytest.raises(FMUException, match = "The simulation failed"):
             fmu.simulate()

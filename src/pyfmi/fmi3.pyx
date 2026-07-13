@@ -3861,6 +3861,7 @@ cdef class FMUModelCS3(FMUModelBase3):
         if status != FMIL.jm_status_success:
             raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
 
+        self._instantiated_with_early_return = earlyReturnAllowed
         self._allocated_fmu = 1
 
     cpdef _get_time(self):
@@ -3909,12 +3910,10 @@ cdef class FMUModelCS3(FMUModelBase3):
 
             status --
                     The status of function which can be checked against
-                    FMI_OK, FMI_WARNING. FMI_DISCARD, FMI_ERROR,
-                    FMI_FATAL,FMI_PENDING...
+                    FMI_OK, FMI_WARNING. FMI_DISCARD, FMI_ERROR, FMI_FATAL
 
         Calls the underlying low-level function fmi3DoStep.
         """
-        # TODO: Status docstring
         cdef FMIL3.fmi3_status_t status
         cdef FMIL3.fmi3_boolean_t new_s
         cdef FMIL3.fmi3_boolean_t eventHandlingNeeded
@@ -3949,7 +3948,7 @@ cdef class FMUModelCS3(FMUModelBase3):
 
         # On a fully completed step the reached time is current_t + step_size;
         # lastSuccessfulTime is only meaningful when the FMU returns early.
-        if earlyReturn:
+        if self._instantiated_with_early_return and earlyReturn:
             self.time = lastSuccessfulTime
         else:
             self.time = current_t + step_size
