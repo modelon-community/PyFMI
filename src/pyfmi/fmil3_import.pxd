@@ -362,6 +362,10 @@ cdef extern from 'fmilib.h':
         fmi3_value_reference_t*, size_t,
         fmi3_float64_t*, size_t,
         fmi3_float64_t*, size_t)
+    fmi3_status_t fmi3_import_get_output_derivatives(fmi3_import_t*,
+        fmi3_value_reference_t*, size_t,
+        fmi3_int32_t*,
+        fmi3_float64_t*, size_t)
 
     # Misc
     fmi3_status_t fmi3_import_update_discrete_states(

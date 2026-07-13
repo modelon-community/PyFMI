@@ -1631,6 +1631,39 @@ class Test_FMI3CS:
         assert not fmi3_cs_stair.do_step_terminated
 
 
+    @pytest.mark.parametrize("order", [1, 2])
+    def test_get_output_derivatives_order_too_high(self, order, fmi3_cs_feedthrough):
+        """get_output_derivatives should raise if the order exceeds the FMU's
+        maxOutputDerivativeOrder. None of the reference FMUs declare support for
+        output derivatives, so any positive order is out of range."""
+        fmi3_cs_feedthrough.initialize()
+        assert fmi3_cs_feedthrough.get_capability_flags()["maxOutputDerivativeOrder"] == 0
+
+        msg = "The order must be greater than zero and below the maximum output " \
+              "derivative support of the FMU (0)."
+        with pytest.raises(FMUException, match = re.escape(msg)):
+            fmi3_cs_feedthrough.get_output_derivatives("Float64_continuous_output", order)
+
+    @pytest.mark.parametrize("order", [0, -1])
+    def test_get_output_derivatives_order_too_low(self, order, fmi3_cs_feedthrough):
+        """get_output_derivatives should raise for a non-positive order."""
+        fmi3_cs_feedthrough.initialize()
+
+        msg = "The order must be greater than zero and below the maximum output " \
+              "derivative support of the FMU (0)."
+        with pytest.raises(FMUException, match = re.escape(msg)):
+            fmi3_cs_feedthrough.get_output_derivatives("Float64_continuous_output", order)
+
+    def test_get_output_derivatives_list_input(self, fmi3_cs_feedthrough):
+        """A list of variables is accepted; the order is still validated per the
+        FMU's maxOutputDerivativeOrder (0 for the reference FMUs)."""
+        fmi3_cs_feedthrough.initialize()
+
+        msg = "The order must be greater than zero and below the maximum output " \
+              "derivative support of the FMU (0)."
+        with pytest.raises(FMUException, match = re.escape(msg)):
+            fmi3_cs_feedthrough.get_output_derivatives(["Float64_continuous_output"], 1)
+
 class TestFMI3SE:
     # TODO: Unsupported for now
     pass
