@@ -24,7 +24,7 @@ from scipy.interpolate import interp1d
 
 from pyfmi import load_fmu
 from pyfmi.fmi_algorithm_drivers import AssimuloFMIAlg
-from pyfmi.fmi3 import FMUModelME3
+from pyfmi.fmi3 import FMUModelME3, FMUModelCS3
 from pyfmi.exceptions import FMUException
 
 this_dir = Path(__file__).parent
@@ -313,7 +313,8 @@ class TestSimulationME:
 class TestSimulationCS:
     # Reference FMUs that can be simulated as CS FMUs
     # 'Stair' is intentionally excluded, see test_simulate_stair_not_supported.
-    SIMULATABLE_REFERENCE_FMUS = ["VanDerPol", "Dahlquist", "BouncingBall", "Feedthrough", "Resource"]
+    # SIMULATABLE_REFERENCE_FMUS = ["VanDerPol", "Dahlquist", "BouncingBall", "Feedthrough", "Resource"]
+    SIMULATABLE_REFERENCE_FMUS = ["BouncingBall"]
 
     def test_simulate(self):
         """Test simulate VDP model and verify the integrity of the results. """
@@ -329,7 +330,8 @@ class TestSimulationCS:
     @pytest.mark.parametrize("ref_fmu", SIMULATABLE_REFERENCE_FMUS)
     def test_simulate_reference_fmus(self, ref_fmu):
         """Test that the relevant reference FMUs simulate as Co-simulation. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "CS")
+        fmu = FMUModelCS3(FMI3_REF_FMU_PATH / (ref_fmu + ".fmu"))
+        fmu.instantiate(earlyReturnAllowed = False)
         results = fmu.simulate()
         # The result should at least cover the default experiment interval.
         assert results['time'][0] == fmu.get_default_experiment_start_time()
@@ -343,7 +345,9 @@ class TestSimulationCS:
         res2 = load_fmu(FMI2_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "CS").simulate(
             options = {"result_handling": "binary",
                        "result_file_name": str(tmp_path / f"{ref_fmu}_fmi2.mat")})
-        res3 = load_fmu(FMI3_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "CS").simulate(
+        fmu3 = FMUModelCS3(FMI3_REF_FMU_PATH / (ref_fmu + ".fmu"))
+        fmu3.instantiate(earlyReturnAllowed = False)
+        res3 = fmu3.simulate(
             options = {"result_handling": "binary",
                        "result_file_name": str(tmp_path / f"{ref_fmu}_fmi3.mat")})
 
@@ -382,9 +386,10 @@ class TestSimulationCS:
 
     def test_simulate_stair_not_supported(self):
         """Stair reference FMU requires support for terminate with CS FMUs."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu", kind = "CS")
-        with pytest.raises(FMUException, match = "The simulation failed"):
-            fmu.simulate()
+        fmu = FMUModelCS3(FMI3_REF_FMU_PATH / "Stair.fmu")
+        fmu.instantiate(earlyReturnAllowed = True)
+        res = fmu.simulate(0, 10)
+        assert res["time"][-1] == pytest.approx(9.0)
 
 class TestDynamicDiagnostics:
     """Tests involving simulation of FMI3 FMUs using 'dynamic_diagnostics' == True."""

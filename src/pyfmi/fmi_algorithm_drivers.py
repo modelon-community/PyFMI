@@ -1049,7 +1049,6 @@ class FMICSAlg(AlgorithmBase):
 
                     if status == FMI_ERROR:
                         raise FMUException("The simulation failed. See the log for more information. Return flag %d."%status)
-
                     elif status == FMI_DISCARD and isinstance(self.model, (FMUModelCS1, FMUModelCS2)):
 
                         try:
@@ -1066,6 +1065,12 @@ class FMICSAlg(AlgorithmBase):
                                 self.timings["storing_result"] += timer() - start_time_point
                         except FMUException:
                             pass
+                    break
+
+                if isinstance(self.model, FMUModelCS3) and self.model._last_do_step_terminated:
+                    start_time_point = timer()
+                    result_handler.integration_point()
+                    self.timings["storing_result"] += timer() - start_time_point
                     break
 
                 final_time = t+h

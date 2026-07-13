@@ -3825,7 +3825,11 @@ cdef class FMUModelCS3(FMUModelBase3):
             self._modelId = pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_CS(self._fmu))
         return self._modelId
 
-    def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
+    def instantiate(self, 
+                    name: str = 'Model',
+                    visible: bool = False,
+                    earlyReturnAllowed: bool = True
+                    ) -> None:
         """
         Instantiate the model.
 
@@ -3839,6 +3843,9 @@ cdef class FMUModelCS3(FMUModelBase3):
                 Defines if the simulator application window should be visible or not.
                 Default: False, not visible.
 
+            earlyReturnAllowed --
+                Defines if the FMU is allowed to return early from do_step calls.
+
         Calls the respective low-level FMI function: fmi3InstantiateCoSimulation.
         """
 
@@ -3846,10 +3853,11 @@ cdef class FMUModelCS3(FMUModelBase3):
         cdef FMIL3.fmi3_boolean_t vis
         cdef FMIL.jm_status_enu_t status
         cdef FMIL3.fmi3_boolean_t eventModeUsed = FMIL3.fmi3_false
-        cdef FMIL3.fmi3_boolean_t earlyReturnAllowed = FMIL3.fmi3_false
+        cdef FMIL3.fmi3_boolean_t _earlyReturnAllowed
 
         log = self._enable_logging
         vis = visible
+        _earlyReturnAllowed = earlyReturnAllowed
 
         name_as_bytes = pyfmi_util.encode(name)
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
@@ -3860,7 +3868,7 @@ cdef class FMUModelCS3(FMUModelBase3):
             vis,
             log,
             eventModeUsed,
-            earlyReturnAllowed,
+            _earlyReturnAllowed,
             NULL, # requiredIntermediateVariables
             0, # nRequiredIntermediateVariables
             NULL # intermediateUpdate
@@ -3870,7 +3878,8 @@ cdef class FMUModelCS3(FMUModelBase3):
         if status != FMIL.jm_status_success:
             raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
 
-        self._instantiated_with_early_return = earlyReturnAllowed
+        self._instantiated_with_early_return = _earlyReturnAllowed
+        self._last_do_step_terminated = FMIL3.fmi3_false
         self._allocated_fmu = 1
 
     cpdef _get_time(self):
@@ -3957,8 +3966,11 @@ cdef class FMUModelCS3(FMUModelBase3):
 
         # On a fully completed step the reached time is current_t + step_size;
         # lastSuccessfulTime is only meaningful when the FMU returns early.
-        if self._instantiated_with_early_return and earlyReturn:
+        self._last_do_step_terminated = FMIL3.fmi3_false
+        if self._instantiated_with_early_return:
             self.time = lastSuccessfulTime
+            if terminate:
+                self._last_do_step_terminated = FMIL3.fmi3_true
         else:
             self.time = current_t + step_size
 
