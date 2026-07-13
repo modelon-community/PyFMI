@@ -300,6 +300,7 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
                 Determines the logging output. Can be set between 0
                 (no logging) and 7 (everything).
                 Default: 2 (log error messages)
+
             allow_unzipped_fmu --
                 If set to True, the argument 'fmu' can be a path specifying a directory
                 to an unzipped FMU. The structure of the unzipped FMU must conform
@@ -3793,6 +3794,7 @@ cdef class FMUModelCS3(FMUModelBase3):
                 Determines the logging output. Can be set between 0
                 (no logging) and 7 (everything).
                 Default: 2 (log error messages)
+
             allow_unzipped_fmu --
                 If set to True, the argument 'fmu' can be a path specifying a directory
                 to an unzipped FMU. The structure of the unzipped FMU must conform
@@ -3803,8 +3805,6 @@ cdef class FMUModelCS3(FMUModelBase3):
 
             A model as an object from the class FMUModelCS3
         """
-
-        #Call super
         FMUModelBase3.__init__(self, fmu, log_file_name, log_level,
                                _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
@@ -3971,6 +3971,7 @@ cdef class FMUModelME3(FMUModelBase3):
                 Determines the logging output. Can be set between 0
                 (no logging) and 7 (everything).
                 Default: 2 (log error messages)
+
             allow_unzipped_fmu --
                 If set to True, the argument 'fmu' can be a path specifying a directory
                 to an unzipped FMU. The structure of the unzipped FMU must conform
