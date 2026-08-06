@@ -1045,6 +1045,15 @@ class FMICSAlg(AlgorithmBase):
                 status = self.model.do_step(t,h)
                 self.status = status
 
+                if isinstance(self.model, FMUModelCS3):
+                    if self.model.do_step_terminated:
+                        final_time = self.model.time
+
+                        start_time_point = timer()
+                        result_handler.integration_point()
+                        self.timings["storing_result"] += timer() - start_time_point
+                        break
+
                 if status != 0:
 
                     if status == FMI_ERROR:

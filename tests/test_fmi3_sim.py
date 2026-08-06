@@ -312,8 +312,7 @@ class TestSimulationME:
 
 class TestSimulationCS:
     # Reference FMUs that can be simulated as CS FMUs
-    # 'Stair' is intentionally excluded, see test_simulate_stair_not_supported.
-    SIMULATABLE_REFERENCE_FMUS = ["VanDerPol", "Dahlquist", "BouncingBall", "Feedthrough", "Resource"]
+    REFERENCE_FMUS = ["VanDerPol", "Dahlquist", "BouncingBall", "Feedthrough", "Resource"]
 
     def test_simulate(self):
         """Test simulate VDP model and verify the integrity of the results. """
@@ -326,7 +325,7 @@ class TestSimulationCS:
         assert results['x1'][-1] == pytest.approx(0.24419470751904407)
         np.testing.assert_equal(results['mu'], np.ones(len(results['x0'])))
 
-    @pytest.mark.parametrize("ref_fmu", SIMULATABLE_REFERENCE_FMUS)
+    @pytest.mark.parametrize("ref_fmu", REFERENCE_FMUS)
     def test_simulate_reference_fmus(self, ref_fmu):
         """Test that the relevant reference FMUs simulate as Co-simulation. """
         fmu = load_fmu(FMI3_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "CS")
@@ -335,7 +334,7 @@ class TestSimulationCS:
         assert results['time'][0] == fmu.get_default_experiment_start_time()
         assert results['time'][-1] == pytest.approx(fmu.get_default_experiment_stop_time())
 
-    @pytest.mark.parametrize("ref_fmu", SIMULATABLE_REFERENCE_FMUS)
+    @pytest.mark.parametrize("ref_fmu", REFERENCE_FMUS)
     def test_simulate_identical_to_fmi2(self, ref_fmu, tmp_path):
         """Test that CS simulation results are numerically identical to FMI2. """
         # Distinct result files, otherwise the (lazy) binary result readers
@@ -380,11 +379,13 @@ class TestSimulationCS:
         with pytest.raises(NotImplementedError, match = msg):
             fmu.simulate(options = {"result_handling": result_handling})
 
-    def test_simulate_stair_not_supported(self):
-        """Stair reference FMU requires support for terminate with CS FMUs."""
+    def test_stair_reference_fmu(self):
+        """Stair reference CS FMU, contains terminate usage."""
         fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu", kind = "CS")
-        with pytest.raises(FMUException, match = "The simulation failed"):
-            fmu.simulate()
+        res = fmu.simulate(0, 20)
+        assert res["time"][-1] == pytest.approx(9)
+        assert fmu.do_step_terminated
+        assert fmu.time == pytest.approx(9)
 
 class TestDynamicDiagnostics:
     """Tests involving simulation of FMI3 FMUs using 'dynamic_diagnostics' == True."""

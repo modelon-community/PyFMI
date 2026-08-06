@@ -1677,6 +1677,16 @@ class Test_FMI3CS:
 
         assert fmu.do_step(0, 1) == FMI_OK
 
+    def test_do_step_terminated_resets(self):
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu", kind = "CS")
+        fmu.initialize()
+        assert fmu.do_step(0, 20) == FMI_OK
+        assert fmu.time == pytest.approx(9)
+        assert fmu.do_step_terminated
+        fmu.reset()
+        assert not fmu.do_step_terminated
+
+
 class TestFMI3SE:
     # TODO: Unsupported for now
     pass

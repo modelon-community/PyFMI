@@ -3799,11 +3799,17 @@ cdef class FMUModelCS3(FMUModelBase3):
         FMUModelBase3.__init__(self, fmu, log_file_name, log_level,
                                _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
+        self.do_step_terminated = False
+
         if self.get_capability_flags().get('needsExecutionTool', False):
             raise FMUException("The FMU specifies 'needsExecutionTool=true' which implies that it requires an external execution tool to simulate, this is not supported.")
 
         if _connect_dll:
             self.instantiate()
+
+    def reset(self):
+        FMUModelBase3.reset(self)
+        self.do_step_terminated = False
 
     def _get_fmu_kind(self):
         if self._fmu_kind & FMIL3.fmi3_fmu_kind_cs:
@@ -3946,9 +3952,14 @@ cdef class FMUModelCS3(FMUModelBase3):
         if not log_open and self.get_log_level() > 2:
             self._close_log_file()
 
+        if status != FMIL3.fmi3_status_ok:
+            return status
         # On a fully completed step the reached time is current_t + step_size;
         # lastSuccessfulTime is only meaningful when the FMU returns early.
-        if self._instantiated_with_early_return and earlyReturn:
+        if terminate:
+            self.time = lastSuccessfulTime
+            self.do_step_terminated = True
+        elif self._instantiated_with_early_return and earlyReturn:
             self.time = lastSuccessfulTime
         else:
             self.time = current_t + step_size
