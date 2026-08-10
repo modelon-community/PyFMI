@@ -310,14 +310,12 @@ class TestSimulationME:
         assert len(res["time"]) == 101
 
 
+
 class TestSimulationCS:
     # Reference FMUs that can be simulated as CS FMUs
-    REFERENCE_FMUS = ["VanDerPol", "Dahlquist", "BouncingBall", "Feedthrough", "Resource"]
-
-    def test_simulate(self):
+    def test_simulate(self, fmi3_cs_vanderpol):
         """Test simulate VDP model and verify the integrity of the results. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS")
-        results = fmu.simulate()
+        results = fmi3_cs_vanderpol.simulate()
 
         assert results['x0'][0] == 2.0
         assert results['x1'][0] == 0.0
@@ -325,16 +323,15 @@ class TestSimulationCS:
         assert results['x1'][-1] == pytest.approx(0.24419470751904407)
         np.testing.assert_equal(results['mu'], np.ones(len(results['x0'])))
 
-    @pytest.mark.parametrize("ref_fmu", REFERENCE_FMUS)
-    def test_simulate_reference_fmus(self, ref_fmu):
+    def test_simulate_reference_fmus(self, fmi3_cs_reference_fmu_non_terminating):
         """Test that the relevant reference FMUs simulate as Co-simulation. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "CS")
+        fmu = fmi3_cs_reference_fmu_non_terminating
         results = fmu.simulate()
         # The result should at least cover the default experiment interval.
         assert results['time'][0] == fmu.get_default_experiment_start_time()
         assert results['time'][-1] == pytest.approx(fmu.get_default_experiment_stop_time())
 
-    @pytest.mark.parametrize("ref_fmu", REFERENCE_FMUS)
+    @pytest.mark.parametrize("ref_fmu", ["VanDerPol", "Dahlquist", "BouncingBall", "Feedthrough", "Resource"])
     def test_simulate_identical_to_fmi2(self, ref_fmu, tmp_path):
         """Test that CS simulation results are numerically identical to FMI2. """
         # Distinct result files, otherwise the (lazy) binary result readers
@@ -355,37 +352,34 @@ class TestSimulationCS:
                 err_msg = f"Mismatch between FMI3 and FMI2 for variable '{var}'")
 
     @pytest.mark.parametrize("result_handling", ["binary", "csv"])
-    def test_simulate_result_handlers(self, result_handling):
-        """Test CS simulation with the supported result handlers. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "Feedthrough.fmu", kind = "CS")
-        fmu.set("Float64_continuous_input", 3.14)
-        res = fmu.simulate(options = {"ncp": 2,
+    def test_simulate_result_handlers(self, result_handling, fmi3_cs_feedthrough):
+        """Test CS simulation with the supported result handlers."""
+        fmi3_cs_feedthrough.set("Float64_continuous_input", 3.14)
+        res = fmi3_cs_feedthrough.simulate(options = {"ncp": 2,
                                       "result_handling": result_handling})
         assert all(v == 3.14 for v in res["Float64_continuous_output"])
 
-    def test_simulate_result_handler_none(self):
+    def test_simulate_result_handler_none(self, fmi3_cs_feedthrough):
         """Test CS simulation with result handling disabled. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS")
         # With result_handling = None no results are stored, but the
         # simulation should still run through without raising.
-        fmu.simulate(options = {"result_handling": None})
+        fmi3_cs_feedthrough.simulate(options = {"result_handling": None})
 
     @pytest.mark.parametrize("result_handling", ["file", "memory"])
-    def test_simulate_unsupported_result_handler(self, result_handling):
+    def test_simulate_unsupported_result_handler(self, result_handling, fmi3_cs_feedthrough):
         """Verify unsupported result handlers raise an exception for CS FMUs. """
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS")
         msg = f"For FMI3: 'result_handling' set to '{result_handling}' is not supported. " + \
                 "Consider setting this option to 'binary', 'custom' or None to continue."
         with pytest.raises(NotImplementedError, match = msg):
-            fmu.simulate(options = {"result_handling": result_handling})
+            fmi3_cs_feedthrough.simulate(options = {"result_handling": result_handling})
 
-    def test_stair_reference_fmu(self):
+    def test_stair_reference_fmu(self, fmi3_cs_stair):
         """Stair reference CS FMU, contains terminate usage."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "Stair.fmu", kind = "CS")
-        res = fmu.simulate(0, 20)
+        res = fmi3_cs_stair.simulate(0, 20)
         assert res["time"][-1] == pytest.approx(9)
-        assert fmu.do_step_terminated
-        assert fmu.time == pytest.approx(9)
+        assert fmi3_cs_stair.do_step_terminated
+        assert fmi3_cs_stair.time == pytest.approx(9)
+
 
 class TestDynamicDiagnostics:
     """Tests involving simulation of FMI3 FMUs using 'dynamic_diagnostics' == True."""
