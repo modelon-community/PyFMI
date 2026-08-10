@@ -754,15 +754,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
     def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
         raise NotImplementedError # to implemented in FMUModel(ME|CS|SE)3
 
-    # def initialize(self,
-    #     tolerance_defined=True,
-    #     tolerance="Default",
-    #     start_time="Default",
-    #     stop_time_defined=False,
-    #     stop_time="Default"
-    # ):
-    #     raise NotImplementedError # to implemented in FMUModel(ME|CS|SE)3
-
     def _set(self, variable_name, value):
         """
         Helper method to set, see docstring on set.
