@@ -29,6 +29,7 @@ import scipy.sparse as sps
 from pyfmi import load_fmu
 from pyfmi.fmi import (
     FMUModelME3,
+    FMUModelCS3,
 )
 from pyfmi.fmi3 import (
     FMI3_Type,
@@ -49,29 +50,32 @@ FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
 # possibly move to some util function and use more widely for all PyFMI testing
 @functools.cache
-def _fmu_cached(fmu_path, allow_unzipped_fmu = False, _connect_dll = True, **kwargs):
-    return FMUModelME3(
-        fmu = fmu_path, 
+def _fmu_cached(fmu_path, model_class = FMUModelME3, allow_unzipped_fmu = False, _connect_dll = True, **kwargs):
+    return model_class(
+        fmu = fmu_path,
         allow_unzipped_fmu = allow_unzipped_fmu,
         _connect_dll = _connect_dll,
         **kwargs
     )
 
-def _get_fmu(fmu_path, allow_unzipped_fmu = False, _connect_dll = True, **kwargs):
+def _get_fmu(fmu_path, model_class = FMUModelME3, allow_unzipped_fmu = False, _connect_dll = True, **kwargs):
     fmu = _fmu_cached(
         fmu_path = fmu_path,
+        model_class = model_class,
         allow_unzipped_fmu = allow_unzipped_fmu,
         _connect_dll = _connect_dll,
         **kwargs
     )
     if _connect_dll:
+        fmu.instantiate()
         fmu.reset()
     return fmu
 
-def get_fmi3_reference_fmu(name, allow_unzipped_fmu = False, _connect_dll = True, **kwargs):
+def get_fmi3_reference_fmu(name, model_class = FMUModelME3, allow_unzipped_fmu = False, _connect_dll = True, **kwargs):
     fmu_path = FMI3_REF_FMU_PATH / (name + ".fmu")
     return _get_fmu(
         fmu_path = fmu_path,
+        model_class = model_class,
         allow_unzipped_fmu = allow_unzipped_fmu,
         _connect_dll = _connect_dll,
         **kwargs
@@ -177,9 +181,7 @@ class TestFMI3LoadFMU:
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
     def test_load_kind_CS(self, ref_fmu):
         """Test loading an FMU with kind 'CS'"""
-        msg = "Import of FMI3 Co-Simulation FMUs is not yet supported."
-        with pytest.raises(InvalidFMUException, match = msg):
-            load_fmu(ref_fmu, kind = "CS")
+        load_fmu(ref_fmu, kind = "CS")
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "Clocks.fmu"])
     def test_load_kind_SE(self, ref_fmu):
@@ -193,7 +195,7 @@ class TestFMI3LoadFMU:
         fmu = get_fmi3_reference_fmu("VanDerPol")
         assert fmu.get_identifier() == 'VanDerPol'
 
-    def test_get_get_version(self):
+    def test_get_version(self):
         """Test that FMI version is retrieved as expected."""
         fmu = get_fmi3_reference_fmu("VanDerPol")
         assert fmu.get_version() == '3.0'
@@ -748,6 +750,7 @@ class TestFMI3LoadFMU:
         np.testing.assert_equal(res, ["Set me!"])
         assert type(res) == list
 
+    @pytest.mark.parametrize("model_class", [FMUModelME3, FMUModelCS3])
     @pytest.mark.parametrize("variable_name, value, expected_dtype",
         [
             ("Float64_continuous_input", 3.14, np.double),
@@ -764,9 +767,9 @@ class TestFMI3LoadFMU:
             ("Enumeration_input", 2, np.int64),
         ]
     )
-    def test_set_get(self, variable_name, value, expected_dtype):
-        """Test getting and setting variables of various types."""
-        fmu = get_fmi3_reference_fmu("Feedthrough")
+    def test_set_get(self, model_class, variable_name, value, expected_dtype):
+        """Test getting and setting variables of various types, for both ME and CS FMUs."""
+        fmu = get_fmi3_reference_fmu("Feedthrough", model_class = model_class)
         fmu.set(variable_name, value)
         res = fmu.get(variable_name)
         assert res.dtype == expected_dtype
@@ -1538,9 +1541,132 @@ class Test_FMUModelBase3:
             fmu.set_enum(["Enumeration_input"], ["option 1"])
         assert "not in the list of allowed enumeration items" in str(exc_info.value)
 
-class TestFMI3CS:
-    # TODO: Unsupported for now
-    pass
+@pytest.fixture(params = [
+    "BouncingBall",
+    "Dahlquist",
+    "Resource",
+    "StateSpace",
+    "Feedthrough",
+    "Stair",
+    "VanDerPol",
+])
+def fmi3_cs_reference_fmu(request) -> FMUModelCS3:
+    fmu_name = request.param
+    return get_fmi3_reference_fmu(fmu_name, model_class = FMUModelCS3)
+
+@pytest.fixture
+def fmi3_cs_vanderpol() -> FMUModelCS3:
+    return get_fmi3_reference_fmu("VanDerPol", model_class = FMUModelCS3)
+
+@pytest.fixture
+def fmi3_cs_bouncingball() -> FMUModelCS3:
+    return get_fmi3_reference_fmu("BouncingBall", model_class = FMUModelCS3)
+
+
+class Test_FMI3CS:
+    """Basic unit tests for FMI3 import directly via the FMUModelCS3 class."""
+    def test_load_via_load_fmu(self):
+        """Test that load_fmu with kind = 'CS' returns an FMUModelCS3 instance."""
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS")
+        assert isinstance(fmu, FMUModelCS3)
+
+    def test_basic_wrong_fmu_type(self):
+        """Test using a non-CS FMU."""
+        fmu_path = str(this_dir / "files" / "FMUs" / "XML" / "ME3.0" / "variableAttributes")
+        msg = "The FMU could not be loaded. This class only supports FMI 3.0 for Co Simulation."
+        with pytest.raises(InvalidVersionException, match = msg):
+            FMUModelCS3(fmu_path, allow_unzipped_fmu = True, _connect_dll = False)
+
+    def test_get_model_identifier(self, fmi3_cs_vanderpol):
+        """Test that model identifier is retrieved as expected."""
+        assert fmi3_cs_vanderpol.get_identifier() == 'VanDerPol'
+
+    def test_get_version(self, fmi3_cs_vanderpol):
+        """Test that FMI version is retrieved as expected."""
+        assert fmi3_cs_vanderpol.get_version() == '3.0'
+
+    def test_get_capability_flags(self, fmi3_cs_bouncingball):
+        """Test that the CS capability flags are retrieved as expected."""
+        # BouncingBall exposes the most non-trivial flags
+        caps = fmi3_cs_bouncingball.get_capability_flags()
+        expected = {
+            'needsExecutionTool':                     False,
+            'canBeInstantiatedOnlyOncePerProcess':    False,
+            'canGetAndSetFMUState':                   True,
+            'canSerializeFMUState':                   True,
+            'providesDirectionalDerivatives':         False,
+            'providesAdjointDerivatives':             False,
+            'providesPerElementDependencies':         False,
+            'canHandleVariableCommunicationStepSize': True,
+            'maxOutputDerivativeOrder':               0,
+            'providesIntermediateUpdate':             True,
+            'mightReturnEarlyFromDoStep':             True,
+            'canReturnEarlyAfterIntermediateUpdate':  True,
+            'hasEventMode':                           True,
+            'providesEvaluateDiscreteStates':         False,
+            'fixedInternalStepSize':                  False,
+            'recommendedIntermediateInputSmoothness': 0,
+        }
+        assert caps == expected
+        # The two integer-valued flags must not be cast to booleans.
+        assert type(caps['maxOutputDerivativeOrder']) is int
+        assert type(caps['recommendedIntermediateInputSmoothness']) is int
+        # All remaining flags are booleans.
+        for key, value in caps.items():
+            if key in ('maxOutputDerivativeOrder', 'recommendedIntermediateInputSmoothness'):
+                continue
+            assert type(value) is bool, f"Expected bool for '{key}', got {type(value).__name__}"
+
+    def test_get_capability_flags_directional_derivatives(self, fmi3_cs_vanderpol):
+        """Test capability flags for an FMU providing (adjoint) directional derivatives."""
+        caps = fmi3_cs_vanderpol.get_capability_flags()
+        assert caps['providesDirectionalDerivatives'] is True
+        assert caps['providesAdjointDerivatives'] is True
+
+    def test_instantiation(self, tmpdir):
+        """ Test that instantiation works by verifying the output in the log."""
+        with temp_dir_context(tmpdir) as temp_path:
+             # log_level set to 5 required by test
+            fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS", log_level = 5)
+
+        substring_to_find = 'Successfully loaded all the interface functions'
+        assert any(substring_to_find in line for line in fmu.get_log())
+
+    def test_initialize_reset_terminate(self, fmi3_cs_reference_fmu):
+        """Test initialize, reset and terminate of all the CS reference FMUs. """
+        # Should simply pass without any exceptions
+        fmi3_cs_reference_fmu.initialize()
+        fmi3_cs_reference_fmu.reset()
+
+        # Test initialize again after resetting followed by terminate,
+        # since terminating does not require reset.
+        fmi3_cs_reference_fmu.initialize()
+        fmi3_cs_reference_fmu.terminate()
+
+    def test_initialize_manually(self, fmi3_cs_reference_fmu):
+        """Test initialization of the CS reference FMUs by entering/exiting initialization mode manually. """
+        assert fmi3_cs_reference_fmu.time is None
+        # Should simply pass without any exceptions
+        fmi3_cs_reference_fmu.enter_initialization_mode()
+        fmi3_cs_reference_fmu.exit_initialization_mode()
+        assert fmi3_cs_reference_fmu.time == 0.0
+
+    def test_get_double_terminate(self, fmi3_cs_vanderpol):
+        """Test invalid call sequence raises an error. """
+        fmi3_cs_vanderpol.initialize()
+        fmi3_cs_vanderpol.terminate()
+        msg = "Termination of FMU failed, see log for possible more information."
+        with pytest.raises(FMUException, match = msg):
+            fmi3_cs_vanderpol.terminate()
+
+    def test_free_instance_after_load(self, fmi3_cs_vanderpol):
+        """Test invoke free instance after loading. """
+        fmi3_cs_vanderpol.free_instance()
+
+    def test_free_instance_after_initialization(self, fmi3_cs_vanderpol):
+        """Test invoke free instance after initialization. """
+        fmi3_cs_vanderpol.initialize()
+        fmi3_cs_vanderpol.free_instance()
 
 class TestFMI3SE:
     # TODO: Unsupported for now

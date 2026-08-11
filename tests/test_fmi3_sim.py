@@ -30,7 +30,7 @@ from pyfmi.exceptions import FMUException
 this_dir = Path(__file__).parent
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
 
-class TestSimulation:
+class TestSimulationME:
     """Tests involving simulation of FMUs for FMI 3."""
 
     def test_simulate(self):
@@ -307,6 +307,11 @@ class TestSimulation:
         opts["ncp"] = 100
         res = model.simulate(0, 2, options = opts)
         assert len(res["time"]) == 101
+
+
+class TestSimulationCS:
+    pass
+
 
 class TestDynamicDiagnostics:
     """Tests involving simulation of FMI3 FMUs using 'dynamic_diagnostics' == True."""

@@ -269,6 +269,17 @@ cdef extern from 'fmilib.h':
     cdef struct fmi3_import_t:
         pass
 
+    # CS 
+    ctypedef void (*fmi3_intermediate_update_callback_ft) (
+        fmi3_instance_environment_t instanceEnvironment,
+        fmi3_float64_t intermediateUpdateTime,
+        fmi3_boolean_t intermediateVariableSetRequested,
+        fmi3_boolean_t intermediateVariableGetAllowed,
+        fmi3_boolean_t intermediateStepFinished,
+        fmi3_boolean_t canReturnEarly,
+        fmi3_boolean_t* earlyReturnRequested,
+        fmi3_float64_t* earlyReturnTime)
+
 
     # FMI SPECIFICATION METHODS (3.0)
     # BASIC
@@ -280,6 +291,17 @@ cdef extern from 'fmilib.h':
         fmi3_boolean_t visible,
         fmi3_boolean_t loggingOn
     )
+    FMIL.jm_status_enu_t fmi3_import_instantiate_co_simulation(
+        fmi3_import_t*                       fmu,
+        fmi3_string_t                        instanceName,
+        fmi3_string_t                        resourcePath,
+        fmi3_boolean_t                       visible,
+        fmi3_boolean_t                       loggingOn,
+        fmi3_boolean_t                       eventModeUsed,
+        fmi3_boolean_t                       earlyReturnAllowed,
+        const fmi3_value_reference_t*        requiredIntermediateVariables,
+        size_t                               nRequiredIntermediateVariables,
+        fmi3_intermediate_update_callback_ft intermediateUpdate)
     fmi3_status_t fmi3_import_completed_integrator_step(fmi3_import_t*, fmi3_boolean_t, fmi3_boolean_t*, fmi3_boolean_t*)
 
     # modes
@@ -420,6 +442,7 @@ cdef extern from 'fmilib.h':
     fmi3_status_t fmi3_import_get_number_of_continuous_states(fmi3_import_t*, size_t*)
     char* fmi3_import_get_last_error(fmi3_import_t*)
     char* fmi3_import_get_model_identifier_ME(fmi3_import_t*)
+    char* fmi3_import_get_model_identifier_CS(fmi3_import_t*)
     void fmi3_import_free_variable_list(fmi3_import_variable_list_t*)
 
     int fmi3_import_get_output_dependencies(fmi3_import_t*, fmi3_import_variable_t*, size_t*, int*, size_t**, char**)
