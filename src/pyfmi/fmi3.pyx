@@ -3799,11 +3799,17 @@ cdef class FMUModelCS3(FMUModelBase3):
         FMUModelBase3.__init__(self, fmu, log_file_name, log_level,
                                _unzipped_dir, _connect_dll, allow_unzipped_fmu)
 
+        self.do_step_terminated = False
+
         if self.get_capability_flags().get('needsExecutionTool', False):
             raise FMUException("The FMU specifies 'needsExecutionTool=true' which implies that it requires an external execution tool to simulate, this is not supported.")
 
         if _connect_dll:
             self.instantiate()
+
+    def reset(self):
+        FMUModelBase3.reset(self)
+        self.do_step_terminated = False
 
     def _get_fmu_kind(self):
         if self._fmu_kind & FMIL3.fmi3_fmu_kind_cs:
@@ -3861,6 +3867,7 @@ cdef class FMUModelCS3(FMUModelBase3):
         if status != FMIL.jm_status_success:
             raise FMUException('Failed to instantiate the model. See the log for possibly more information.')
 
+        self._instantiated_with_early_return = earlyReturnAllowed
         self._allocated_fmu = 1
 
     cpdef _get_time(self):
@@ -3887,6 +3894,173 @@ cdef class FMUModelCS3(FMUModelBase3):
         _set_time,
         doc = "Property for accessing the current time of the simulation."
         )
+
+    cpdef FMIL3.fmi3_status_t do_step(self, FMIL3.fmi3_float64_t current_t, FMIL3.fmi3_float64_t step_size, new_step=True):
+        """
+        Performs an integrator step.
+
+        Parameters::
+
+            current_t --
+                The current communication point (current time) of
+                the master.
+
+            step_size --
+                The length of the step to be taken.
+
+            new_step --
+                True the last step was accepted by the master and
+                False if not.
+
+        Returns::
+
+            status --
+                    The status of function which can be checked against
+                    FMI_OK, FMI_WARNING, FMI_DISCARD, FMI_ERROR, FMI_FATAL.
+
+        Calls the underlying low-level function fmi3DoStep. 
+        The `do_step_terminated` class attribute tracks the fmi3DoStep return 
+        for `terminateSimulation`.
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef FMIL3.fmi3_boolean_t new_s
+        cdef FMIL3.fmi3_boolean_t eventHandlingNeeded
+        cdef FMIL3.fmi3_boolean_t terminate
+        cdef FMIL3.fmi3_boolean_t earlyReturn
+        cdef FMIL3.fmi3_float64_t lastSuccessfulTime
+
+        if new_step:
+            new_s = FMIL3.fmi3_true
+        else:
+            new_s = FMIL3.fmi3_false
+
+        log_open = self._log_open()
+        if not log_open and self.get_log_level() > 2:
+            self._open_log_file()
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_do_step(
+            self._fmu,
+            current_t,
+            step_size,
+            new_s,
+            &eventHandlingNeeded,
+            &terminate,
+            &earlyReturn,
+            &lastSuccessfulTime
+        )
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        if not log_open and self.get_log_level() > 2:
+            self._close_log_file()
+
+        if status != FMIL3.fmi3_status_ok:
+            return status
+        # On a fully completed step the reached time is current_t + step_size;
+        # lastSuccessfulTime is only meaningful when the FMU returns early.
+        if terminate:
+            self.time = lastSuccessfulTime
+            self.do_step_terminated = True
+        elif self._instantiated_with_early_return and earlyReturn:
+            self.time = lastSuccessfulTime
+        else:
+            self.time = current_t + step_size
+
+        return status
+
+    def simulate(self,
+                 start_time="Default",
+                 final_time="Default",
+                 input=(),
+                 algorithm='FMICSAlg',
+                 options={}):
+        """
+        Compact function for model simulation.
+
+        The simulation method depends on which algorithm is used, this can be
+        set with the function argument 'algorithm'. Options for the algorithm
+        are passed as option classes or as pure dicts. See
+        FMUModel.simulate_options for more details.
+
+        The default algorithm for this function is FMICSAlg.
+
+        Parameters::
+
+            start_time --
+                Start time for the simulation.
+                Default: Start time defined in the default experiment from
+                        the ModelDescription file.
+
+            final_time --
+                Final time for the simulation.
+                Default: Stop time defined in the default experiment from
+                        the ModelDescription file.
+
+            input --
+                Input signal for the simulation. The input should be a 2-tuple
+                consisting of first the names of the input variable(s) and then
+                the data matrix.
+                Default: Empty tuple.
+
+            algorithm --
+                The algorithm which will be used for the simulation is specified
+                by passing the algorithm class as string or class object in this
+                argument. 'algorithm' can be any class which implements the
+                abstract class AlgorithmBase (found in algorithm_drivers.py). In
+                this way it is possible to write own algorithms and use them
+                with this function.
+                Default: 'FMICSAlg'
+
+            options --
+                The options that should be used in the algorithm. For details on
+                the options do:
+
+                    >> myModel = load_fmu(...)
+                    >> opts = myModel.simulate_options()
+                    >> opts?
+
+                Valid values are:
+                    - A dict which gives AssimuloFMIAlgOptions with
+                      default values on all options except the ones
+                      listed in the dict. Empty dict will thus give all
+                      options with default values.
+                    - An options object.
+                Default: Empty dict
+
+        Returns::
+
+            Result object, subclass of common.algorithm_drivers.ResultBase.
+        """
+        if start_time == "Default":
+            start_time = self.get_default_experiment_start_time()
+        if final_time == "Default":
+            final_time = self.get_default_experiment_stop_time()
+
+        return self._exec_simulate_algorithm(start_time,
+                                             final_time,
+                                             input,
+                                             'pyfmi.fmi_algorithm_drivers',
+                                             algorithm,
+                                             options)
+
+    def simulate_options(self, algorithm='FMICSAlg'):
+        """
+        Get an instance of the simulate options class, filled with default
+        values. If called without argument then the options class for the
+        default simulation algorithm will be returned.
+
+        Parameters::
+
+            algorithm --
+                The algorithm for which the options class should be fetched.
+                Possible values are: 'FMICSAlg'.
+                Default: 'FMICSAlg'
+
+        Returns::
+
+            Options class for the algorithm specified with default values.
+        """
+        return self._default_options('pyfmi.fmi_algorithm_drivers', algorithm)
 
     def get_capability_flags(self) -> dict:
         """
@@ -3933,6 +4107,19 @@ cdef class FMUModelCS3(FMUModelBase3):
         capabilities['recommendedIntermediateInputSmoothness'] = int(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_recommendedIntermediateInputSmoothness))
 
         return capabilities
+
+    def _provides_directional_derivatives(self) -> bool:
+        """
+        Check capability to provide directional derivatives.
+        """
+        return bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_providesDirectionalDerivatives))
+
+    def _supports_get_set_FMU_state(self) -> bool:
+        """
+        Check support for getting and setting the FMU-state.
+        """
+        return bool(FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_canGetAndSetFMUState))
+
 
 cdef class FMUModelME3(FMUModelBase3):
     """

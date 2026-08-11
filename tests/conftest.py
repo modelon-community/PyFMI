@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Callable
 import pytest
 
+from pyfmi.fmi3 import FMUModelCS3
+from tests.utils import get_fmi3_reference_fmu
+
 files_directory = Path(__file__).parent / 'files'
 
 @pytest.fixture(autouse=True, scope="session")
@@ -96,3 +99,44 @@ def setup_test_fmus():
         zip_file_name = 'FMUs.zip',
         unzip_to = files_directory / 'test_fmus'
     )
+
+
+@pytest.fixture(params = [
+    "BouncingBall",
+    "Dahlquist",
+    "Resource",
+    "StateSpace",
+    "Feedthrough",
+    "Stair",
+    "VanDerPol",
+])
+def fmi3_cs_reference_fmu(request) -> FMUModelCS3:
+    fmu_name = request.param
+    return get_fmi3_reference_fmu(fmu_name, model_class = FMUModelCS3)
+
+@pytest.fixture(params = [
+    "BouncingBall",
+    "Dahlquist",
+    "Resource",
+    "Feedthrough",
+    "VanDerPol",
+])
+def fmi3_cs_reference_fmu_non_terminating(request) -> FMUModelCS3:
+    fmu_name = request.param
+    return get_fmi3_reference_fmu(fmu_name, model_class = FMUModelCS3)
+
+@pytest.fixture
+def fmi3_cs_vanderpol() -> FMUModelCS3:
+    return get_fmi3_reference_fmu("VanDerPol", model_class = FMUModelCS3)
+
+@pytest.fixture
+def fmi3_cs_bouncingball() -> FMUModelCS3:
+    return get_fmi3_reference_fmu("BouncingBall", model_class = FMUModelCS3)
+
+@pytest.fixture
+def fmi3_cs_stair() -> FMUModelCS3:
+    return get_fmi3_reference_fmu("Stair", model_class = FMUModelCS3)
+
+@pytest.fixture
+def fmi3_cs_feedthrough() -> FMUModelCS3:
+    return get_fmi3_reference_fmu("Feedthrough", model_class = FMUModelCS3)

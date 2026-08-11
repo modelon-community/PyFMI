@@ -3700,8 +3700,8 @@ cdef class FMUModelCS2(FMUModelBase2):
 
             status --
                     The status of function which can be checked against
-                    FMI_OK, FMI_WARNING. FMI_DISCARD, FMI_ERROR,
-                    FMI_FATAL,FMI_PENDING...
+                    FMI_OK, FMI_WARNING, FMI_DISCARD, FMI_ERROR,
+                    FMI_FATAL, FMI_PENDING.
 
         Calls the underlying low-level function fmi2DoStep.
         """

@@ -20,7 +20,6 @@ import logging
 from io import StringIO
 from pathlib import Path
 import contextlib
-import functools
 
 import pytest
 import numpy as np
@@ -30,6 +29,7 @@ from pyfmi import load_fmu
 from pyfmi.fmi import (
     FMUModelME3,
     FMUModelCS3,
+    FMI_OK,
 )
 from pyfmi.fmi3 import (
     FMI3_Type,
@@ -45,41 +45,10 @@ from pyfmi.exceptions import (
     InvalidVersionException
 )
 
+from tests.utils import _get_fmu, get_fmi3_reference_fmu
+
 this_dir = Path(__file__).parent
 FMI3_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '3.0'
-
-# possibly move to some util function and use more widely for all PyFMI testing
-@functools.cache
-def _fmu_cached(fmu_path, model_class = FMUModelME3, allow_unzipped_fmu = False, _connect_dll = True, **kwargs):
-    return model_class(
-        fmu = fmu_path,
-        allow_unzipped_fmu = allow_unzipped_fmu,
-        _connect_dll = _connect_dll,
-        **kwargs
-    )
-
-def _get_fmu(fmu_path, model_class = FMUModelME3, allow_unzipped_fmu = False, _connect_dll = True, **kwargs):
-    fmu = _fmu_cached(
-        fmu_path = fmu_path,
-        model_class = model_class,
-        allow_unzipped_fmu = allow_unzipped_fmu,
-        _connect_dll = _connect_dll,
-        **kwargs
-    )
-    if _connect_dll:
-        fmu.instantiate()
-        fmu.reset()
-    return fmu
-
-def get_fmi3_reference_fmu(name, model_class = FMUModelME3, allow_unzipped_fmu = False, _connect_dll = True, **kwargs):
-    fmu_path = FMI3_REF_FMU_PATH / (name + ".fmu")
-    return _get_fmu(
-        fmu_path = fmu_path,
-        model_class = model_class,
-        allow_unzipped_fmu = allow_unzipped_fmu,
-        _connect_dll = _connect_dll,
-        **kwargs
-    )
 
 # TODO: A lot of the tests here could be parameterized with the tests in test_fmi.py
 # This would however require one of the following:
@@ -1541,27 +1510,6 @@ class Test_FMUModelBase3:
             fmu.set_enum(["Enumeration_input"], ["option 1"])
         assert "not in the list of allowed enumeration items" in str(exc_info.value)
 
-@pytest.fixture(params = [
-    "BouncingBall",
-    "Dahlquist",
-    "Resource",
-    "StateSpace",
-    "Feedthrough",
-    "Stair",
-    "VanDerPol",
-])
-def fmi3_cs_reference_fmu(request) -> FMUModelCS3:
-    fmu_name = request.param
-    return get_fmi3_reference_fmu(fmu_name, model_class = FMUModelCS3)
-
-@pytest.fixture
-def fmi3_cs_vanderpol() -> FMUModelCS3:
-    return get_fmi3_reference_fmu("VanDerPol", model_class = FMUModelCS3)
-
-@pytest.fixture
-def fmi3_cs_bouncingball() -> FMUModelCS3:
-    return get_fmi3_reference_fmu("BouncingBall", model_class = FMUModelCS3)
-
 
 class Test_FMI3CS:
     """Basic unit tests for FMI3 import directly via the FMUModelCS3 class."""
@@ -1667,6 +1615,21 @@ class Test_FMI3CS:
         """Test invoke free instance after initialization. """
         fmi3_cs_vanderpol.initialize()
         fmi3_cs_vanderpol.free_instance()
+
+    def test_do_step(self, fmi3_cs_vanderpol):
+        """Test basic call to doStep()."""
+        fmi3_cs_vanderpol.initialize()
+        assert fmi3_cs_vanderpol.do_step(0, 1) == FMI_OK
+
+    def test_do_step_terminated_resets(self, fmi3_cs_stair):
+        """Test a basic FMU that invokes terminate."""
+        fmi3_cs_stair.initialize()
+        assert fmi3_cs_stair.do_step(0, 20) == FMI_OK
+        assert fmi3_cs_stair.time == pytest.approx(9)
+        assert fmi3_cs_stair.do_step_terminated
+        fmi3_cs_stair.reset()
+        assert not fmi3_cs_stair.do_step_terminated
+
 
 class TestFMI3SE:
     # TODO: Unsupported for now
