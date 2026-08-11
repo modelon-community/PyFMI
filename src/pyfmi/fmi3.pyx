@@ -3916,9 +3916,11 @@ cdef class FMUModelCS3(FMUModelBase3):
 
             status --
                     The status of function which can be checked against
-                    FMI_OK, FMI_WARNING. FMI_DISCARD, FMI_ERROR, FMI_FATAL
+                    FMI_OK, FMI_WARNING, FMI_DISCARD, FMI_ERROR, FMI_FATAL.
 
-        Calls the underlying low-level function fmi3DoStep.
+        Calls the underlying low-level function fmi3DoStep. 
+        The `do_step_terminated` class attribute tracks the fmi3DoStep return 
+        for `terminateSimulation`.
         """
         cdef FMIL3.fmi3_status_t status
         cdef FMIL3.fmi3_boolean_t new_s

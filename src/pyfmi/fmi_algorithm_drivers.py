@@ -24,7 +24,7 @@ import time
 import numpy as np
 import scipy.optimize as spopt
 
-from pyfmi.fmi1 import FMUModelME1, FMUModelCS1, FMI_ERROR, FMI_DISCARD, FMI1_LAST_SUCCESSFUL_TIME # TODO
+from pyfmi.fmi1 import FMUModelME1, FMUModelCS1, FMI_OK, FMI_ERROR, FMI_DISCARD, FMI1_LAST_SUCCESSFUL_TIME # TODO
 from pyfmi.fmi2 import FMUModelME2, FMUModelCS2, FMI2_INPUT, FMI2_LAST_SUCCESSFUL_TIME
 from pyfmi.fmi3 import FMUModelME3, FMUModelCS3
 from pyfmi.fmi_coupled import CoupledFMUModelME2
@@ -1015,6 +1015,26 @@ class FMICSAlg(AlgorithmBase):
         """
         pass #No solver options
 
+    def _check_do_step_status_and_terminated(self, status) -> tuple[bool, float]:
+        """Return (true, <termination_time>) if terminated, (False, 0) else.
+        Raise exception in case of error returns."""
+        if status != FMI_OK:
+            if status == FMI_DISCARD and isinstance(self.model, (FMUModelCS1, FMUModelCS2)):
+                try:
+                    if isinstance(self.model, FMUModelCS1):
+                        last_time = self.model.get_real_status(FMI1_LAST_SUCCESSFUL_TIME)
+                    else:
+                        last_time = self.model.get_real_status(FMI2_LAST_SUCCESSFUL_TIME)
+                    return True, last_time
+                except FMUException:
+                    pass
+            else: # status = error || fatal || (discard && FMI3)
+                raise FMUException("The simulation failed. See the log for more information. Return flag %d."%status)
+        elif isinstance(self.model, FMUModelCS3):
+            if self.model.do_step_terminated:
+                return True, self.model.time
+        return False, 0
+
     def solve(self):
         """
         Runs the simulation.
@@ -1045,37 +1065,16 @@ class FMICSAlg(AlgorithmBase):
                 status = self.model.do_step(t,h)
                 self.status = status
 
-                if isinstance(self.model, FMUModelCS3):
-                    if self.model.do_step_terminated:
-                        final_time = self.model.time
+                terminated, terminated_time = self._check_do_step_status_and_terminated(status)
+                if terminated:
+                    if terminated_time > t: # only store additional point if time advanced
+                        self.model.time = terminated_time
+                        final_time = terminated_time
 
                         start_time_point = timer()
                         result_handler.integration_point()
                         self.timings["storing_result"] += timer() - start_time_point
-                        break
-
-                if status != 0:
-
-                    if status == FMI_ERROR:
-                        raise FMUException("The simulation failed. See the log for more information. Return flag %d."%status)
-
-                    elif status == FMI_DISCARD and isinstance(self.model, (FMUModelCS1, FMUModelCS2)):
-
-                        try:
-                            if isinstance(self.model, FMUModelCS1):
-                                last_time = self.model.get_real_status(FMI1_LAST_SUCCESSFUL_TIME)
-                            else:
-                                last_time = self.model.get_real_status(FMI2_LAST_SUCCESSFUL_TIME)
-                            if last_time > t: #Solver succeeded in taken a step a little further than the last time
-                                self.model.time = last_time
-                                final_time = last_time
-
-                                start_time_point = timer()
-                                result_handler.integration_point()
-                                self.timings["storing_result"] += timer() - start_time_point
-                        except FMUException:
-                            pass
-                    break
+                    break # stop integration loop
 
                 final_time = t+h
 
