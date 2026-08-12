@@ -3998,21 +3998,14 @@ cdef class FMUModelCS3(FMUModelBase3):
         if order < 1 or order > max_output_derivative:
             raise FMUException("The order must be greater than zero and below the maximum output derivative support of the FMU (%d)."%max_output_derivative)
 
-        if isinstance(variables, str):
-            nref = 1
-            value_refs = np.array([0], dtype=np.uint32, ndmin=1).ravel()
-            orders = np.array([order], dtype=np.int32)
-            value_refs[0] = self.get_variable_valueref(variables)
-        elif isinstance(variables, list) and np.prod([int(isinstance(v, str)) for v in variables]): #prod equals 0 or 1
-            nref = len(variables)
-            value_refs = np.array([0]*nref, dtype=np.uint32, ndmin=1).ravel()
-            orders = np.array([0]*nref, dtype=np.int32)
-            for i in range(nref):
-                value_refs[i] = self.get_variable_valueref(variables[i])
-                orders[i] = order
-        else:
-            raise FMUException("The variables must either be a string or a list of strings")
+        if not isinstance(variables, (str, list)) or not all(isinstance(v, str) for v in variables):
+            raise FMUException("The variables must either be a string or a list of strings.")
 
+        if isinstance(variables, str):
+            variables = [variables]
+        nref = len(variables)
+        value_refs = np.array([self.get_variable_valueref(v) for v in variables], dtype=np.uint32, ndmin=1).ravel()
+        orders = np.array([order]*nref, dtype=np.int32)
         values = np.array([0.0]*nref, dtype=float, ndmin=1)
 
         status = self._get_output_derivatives(value_refs, values, orders)
