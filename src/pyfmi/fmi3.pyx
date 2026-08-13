@@ -3968,6 +3968,70 @@ cdef class FMUModelCS3(FMUModelBase3):
 
         return status
 
+    def get_output_derivatives(self, variables, FMIL3.fmi3_int32_t order):
+        """
+        Returns the output derivatives for the specified variables. The
+        order specifies the nth-derivative.
+
+        Parameters::
+
+            variables --
+                The variables for which the output derivatives
+                should be returned.
+
+            order --
+                The derivative order.
+
+        Returns::
+
+            The derivatives of the specified order.
+        """
+        cdef FMIL3.fmi3_status_t status
+        cdef unsigned int max_output_derivative
+        cdef FMIL.size_t nref
+        cdef np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode='c']         values
+        cdef np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode='c'] value_refs
+        cdef np.ndarray[FMIL3.fmi3_int32_t, ndim=1, mode='c']           orders
+
+        max_output_derivative = FMIL3.fmi3_import_get_capability(self._fmu, FMIL3.fmi3_cs_maxOutputDerivativeOrder)
+
+        if order < 1 or order > max_output_derivative:
+            raise FMUException("The order must be greater than zero and below the maximum output derivative support of the FMU (%d)."%max_output_derivative)
+
+        if not isinstance(variables, (str, list)) or not all(isinstance(v, str) for v in variables):
+            raise FMUException("The variables must either be a string or a list of strings.")
+
+        if isinstance(variables, str):
+            variables = [variables]
+        nref = len(variables)
+        value_refs = np.array([self.get_variable_valueref(v) for v in variables], dtype=np.uint32, ndmin=1).ravel()
+        orders = np.array([order]*nref, dtype=np.int32)
+        values = np.array([0.0]*nref, dtype=float, ndmin=1)
+
+        status = self._get_output_derivatives(value_refs, values, orders)
+
+        if status != 0:
+            raise FMUException('Failed to get the output derivatives.')
+
+        return values
+
+    cdef FMIL3.fmi3_status_t _get_output_derivatives(self, np.ndarray[FMIL3.fmi3_value_reference_t, ndim=1, mode="c"] value_refs,
+                                           np.ndarray[FMIL3.fmi3_float64_t, ndim=1, mode="c"] values,
+                                           np.ndarray[FMIL3.fmi3_int32_t, ndim=1, mode="c"] orders):
+        cdef FMIL3.fmi3_status_t status
+
+        if not (np.size(values) >= np.size(value_refs) and np.size(orders) >= np.size(value_refs)):
+            raise FMUException('Failed to get the output derivatives. Fatal dimension mismatch')
+
+        self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
+        status = FMIL3.fmi3_import_get_output_derivatives(self._fmu,
+                    <FMIL3.fmi3_value_reference_t*> value_refs.data, np.size(value_refs),
+                    <FMIL3.fmi3_int32_t*> orders.data,
+                    <FMIL3.fmi3_float64_t*> values.data, np.size(values))
+        self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
+
+        return status
+
     def simulate(self,
                  start_time="Default",
                  final_time="Default",
