@@ -183,7 +183,7 @@ cdef class FMUModelME3(FMUModelBase3):
     cdef FMIL3.fmi3_status_t _get_nominal_continuous_states_fmil(self, FMIL3.fmi3_float64_t* xnominal, size_t nx)
 
 cdef class FMUModelCS3(FMUModelBase3):
-    cdef public bool do_step_terminated
+    cdef public FMIL3.fmi3_boolean_t do_step_terminated
     cdef FMIL3.fmi3_boolean_t _instantiated_with_early_return
     cpdef _get_time(self)
     cpdef _set_time(self, FMIL3.fmi3_float64_t t)
