@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+
+--- PyFMI-2.22.0 ---
     * Increased robustness in event handling for models without continuous states.
 
 --- PyFMI-2.21.0 ---
