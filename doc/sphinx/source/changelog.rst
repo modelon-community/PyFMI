@@ -2,6 +2,9 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.22.0 ---
+    * Increased robustness in event handling for models without continuous states.
+
 --- PyFMI-2.21.0 ---
     * Fixed a crash with the `Master` algorithm option `block_initialization`.
     * Fixed a result handling issue for `dynamic_diagnostics = True` and `["<solver>_options"]["clock_step"] = False`.
