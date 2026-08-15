@@ -19,6 +19,7 @@
 
 import numpy as np
 cimport numpy as np
+np.import_array()
 
 cimport pyfmi.fmil_import as FMIL
 cimport pyfmi.fmil3_import as FMIL3

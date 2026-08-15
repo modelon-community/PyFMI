@@ -26,6 +26,7 @@ from timeit import default_timer as timer
 
 import numpy as np
 cimport numpy as np
+np.import_array()
 
 from pyfmi.exceptions import FMUException, FMIModel_Exception, FMIModelException
 

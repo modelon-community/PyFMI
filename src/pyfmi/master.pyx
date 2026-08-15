@@ -28,6 +28,7 @@ from cython.parallel import prange, parallel
 
 import numpy as np
 cimport numpy as np
+np.import_array()
 import scipy as sp
 import scipy.sparse as sps
 import scipy.optimize as spopt
