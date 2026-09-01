@@ -215,7 +215,7 @@ class DynamicDiagnosticsUtils:
         return np.cumsum((event_type_data[:min_nbr_states] == -1) * (state_error[:min_nbr_states] >= 1.0))
     
 def setup_diagnostics_variables(model, start_time, options, solver_options):
-    """ Sets up initial diagnostics data. This function is called before a simulation is initiated. """
+    """ Sets up initial diagnostics data. This function is called before a simulation is initiated."""
     _diagnostics_params = {}
     _diagnostics_vars = {}
 
@@ -238,10 +238,10 @@ def setup_diagnostics_variables(model, start_time, options, solver_options):
         states_list = model.get_states_list() if callable(getattr(model, "get_states_list", None)) else []
 
         if solver_name != "ExplicitEuler":
-            rtol = solver_options.get('rtol', None)
+            solver_rtol = solver_options.get('rtol', None)
             atol = solver_options.get('atol', None)
-            if (rtol is None) or (atol is None):
-                rtol, atol = model.get_tolerances()
+            if (solver_rtol is None) or (atol is None):
+                solver_rtol, atol = model.get_tolerances()
             
             # if atol is scalar, convert to list
             if isinstance(atol, numbers.Number): 
@@ -253,7 +253,9 @@ def setup_diagnostics_variables(model, start_time, options, solver_options):
                     atol = [atol.item()]*len(states_list)
                 else: # general iterable, e.g., list
                     atol = [atol[0]]*len(states_list)
-                
+
+            # 'rtol' may be a vector with zero entries for states with unbounded = True
+            rtol = float(np.max(solver_rtol))
             _diagnostics_params[f"{DIAGNOSTICS_PREFIX}solver.relative_tolerance"] = (rtol, "Relative solver tolerance.")
 
             for idx, state in enumerate(states_list):

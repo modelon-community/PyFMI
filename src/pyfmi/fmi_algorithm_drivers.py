@@ -531,18 +531,10 @@ class AssimuloFMIAlg(AlgorithmBase):
                 self.rtol = self.solver_options["rtol"]
 
                 if not isinstance(self.model, FMUModelME1):
-                    unbounded_attribute = False
-                    rtol_vector = []
-                    for state in self.model.get_states_list():
-                        if self.model.get_variable_unbounded(state):
-                            unbounded_attribute = True
-                            rtol_vector.append(0.0)
-                        else:
-                            rtol_vector.append(self.rtol)
-
-                    if unbounded_attribute:
+                    unbounded_mask = [self.model.get_variable_unbounded(state) for state in self.model.get_states_list()]
+                    if any(unbounded_mask):
                         self._rtol_as_scalar_fallback = True
-                        self.solver_options['rtol'] = rtol_vector
+                        self.solver_options['rtol'] = [0 if unbounded else self.rtol for unbounded in unbounded_mask]
 
         except KeyError:
             self.rtol = self.model.get_relative_tolerance() #No support for relative tolerance in the used solver
@@ -583,7 +575,6 @@ class AssimuloFMIAlg(AlgorithmBase):
             atol = self.solver_options["atol"]
             if isinstance(atol, str) and atol == "Default":
                 fnbr, _ = self.model.get_ode_sizes()
-                rtol = self.solver_options["rtol"]
                 if fnbr == 0:
                     self.solver_options["atol"] = 0.01*self.rtol
                 else:

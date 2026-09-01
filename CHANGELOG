@@ -1,5 +1,6 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+    * Fixed an exception when using `dynamic_diagnostics` for FMUs with `unbounded = True` states.
 
 --- PyFMI-2.22.0 ---
     * Increased robustness in event handling for models without continuous states.

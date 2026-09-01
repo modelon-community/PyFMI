@@ -26,9 +26,12 @@ from pyfmi.common.diagnostics import (
     DIAGNOSTICS_PREFIX,
     DynamicDiagnosticsUtils
 )
+from pyfmi.test_util import Dummy_FMUModelME2
 
 this_dir = Path(__file__).parent
 FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
+# CoupledClutchesModified declares 'unbounded = true' on two of its states
+FMI2_UNBOUNDED_FMU_PATH = Path(this_dir) / 'files' / 'FMUs' / 'XML' / 'ME2.0' / 'CoupledClutchesModified.fmu'
 
 class ResultStoreCalcDiagnostics(ResultHandler):
     """Result handler for testing explicit storage of calculated diagnostics."""
@@ -224,3 +227,23 @@ class TestDynamicDiagnosticsUtils:
         res = model.simulate(options = {"dynamic_diagnostics": True})
 
         assert res["@Diagnostics.nbr_steps"][-1] == res.solver.statistics['nsteps']
+
+
+class TestDynamicDiagnostics:
+    """Tests relating to the 'dynamic_diagnostics' option."""
+    def test_unbounded_states(self):
+        """Test that 'dynamic_diagnostics' works for an FMU with unbounded = true states."""
+        model = Dummy_FMUModelME2([], FMI2_UNBOUNDED_FMU_PATH, _connect_dll = False)
+        assert any(model.get_variable_unbounded(state) for state in model.get_states_list()), \
+            "test requires an FMU declaring unbounded states"
+
+        rtol = 1
+        res = model.simulate(options = {
+            "dynamic_diagnostics": True,
+            "solver": "CVode",
+            "CVode_options": {"rtol" : rtol}
+            }
+        )
+
+        rtol_traj = res[f"{DIAGNOSTICS_PREFIX}solver.relative_tolerance"]
+        assert rtol_traj[0] == rtol
