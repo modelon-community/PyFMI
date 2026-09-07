@@ -626,12 +626,10 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             else:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU kind could not be determined. Enable logging for possibly more information.")
         elif self._fmu_kind == FMIL2.fmi2_fmu_kind_me_and_cs:
-            if isinstance(self,FMUModelME2):
+            if self.get_fmu_kind() == FMUKind.MODEL_EXCHANGE:
                 self._fmu_kind = FMIL2.fmi2_fmu_kind_me
-            elif isinstance(self,FMUModelCS2):
-                self._fmu_kind = FMIL2.fmi2_fmu_kind_cs
             else:
-                raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
+                self._fmu_kind = FMIL2.fmi2_fmu_kind_cs
 
         #Connect the DLL
         if _connect_dll:
@@ -647,12 +645,10 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
             self._allocated_dll = 1
 
         #Load information from model
-        if isinstance(self,FMUModelME2):
-            self._modelId           = pyfmi_util.decode(FMIL2.fmi2_import_get_model_identifier_ME(self._fmu))
-        elif isinstance(self,FMUModelCS2):
-            self._modelId           = pyfmi_util.decode(FMIL2.fmi2_import_get_model_identifier_CS(self._fmu))
+        if self.get_fmu_kind() == FMUKind.MODEL_EXCHANGE:
+            self._modelId = pyfmi_util.decode(FMIL2.fmi2_import_get_model_identifier_ME(self._fmu))
         else:
-            raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
+            self._modelId = pyfmi_util.decode(FMIL2.fmi2_import_get_model_identifier_CS(self._fmu))
 
         #Connect the DLL
         self._modelName         = pyfmi_util.decode(FMIL2.fmi2_import_get_model_name(self._fmu))
@@ -1127,12 +1123,10 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         else:
             vis = 0
 
-        if isinstance(self,FMUModelME2):
+        if self.get_fmu_kind() == FMUKind.MODEL_EXCHANGE:
             fmuType = FMIL2.fmi2_model_exchange
-        elif isinstance(self,FMUModelCS2):
-            fmuType = FMIL2.fmi2_cosimulation
         else:
-            raise FMUException('The instance is not curent an instance of an ME-model or a CS-model. Use load_fmu for correct loading.')
+            fmuType = FMIL2.fmi2_cosimulation
 
         name = pyfmi_util.encode(name)
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
