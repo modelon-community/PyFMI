@@ -46,6 +46,7 @@ from pyfmi.common.core import create_temp_dir
 from pyfmi.fmi_base import (
     PyEventInfo, 
     FMI_DEFAULT_LOG_LEVEL,
+    FMUKind,
     check_fmu_args,
     _handle_load_fmu_exception
 )
@@ -1721,6 +1722,21 @@ cdef class FMUModelCS1(FMUModelBase):
     #First step only support fmi1_fmu_kind_enu_cs_standalone
     #stepFinished not supported
 
+    def get_fmu_kind(self):
+        """
+        Returns the kind of the FMU, see pyfmi.fmi.FMUKind.
+
+        Returns::
+
+            kind --
+                FMUKind.CO_SIMULATION
+
+        Example::
+
+            model.get_fmu_kind()
+        """
+        return FMUKind.CO_SIMULATION
+
     def __init__(self, fmu: Union[str, Path], log_file_name=None, log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         #Call super
@@ -2262,6 +2278,21 @@ cdef class FMUModelME1(FMUModelBase):
     """
     An FMI Model loaded from a DLL.
     """
+
+    def get_fmu_kind(self):
+        """
+        Returns the kind of the FMU, see pyfmi.fmi.FMUKind.
+
+        Returns::
+
+            kind --
+                FMUKind.MODEL_EXCHANGE
+
+        Example::
+
+            model.get_fmu_kind()
+        """
+        return FMUKind.MODEL_EXCHANGE
 
     def __init__(self, fmu: Union[str, Path], log_file_name=None, log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
@@ -3026,10 +3057,10 @@ cdef object _load_fmi1_fmu(
     fmu_1_kind = FMIL1.fmi1_import_get_fmu_kind(fmu_1)
 
     # Compare fmu_kind with input-specified kind
-    if fmu_1_kind == FMI_ME and kind.upper() != 'CS':
+    if fmu_1_kind == FMI_ME and kind != 'cs':
         model = FMUModelME1(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                             allow_unzipped_fmu = allow_unzipped_fmu)
-    elif (fmu_1_kind == FMI_CS_STANDALONE or fmu_1_kind == FMI_CS_TOOL) and kind.upper() != 'ME':
+    elif (fmu_1_kind == FMI_CS_STANDALONE or fmu_1_kind == FMI_CS_TOOL) and kind != 'me':
         model = FMUModelCS1(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                             allow_unzipped_fmu = allow_unzipped_fmu)
     else:

@@ -56,6 +56,7 @@ from pyfmi.fmi_base import (
     LogHandlerDefault,
     PyEventInfo,
     FMI_DEFAULT_LOG_LEVEL,
+    FMUKind,
     check_fmu_args,
     _handle_load_fmu_exception
 )
@@ -203,11 +204,11 @@ cpdef load_fmu(fmu: Union[str, Path], log_file_name = None, kind = 'auto',
             String indicating the kind of model to create. This is only
             needed if a FMU contains multiple models.
             Available options:
-                - 'ME'
-                - 'CS'
-                - 'SE'
+                - 'me'
+                - 'cs'
+                - 'se'
                 - 'auto'
-            Default: 'auto' (Chooses ME > CS > SE, if multiple are available)
+            Default: 'auto' (Chooses 'me' > 'cs' > 'se', if multiple are available)
 
         log_level --
             Determines the logging output. Can be set between 0
@@ -243,10 +244,13 @@ cpdef load_fmu(fmu: Union[str, Path], log_file_name = None, kind = 'auto',
     fmu_full_path = os.path.abspath(fmu)
     check_fmu_args(allow_unzipped_fmu, fmu, fmu_full_path)
 
-    # Check that kind-argument is well-defined
-    _allowed_kinds = ["ME", "CS", "SE"]
-    if (not kind.lower() == "auto") and (kind.upper() not in _allowed_kinds):
-        raise FMUException('Input-argument "kind" can only be "ME", "CS", "SE" or "auto" (default) and not: ' + kind)
+    # Check that kind-argument is well-defined.
+    # Note that 'kind' is normalized into an exact str, since the version specific
+    # loaders below are typed 'str kind'
+    kind = str(kind).lower()
+    _allowed_kinds = ["me", "cs", "se"]
+    if (not kind == "auto") and (kind not in _allowed_kinds):
+        raise FMUException('Input-argument "kind" can only be "me", "cs", "se" or "auto" (default) and not: ' + kind)
 
     # Specify FMI related callbacks
     callbacks.malloc    = FMIL.malloc

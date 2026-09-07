@@ -32,6 +32,7 @@ import os
 import logging
 import fnmatch
 import re
+from enum import StrEnum
 from io import UnsupportedOperation
 cimport cython
 
@@ -49,6 +50,18 @@ np.int = np.int32
 
 # FMI types
 FMI_DEFAULT_LOG_LEVEL = FMIL.jm_log_level_error
+
+class FMUKind(StrEnum):
+    """ The kind of an FMU, i.e. which FMI interface an FMU instance exposes. 
+    
+    Possible values:
+        MODEL_EXCHANGE      = 'me'
+        CO_SIMULATION       = 'cs'
+        SCHEDULED_EXECUTION = 'se'
+    """
+    MODEL_EXCHANGE      = "me"
+    CO_SIMULATION       = "cs"
+    SCHEDULED_EXECUTION = "se"
 
 cdef FMIL.fmi_version_enu_t import_and_get_version(FMIL.fmi_import_context_t* context, char* fmu_full_path, char* fmu_temp_dir, int allow_unzipped_fmu):
     """ Invokes the necessary FMIL functions to retrieve FMI version while accounting
@@ -375,6 +388,24 @@ cdef class ModelBase:
         Example::
 
             model.get_version()
+        """
+        raise NotImplementedError
+
+    def get_fmu_kind(self):
+        """
+        Returns the kind of the FMU, i.e. which FMI interface this instance exposes.
+
+        Note that an FMU may support several kinds; the kind is decided when the
+        instance is created, e.g. via load_fmu(fmu, kind = ...).
+
+        Returns::
+
+            kind --
+                The kind of the FMU, see pyfmi.fmi.FMUKind.
+
+        Example::
+
+            model.get_fmu_kind()
         """
         raise NotImplementedError
 

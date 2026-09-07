@@ -104,6 +104,7 @@ from pyfmi.exceptions import (
 
 from pyfmi.fmi_base import (
     FMI_DEFAULT_LOG_LEVEL,
+    FMUKind,
     _handle_load_fmu_exception,
     check_fmu_args
 )
@@ -3305,6 +3306,10 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return pyfmi_util.decode(version)
 
+    def get_fmu_kind(self):
+        """ Returns the kind of the FMU, see pyfmi.fmi.FMUKind. """
+        raise FMUException("FMUModelBase3 cannot be used directly, use FMUModelME3 or FMUModelCS3.")
+
     def get_name(self) -> str:
         """ Return the model name as used in the modeling environment. """
         return self._modelName
@@ -3775,6 +3780,21 @@ cdef class FMUModelCS3(FMUModelBase3):
     """
     Co-simulation model loaded from a dll
     """
+    def get_fmu_kind(self):
+        """
+        Returns the kind of the FMU, see pyfmi.fmi.FMUKind.
+
+        Returns::
+
+            kind --
+                FMUKind.CO_SIMULATION
+
+        Example::
+
+            model.get_fmu_kind()
+        """
+        return FMUKind.CO_SIMULATION
+
     def __init__(self, fmu: Union[str, Path], log_file_name = None, log_level = FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir = None, _connect_dll = True, allow_unzipped_fmu = False):
         """
@@ -4202,6 +4222,21 @@ cdef class FMUModelME3(FMUModelBase3):
     """
     FMI3 ModelExchange model loaded from a dll
     """
+
+    def get_fmu_kind(self):
+        """
+        Returns the kind of the FMU, see pyfmi.fmi.FMUKind.
+
+        Returns::
+
+            kind --
+                FMUKind.MODEL_EXCHANGE
+
+        Example::
+
+            model.get_fmu_kind()
+        """
+        return FMUKind.MODEL_EXCHANGE
 
     def __init__(self, fmu: Union[str, Path], log_file_name = None, log_level = FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir = None, _connect_dll = True, allow_unzipped_fmu = False):
@@ -5207,7 +5242,7 @@ cdef object _load_fmi3_fmu(
             raise FMUException("The FMU kind could not be determined. Enable logging for possibly more information.")
 
     # FMU kind is known
-    if kind.lower() == "auto":
+    if kind == "auto":
         if fmu_3_kind & FMIL3.fmi3_fmu_kind_me:
             model = FMUModelME3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                                 allow_unzipped_fmu = allow_unzipped_fmu)
@@ -5216,13 +5251,13 @@ cdef object _load_fmi3_fmu(
                                 allow_unzipped_fmu = allow_unzipped_fmu)
         elif fmu_3_kind & FMIL3.fmi3_fmu_kind_se:
             raise InvalidFMUException("Import of FMI3 Scheduled Execution FMUs is not supported.")
-    elif (kind.upper() == 'ME') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_me):
+    elif (kind == 'me') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_me):
         model = FMUModelME3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                             allow_unzipped_fmu = allow_unzipped_fmu)
-    elif (kind.upper() == 'CS') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_cs):
+    elif (kind == 'cs') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_cs):
         model = FMUModelCS3(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                             allow_unzipped_fmu = allow_unzipped_fmu)
-    elif (kind.upper() == 'SE') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_se):
+    elif (kind == 'se') and (fmu_3_kind & FMIL3.fmi3_fmu_kind_se):
         raise InvalidFMUException("Import of FMI3 Scheduled Execution FMUs is not supported.")
 
     # Could not match FMU kind with input-specified kind
@@ -5233,11 +5268,11 @@ cdef object _load_fmi3_fmu(
         # TODO, from FMIL we get without blank spaces, i.e. we get 'ModelExchange' and not 'Model Exchange'
         # when we invoke fmi3_fmu_kind_to_string, perhaps we should format accordingly here?
         kind_name = kind.upper()
-        if kind.upper() == 'SE':
+        if kind == 'se':
             kind_name = 'ScheduledExecution'
-        elif kind.upper() == 'CS':
+        elif kind == 'cs':
             kind_name = 'CoSimulation'
-        elif kind.upper() == 'ME':
+        elif kind == 'me':
             kind_name = 'ModelExchange'
         raise FMUException("FMU is a {} and not a {}".format(
             pyfmi_util.decode(FMIL3.fmi3_fmu_kind_to_string(fmu_3_kind)),

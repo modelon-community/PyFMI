@@ -27,6 +27,7 @@ import dataclasses
 from typing import Callable
 
 from pyfmi.fmi import (
+    FMUKind,
     FMUException,
     InvalidVersionException,
     load_fmu,
@@ -301,3 +302,59 @@ class Test_load_fmu_only_XML:
 def test_get_version(fmu_path, expected):
     """Verify get_version reports the version from a loaded FMU binary."""
     assert load_fmu(fmu_path).get_version() == expected
+
+
+class Test_get_fmu_kind:
+    """Tests for get_fmu_kind, common to all FMI versions."""
+
+    ALL_CLASSES = [
+        (FMUModelME1, REFERENCE_FMU_FMI1_PATH / "me" / "VanDerPol.fmu", FMUKind.MODEL_EXCHANGE),
+        (FMUModelCS1, REFERENCE_FMU_FMI1_PATH / "cs" / "VanDerPol.fmu", FMUKind.CO_SIMULATION),
+        (FMUModelME2, REFERENCE_FMU_FMI2_PATH / "VanDerPol.fmu",        FMUKind.MODEL_EXCHANGE),
+        (FMUModelCS2, REFERENCE_FMU_FMI2_PATH / "VanDerPol.fmu",        FMUKind.CO_SIMULATION),
+        (FMUModelME3, REFERENCE_FMU_FMI3_PATH / "VanDerPol.fmu",        FMUKind.MODEL_EXCHANGE),
+        (FMUModelCS3, REFERENCE_FMU_FMI3_PATH / "VanDerPol.fmu",        FMUKind.CO_SIMULATION),
+    ]
+
+    def test_fmu_kind_values(self):
+        """Verify FMUKind values, they are relied upon as the load_fmu 'kind' argument."""
+        assert FMUKind.MODEL_EXCHANGE == "me"
+        assert FMUKind.CO_SIMULATION == "cs"
+        assert FMUKind.SCHEDULED_EXECUTION == "se"
+
+    @pytest.mark.parametrize("test_class, fmu_path, expected", ALL_CLASSES)
+    def test_get_fmu_kind(self, test_class, fmu_path, expected):
+        """Verify each FMU class reports its kind."""
+        assert test_class(fmu_path).get_fmu_kind() == expected
+
+    @pytest.mark.parametrize("test_class, fmu_path, expected", ALL_CLASSES)
+    def test_get_fmu_kind_without_binary(self, test_class, fmu_path, expected):
+        """Verify get_fmu_kind does not require the FMU binary to be loaded."""
+        assert test_class(fmu_path, _connect_dll = False).get_fmu_kind() == expected
+
+    @pytest.mark.parametrize("test_class, fmu_path, expected", ALL_CLASSES)
+    def test_get_fmu_kind_load_fmu_roundtrip(self, test_class, fmu_path, expected):
+        """Verify get_fmu_kind is directly usable as the load_fmu 'kind' argument."""
+        kind = test_class(fmu_path).get_fmu_kind()
+        assert isinstance(load_fmu(fmu_path, kind = kind), test_class)
+
+@pytest.mark.parametrize("upper", [True, False])
+@pytest.mark.parametrize("fmu_path, kind",
+    [
+        (REFERENCE_FMU_FMI1_PATH / "me" / "VanDerPol.fmu", "me"),
+        (REFERENCE_FMU_FMI1_PATH / "me" / "VanDerPol.fmu", "auto"),
+        (REFERENCE_FMU_FMI1_PATH / "cs" / "VanDerPol.fmu", "cs"),
+        (REFERENCE_FMU_FMI1_PATH / "cs" / "VanDerPol.fmu", "auto"),
+
+        (REFERENCE_FMU_FMI2_PATH / "VanDerPol.fmu", "me"),
+        (REFERENCE_FMU_FMI2_PATH / "VanDerPol.fmu", "cs"),
+        (REFERENCE_FMU_FMI2_PATH / "VanDerPol.fmu", "auto"),
+
+        (REFERENCE_FMU_FMI3_PATH / "VanDerPol.fmu", "me"),
+        (REFERENCE_FMU_FMI3_PATH / "VanDerPol.fmu", "cs"),
+        (REFERENCE_FMU_FMI3_PATH / "VanDerPol.fmu", "auto"),
+    ]
+)
+def test_load_fmu_kind_is_not_case_sensitive(fmu_path, kind, upper):
+    kind = kind.upper() if upper else kind
+    load_fmu(fmu_path, log_level = 0, kind = kind)
