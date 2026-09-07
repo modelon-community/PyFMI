@@ -430,7 +430,14 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
             else:
                 raise InvalidVersionException("The FMU could not be loaded. The FMU kind could not be determined. Enable logging for possibly more information.")
         else:
-            self._fmu_kind = self._get_fmu_kind()
+            if self.get_fmu_kind() == FMUKind.MODEL_EXCHANGE:
+                if not (self._fmu_kind & FMIL3.fmi3_fmu_kind_me):
+                    raise InvalidVersionException('The FMU could not be loaded. This class only supports FMI 3.0 for Model Exchange.')
+                self._fmu_kind = FMIL3.fmi3_fmu_kind_me
+            else:
+                if not (self._fmu_kind & FMIL3.fmi3_fmu_kind_cs):
+                    raise InvalidVersionException('The FMU could not be loaded. This class only supports FMI 3.0 for Co Simulation.')
+                self._fmu_kind = FMIL3.fmi3_fmu_kind_cs
 
         # Connect the DLL
         if _connect_dll:
@@ -748,9 +755,6 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
 
         self._setup_log_state(self._loaded_with_log_level)
         super().reset()
-
-    def _get_fmu_kind(self):
-        raise FMUException("FMUModelBase3 cannot be used directly, use FMUModelME3.")
 
     def instantiate(self, name: str = 'Model', visible: bool = False) -> None:
         raise NotImplementedError # to implemented in FMUModel(ME|CS|SE)3
@@ -3844,12 +3848,6 @@ cdef class FMUModelCS3(FMUModelBase3):
         FMUModelBase3.reset(self)
         self.do_step_terminated = False
 
-    def _get_fmu_kind(self):
-        if self._fmu_kind & FMIL3.fmi3_fmu_kind_cs:
-            return FMIL3.fmi3_fmu_kind_cs
-        else:
-            raise InvalidVersionException('The FMU could not be loaded. This class only supports FMI 3.0 for Co Simulation.')
-
     def get_identifier(self):
         if self._modelId is None:
             self._modelId = pyfmi_util.decode(FMIL3.fmi3_import_get_model_identifier_CS(self._fmu))
@@ -4298,12 +4296,6 @@ cdef class FMUModelME3(FMUModelBase3):
         self.finite_differences_method = FORWARD_DIFFERENCE
 
         self._preinit_nominal_continuous_states = None
-
-    def _get_fmu_kind(self):
-        if self._fmu_kind & FMIL3.fmi3_fmu_kind_me:
-            return FMIL3.fmi3_fmu_kind_me
-        else:
-            raise InvalidVersionException('The FMU could not be loaded. This class only supports FMI 3.0 for Model Exchange.')
 
     def get_identifier(self):
         if self._modelId is None:
