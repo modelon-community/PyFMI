@@ -35,6 +35,7 @@ from collections import OrderedDict
 from pyfmi.fmi_base import (
     PyEventInfo,
     FMI_DEFAULT_LOG_LEVEL,
+    FMUKind,
     check_fmu_args,
     _handle_load_fmu_exception
 )
@@ -3468,6 +3469,10 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return pyfmi_util.decode(version)
 
+    def get_fmu_kind(self):
+        """ Returns the kind of the FMU, see pyfmi.fmi.FMUKind. """
+        raise FMUException("FMUModelBase2 cannot be used directly, use FMUModelME2 or FMUModelCS2.")
+
     def get_model_version(self):
         """
         Returns the version of the FMU.
@@ -3572,6 +3577,21 @@ cdef class FMUModelCS2(FMUModelBase2):
     """
     Co-simulation model loaded from a dll
     """
+    def get_fmu_kind(self):
+        """
+        Returns the kind of the FMU, see pyfmi.fmi.FMUKind.
+
+        Returns::
+
+            kind --
+                FMUKind.CO_SIMULATION
+
+        Example::
+
+            model.get_fmu_kind()
+        """
+        return FMUKind.CO_SIMULATION
+
     def __init__(self, fmu: Union[str, Path], log_file_name = None, log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
         """
@@ -4202,6 +4222,21 @@ cdef class FMUModelME2(FMUModelBase2):
     """
     Model-exchange model loaded from a dll
     """
+
+    def get_fmu_kind(self):
+        """
+        Returns the kind of the FMU, see pyfmi.fmi.FMUKind.
+
+        Returns::
+
+            kind --
+                FMUKind.MODEL_EXCHANGE
+
+        Example::
+
+            model.get_fmu_kind()
+        """
+        return FMUKind.MODEL_EXCHANGE
 
     def __init__(self, fmu: Union[str, Path], log_file_name = None, log_level=FMI_DEFAULT_LOG_LEVEL,
                  _unzipped_dir=None, _connect_dll=True, allow_unzipped_fmu = False):
@@ -5238,18 +5273,18 @@ cdef object _load_fmi2_fmu(
             raise FMUException("The FMU kind could not be determined. Enable logging for possibly more information.")
 
     # FMU kind is known
-    if kind.lower() == 'auto':
+    if kind == 'auto':
         if fmu_2_kind == FMIL2.fmi2_fmu_kind_cs:
             model = FMUModelCS2(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                                 allow_unzipped_fmu = allow_unzipped_fmu)
         elif fmu_2_kind == FMIL2.fmi2_fmu_kind_me or fmu_2_kind == FMIL2.fmi2_fmu_kind_me_and_cs:
             model = FMUModelME2(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                                 allow_unzipped_fmu = allow_unzipped_fmu)
-    elif kind.upper() == 'CS':
+    elif kind == 'cs':
         if fmu_2_kind == FMIL2.fmi2_fmu_kind_cs or fmu_2_kind == FMIL2.fmi2_fmu_kind_me_and_cs:
             model = FMUModelCS2(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                                 allow_unzipped_fmu = allow_unzipped_fmu)
-    elif kind.upper() == 'ME':
+    elif kind == 'me':
         if fmu_2_kind == FMIL2.fmi2_fmu_kind_me or fmu_2_kind == FMIL2.fmi2_fmu_kind_me_and_cs:
             model = FMUModelME2(fmu, log_file_name, log_level, _unzipped_dir = fmu_temp_dir,
                                 allow_unzipped_fmu = allow_unzipped_fmu)

@@ -336,10 +336,10 @@ class TestSimulationCS:
         """Test that CS simulation results are numerically identical to FMI2. """
         # Distinct result files, otherwise the (lazy) binary result readers
         # collide since both versions share the same model name.
-        res2 = load_fmu(FMI2_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "CS").simulate(
+        res2 = load_fmu(FMI2_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "cs").simulate(
             options = {"result_handling": "binary",
                        "result_file_name": str(tmp_path / f"{ref_fmu}_fmi2.mat")})
-        res3 = load_fmu(FMI3_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "CS").simulate(
+        res3 = load_fmu(FMI3_REF_FMU_PATH / (ref_fmu + ".fmu"), kind = "cs").simulate(
             options = {"result_handling": "binary",
                        "result_file_name": str(tmp_path / f"{ref_fmu}_fmi3.mat")})
 

@@ -150,14 +150,14 @@ class TestFMI3LoadFMU:
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "VanDerPol.fmu"])
     def test_load_kind_CS(self, ref_fmu):
         """Test loading an FMU with kind 'CS'"""
-        load_fmu(ref_fmu, kind = "CS")
+        load_fmu(ref_fmu, kind = "cs")
 
     @pytest.mark.parametrize("ref_fmu", [FMI3_REF_FMU_PATH / "Clocks.fmu"])
     def test_load_kind_SE(self, ref_fmu):
         """Test loading an FMU with kind 'SE'"""
         msg = "Import of FMI3 Scheduled Execution FMUs is not supported."
         with pytest.raises(FMUException, match = re.escape(msg)):
-            load_fmu(ref_fmu, kind = "SE")
+            load_fmu(ref_fmu, kind = "se")
 
     def test_get_model_identifier(self):
         """Test that model identifier is retrieved as expected."""
@@ -1515,7 +1515,7 @@ class Test_FMI3CS:
     """Basic unit tests for FMI3 import directly via the FMUModelCS3 class."""
     def test_load_via_load_fmu(self):
         """Test that load_fmu with kind = 'CS' returns an FMUModelCS3 instance."""
-        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS")
+        fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "cs")
         assert isinstance(fmu, FMUModelCS3)
 
     def test_basic_wrong_fmu_type(self):
@@ -1575,7 +1575,7 @@ class Test_FMI3CS:
         """ Test that instantiation works by verifying the output in the log."""
         with temp_dir_context(tmpdir) as temp_path:
              # log_level set to 5 required by test
-            fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "CS", log_level = 5)
+            fmu = load_fmu(FMI3_REF_FMU_PATH / "VanDerPol.fmu", kind = "cs", log_level = 5)
 
         substring_to_find = 'Successfully loaded all the interface functions'
         assert any(substring_to_find in line for line in fmu.get_log())
