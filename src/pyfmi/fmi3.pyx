@@ -3286,9 +3286,22 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         return pyfmi_util.decode(version) if version != NULL else ""
 
     def get_version(self) -> str:
-        """ Returns the FMI version of the Model which it was generated according. """
+        """
+        Returns the FMI version of the Model which it was generated according via 
+        calling the low-level FMI function: fmiGetVersion. 
+
+        Returns::
+
+            version --
+                The version.
+
+        Example::
+
+            model.get_version()
+        """
+        cdef FMIL3.fmi3_string_t version
         self._log_handler.capi_start_callback(self._max_log_size_msg_sent, self._current_log_size)
-        cdef FMIL3.fmi3_string_t version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_version(self._fmu)
+        version = <FMIL3.fmi3_string_t>FMIL3.fmi3_import_get_version(self._fmu)
         self._log_handler.capi_end_callback(self._max_log_size_msg_sent, self._current_log_size)
         return pyfmi_util.decode(version)
 

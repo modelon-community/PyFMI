@@ -21,7 +21,6 @@ import pytest
 import os
 from zipfile import ZipFile
 import tempfile
-import types
 import shutil
 from pathlib import Path
 import dataclasses
@@ -36,26 +35,27 @@ from pyfmi.fmi import (
     FMUModelME2,
     FMUModelCS2,
     FMUModelME3,
+    FMUModelCS3
 )
 from pyfmi.test_util import (
     get_examples_folder,
 )
 from pyfmi.common.core import create_temp_dir
 
-file_path = os.path.dirname(os.path.abspath(__file__))
+file_path = Path(os.path.dirname(os.path.abspath(__file__)))
+FMU_PATHS = file_path / "files" / "FMUs"
 
-FMU_PATHS     = types.SimpleNamespace()
-FMU_PATHS.ME1 = types.SimpleNamespace()
-FMU_PATHS.ME2 = types.SimpleNamespace()
-FMU_PATHS.ME1.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML", "ME1.0", "CoupledClutches.fmu")
-FMU_PATHS.ME2.coupled_clutches = os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu")
+FMU_PATHS_ME1_CC = FMU_PATHS / "XML" / "ME1.0" / "CoupledClutches.fmu"
+FMU_PATHS_CS1_CC = FMU_PATHS / "XML" / "CS1.0" / "CoupledClutches.fmu"
+FMU_PATHS_ME2_CC = FMU_PATHS / "XML" / "ME2.0" / "CoupledClutches.fmu"
+FMU_PATHS_CS2_CC = FMU_PATHS / "XML" / "CS2.0" / "CoupledClutches.fmu"
 
-REFERENCE_FMU_PATH = Path(file_path) / 'files' / 'reference_fmus'
+REFERENCE_FMU_PATH = file_path / 'files' / 'reference_fmus'
 REFERENCE_FMU_FMI1_PATH = REFERENCE_FMU_PATH / '1.0'
 REFERENCE_FMU_FMI2_PATH = REFERENCE_FMU_PATH / '2.0'
 REFERENCE_FMU_FMI3_PATH = REFERENCE_FMU_PATH / '3.0'
 
-TEST_FMU_PATH = Path(file_path) / 'files' / 'test_fmus'
+TEST_FMU_PATH = file_path / 'files' / 'test_fmus'
 TEST_FMU_FMI2_ME_PATH = TEST_FMU_PATH / '2.0' / 'me'
 
 PATH_TO_FMU_EXAMPLES = Path(get_examples_folder()) / 'files' / 'FMUs'
@@ -278,13 +278,26 @@ class Test_LogCategories:
 class Test_load_fmu_only_XML:
     @pytest.mark.parametrize("fmu_path, test_class",
         [
-            (FMU_PATHS.ME1.coupled_clutches, FMUModelME1),
-            (os.path.join(file_path, "files", "FMUs", "XML", "CS1.0", "CoupledClutches.fmu"), FMUModelCS1),
-            (FMU_PATHS.ME2.coupled_clutches, FMUModelME2),
-            (os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"), FMUModelCS2),
+            (FMU_PATHS_ME1_CC, FMUModelME1),
+            (FMU_PATHS_CS1_CC, FMUModelCS1),
+            (FMU_PATHS_ME2_CC, FMUModelME2),
+            (FMU_PATHS_CS2_CC, FMUModelCS2),
         ]
     )
     def test_load_xml(self, fmu_path, test_class):
         """Test loading only the XML without connecting to the DLL."""
         model = test_class(fmu_path, _connect_dll=False)
         assert model.get_name() == "CoupledClutches"
+
+
+@pytest.mark.parametrize("fmu_path, expected",
+    [
+        (REFERENCE_FMU_FMI1_PATH / "me" / "VanDerPol.fmu", "1.0"),
+        (REFERENCE_FMU_FMI1_PATH / "cs" / "VanDerPol.fmu", "1.0"),
+        (REFERENCE_FMU_FMI2_PATH / "VanDerPol.fmu", "2.0"),
+        (REFERENCE_FMU_FMI3_PATH / "VanDerPol.fmu", "3.0"),
+    ]
+)
+def test_get_version(fmu_path, expected):
+    """Verify get_version reports the version from a loaded FMU binary."""
+    assert load_fmu(fmu_path).get_version() == expected
