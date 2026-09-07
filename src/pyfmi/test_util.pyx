@@ -116,6 +116,10 @@ class Dummy_FMUModelME1(_ForTestingFMUModelME1):
 
     nominal_continuous_states = property(get_nominal_continuous_states_testimpl)
 
+    def get_version(self):
+        return "1.0"
+
+
 class Dummy_FMUModelCS1(FMI1.FMUModelCS1):
     #Override properties
     time = None
@@ -152,6 +156,9 @@ class Dummy_FMUModelCS1(FMI1.FMUModelCS1):
 
     def get_boolean(self, vref):
         return self.get_real(vref)
+
+    def get_version(self):
+        return "1.0"
 
 
 cdef class _ForTestingFMUModelME2(FMI2.FMUModelME2):
@@ -308,6 +315,9 @@ class Dummy_FMUModelCS2(FMI2.FMUModelCS2):
         for i,v in enumerate(vref):
             self.values[v] = values[i]
 
+    def get_version(self):
+        return "2.0"
+
 class Dummy_FMUModelME2(_ForTestingFMUModelME2):
 
     # -- Test options --
@@ -451,3 +461,6 @@ class Dummy_FMUModelME2(_ForTestingFMUModelME2):
 
     def get_log(self):
         return self._log
+
+    def get_version(self):
+        return "2.0"

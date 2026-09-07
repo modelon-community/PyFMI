@@ -363,6 +363,21 @@ cdef class ModelBase:
             the fmu has been simulated. Otherwise returns None."""
         return os.path.abspath(self._result_file) if isinstance(self._result_file, str) else None
 
+    def get_version(self):
+        """
+        Returns the FMI version of the Model which it was generated according.
+
+        Returns::
+
+            version --
+                The version.
+
+        Example::
+
+            model.get_version()
+        """
+        raise NotImplementedError
+
     def _get_default_log_file_name(self):
         return f"{self._modelId}_log.txt"
 

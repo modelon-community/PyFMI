@@ -434,7 +434,8 @@ cdef class FMUModelBase(FMI_BASE.ModelBase):
 
     def get_version(self):
         """
-        Returns the FMI version of the Model which it was generated according.
+        Returns the FMI version of the Model which it was generated according via 
+        calling the low-level FMI function: fmiGetVersion. 
 
         Returns::
 
