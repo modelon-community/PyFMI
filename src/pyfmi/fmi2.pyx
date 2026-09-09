@@ -678,6 +678,27 @@ cdef class FMUModelBase2(FMI_BASE.ModelBase):
 
         self._log = []
 
+    def __reduce__(self):
+        if self._allocated_fmu:
+            raise FMUException(
+                "Pickling is only supported for models in their initial (constructed) state. "
+                "Cannot pickle a model that has been instantiated."
+            )
+        _log_file_name = self._get_log_file_name()
+        fmu_path = self._fmu_full_path
+        if isinstance(fmu_path, bytes):
+            fmu_path = pyfmi_util.decode(fmu_path)
+        return (
+            self.__class__,
+            (fmu_path, _log_file_name, self._loaded_with_log_level,
+             None, bool(self._allocated_dll), bool(self._allow_unzipped_fmu)),
+            {'cache': self.cache} if self.cache else {}
+        )
+
+    def __setstate__(self, state):
+        if 'cache' in state:
+            self.cache = state['cache']
+
     def _setup_log_state(self, log_level):
         if log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all:
             self._enable_logging = log_level != FMIL.jm_log_level_nothing

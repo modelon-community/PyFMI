@@ -489,7 +489,28 @@ cdef class FMUModelBase3(FMI_BASE.ModelBase):
         self._event_info_nominals_of_continuous_states_changed = FMIL3.fmi3_false
         self._event_info_values_of_continuous_states_changed   = FMIL3.fmi3_true
         self._event_info_next_event_time_defined               = FMIL3.fmi3_false
-        self._event_info_next_event_time                       = 0.0
+        self._event_info_next_event_time = 0.0
+
+    def __reduce__(self):
+        if self._allocated_fmu:
+            raise FMUException(
+                "Pickling is only supported for models in their initial (constructed) state. "
+                "Cannot pickle a model that has been instantiated."
+            )
+        _log_file_name = self._get_log_file_name()
+        fmu_path = self._fmu_full_path
+        if isinstance(fmu_path, bytes):
+            fmu_path = pyfmi_util.decode(fmu_path)
+        return (
+            self.__class__,
+            (fmu_path, _log_file_name, self._loaded_with_log_level,
+             None, bool(self._allocated_dll), bool(self._allow_unzipped_fmu)),
+            {'cache': self.cache} if self.cache else {}
+        )
+
+    def __setstate__(self, state):
+        if 'cache' in state:
+            self.cache = state['cache']
 
     def _setup_log_state(self, log_level):
         if isinstance(log_level, int) and (log_level >= FMIL.jm_log_level_nothing and log_level <= FMIL.jm_log_level_all):
