@@ -2,6 +2,11 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.23.0 ---
+    * Fixed an exception when using `dynamic_diagnostics` for FMUs with `unbounded = True` states.
+    * New function `get_fmu_kind` for all FMU classes, returning `pyfmi.fmi.FMUKind`, e.g.
+      use `fmu.get_fmu_kind() == FMUKind.CO_SIMULATION == "cs"`
+
 --- PyFMI-2.22.0 ---
     * Increased robustness in event handling for models without continuous states.
 
