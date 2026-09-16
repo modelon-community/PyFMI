@@ -584,18 +584,20 @@ class AssimuloFMIAlg(AlgorithmBase):
                 return
             preinit_nominals = self.model._preinit_nominal_continuous_states
             if isinstance(preinit_nominals, np.ndarray) and (np.size(preinit_nominals) > 0):
-                # Heuristic:
-                # Try to find if atol was specified as "atol = factor * model.nominal_continuous_states",
-                # and if that's the case, recompute atol with nominals from after initialization.
-                factors = atol / preinit_nominals
-                f0 = factors[0]
-                for f in factors:
-                    if abs(f0 - f) > f0 * 1e-6:
-                        return
-                # Success.
-                self.solver_options["atol"] = atol * self.model.nominal_continuous_states / preinit_nominals
-                logging_module.info("Absolute tolerances have been recalculated by using values for state nominals from " +
-                             "after initialization.")
+                postinit_nominals = self.model.nominal_continuous_states
+                if any(abs(preinit_nominals - postinit_nominals) != 0): # actual change
+                    # Heuristic:
+                    # Try to find if atol was specified as "atol = factor * model.nominal_continuous_states",
+                    # and if that's the case, recompute atol with nominals from after initialization.
+                    factors = atol / preinit_nominals
+                    f0 = factors[0]
+                    for f in factors:
+                        if abs(f0 - f) > f0 * 1e-6:
+                            return
+                    # Success.
+                    self.solver_options["atol"] = f0 * postinit_nominals
+                    logging_module.info("Absolute tolerances have been recalculated by using values for state nominals from " +
+                                "after initialization.")
         except KeyError:
             pass
 
