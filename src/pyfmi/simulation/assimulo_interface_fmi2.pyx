@@ -302,7 +302,18 @@ cdef class FMIODE2(cExplicit_Problem):
             if self._f_nbr == 0:
                 return np.array([[0.0]])
 
-            A = self._model._get_A(add_diag=True, output_matrix=self._A)
+            # The FMU refusing a perturbed state (a nonlinear block that does not
+            # converge there, a bracketing failure) is a refused trial point, the
+            # same thing as in rhs(): recoverable, the solver shrinks its step or
+            # falls back to its own differences (CVode: CVDLS_JACFUNC_RECVR;
+            # TRBDF2: rhs-based differences, then the previous Jacobian).
+            # Measured 2026-09-21 on DataCenter.Examples.Systems.StandardChillerSystem
+            # and ChillerWithEconomizerSystem (no directional derivatives), where
+            # the raw FMUException ended a 30-day TRBDF2 run that CVode completed.
+            try:
+                A = self._model._get_A(add_diag=True, output_matrix=self._A)
+            except FMUException:
+                raise AssimuloRecoverableError
             if self._A is None:
                 self._A = A
 

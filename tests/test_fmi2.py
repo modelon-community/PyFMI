@@ -323,6 +323,90 @@ class Test_FMUModelME2_Simulation:
         opts["with_jacobian"] = True
         run_case(True, True)
 
+    def test_jacobian_mode_option(self):
+        """'jacobian_mode': directional derivatives vs coloured finite differences."""
+        import time as _time
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "BasicSens1.fmu"), _connect_dll=False)
+        caps = model.get_capability_flags()
+        model.get_capability_flags = lambda: caps
+        cost = {"rhs": 0.0, "dd": 0.0}
+
+        def rhs(*args, **kwargs):
+            _time.sleep(cost["rhs"])
+            return np.array([model.continuous_states[0]])
+
+        def dd(*args, **kwargs):
+            _time.sleep(cost["dd"])
+            return np.array([1.0])
+
+        model.get_derivatives = rhs
+        model.get_directional_derivative = dd
+        opts = model.simulate_options()
+        opts["result_handling"] = None
+        opts["with_jacobian"] = True
+
+        def run_case(expected_mode, expected_force_fd, solver="CVode", rtol=1e-6):
+            model.reset()
+            opts["solver"] = solver
+            opts[solver + "_options"]["rtol"] = rtol
+            alg = NoSolveAlg(0.0, 1.0, (), model, opts)
+            assert alg.jacobian_mode == expected_mode, alg.jacobian_mode
+            assert model.force_finite_differences == expected_force_fd, model.force_finite_differences
+
+        # no directional derivatives: always finite differences, nothing to force
+        caps["providesDirectionalDerivatives"] = False
+        for mode in ("auto", "dd", "fd"):
+            opts["jacobian_mode"] = mode
+            run_case("fd", 0)
+
+        caps["providesDirectionalDerivatives"] = True
+        model._provides_directional_derivatives = lambda: True
+        assert model.simulate_options()["jacobian_mode"] == "auto"
+        opts["jacobian_mode"] = "dd"
+        run_case("dd", 0)
+        opts["jacobian_mode"] = "fd"
+        run_case("fd", True)
+
+        # auto: decided by the measured cost of a directional derivative vs an rhs
+        opts["jacobian_mode"] = "auto"
+        cost["rhs"], cost["dd"] = 0.0, 0.002
+        run_case("fd", True)
+        cost["rhs"], cost["dd"] = 0.002, 0.0
+        run_case("dd", 0)
+        # a cheap directional derivative stays exact even if the rhs is cheaper still
+        import pyfmi.fmi_algorithm_drivers as fad
+        floor = fad.PYFMI_JACOBIAN_FD_MIN_DD_TIME
+        fad.PYFMI_JACOBIAN_FD_MIN_DD_TIME = 1.0
+        try:
+            run_case("dd", 0)
+        finally:
+            fad.PYFMI_JACOBIAN_FD_MIN_DD_TIME = floor
+        # ... except when the solver needs the exact Jacobian or the tolerance is tight
+        cost["rhs"], cost["dd"] = 0.0, 0.002
+        run_case("dd", 0, solver="RodasODE")
+        run_case("dd", 0, rtol=1e-8)
+
+        # not with_jacobian: nothing decided, nothing forced
+        opts["with_jacobian"] = False
+        model.reset()
+        alg = NoSolveAlg(0.0, 1.0, (), model, opts)
+        assert alg.jacobian_mode is None
+        assert model.force_finite_differences == 0
+
+        # the model attribute is restored after the simulation
+        opts["with_jacobian"] = True
+        opts["jacobian_mode"] = "fd"
+        model.reset()
+        alg = NoSolveAlg(0.0, 1.0, (), model, opts)
+        assert model.force_finite_differences is True
+        alg.solve()
+        alg.get_result()
+        assert model.force_finite_differences == 0
+
+        opts["jacobian_mode"] = "central"
+        with pytest.raises(InvalidOptionException):
+            NoSolveAlg(0.0, 1.0, (), model, opts)
+
     def test_sparse_option(self):
 
         def run_case(expected_jacobian, expected_sparse, fnbr=0, nnz={}, set_sparse=False):
@@ -826,6 +910,45 @@ class Test_FMUModelME2:
         fmu = FMUModelME2Test(REFERENCE_FMU_FMI2_PATH / "Stair.fmu")
         fmu.simulate()
 
+
+    def test_fd_kink_guard(self):
+        """Forward differences across a kink give jump/h; the guard detects them with a second
+        step and replaces them by the backward difference (no directional derivatives here)."""
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "LinearStateSpace.fmu"), _connect_dll=False)
+        x1 = model.variables["x[1]"].value_reference
+        x2 = model.variables["x[2]"].value_reference
+        d1 = model.variables["der(x[1])"].value_reference
+        d2 = model.variables["der(x[2])"].value_reference
+        kink_at = [None]
+
+        def f(*args, **kwargs):
+            v1, v2 = model.values[x1], model.values[x2]
+            jump = 1.0 if (kink_at[0] is not None and v1 > kink_at[0]) else 0.0   # step of size 1 just above x1
+            model.values[d1] = -v1 + jump
+            model.values[d2] = -v2 + 2.0 * v1
+            return np.array([model.values[d1], model.values[d2]])
+        model.get_derivatives = f
+        model.initialize(); model.event_update(); model.enter_continuous_time_mode()
+        model.continuous_states = np.array([1.0, 1.0]); model.values[x1] = 1.0; model.values[x2] = 1.0
+
+        # smooth: the guard checks every group on the first evaluation and changes nothing
+        A = model._get_A(add_diag=True).toarray()
+        assert np.allclose(A, [[-1.0, 0.0], [2.0, -1.0]]), A
+        assert model._fd_guard_stats["kink_entries"] == 0 and model._fd_guard_stats["checked_groups"] >= 1
+
+        # a kink right above x1: the forward difference sees the jump (1/eps ~ 6.7e7)
+        kink_at[0] = 1.0 + 0.5 * np.sqrt(np.finfo(float).eps)
+        model.fd_kink_guard = False
+        A_raw = model._get_A(add_diag=True).toarray()
+        assert A_raw[0, 0] > 1e6, A_raw
+        model.fd_kink_guard = True
+        A_guarded = model._get_A(add_diag=True).toarray()
+        assert np.allclose(A_guarded, [[-1.0, 0.0], [2.0, -1.0]]), A_guarded
+        assert model._fd_guard_stats["kink_entries"] >= 1
+
+        # off: the raw column comes through
+        model.fd_kink_guard = False
+        assert model._get_A(add_diag=True).toarray()[0, 0] > 1e6
 
 @pytest.mark.assimulo
 class Test_FMUModelBase2:
