@@ -20,8 +20,20 @@
 
 import numpy as np
 import numbers
+from enum import IntEnum
 
 DIAGNOSTICS_PREFIX = '@Diagnostics.'
+
+class EventType(IntEnum):
+    """Values of '@Diagnostics.event_data.event_info.event_type'."""
+    NO_EVENT = -1
+    STATE_EVENT = 0
+    TIME_EVENT = 1
+
+    @classmethod
+    def value_legend(cls):
+        return ", ".join(f"{e.name.replace('_', ' ')}={e.value}" for e in cls).capitalize()
+
 
 class DiagnosticsBase: # TODO: Future, possible deprecate & remove this?
     """ Class serves as a template
@@ -167,17 +179,17 @@ class DynamicDiagnosticsUtils:
         if self._idx_map_diags["event_type"] is not None:
             # event point
             etype = diag_data[self._idx_map_diags["event_type"]]
-            if etype == 1:
+            if etype == EventType.TIME_EVENT:
                 ret[self._idx_map_calc_diags["nbr_events"]] += 1
                 ret[self._idx_map_calc_diags["nbr_time_events"]] += 1
-            elif etype == 0:
+            elif etype == EventType.STATE_EVENT:
                 ret[self._idx_map_calc_diags["nbr_events"]] += 1
                 ret[self._idx_map_calc_diags["nbr_state_events"]] += 1
             else:
                 ret[self._idx_map_calc_diags["nbr_steps"]] += 1
 
             # state_errors
-            if etype == -1: # no event
+            if etype == EventType.NO_EVENT:
                 index_diag_data = self._idx_map_diags["state_errors"]
                 index_calc = self._idx_map_calc_diags["nbr_state_limits"]
                 for i in range(self._number_states):
@@ -201,10 +213,10 @@ class DynamicDiagnosticsUtils:
             '{DIAGNOSTICS_PREFIX}nbr_steps'
         """
         return {
-            f"{DIAGNOSTICS_PREFIX}nbr_events":       np.cumsum(event_type_data != -1),
-            f"{DIAGNOSTICS_PREFIX}nbr_time_events":  np.cumsum(event_type_data == 1),
-            f"{DIAGNOSTICS_PREFIX}nbr_state_events": np.cumsum(event_type_data == 0),
-            f"{DIAGNOSTICS_PREFIX}nbr_steps":        np.concatenate(([0], np.cumsum(event_type_data[1:] == -1))), # do not count the first point
+            f"{DIAGNOSTICS_PREFIX}nbr_events":       np.cumsum(event_type_data != EventType.NO_EVENT),
+            f"{DIAGNOSTICS_PREFIX}nbr_time_events":  np.cumsum(event_type_data == EventType.TIME_EVENT),
+            f"{DIAGNOSTICS_PREFIX}nbr_state_events": np.cumsum(event_type_data == EventType.STATE_EVENT),
+            f"{DIAGNOSTICS_PREFIX}nbr_steps":        np.concatenate(([0], np.cumsum(event_type_data[1:] == EventType.NO_EVENT))), # do not count the first point
         }
     
     @classmethod
@@ -212,7 +224,7 @@ class DynamicDiagnosticsUtils:
         """Given event_type_data trajectory, return the cumulative number of times
         the (normalized) state_error exceeded 1 (= limited step-size)."""
         min_nbr_states = min(event_type_data.size, state_error.size)
-        return np.cumsum((event_type_data[:min_nbr_states] == -1) * (state_error[:min_nbr_states] >= 1.0))
+        return np.cumsum((event_type_data[:min_nbr_states] == EventType.NO_EVENT) * (state_error[:min_nbr_states] >= 1.0))
     
 def setup_diagnostics_variables(model, start_time, options, solver_options):
     """ Sets up initial diagnostics data. This function is called before a simulation is initiated."""
@@ -276,6 +288,6 @@ def setup_diagnostics_variables(model, start_time, options, solver_options):
                 _diagnostics_vars[f"{DIAGNOSTICS_PREFIX}event_data.event_info.indicator_"+str(i+1)] = (ei_values[i], "Value for event indicator {}.".format(i+1))
             for i in range(nof_ei):
                 _diagnostics_vars[f"{DIAGNOSTICS_PREFIX}event_data.event_info.state_event_info.index_"+str(i+1)] = (0.0, "Zero crossing indicator for event indicator {}".format(i+1))
-            _diagnostics_vars[f"{DIAGNOSTICS_PREFIX}event_data.event_info.event_type"] = (-1, "No event=-1, state event=0, time event=1")
+            _diagnostics_vars[f"{DIAGNOSTICS_PREFIX}event_data.event_info.event_type"] = (EventType.NO_EVENT, EventType.value_legend())
 
     return _diagnostics_params, _diagnostics_vars
