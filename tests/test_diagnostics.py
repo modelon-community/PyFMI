@@ -24,7 +24,8 @@ from pyfmi import load_fmu
 from pyfmi.common.io import ResultHandler
 from pyfmi.common.diagnostics import (
     DIAGNOSTICS_PREFIX,
-    DynamicDiagnosticsUtils
+    DynamicDiagnosticsUtils,
+    EventType
 )
 from pyfmi.test_util import Dummy_FMUModelME2
 
@@ -32,6 +33,10 @@ this_dir = Path(__file__).parent
 FMI2_REF_FMU_PATH = Path(this_dir) / 'files' / 'reference_fmus' / '2.0'
 # CoupledClutchesModified declares 'unbounded = true' on two of its states
 FMI2_UNBOUNDED_FMU_PATH = Path(this_dir) / 'files' / 'FMUs' / 'XML' / 'ME2.0' / 'CoupledClutchesModified.fmu'
+
+NO_EV = EventType.NO_EVENT
+STATE_EV = EventType.STATE_EVENT
+TIME_EV = EventType.TIME_EVENT
 
 class ResultStoreCalcDiagnostics(ResultHandler):
     """Result handler for testing explicit storage of calculated diagnostics."""
@@ -82,8 +87,8 @@ class TestDynamicDiagnosticsUtils:
     
     def test_get_events_and_steps(self):
         """Test correctness of DynamicDiagnosticsUtils.get_events_and_steps"""
-        # contains all subsequences of length 2, consisting of [-1, 0, 1] 
-        event_type_data = np.array([-1, -1, 0, -1, 1, 1, 0, 0, 1, -1])
+        # contains all subsequences of length 2, consisting of [NO_EV, STATE_EV, TIME_EV]
+        event_type_data = np.array([NO_EV, NO_EV, STATE_EV, NO_EV, TIME_EV, TIME_EV, STATE_EV, STATE_EV, TIME_EV, NO_EV])
         output = DynamicDiagnosticsUtils.get_events_and_steps(event_type_data)
         np.testing.assert_array_equal(
             output[f"{DIAGNOSTICS_PREFIX}nbr_events"],
@@ -104,7 +109,7 @@ class TestDynamicDiagnosticsUtils:
 
     def test_get_nbr_state_limits(self):
         """Test correctness of DynamicDiagnosticsUtils.get_nbr_state_limits"""
-        event_type_data = np.array([-1, -1, 0, 0, 1, 1, -1, -1])
+        event_type_data = np.array([NO_EV, NO_EV, STATE_EV, STATE_EV, TIME_EV, TIME_EV, NO_EV, NO_EV])
         state_error = np.array([0.9, 1.0, 1.0, 0.0, 1.0, 0.0, 2.0, 0.9])
         np.testing.assert_array_equal(
             DynamicDiagnosticsUtils.get_nbr_state_limits(event_type_data, state_error),
@@ -117,7 +122,7 @@ class TestDynamicDiagnosticsUtils:
 
         diagnostics_vars = {
             f"{DIAGNOSTICS_PREFIX}cpu_time_per_step"               : np.array([0, 1, 0, 1, 1, 1, 0, 0, 1, 1]),
-            f"{DIAGNOSTICS_PREFIX}event_data.event_info.event_type": np.array([-1, -1, 0, -1, 1, 1, 0, 0, 1, -1]),
+            f"{DIAGNOSTICS_PREFIX}event_data.event_info.event_type": np.array([NO_EV, NO_EV, STATE_EV, NO_EV, TIME_EV, TIME_EV, STATE_EV, STATE_EV, TIME_EV, NO_EV]),
             f"{DIAGNOSTICS_PREFIX}state_errors.state_x"            : np.array([0.9, 1., 0., 2., 0., 2., 2., 2., 2., 1.]),
         }
 

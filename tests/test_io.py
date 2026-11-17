@@ -59,6 +59,7 @@ from pyfmi.common.io import (
 )
 from pyfmi.common.diagnostics import (
     DIAGNOSTICS_PREFIX,
+    EventType,
     setup_diagnostics_variables
 )
 
@@ -1405,7 +1406,7 @@ class TestResultFileBinary:
         opts["ncp"] = 250
         res = model.simulate(options=opts)
         length = len(res['h'])
-        np.testing.assert_array_equal(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'], np.ones(length) * (-1))
+        np.testing.assert_array_equal(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'], np.ones(length) * EventType.NO_EVENT)
 
         expected_solver_order = np.ones(length)
         expected_solver_order[0] = 0.0

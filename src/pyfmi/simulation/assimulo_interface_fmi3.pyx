@@ -39,6 +39,7 @@ from pyfmi.fmi3 import (
     FMI3_Type,
     FMI3_Variability
 )
+from pyfmi.common.diagnostics import EventType
 from pyfmi.exceptions import (
     FMUException,
     InvalidOptionException,
@@ -48,6 +49,9 @@ from pyfmi.exceptions import (
 
 from assimulo.problem cimport cExplicit_Problem
 from assimulo.exception import AssimuloRecoverableError, TerminateSimulation
+
+# Stored on every solver step, so held as a C double.
+cdef double NO_EVENT = EventType.NO_EVENT
 
 cdef class FMIODE3(cExplicit_Problem):
     """ An Assimulo Explicit Model extended to FMI3 interface. """
@@ -444,13 +448,13 @@ cdef class FMIODE3(cExplicit_Problem):
                     while index < self._number_of_diagnostics_variables - 1:
                         diag_data[index] = 0
                         index +=1
-                    diag_data[index] = 1.0
+                    diag_data[index] = EventType.TIME_EVENT
                     index +=1
                 else:
                     for ei in event_info[0]:
                         diag_data[index] = ei
                         index +=1
-                    diag_data[index] = 0.0
+                    diag_data[index] = EventType.STATE_EVENT
                     index +=1
             if index != self._number_of_diagnostics_variables:
                 raise FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self._number_of_diagnostics_variables, index))
@@ -533,7 +537,7 @@ cdef class FMIODE3(cExplicit_Problem):
                     diag_data[index] = 0
                     index +=1
             if support_event_indicators:
-                diag_data[index] = float(-1)
+                diag_data[index] = NO_EVENT
             self.export.diagnostics_point(diag_data)
 
 

@@ -23,7 +23,7 @@ import numpy as np
 
 from pyfmi import load_fmu, FMUModelME1
 from pyfmi.common.log import extract_xml_log, parse_xml_log, parse_fmu_xml_log
-from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX
+from pyfmi.common.diagnostics import DIAGNOSTICS_PREFIX, EventType
 from pyfmi.test_util import Dummy_FMUModelME2
 from pyfmi.util import decode
 
@@ -125,14 +125,14 @@ class Test_Log:
         t = res['time']
         np.testing.assert_equal(len(t), len(res[f'{DIAGNOSTICS_PREFIX}solver.solver_order']), "Unequal length for time and solver_order!")
         event_type = list(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'])
-        assert event_type.count(-1) == len(event_type), "Expected no events to have happened!"
+        assert event_type.count(EventType.NO_EVENT) == len(event_type), "Expected no events to have happened!"
         assert (f'{DIAGNOSTICS_PREFIX}state_errors.h' in res.keys()), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should be part of result variables!"
 
 
     def test_logging_option_Radau5ODE(self):
         res = self._test_logging_different_solver("Radau5ODE")
         event_type = list(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'])
-        assert event_type.count(-1) == len(event_type), "Expected no events to have happened!"
+        assert event_type.count(EventType.NO_EVENT) == len(event_type), "Expected no events to have happened!"
         assert (f'{DIAGNOSTICS_PREFIX}state_errors.h' in res.keys()), f"'{DIAGNOSTICS_PREFIX}state_errors.h' should be part of result variables!"
 
     def test_logging_option_ImplicitEuler(self):
@@ -146,7 +146,7 @@ class Test_Log:
     def test_logging_option_LSODAR(self):
         res = self._test_logging_different_solver("LSODAR")
         event_type = list(res[f'{DIAGNOSTICS_PREFIX}event_data.event_info.event_type'])
-        assert event_type.count(-1) == len(event_type), "Expected no events to have happened, but event_type contains: {}!".format(event_type)
+        assert event_type.count(EventType.NO_EVENT) == len(event_type), "Expected no events to have happened, but event_type contains: {}!".format(event_type)
 
     def test_calculated_diagnostic(self):
          res = self._test_logging_different_solver("CVode")
