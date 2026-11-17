@@ -8,7 +8,7 @@ RUN apt update && apt install python3.11 python3-pip python3.11-dev python3.11-v
 
 # Install system
 RUN python3.11 -m pip install Cython numpy scipy matplotlib setuptools==69.1.0
-RUN apt-get -y install cmake liblapack-dev libsuitesparse-dev libhypre-dev curl git make vim bash-completion
+RUN apt-get -y install cmake liblapack-dev libsuitesparse-dev libhypre-dev curl git make vim bash-completion sudo
 RUN cp -v /usr/lib/x86_64-linux-gnu/libblas.so /usr/lib/x86_64-linux-gnu/libblas_OPENMP.so
 
 # Install superlu
@@ -33,7 +33,7 @@ RUN git clone --depth 1 -b v2.7.0 https://github.com/LLNL/sundials /tmp/sundials
 RUN git clone --depth 1 -b Assimulo-3.8.0 https://github.com/modelon-community/Assimulo /tmp/Assimulo && \
     cd /tmp/Assimulo && \
     rm setup.cfg && \
-    python3.11 setup.py install --user --sundials-home=/usr --blas-home=/usr/lib/x86_64-linux-gnu/ --lapack-home=/usr/lib/x86_64-linux-gnu/ --superlu-home=/usr
+    python3.11 setup.py install --sundials-home=/usr --blas-home=/usr/lib/x86_64-linux-gnu/ --lapack-home=/usr/lib/x86_64-linux-gnu/ --superlu-home=/usr
 
 # Install fmilib
 RUN cd /tmp && \
@@ -44,7 +44,18 @@ RUN cd /tmp && \
     make -j4 && \
     make install
 
+# Non-root user matching the typical host user (UID/GID 1000).
+ARG USERNAME=dev
+ARG USER_UID=1000
+ARG USER_GID=${USER_UID}
+RUN groupadd --gid ${USER_GID} ${USERNAME} && \
+    useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash ${USERNAME} && \
+    echo "${USERNAME} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && \
+    chmod 0440 /etc/sudoers.d/${USERNAME} && \
+    chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}
+
 # Setup a venv to put pip and python on path for convinience running commands
 ARG PYTHON_VENV=/src/.venv
 ENV PATH=${PYTHON_VENV}/bin:$PATH
 WORKDIR /src
+USER ${USERNAME}
