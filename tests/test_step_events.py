@@ -23,6 +23,7 @@ import numpy as np
 from pyfmi.fmi2 import FMUModelME2
 from pyfmi.fmi3 import FMUModelME3
 from pyfmi.common.diagnostics import EventType
+from pyfmi.common.log import parse_xml_log
 
 REFERENCE_FMU_PATH = Path(__file__).parent / 'files' / 'reference_fmus'
 REFERENCE_FMU_PATHS = {FMUModelME2: REFERENCE_FMU_PATH / '2.0', FMUModelME3: REFERENCE_FMU_PATH / '3.0'}
@@ -118,3 +119,31 @@ class TestStepEvents:
 
         # Then
         assert res["@Diagnostics.nbr_time_events"][-1] == time_events
+
+    def test_step_events_marked_in_debug_file(self, tmp_path, monkeypatch):
+        """Test that the debug log marks each step event as a step event."""
+        # Given
+        monkeypatch.chdir(tmp_path)
+        model = load_model(FMUModelME2, "Dahlquist.fmu", StepEventModel)
+        opts = {"solver": "Radau5ODE", "logging": True, "result_handling": "csv"}
+
+        # When
+        model.simulate(options = opts)
+
+        # Then
+        debug_log = (tmp_path / "Dahlquist_debug.txt").read_text()
+        assert debug_log.count("Step  event info:  True") == STEP_EVENTS_SIGNALLED
+
+    def test_step_events_marked_in_xml_log(self, tmp_path, monkeypatch):
+        """Test that the XML log marks each step event as a step event."""
+        # Given
+        monkeypatch.chdir(tmp_path)
+        model = load_model(FMUModelME2, "Dahlquist.fmu", StepEventModel)
+        opts = {"solver": "Radau5ODE", "logging": True, "result_handling": "csv"}
+
+        # When
+        model.simulate(options = opts)
+
+        # Then
+        events = parse_xml_log(model.extract_xml_log()).find("EventInfo")
+        assert [event.step_event_info for event in events] == [True] * STEP_EVENTS_SIGNALLED

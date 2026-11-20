@@ -447,6 +447,7 @@ cdef class FMIODE2(cExplicit_Problem):
                 fwrite.write("\nDetected event at t = %.14E \n"%solver.t)
                 fwrite.write(" State event info: "+" ".join(str(i) for i in event_info[0])+ "\n")
                 fwrite.write(" Time  event info:  "+str(event_info[1])+ "\n")
+                fwrite.write(" Step  event info:  "+str(step_event)+ "\n")
 
                 preface = "[INFO][FMU status:OK] "
                 event_info_tag = 'EventInfo'
@@ -458,6 +459,9 @@ cdef class FMIODE2(cExplicit_Problem):
                 self._model.append_log_message("Model", 6, msg)
 
                 msg = preface + '  <boolean name="time_event_info">' + str(event_info[1]) + '</boolean>'
+                self._model.append_log_message("Model", 6, msg)
+
+                msg = preface + '  <boolean name="step_event_info">' + str(step_event) + '</boolean>'
                 self._model.append_log_message("Model", 6, msg)
 
                 msg = preface + '</%s>'%(event_info_tag)
