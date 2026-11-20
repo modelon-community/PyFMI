@@ -1,5 +1,6 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+    * Now requires Assimulo >= 3.9.0.
     * Fixed a bug where step events ran two event iterations instead of one.
 
 --- PyFMI-2.23.0 ---
