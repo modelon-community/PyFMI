@@ -374,11 +374,22 @@ class AssimuloFMIAlg(AlgorithmBase):
                                                                                  solver_options = self.solver_options)
             number_of_diagnostics_variables = len(_diagnostics_vars)
 
-        #See if there is an time event at start time
+        #Check for events at start time
         if isinstance(self.model, FMUModelME1):
             event_info = self.model.get_event_info()
             if event_info.upcomingTimeEvent and event_info.nextEventTime == model.time:
                 self.model.event_update()
+        elif isinstance(self.model, (FMUModelME2, CoupledFMUModelME2, FMUModelME3)):
+            if not self.options['initialize']:
+                self.model.enter_event_mode()
+                self.model.event_update()
+                self.model.enter_continuous_time_mode()
+            else:
+                event_info = self.model.get_event_info()
+                if event_info.nextEventTimeDefined and abs(event_info.nextEventTime - model.time) <= 1e-14:
+                    self.model.enter_event_mode()
+                    self.model.event_update()
+                    self.model.enter_continuous_time_mode()
 
         if abs(start_time - model.time) > 1e-14:
             logging_module.warning('The simulation start time (%f) and the current time in the model (%f) is different. Is the simulation start time correctly set?'%(start_time, model.time))
