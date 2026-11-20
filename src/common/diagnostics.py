@@ -29,6 +29,7 @@ class EventType(IntEnum):
     NO_EVENT = -1
     STATE_EVENT = 0
     TIME_EVENT = 1
+    STEP_EVENT = 2
 
     @classmethod
     def value_legend(cls):
@@ -43,6 +44,7 @@ class DiagnosticsBase: # TODO: Future, possible deprecate & remove this?
         'nbr_events': {'name': f'{DIAGNOSTICS_PREFIX}nbr_events', 'description': 'Cumulative number of events'},
         'nbr_time_events': {'name': f'{DIAGNOSTICS_PREFIX}nbr_time_events', 'description': 'Cumulative number of time events'},
         'nbr_state_events': {'name': f'{DIAGNOSTICS_PREFIX}nbr_state_events', 'description': 'Cumulative number of state events'},
+        'nbr_step_events': {'name': f'{DIAGNOSTICS_PREFIX}nbr_step_events', 'description': 'Cumulative number of step events'},
         'nbr_steps': {'name': f'{DIAGNOSTICS_PREFIX}nbr_steps', 'description': 'Cumulative number of steps'},
         'nbr_state_limits_step': {'name': f'{DIAGNOSTICS_PREFIX}nbr_state_limits_step', 'description': 'Cumulative number of times states limit the step'},
     }
@@ -92,6 +94,7 @@ class DynamicDiagnosticsUtils:
             f"{DIAGNOSTICS_PREFIX}nbr_events"      : (0, "Cumulative number of events"),
             f"{DIAGNOSTICS_PREFIX}nbr_time_events" : (0, "Cumulative number of time events"),
             f"{DIAGNOSTICS_PREFIX}nbr_state_events": (0, "Cumulative number of state events"),
+            f"{DIAGNOSTICS_PREFIX}nbr_step_events" : (0, "Cumulative number of step events"),
             f"{DIAGNOSTICS_PREFIX}nbr_steps"       : (0, "Cumulative number of steps"),
         }
         if f"{DIAGNOSTICS_PREFIX}cpu_time_per_step" in diagnostics_vars.keys():
@@ -116,6 +119,7 @@ class DynamicDiagnosticsUtils:
             "nbr_events":       calc_diags_names.index(f'{DIAGNOSTICS_PREFIX}nbr_events'),
             "nbr_time_events":  calc_diags_names.index(f'{DIAGNOSTICS_PREFIX}nbr_time_events'),
             "nbr_state_events": calc_diags_names.index(f'{DIAGNOSTICS_PREFIX}nbr_state_events'),
+            "nbr_step_events":  calc_diags_names.index(f'{DIAGNOSTICS_PREFIX}nbr_step_events'),
             "nbr_steps":        calc_diags_names.index(f'{DIAGNOSTICS_PREFIX}nbr_steps'),
             "nbr_state_limits": len(calc_diags_names) - self._number_states,
         }
@@ -185,6 +189,9 @@ class DynamicDiagnosticsUtils:
             elif etype == EventType.STATE_EVENT:
                 ret[self._idx_map_calc_diags["nbr_events"]] += 1
                 ret[self._idx_map_calc_diags["nbr_state_events"]] += 1
+            elif etype == EventType.STEP_EVENT:
+                ret[self._idx_map_calc_diags["nbr_events"]] += 1
+                ret[self._idx_map_calc_diags["nbr_step_events"]] += 1
             else:
                 ret[self._idx_map_calc_diags["nbr_steps"]] += 1
 
@@ -210,12 +217,14 @@ class DynamicDiagnosticsUtils:
             '{DIAGNOSTICS_PREFIX}nbr_events',
             '{DIAGNOSTICS_PREFIX}nbr_time_events',
             '{DIAGNOSTICS_PREFIX}nbr_state_events',
+            '{DIAGNOSTICS_PREFIX}nbr_step_events',
             '{DIAGNOSTICS_PREFIX}nbr_steps'
         """
         return {
             f"{DIAGNOSTICS_PREFIX}nbr_events":       np.cumsum(event_type_data != EventType.NO_EVENT),
             f"{DIAGNOSTICS_PREFIX}nbr_time_events":  np.cumsum(event_type_data == EventType.TIME_EVENT),
             f"{DIAGNOSTICS_PREFIX}nbr_state_events": np.cumsum(event_type_data == EventType.STATE_EVENT),
+            f"{DIAGNOSTICS_PREFIX}nbr_step_events":  np.cumsum(event_type_data == EventType.STEP_EVENT),
             f"{DIAGNOSTICS_PREFIX}nbr_steps":        np.concatenate(([0], np.cumsum(event_type_data[1:] == EventType.NO_EVENT))), # do not count the first point
         }
     

@@ -37,6 +37,7 @@ FMI2_UNBOUNDED_FMU_PATH = Path(this_dir) / 'files' / 'FMUs' / 'XML' / 'ME2.0' / 
 NO_EV = EventType.NO_EVENT
 STATE_EV = EventType.STATE_EVENT
 TIME_EV = EventType.TIME_EVENT
+STEP_EV = EventType.STEP_EVENT
 
 class ResultStoreCalcDiagnostics(ResultHandler):
     """Result handler for testing explicit storage of calculated diagnostics."""
@@ -121,18 +122,19 @@ class TestDynamicDiagnosticsUtils:
         per-point basis are consistent."""
 
         diagnostics_vars = {
-            f"{DIAGNOSTICS_PREFIX}cpu_time_per_step"               : np.array([0, 1, 0, 1, 1, 1, 0, 0, 1, 1]),
-            f"{DIAGNOSTICS_PREFIX}event_data.event_info.event_type": np.array([NO_EV, NO_EV, STATE_EV, NO_EV, TIME_EV, TIME_EV, STATE_EV, STATE_EV, TIME_EV, NO_EV]),
-            f"{DIAGNOSTICS_PREFIX}state_errors.state_x"            : np.array([0.9, 1., 0., 2., 0., 2., 2., 2., 2., 1.]),
+            f"{DIAGNOSTICS_PREFIX}cpu_time_per_step"               : np.array([0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0]),
+            f"{DIAGNOSTICS_PREFIX}event_data.event_info.event_type": np.array([NO_EV, NO_EV, STATE_EV, NO_EV, TIME_EV, TIME_EV, STATE_EV, STATE_EV, TIME_EV, NO_EV, STEP_EV, NO_EV]),
+            f"{DIAGNOSTICS_PREFIX}state_errors.state_x"            : np.array([0.9, 1., 0., 2., 0., 2., 2., 2., 2., 1., 2., 0.]),
         }
 
         expected = {
-            f"{DIAGNOSTICS_PREFIX}cpu_time":                      np.array([0, 1, 1, 2, 3, 4, 4, 4, 5, 6]),
-            f"{DIAGNOSTICS_PREFIX}nbr_events":                    np.array([0, 0, 1, 1, 2, 3, 4, 5, 6, 6]),
-            f"{DIAGNOSTICS_PREFIX}nbr_time_events":               np.array([0, 0, 0, 0, 1, 2, 2, 2, 3, 3]),
-            f"{DIAGNOSTICS_PREFIX}nbr_state_events":              np.array([0, 0, 1, 1, 1, 1, 2, 3, 3, 3]),
-            f"{DIAGNOSTICS_PREFIX}nbr_steps":                     np.array([0, 1, 1, 2, 2, 2, 2, 2, 2, 3]),
-            f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step.state_x": np.array([0, 1, 1, 2, 2, 2, 2, 2, 2, 3]),
+            f"{DIAGNOSTICS_PREFIX}cpu_time":                      np.array([0, 1, 1, 2, 3, 4, 4, 4, 5, 6, 7, 7]),
+            f"{DIAGNOSTICS_PREFIX}nbr_events":                    np.array([0, 0, 1, 1, 2, 3, 4, 5, 6, 6, 7, 7]),
+            f"{DIAGNOSTICS_PREFIX}nbr_time_events":               np.array([0, 0, 0, 0, 1, 2, 2, 2, 3, 3, 3, 3]),
+            f"{DIAGNOSTICS_PREFIX}nbr_state_events":              np.array([0, 0, 1, 1, 1, 1, 2, 3, 3, 3, 3, 3]),
+            f"{DIAGNOSTICS_PREFIX}nbr_step_events":               np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]),
+            f"{DIAGNOSTICS_PREFIX}nbr_steps":                     np.array([0, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 4]),
+            f"{DIAGNOSTICS_PREFIX}nbr_state_limits_step.state_x": np.array([0, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3]),
         }
 
         # verify via DynamicDiagnosticsUtils class functions on trajectories
