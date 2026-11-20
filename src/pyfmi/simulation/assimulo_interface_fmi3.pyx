@@ -550,8 +550,6 @@ cdef class FMIODE3(cExplicit_Problem):
         ret_flag = 0
         if enter_event_mode:
             self._logg_step_event += [solver.t]
-            # Event have been detect, call event iteration.
-            self.handle_event(solver,[0])
             ret_flag =  1 # Tell to reinitiate the solver.
 
         if self._synchronize_factor > 0:

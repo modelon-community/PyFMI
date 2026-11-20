@@ -1,5 +1,6 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+    * Fixed a bug where step events ran two event iterations instead of one.
 
 --- PyFMI-2.23.0 ---
     * Fixed an exception when using `dynamic_diagnostics` for FMUs with `unbounded = True` states.
