@@ -1762,6 +1762,7 @@ class ResultDymolaBinary(ResultDymola):
                     f"{DIAGNOSTICS_PREFIX}nbr_events",
                     f"{DIAGNOSTICS_PREFIX}nbr_time_events",
                     f"{DIAGNOSTICS_PREFIX}nbr_state_events",
+                    f"{DIAGNOSTICS_PREFIX}nbr_step_events",
                     f"{DIAGNOSTICS_PREFIX}nbr_steps",
                     ]
             ):

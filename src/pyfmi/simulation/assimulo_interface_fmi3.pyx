@@ -398,6 +398,8 @@ cdef class FMIODE3(cExplicit_Problem):
     def handle_event(self, solver, event_info):
         """ This method is called when Assimulo finds an event. """
         cdef FMIL3.fmi3_status_t status
+        # A state or time event in the same step takes precedence.
+        cdef bint step_event = event_info[2] and not event_info[1] and not any(event_info[0])
 
         if self._extra_f_nbr > 0:
             y_extra = solver.y[-self._extra_f_nbr:]
@@ -454,7 +456,7 @@ cdef class FMIODE3(cExplicit_Problem):
                     for ei in event_info[0]:
                         diag_data[index] = ei
                         index +=1
-                    diag_data[index] = EventType.STATE_EVENT
+                    diag_data[index] = EventType.STEP_EVENT if step_event else EventType.STATE_EVENT
                     index +=1
             if index != self._number_of_diagnostics_variables:
                 raise FMUException("Failed logging diagnostics, number of data points expected to be {} but was {}".format(self._number_of_diagnostics_variables, index))
