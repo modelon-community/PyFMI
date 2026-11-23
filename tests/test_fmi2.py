@@ -1127,3 +1127,40 @@ def test_no_state_fmu_eval_failure_caught(fmu_path):
     expected_err = "The right-hand side function had repeated recoverable errors"
     with pytest.raises(CVodeError, match = re.escape(expected_err)):
         fmu.simulate()
+
+def test_consecutive_simulation_with_initialize_false_time_events():
+    """Test initialize=False continuation with a time event at start time.
+
+    After set_fmu_state + advancing model.time to a time-event boundary,
+    the fix must process the pending event before resuming integration.
+    Regression test for FMI2/ME2 time-event processing on continuation.
+    """
+    fmu = load_fmu(REFERENCE_FMU_FMI2_PATH / "Stair.fmu")
+
+    # Simulate to a point before the first time event (t=1.0)
+    res = fmu.simulate(0, 0.8, options={"ncp": 0})
+    assert fmu.get('counter')[0] == 1
+    assert fmu.get_event_info().nextEventTime == 1.0
+
+    # Save, restore, then advance model time to the event boundary
+    state = fmu.get_fmu_state()
+    fmu.set_fmu_state(state)
+    fmu.time = 1.0
+    assert fmu.time == 1.0
+    assert fmu.get_event_info().nextEventTimeDefined
+    assert fmu.get_event_info().nextEventTime == 1.0
+
+    # Continue with initialize=False - the fix must process the pending
+    # time event at t=1.0 before the solver integrates from t=1.0 onward.
+    # Use ExplicitEuler because CVode's built-in time-event detection masks
+    # the bug: CVode catches past-due events during its initial step, while
+    # ExplicitEuler skips them, revealing the omission.
+    fmu.simulate(1.001, 2.001, options={
+        "ncp": 0, "initialize": False, "solver": "ExplicitEuler"
+    })
+    assert fmu.get('counter')[0] == 3, (
+        "Expected counter=3 (start=1 + event at 1.0 + event at 2.0), "
+        "got %d. Time events at continuation start were missed."
+        % fmu.get('counter')[0]
+    )
+    fmu.free_fmu_state(state)
