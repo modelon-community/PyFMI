@@ -2,6 +2,14 @@
 ==========
 Changelog
 ==========
+--- PyFMI-2.24.0 ---
+    * Now requires Assimulo >= 3.9.0.
+    * Fixed a bug where step events ran two event iterations instead of one.
+    * Fixed a crash when simulating models with step events using `logging = True` or `dynamic_diagnostics = True`.
+    * Added step events to `dynamic_diagnostics`: `event_type` value `2` and the variable `@Diagnostics.nbr_step_events`.
+      The event types are available as `pyfmi.common.diagnostics.EventType`.
+      A step event in the same step as a time or state event is recorded as that time or state event.
+
 --- PyFMI-2.23.0 ---
     * Fixed an exception when using `dynamic_diagnostics` for FMUs with `unbounded = True` states.
     * New function `get_fmu_kind` for all FMU classes, returning `pyfmi.fmi.FMUKind`, e.g.

@@ -1,5 +1,7 @@
 --- CHANGELOG ---
 --- PyFMI-FUTURE ---
+
+--- PyFMI-2.24.0 ---
     * Now requires Assimulo >= 3.9.0.
     * Fixed a bug where step events ran two event iterations instead of one.
     * Fixed a crash when simulating models with step events using `logging = True` or `dynamic_diagnostics = True`.
