@@ -149,6 +149,7 @@ cdef class FMUModelME2(FMUModelBase2):
     cpdef _set_time(self, FMIL2.fmi2_real_t t)
     cpdef get_derivatives(self)
     cdef public object force_finite_differences
+    cdef public object fd_kink_guard, _fd_guard_prev, _fd_guard_prev_max, _fd_guard_cur, _fd_guard_stats
     cdef int _get_derivatives(self, FMIL2.fmi2_real_t[:] values)
     cdef int _get_continuous_states_fmil(self, FMIL2.fmi2_real_t[:] ndx)
     cdef int _set_continuous_states_fmil(self, FMIL2.fmi2_real_t[:] ndx)
