@@ -312,7 +312,14 @@ class Test_FMUModelME2_Simulation:
         model.get_ode_sizes = lambda: (PYFMI_JACOBIAN_LIMIT+1, 0)
         run_case(True)
 
+        # solvers with their own dense finite-difference Jacobian get the coloured one too
         opts["solver"] = "Radau5ODE"
+        run_case(True)
+
+        opts["solver"] = "RodasODE"
+        run_case(True)
+
+        opts["solver"] = "LSODAR"
         run_case(False)
 
         opts["solver"] = "CVode"
@@ -322,6 +329,26 @@ class Test_FMUModelME2_Simulation:
         model.get_ode_sizes = lambda: (PYFMI_JACOBIAN_LIMIT-1, 0)
         opts["with_jacobian"] = True
         run_case(True, True)
+
+    def test_radau5_thet_default(self):
+        """Radau5ODE 'thet': 0.1 with the PyFMI Jacobian, Assimulo's default without, user value wins."""
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["solver"] = "Radau5ODE"
+        opts["result_handling"] = None
+        model.get_ode_sizes = lambda: (PYFMI_JACOBIAN_LIMIT + 1, 0)
+
+        def run_case(expected_thet, with_jacobian="Default", thet="Default"):
+            model.reset()
+            opts["with_jacobian"] = with_jacobian
+            opts["Radau5ODE_options"]["thet"] = thet
+            alg = NoSolveAlg(0.0, 1.0, (), model, opts)
+            assert alg.simulator.thet == pytest.approx(expected_thet), alg.simulator.thet
+
+        run_case(0.1)                          # with_jacobian by default for this size and solver
+        run_case(1e-3, with_jacobian=False)    # Assimulo's default
+        run_case(0.5, thet=0.5)
+        run_case(0.5, with_jacobian=False, thet=0.5)
 
     def test_sparse_option(self):
 
