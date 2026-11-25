@@ -197,7 +197,11 @@ class AssimuloFMIAlgOptions(OptionBase):
             Default: "Default" (rtol*0.01*(nominal values of the continuous states))
 
         maxh    --
-            The maximum step-size allowed to be used by the solver.
+            The maximum step-size allowed to be used by the solver. The
+            default caps the step at the communication-point spacing, which
+            forces at least 'ncp' steps; None or 0.0 removes the cap and
+            lets the solver's error control alone choose the step (also the
+            default when ncp = 0).
             Default: "Default" (max step-size computed based on (final_time-start_time)/ncp)
 
         discr   --
@@ -623,11 +627,13 @@ class AssimuloFMIAlg(AlgorithmBase):
         if "usejac" in solver_options and fnbr == 0:
             solver_options["usejac"] = False
 
-        if "maxh" in solver_options and solver_options["maxh"] == "Default":
+        if "maxh" in solver_options and isinstance(solver_options["maxh"], str) and solver_options["maxh"] == "Default":
             if self.options["ncp"] == 0:
                 solver_options["maxh"] = 0.0
             else:
                 solver_options["maxh"] = abs(float(self.final_time - self.start_time)) / float(self.options["ncp"])
+        elif "maxh" in solver_options and solver_options["maxh"] is None:
+            solver_options["maxh"] = 0.0     # no maximum step, for every Assimulo solver
 
         if "rtol" in solver_options:
             rtol_is_vector      = (isinstance(self.solver_options["rtol"], np.ndarray) or isinstance(self.solver_options["rtol"], list))

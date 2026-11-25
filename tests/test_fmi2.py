@@ -323,6 +323,27 @@ class Test_FMUModelME2_Simulation:
         opts["with_jacobian"] = True
         run_case(True, True)
 
+    def test_maxh_option(self):
+        """'maxh': "Default" caps at (tf-t0)/ncp, None and 0.0 remove the cap, a value is passed through."""
+        model = Dummy_FMUModelME2([], os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "NoState.Example1.fmu"), _connect_dll=False)
+        opts = model.simulate_options()
+        opts["result_handling"] = None
+
+        def run_case(expected, solver, maxh="Default", ncp=500):
+            model.reset()
+            opts["solver"] = solver
+            opts["ncp"] = ncp
+            opts[solver + "_options"]["maxh"] = maxh
+            alg = NoSolveAlg(0.0, 2.0, (), model, opts)
+            assert alg.simulator.maxh == pytest.approx(expected), alg.simulator.maxh
+
+        for solver in ("CVode", "Radau5ODE"):
+            run_case(2.0 / 500, solver)
+            run_case(0.0, solver, ncp=0)
+            run_case(0.0, solver, maxh=None)
+            run_case(0.0, solver, maxh=0.0)
+            run_case(0.25, solver, maxh=0.25)
+
     def test_sparse_option(self):
 
         def run_case(expected_jacobian, expected_sparse, fnbr=0, nnz={}, set_sparse=False):
