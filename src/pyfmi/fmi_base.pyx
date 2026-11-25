@@ -97,6 +97,11 @@ cdef class ModelBase:
         self._max_log_size_msg_sent = False
         self._log_handler = LogHandlerDefault(self._max_log_size)
 
+    def _get_log_file_name(self):
+        if self._fmu_log_name != NULL:
+            return pyfmi_util.decode(self._fmu_log_name)
+        return None
+
     def _set_log_stream(self, stream):
         """ Function that sets the class property 'log_stream' and does error handling. """
         if not hasattr(stream, 'write'):

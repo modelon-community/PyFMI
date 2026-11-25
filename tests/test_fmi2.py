@@ -105,6 +105,22 @@ class Test_FMUModelCS2:
         with pytest.raises(FMUException):
             model.simulate(options=opts)
 
+    def test_pickle(self):
+        import pickle
+
+        fmu = FMUModelCS2(
+            os.path.join(file_path, "files", "FMUs", "XML", "CS2.0", "CoupledClutches.fmu"),
+            _connect_dll=False
+        )
+        log_name = fmu.get_log_filename()
+        fmu.cache['test_key'] = 'test_value'
+
+        data = pickle.dumps(fmu)
+        fmu2 = pickle.loads(data)
+
+        assert fmu2.get_log_filename() == log_name
+        assert fmu2.cache['test_key'] == 'test_value'
+
 class Test_Downsample:
     """Tests for the 'result_downsampling_factor' option for CS FMUs."""
     def _verify_downsample_result(self, ref_traj, test_traj, ncp, factor):
@@ -1114,6 +1130,22 @@ class Test_FMUModelBase2:
     def test_get_variable_description(self):
         model = FMUModelME2(FMU_PATHS.ME2.coupled_clutches, _connect_dll=False)
         assert model.get_variable_description("J1.phi") == "Absolute rotation angle of component"
+
+    def test_pickle(self):
+        import pickle
+
+        fmu = FMUModelME2(
+            os.path.join(file_path, "files", "FMUs", "XML", "ME2.0", "CoupledClutches.fmu"),
+            _connect_dll=False
+        )
+        log_name = fmu.get_log_filename()
+        fmu.cache['test_key'] = 'test_value'
+
+        data = pickle.dumps(fmu)
+        fmu2 = pickle.loads(data)
+
+        assert fmu2.get_log_filename() == log_name
+        assert fmu2.cache['test_key'] == 'test_value'
 
 @uses_test_fmus
 @pytest.mark.parametrize("fmu_path", 
