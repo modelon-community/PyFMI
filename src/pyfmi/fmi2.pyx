@@ -105,6 +105,14 @@ FMI2_INITIAL_UNKNOWN    = 3
 DEF FORWARD_DIFFERENCE = 1
 DEF CENTRAL_DIFFERENCE = 2
 FORWARD_DIFFERENCE_EPS = (np.finfo(float).eps)**0.5
+# Kink guard (fd_kink_guard): an entry of the forward-difference Jacobian is suspect when it is
+# more than FD_GUARD_JUMP times its value in the previous Jacobian (and not negligible relative
+# to that Jacobian); a suspect colour group is re-differenced with a 10x smaller step, and entries
+# that differ by more than FD_GUARD_REL between the two steps are kinks (the difference quotient
+# scales with 1/h across a jump, it does not on a smooth function).
+FD_GUARD_JUMP = 1e3
+FD_GUARD_REL = 0.1
+FD_GUARD_STEP_RATIO = 0.1
 CENTRAL_DIFFERENCE_EPS = (np.finfo(float).eps)**(1/3.0)
 
 # Flags for evaluation of FMI Jacobians
@@ -4284,6 +4292,12 @@ cdef class FMUModelME2(FMUModelBase2):
         self._eventInfo.nextEventTime                     = 0.0
 
         self.force_finite_differences = 0
+        # Kink guard for the coloured finite-difference Jacobian (see _fd_kink_guard_group)
+        self.fd_kink_guard = True
+        self._fd_guard_prev = None
+        self._fd_guard_prev_max = 0.0
+        self._fd_guard_cur = None
+        self._fd_guard_stats = {"evaluations": 0, "checked_groups": 0, "kink_entries": 0, "dd_substitutions": 0}
 
         # State nominals retrieved before initialization
         self._preinit_nominal_continuous_states = None
@@ -4917,6 +4931,85 @@ cdef class FMUModelME2(FMUModelBase2):
         else:
             return self._estimate_directional_derivative(var_ref, func_ref, group, add_diag, output_matrix)
 
+    def _fd_kink_guard_group(self, colvals, local_group, fac, var_ref, func_ref, v_ref, z_ref, eps, df, v):
+        """
+        Kink guard for one colour group of the forward-difference Jacobian.
+
+        A forward difference taken across a kink or a discontinuity of the model
+        (a limiter, a region boundary of a property function) returns a
+        difference quotient of order jump/h -- 1e8 and more -- where the derivative
+        on this side of the kink is small. Newton-based integrators then converge
+        on a corrupted iteration matrix and reuse it for many steps; on a 318-state
+        plant two such entries in 200 Jacobian evaluations moved a third of the
+        states off the converged solution at rtol 1e-6.
+
+        Detection, cheap: an entry is suspect when it grew by more than
+        FD_GUARD_JUMP relative to the previous Jacobian (kinks are transient) and is
+        not negligible relative to that Jacobian; on the first evaluation every
+        group is suspect. A suspect group is re-differenced with a 10x smaller step:
+        entries whose quotient changes by more than FD_GUARD_REL between the two
+        steps are kinks (a smooth function gives the same quotient, a jump scales it
+        with 1/h). Kink entries are replaced by the FMU's directional derivative for
+        this group when it has one, else by the smaller in magnitude of the forward
+        and the backward difference (the side without the jump).
+
+        Returns the corrected column values, or None when nothing was changed. The
+        model's variables are restored to their values before the call. Statistics
+        in self._fd_guard_stats; switch off with self.fd_kink_guard = False.
+        """
+        rows = local_group[2]
+        cols = local_group[3]
+        vars_ = local_group[0]
+        n = len(rows)
+        pos = sum(len(c) for c in self._fd_guard_cur)
+        prev = self._fd_guard_prev
+        cur = colvals.copy()
+        try:
+            if prev is not None and prev.shape[0] >= pos + n:
+                p = prev[pos:pos + n]
+                floor = 1e-6 * self._fd_guard_prev_max
+                suspect = bool(np.any((np.abs(cur) > FD_GUARD_JUMP * np.abs(p)) & (np.abs(cur) > floor)))
+            else:
+                suspect = True                       # first evaluation, or the structure changed
+            if not suspect:
+                return None
+            self._fd_guard_stats["checked_groups"] += 1
+
+            base = np.asarray(v[vars_], dtype=np.double)      # unperturbed values (the caller has already perturbed the model)
+            step = fac * eps[vars_]
+            z_refs = z_ref[rows]
+            dfr = df[rows]
+            h_col = fac * eps[cols]                  # per entry: the step of its column variable
+
+            def quotient(sign, ratio):
+                self.set_real(v_ref[vars_], base + sign * ratio * step)
+                try:
+                    z = self.get_real(z_refs)
+                finally:
+                    self.set_real(v_ref[vars_], base)
+                return sign * (z - dfr) / (ratio * h_col)
+
+            small = quotient(1.0, FD_GUARD_STEP_RATIO)
+            tiny = 1e-12 * max(float(np.max(np.abs(cur))), 1e-300)
+            kink = np.abs(small - cur) > FD_GUARD_REL * np.maximum(np.abs(cur), np.abs(small)) + tiny
+            if not kink.any():
+                return None
+            self._fd_guard_stats["kink_entries"] += int(kink.sum())
+
+            if self._provides_directional_derivatives():
+                seed = np.zeros(len(var_ref), dtype=np.double)
+                seed[vars_] = 1.0
+                dd = self.get_directional_derivative(var_ref, func_ref, seed)[rows]
+                cur[kink] = dd[kink]
+                self._fd_guard_stats["dd_substitutions"] += int(kink.sum())
+            else:
+                back = quotient(-1.0, 1.0)
+                pick = np.abs(back) < np.abs(cur)
+                cur[kink & pick] = back[kink & pick]
+            return cur
+        finally:
+            self._fd_guard_cur.append(cur)
+
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.cdivision(True)
@@ -5003,6 +5096,9 @@ cdef class FMUModelME2(FMUModelBase2):
                 row.extend(range(dim))
                 col.extend(range(dim))
 
+            if method == FORWARD_DIFFERENCE and self.fd_kink_guard:
+                self._fd_guard_cur = []
+                self._fd_guard_stats["evaluations"] += 1
             for key in group["groups"]:
                 local_group = group[key]
                 sol_found = 0
@@ -5064,6 +5160,15 @@ cdef class FMUModelME2(FMUModelBase2):
                         sol_found = 1
 
                     if sol_found:
+                        if method == FORWARD_DIFFERENCE and self.fd_kink_guard:
+                            colvals = np.empty(local_indices_matrix_rows_nbr, dtype=np.double)
+                            for i in range(local_indices_matrix_rows_nbr):
+                                colvals[i] = column_data_pt[i]
+                            guarded = self._fd_kink_guard_group(colvals, local_group, fac, var_ref, func_ref, v_ref, z_ref, eps, df,
+                                                                self._worker_object.get_real_numpy_vector(1))
+                            if guarded is not None:
+                                for i in range(local_indices_matrix_rows_nbr):
+                                    column_data_pt[i] = guarded[i]
                         if output_matrix is not None:
                             for i in range(local_indices_matrix_rows_nbr):
                                 output_matrix_data_pt[local_data_indices[i]] = column_data_pt[i]
@@ -5080,6 +5185,13 @@ cdef class FMUModelME2(FMUModelBase2):
 
                 for i in range(local_indices_vars_nbr): tmp_val_pt[i] = v_pt[local_indices_vars_pt[i]]
                 self._set_real(local_v_vref_pt, tmp_val_pt, local_indices_vars_nbr)
+
+            if method == FORWARD_DIFFERENCE and self.fd_kink_guard:
+                # the accepted values become the reference for the next evaluation's jump test
+                prev = np.concatenate(self._fd_guard_cur) if self._fd_guard_cur else np.zeros(0)
+                self._fd_guard_prev = prev
+                self._fd_guard_prev_max = float(np.max(np.abs(prev))) if prev.size else 0.0
+                self._fd_guard_cur = None
 
             if output_matrix is not None:
                 A = output_matrix
